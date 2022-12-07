@@ -5,6 +5,8 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened]
+env:
+  PROJECT: OBSClient
 jobs:
   build:
     name: Build and analyze
