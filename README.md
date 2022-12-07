@@ -1,6 +1,7 @@
 # ObsClient
-A complete .NET WebSocket Client for OBS Studio version 28 and up.  
+A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
 
+##Sample usage
 ```
 ObsClient client = new();
 bool isConnected = await client.ConnectAsync();
