@@ -1,5 +1,6 @@
 # ObsClient
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
+Currently implementing: [**obs-websocket 5.1.0 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md#requests)
 
 ## Sample usage
 ```

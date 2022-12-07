@@ -168,7 +168,6 @@
             this.tbPassword.Name = "tbPassword";
             this.tbPassword.Size = new System.Drawing.Size(200, 39);
             this.tbPassword.TabIndex = 4;
-            this.tbPassword.Text = "banaan";
             this.tbPassword.UseSystemPasswordChar = true;
             // 
             // btnStartVirtualCam

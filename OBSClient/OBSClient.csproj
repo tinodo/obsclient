@@ -5,11 +5,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OBSStudioClient</RootNamespace>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>OBS Studio Client</Title>
+    <Authors>tinod</Authors>
+    <Description>A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.</Description>
+    <PackageProjectUrl>https://github.com/tinodo/obsclient</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/tinodo/obsclient.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>obs</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
     <Folder Include="Requests\" />
     <Folder Include="Responses\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
