@@ -4,7 +4,7 @@
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets data about the current plugin and RPC version.

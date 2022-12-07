@@ -115,7 +115,7 @@
 
                 if (EventData == null)
                 {
-                    throw new OBSClientException("Deserialization failure of EventResponseData.");
+                    throw new ObsClientException("Deserialization failure of EventResponseData.");
                 }
             }
         }

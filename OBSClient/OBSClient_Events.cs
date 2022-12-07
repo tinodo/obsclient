@@ -3,7 +3,7 @@
     using OBSStudioClient.Events;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         //
         //

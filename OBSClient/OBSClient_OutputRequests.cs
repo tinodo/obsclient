@@ -4,7 +4,7 @@
     using OBSStudioClient.Messages;
     using System.Collections.Generic;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets the status of the virtualcam output.

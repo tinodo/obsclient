@@ -10,7 +10,7 @@ namespace SampleWindowsAppliation
 
     public partial class Form1 : Form
     {
-        private OBSClient _client = new();
+        private ObsClient _client = new();
         private delegate void SafeListboxRemove(object itemToRemove, ListBox listBox);
         private delegate void SafeListboxRefresh(ListBox listBox);
 
@@ -104,7 +104,7 @@ namespace SampleWindowsAppliation
         }
 
         private Task SourceFilterRemoved(object? sender, SourceFilterRemovedEventArgs e)
-        {
+        {            
             return Task.CompletedTask;
         }
 
@@ -491,7 +491,7 @@ namespace SampleWindowsAppliation
                     var result1 = _client.GetInputDefaultSettings(ik);
                 }
             }
-            catch (OBSResponseException error)
+            catch (ObsResponseException error)
             {
                 MessageBox.Show($"{error.ErrorCode}: {error.Message}", "OBS Response Exception");
             }

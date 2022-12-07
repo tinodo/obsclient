@@ -1,8 +1,8 @@
 ﻿namespace OBSStudioClient
 {
     [Serializable]
-    public class OBSClientException : Exception
+    public class ObsClientException : Exception
     {
-        public OBSClientException(string message) : base(message) { }
+        public ObsClientException(string message) : base(message) { }
     }
 }

@@ -3,19 +3,19 @@
     using OBSStudioClient.Classes;
 
     [Serializable]
-    public class OBSResponseException : Exception
+    public class ObsResponseException : Exception
     {
         public Enums.RequestStatusCode ErrorCode { get; init; }
 
         public string ErrorMessage { get; init; }
 
-        public OBSResponseException(RequestStatus requestStatus)
+        public ObsResponseException(RequestStatus requestStatus)
         {
             this.ErrorCode = requestStatus.Code;
             this.ErrorMessage = requestStatus.Comment ?? string.Empty;
         }
 
-        public OBSResponseException(Enums.RequestStatusCode errorCode, string errorMessage)
+        public ObsResponseException(Enums.RequestStatusCode errorCode, string errorMessage)
         {
             this.ErrorCode = errorCode;
             this.ErrorMessage = errorMessage;

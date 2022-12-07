@@ -4,7 +4,7 @@
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets a list of all scene items in a scene.

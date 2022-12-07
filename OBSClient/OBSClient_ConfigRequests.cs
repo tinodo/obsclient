@@ -3,7 +3,7 @@
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets the value of a "slot" from the selected persistent data realm.

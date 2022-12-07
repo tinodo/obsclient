@@ -2,7 +2,7 @@
 {
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets the active and show state of a source.

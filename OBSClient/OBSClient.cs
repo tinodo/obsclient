@@ -17,7 +17,7 @@
     // https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md
     // CURRENT VERSION IMPLEMENTED: 5.1.0
 
-    public partial class OBSClient : INotifyPropertyChanged
+    public partial class ObsClient : INotifyPropertyChanged
     {
         private string _hostname = "localhost";
         private int _port = 4455;
@@ -89,9 +89,9 @@
         public delegate Task AsyncEventHandler(object? sender);
 
         /// <summary>
-        /// Creates a new instance of the <see cref="OBSClient"/> class.
+        /// Creates a new instance of the <see cref="ObsClient"/> class.
         /// </summary>
-        public OBSClient()
+        public ObsClient()
         {
         }
 
@@ -182,7 +182,7 @@
             }
             else
             {
-                throw new OBSClientException("Unexpected response.");
+                throw new ObsClientException("Unexpected response.");
             }
         }
 
@@ -277,7 +277,7 @@
                     }
                     else
                     {
-                        throw new OBSClientException("responseMessage.Data is not expected HelloResponseData");
+                        throw new ObsClientException("responseMessage.Data is not expected HelloResponseData");
                     }
 
                     break;
@@ -285,7 +285,7 @@
                     // We have succesfully authenticated - OR - we did a Reidentify.
                     if (responseMessage.Data is not IdentifiedMessage)
                     {
-                        throw new OBSClientException("responseMessage.Data is not expected IdentifyResponseData");
+                        throw new ObsClientException("responseMessage.Data is not expected IdentifyResponseData");
                     }
 
                     this.ConnectionState = ConnectionState.Connected;
@@ -300,7 +300,7 @@
                     }
                     else
                     {
-                        throw new OBSClientException("responseMessage.Data is not expected RequestResponseData");
+                        throw new ObsClientException("responseMessage.Data is not expected RequestResponseData");
                     }
 
                     break;
@@ -473,12 +473,12 @@
                                 this.InvokeAsyncEvent(this.ScreenshotSaved, eventResponseData.EventData);
                                 break;
                             default:
-                                throw new OBSClientException($"Unknown Event '{eventResponseData.EventType}'");
+                                throw new ObsClientException($"Unknown Event '{eventResponseData.EventType}'");
                         }
                     }
                     else
                     {
-                        throw new OBSClientException("responseMessage.Data is not expected EventResponseData");
+                        throw new ObsClientException("responseMessage.Data is not expected EventResponseData");
                     }
 
                     break;
@@ -492,7 +492,7 @@
                     }
                     else
                     {
-                        throw new OBSClientException("responseMessage.Data is not expected RequestBatchResponseData");
+                        throw new ObsClientException("responseMessage.Data is not expected RequestBatchResponseData");
                     }
 
                     break;
@@ -500,9 +500,9 @@
                 case OpCode.Reidentify:
                 case OpCode.Request:
                 case OpCode.RequestBatch:
-                    throw new OBSClientException($"OpCode '{responseMessage.Op}' is not expected to be received.");
+                    throw new ObsClientException($"OpCode '{responseMessage.Op}' is not expected to be received.");
                 default:
-                    throw new OBSClientException($"Unknown OpCode '{responseMessage.Op}'");
+                    throw new ObsClientException($"Unknown OpCode '{responseMessage.Op}'");
             }
         }
 
@@ -546,7 +546,7 @@
         {
             if (_client.State != WebSocketState.Open)
             {
-                throw new OBSClientException("Client is not connected.");
+                throw new ObsClientException("Client is not connected.");
             }
 
             var bytes = JsonSerializer.SerializeToUtf8Bytes(request);
@@ -598,7 +598,7 @@
                     OBSMessage? responseMessage = JsonSerializer.Deserialize<OBSMessage>(response);
                     if (responseMessage == null)
                     {
-                        throw new OBSClientException("Could not deserialize OBS Studio message.");
+                        throw new ObsClientException("Could not deserialize OBS Studio message.");
                     }
                     else
                     {
@@ -618,7 +618,7 @@
         {
             if (_connectionState != ConnectionState.Connected)
             {
-                throw new OBSClientException("Not connected.");
+                throw new ObsClientException("Not connected.");
             }
 
             string requestId = request.d.requestId;
@@ -633,7 +633,7 @@
                     var result = tcs.Task.Result;
                     return result;
                 }
-                catch (OBSResponseException)
+                catch (ObsResponseException)
                 {
                     throw;
                 }
@@ -648,7 +648,7 @@
             }
             else
             {
-                throw new OBSClientException("Unexpected");
+                throw new ObsClientException("Unexpected");
             }
 
             throw new TimeoutException("Timeout waiting for OBS Studio response.");
@@ -679,12 +679,12 @@
                 }
                 else
                 {
-                    throw new OBSResponseException(requestResponseData.RequestStatus);
+                    throw new ObsResponseException(requestResponseData.RequestStatus);
                 }
             }
             else
             {
-                throw new OBSClientException("Unexpected response.");
+                throw new ObsClientException("Unexpected response.");
             }
         }
     }

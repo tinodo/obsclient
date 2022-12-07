@@ -3,7 +3,7 @@
     using OBSStudioClient.Classes;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets an array of all of a source's filters.

@@ -22,11 +22,11 @@ namespace SampleWindowsAppliation
 
         static void MyHandler2(object sender, ThreadExceptionEventArgs args)
         {
-            if (args.Exception is OBSResponseException obsResponseException)
+            if (args.Exception is ObsResponseException obsResponseException)
             {
                 MessageBox.Show($"{obsResponseException.ErrorCode}: {obsResponseException.ErrorMessage}", "OBSResponseException");
             }
-            else if (args.Exception is OBSClientException obsClientException)
+            else if (args.Exception is ObsClientException obsClientException)
             {
                 MessageBox.Show(obsClientException.Message, "OBSClientException");
             }
@@ -39,11 +39,11 @@ namespace SampleWindowsAppliation
 
         static void MyHandler(object sender, UnhandledExceptionEventArgs args)
         {
-            if (args.ExceptionObject is OBSResponseException obsResponseException)
+            if (args.ExceptionObject is ObsResponseException obsResponseException)
             {
                 MessageBox.Show($"{obsResponseException.ErrorCode}: {obsResponseException.ErrorMessage}", "OBSResponseException");
             }
-            else if (args.ExceptionObject is OBSClientException obsClientException)
+            else if (args.ExceptionObject is ObsClientException obsClientException)
             {
                 MessageBox.Show(obsClientException.Message, "OBSClientException");
             }

@@ -4,7 +4,7 @@
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
 
-    public partial class OBSClient
+    public partial class ObsClient
     {
         /// <summary>
         /// Gets whether studio is enabled.

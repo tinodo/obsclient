@@ -63,7 +63,7 @@
                 OpCode.Event => D.Deserialize<EventMessage>(),
                 OpCode.RequestResponse => D.Deserialize<RequestResponseMessage>(),
                 OpCode.RequestBatchResponse => D.Deserialize<RequestBatchResponseMessage>(),
-                _ => throw new OBSClientException($"The OpCode {Op} is unexpected."),
+                _ => throw new ObsClientException($"The OpCode {Op} is unexpected."),
             };
         }
 
