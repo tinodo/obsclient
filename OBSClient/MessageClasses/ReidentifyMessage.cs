@@ -7,10 +7,10 @@
     public class ReidentifyMessage : IMessageData
     {
         [JsonPropertyName("eventSubscriptions")]
-        public EventSubscription EventSubscriptions { get; }
+        public EventSubscriptions EventSubscriptions { get; }
 
         [JsonConstructor]
-        public ReidentifyMessage(EventSubscription eventSubscriptions)
+        public ReidentifyMessage(EventSubscriptions eventSubscriptions)
         {
             EventSubscriptions = eventSubscriptions;
         }

@@ -15,7 +15,7 @@
         public EventType EventType { get; }
 
         [JsonPropertyName("eventIntent")]
-        public EventSubscription EventIntent { get; }
+        public EventSubscriptions EventIntent { get; }
 
         [JsonPropertyName("eventData")]
         public JsonElement? RawEventData { get; }
@@ -24,7 +24,7 @@
         public EventArgs? EventData { get; private set; }
 
         [JsonConstructor]
-        public EventMessage(EventType eventType, EventSubscription eventIntent, JsonElement? rawEventData)
+        public EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData)
         {
             EventType = eventType;
             EventIntent = eventIntent;
@@ -115,7 +115,7 @@
 
                 if (EventData == null)
                 {
-                    throw new Exception("Deserialization failure of EventResponseData.");
+                    throw new OBSClientException("Deserialization failure of EventResponseData.");
                 }
             }
         }

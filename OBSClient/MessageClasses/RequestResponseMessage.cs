@@ -209,7 +209,7 @@
 
                 if (this.ResponseData == null)
                 {
-                    throw new Exception("Deserialization failure of RequestResponseData.");
+                    throw new OBSClientException("Deserialization failure of RequestResponseData.");
                 }
             }
         }

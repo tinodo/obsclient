@@ -19,16 +19,13 @@
 
     public partial class OBSClient : INotifyPropertyChanged
     {
-        private const int SUPPORTED_RPC_VERSION = 1;
-
         private string _hostname = "localhost";
         private int _port = 4455;
         private string _password = string.Empty;
         private int _requestTimeout = 500;
-        private EventSubscription _eventSubscription = EventSubscription.All;
+        private EventSubscriptions _eventSubscription = EventSubscriptions.All;
 
         private CancellationTokenSource _cancellationTokenSource = new();
-        private Task _receiverTask = Task.CompletedTask;
         private ConnectionState _connectionState = ConnectionState.Disconnected;
         private ClientWebSocket _client = new();
 
@@ -88,7 +85,7 @@
         /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public delegate Task AsyncEventHandler<T>(object? sender, T e) where T : EventArgs;
+        public delegate Task AsyncEventHandler<in T>(object? sender, T e) where T : EventArgs;
         public delegate Task AsyncEventHandler(object? sender);
 
         /// <summary>
@@ -110,7 +107,7 @@
         /// When True is returned, this does not mean that authentication has succeeded. Authentication will be handled asynchronously.
         /// You can use the <see cref="PropertyChanged"/> event to see whether the <see cref="ConnectionState"/> is Connected, which indicates succesfull authenticaiton.
         /// </remarks>
-        public async Task<bool> ConnectAsync(string password = "", string hostname = "localhost", int port = 4455, EventSubscription eventSubscription = EventSubscription.All)
+        public async Task<bool> ConnectAsync(string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All)
         {
             if (_connectionState != ConnectionState.Disconnected)
             {
@@ -145,7 +142,7 @@
                 return false;
             }
 
-            _receiverTask = Task.Run(() => Receiver(_cancellationTokenSource.Token));
+            _ = Task.Run(() => Receiver(_cancellationTokenSource.Token));
             return true;
         }
 
@@ -189,7 +186,7 @@
             }
         }
 
-        public async Task Reidentify(EventSubscription eventSubscription)
+        public async Task Reidentify(EventSubscriptions eventSubscription)
         {
             _eventSubscription = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);

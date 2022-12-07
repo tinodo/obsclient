@@ -1,7 +1,7 @@
 ﻿namespace OBSStudioClient.Enums
 {
     [Flags]
-    public enum EventSubscription
+    public enum EventSubscriptions
     {
         None = 0,
         General = 1 << 0,

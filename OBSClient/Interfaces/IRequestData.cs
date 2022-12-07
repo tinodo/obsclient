@@ -1,6 +1,6 @@
 ﻿namespace OBSStudioClient.Interfaces
 {
-    public class IRequestData
+    public interface IRequestData
     {
     }
 }

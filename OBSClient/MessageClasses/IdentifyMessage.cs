@@ -13,10 +13,10 @@
         public string? Authentication { get; }
 
         [JsonPropertyName("eventSubscriptions")]
-        public EventSubscription EventSubscriptions { get; }
+        public EventSubscriptions EventSubscriptions { get; }
 
         [JsonConstructor]
-        public IdentifyMessage(int rpcVersion, string? authentication, EventSubscription eventSubscriptions)
+        public IdentifyMessage(int rpcVersion, string? authentication, EventSubscriptions eventSubscriptions)
         {
             RpcVersion = rpcVersion;
             Authentication = authentication;
