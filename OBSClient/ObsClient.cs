@@ -257,246 +257,267 @@
             return Convert.ToBase64String(hash);
         }
 
+        private async Task ProcessHelloMessageAsync(ObsMessage responseMessage)
+        {
+            if (responseMessage.Data is HelloMessage helloResponseData)
+            {
+                this.ConnectionState = ConnectionState.Authenticating;
+                string? authentication = null;
+                if (helloResponseData.Authentication != null)
+                {
+                    var base64secret = HashEncode(_password + helloResponseData.Authentication.Salt);
+                    authentication = HashEncode(base64secret + helloResponseData.Authentication.Challenge);
+                }
+
+                IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscriptions);
+                ObsMessage message = new(identify);
+                await SendAsync(message);
+            }
+            else
+            {
+                throw new ObsClientException("responseMessage.Data is not expected HelloResponseData");
+            }
+        }
+
+        private void ProcessIdentifiedMessage(ObsMessage responseMessage)
+        {
+            // We have succesfully authenticated - OR - we did a Reidentify.
+            if (responseMessage.Data is not IdentifiedMessage)
+            {
+                throw new ObsClientException("responseMessage.Data is not expected IdentifyResponseData");
+            }
+
+            if (_authenticationComplete.Task.Status != TaskStatus.RanToCompletion) _authenticationComplete.SetResult(true);
+            this.ConnectionState = ConnectionState.Connected;
+        }
+
+        private void ProcessRequestResponseMessage(ObsMessage responseMessage)
+        {
+            if (responseMessage.Data is RequestResponseMessage requestResponseData)
+            {
+                if (_requests.TryGetValue(requestResponseData.RequestId, out var tcs))
+                {
+                    tcs.SetResult(requestResponseData);
+                }
+            }
+            else
+            {
+                throw new ObsClientException("responseMessage.Data is not expected RequestResponseData");
+            }
+        }
+
+        private void ProcessEventMessage(ObsMessage responseMessage)
+        {
+            if (responseMessage.Data is EventMessage eventResponseData)
+            {
+                switch (eventResponseData.EventType)
+                {
+                    case EventType.ExitStarted:
+                        this.ConnectionState = ConnectionState.Disconnecting;
+                        this.InvokeAsyncEvent(this.ExitStarted);
+                        break;
+                    case EventType.VendorEvent:
+                        this.InvokeAsyncEvent(this.VendorEvent, eventResponseData.EventData);
+                        break;
+                    case EventType.CustomEvent:
+                        this.InvokeAsyncEvent(this.CustomEvent, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentSceneCollectionChanging:
+                        this.InvokeAsyncEvent(this.CurrentSceneCollectionChanging, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentSceneCollectionChanged:
+                        this.InvokeAsyncEvent(this.CurrentSceneCollectionChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneCollectionListChanged:
+                        this.InvokeAsyncEvent(this.SceneCollectionListChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentProfileChanging:
+                        this.InvokeAsyncEvent(this.CurrentProfileChanging, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentProfileChanged:
+                        this.InvokeAsyncEvent(this.CurrentProfileChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.ProfileListChanged:
+                        this.InvokeAsyncEvent(this.ProfileListChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneCreated:
+                        this.InvokeAsyncEvent(this.SceneCreated, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneRemoved:
+                        this.InvokeAsyncEvent(this.SceneRemoved, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneNameChanged:
+                        this.InvokeAsyncEvent(this.SceneNameChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentProgramSceneChanged:
+                        this.InvokeAsyncEvent(this.CurrentProgramSceneChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentPreviewSceneChanged:
+                        this.InvokeAsyncEvent(this.CurrentPreviewSceneChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneListChanged:
+                        this.InvokeAsyncEvent(this.SceneListChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputCreated:
+                        this.InvokeAsyncEvent(this.InputCreated, eventResponseData.EventData);
+                        break;
+                    case EventType.InputRemoved:
+                        this.InvokeAsyncEvent(this.InputRemoved, eventResponseData.EventData);
+                        break;
+                    case EventType.InputNameChanged:
+                        this.InvokeAsyncEvent(this.InputNameChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputActiveStateChanged:
+                        this.InvokeAsyncEvent(this.InputActiveStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputShowStateChanged:
+                        this.InvokeAsyncEvent(this.InputShowStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputMuteStateChanged:
+                        this.InvokeAsyncEvent(this.InputMuteStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputVolumeChanged:
+                        this.InvokeAsyncEvent(this.InputVolumeChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputAudioBalanceChanged:
+                        this.InvokeAsyncEvent(this.InputAudioBalanceChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputAudioSyncOffsetChanged:
+                        this.InvokeAsyncEvent(this.InputAudioSyncOffsetChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputAudioTracksChanged:
+                        this.InvokeAsyncEvent(this.InputAudioTracksChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputAudioMonitorTypeChanged:
+                        this.InvokeAsyncEvent(this.InputAudioMonitorTypeChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.InputVolumeMeters:
+                        this.InvokeAsyncEvent(this.InputVolumeMeters, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentSceneTransitionChanged:
+                        this.InvokeAsyncEvent(this.CurrentSceneTransitionChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.CurrentSceneTransitionDurationChanged:
+                        this.InvokeAsyncEvent(this.CurrentSceneTransitionDurationChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneTransitionStarted:
+                        this.InvokeAsyncEvent(this.SceneTransitionStarted, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneTransitionEnded:
+                        this.InvokeAsyncEvent(this.SceneTransitionEnded, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneTransitionVideoEnded:
+                        this.InvokeAsyncEvent(this.SceneTransitionVideoEnded, eventResponseData.EventData);
+                        break;
+                    case EventType.SourceFilterListReindexed:
+                        this.InvokeAsyncEvent(this.SourceFilterListReindexed, eventResponseData.EventData);
+                        break;
+                    case EventType.SourceFilterCreated:
+                        this.InvokeAsyncEvent(this.SourceFilterCreated, eventResponseData.EventData);
+                        break;
+                    case EventType.SourceFilterRemoved:
+                        this.InvokeAsyncEvent(this.SourceFilterRemoved, eventResponseData.EventData);
+                        break;
+                    case EventType.SourceFilterNameChanged:
+                        this.InvokeAsyncEvent(this.SourceFilterNameChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SourceFilterEnableStateChanged:
+                        this.InvokeAsyncEvent(this.SourceFilterEnableStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemCreated:
+                        this.InvokeAsyncEvent(this.SceneItemCreated, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemRemoved:
+                        this.InvokeAsyncEvent(this.SceneItemRemoved, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemListReindexed:
+                        this.InvokeAsyncEvent(this.SceneItemListReindexed, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemEnableStateChanged:
+                        this.InvokeAsyncEvent(this.SceneItemEnableStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemLockStateChanged:
+                        this.InvokeAsyncEvent(this.SceneItemLockStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemSelected:
+                        this.InvokeAsyncEvent(this.SceneItemSelected, eventResponseData.EventData);
+                        break;
+                    case EventType.SceneItemTransformChanged:
+                        this.InvokeAsyncEvent(this.SceneItemTransformChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.StreamStateChanged:
+                        this.InvokeAsyncEvent(this.StreamStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.RecordStateChanged:
+                        this.InvokeAsyncEvent(this.RecordStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.ReplayBufferStateChanged:
+                        this.InvokeAsyncEvent(this.ReplayBufferStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.VirtualcamStateChanged:
+                        this.InvokeAsyncEvent(this.VirtualcamStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.ReplayBufferSaved:
+                        this.InvokeAsyncEvent(this.ReplayBufferSaved, eventResponseData.EventData);
+                        break;
+                    case EventType.MediaInputPlaybackStarted:
+                        this.InvokeAsyncEvent(this.MediaInputPlaybackStarted, eventResponseData.EventData);
+                        break;
+                    case EventType.MediaInputPlaybackEnded:
+                        this.InvokeAsyncEvent(this.MediaInputPlaybackEnded, eventResponseData.EventData);
+                        break;
+                    case EventType.MediaInputActionTriggered:
+                        this.InvokeAsyncEvent(this.MediaInputActionTriggered, eventResponseData.EventData);
+                        break;
+                    case EventType.StudioModeStateChanged:
+                        this.InvokeAsyncEvent(this.StudioModeStateChanged, eventResponseData.EventData);
+                        break;
+                    case EventType.ScreenshotSaved:
+                        this.InvokeAsyncEvent(this.ScreenshotSaved, eventResponseData.EventData);
+                        break;
+                    default:
+                        throw new ObsClientException($"Unknown Event '{eventResponseData.EventType}'");
+                }
+            }
+            else
+            {
+                throw new ObsClientException("responseMessage.Data is not expected EventResponseData");
+            }
+        }
+
+        private void ProcessRequestBatchResponseMessage(ObsMessage responseMessage)
+        {
+            if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
+            {
+                if (_requests.TryGetValue(requestBatchResponseData.RequestId, out var tcs))
+                {
+                    tcs.SetResult(requestBatchResponseData);
+                }
+            }
+            else
+            {
+                throw new ObsClientException("responseMessage.Data is not expected RequestBatchResponseData");
+            }
+        }
+
         private async Task ResponseReceived(ObsMessage responseMessage)
         {
             switch (responseMessage.Op)
             {
                 case OpCode.Hello:
-                    if (responseMessage.Data is HelloMessage helloResponseData)
-                    {
-                        this.ConnectionState = ConnectionState.Authenticating;
-                        string? authentication = null;
-                        if (helloResponseData.Authentication != null)
-                        {
-                            var base64secret = HashEncode(_password + helloResponseData.Authentication.Salt);
-                            authentication = HashEncode(base64secret + helloResponseData.Authentication.Challenge);
-                        }
-
-                        IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscriptions);
-                        ObsMessage message = new(identify);
-                        await SendAsync(message);
-                    }
-                    else
-                    {
-                        throw new ObsClientException("responseMessage.Data is not expected HelloResponseData");
-                    }
-
+                    await this.ProcessHelloMessageAsync(responseMessage);
                     break;
                 case OpCode.Identified:
-                    // We have succesfully authenticated - OR - we did a Reidentify.
-                    if (responseMessage.Data is not IdentifiedMessage)
-                    {
-                        throw new ObsClientException("responseMessage.Data is not expected IdentifyResponseData");
-                    }
-
-                    if (_authenticationComplete.Task.Status != TaskStatus.RanToCompletion) _authenticationComplete.SetResult(true);
-                    this.ConnectionState = ConnectionState.Connected;
+                    this.ProcessIdentifiedMessage(responseMessage);
                     break;
                 case OpCode.RequestResponse:
-                    if (responseMessage.Data is RequestResponseMessage requestResponseData)
-                    {
-                        if (_requests.TryGetValue(requestResponseData.RequestId, out var tcs))
-                        {
-                            tcs.SetResult(requestResponseData);
-                        }
-                    }
-                    else
-                    {
-                        throw new ObsClientException("responseMessage.Data is not expected RequestResponseData");
-                    }
-
+                    this.ProcessRequestResponseMessage(responseMessage);
                     break;
                 case OpCode.Event:
-                    if (responseMessage.Data is EventMessage eventResponseData)
-                    {
-                        switch (eventResponseData.EventType)
-                        {
-                            case EventType.ExitStarted:
-                                this.ConnectionState = ConnectionState.Disconnecting;
-                                this.InvokeAsyncEvent(this.ExitStarted);
-                                break;
-                            case EventType.VendorEvent:
-                                this.InvokeAsyncEvent(this.VendorEvent, eventResponseData.EventData);
-                                break;
-                            case EventType.CustomEvent:
-                                this.InvokeAsyncEvent(this.CustomEvent, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentSceneCollectionChanging:
-                                this.InvokeAsyncEvent(this.CurrentSceneCollectionChanging, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentSceneCollectionChanged:
-                                this.InvokeAsyncEvent(this.CurrentSceneCollectionChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneCollectionListChanged:
-                                this.InvokeAsyncEvent(this.SceneCollectionListChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentProfileChanging:
-                                this.InvokeAsyncEvent(this.CurrentProfileChanging, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentProfileChanged:
-                                this.InvokeAsyncEvent(this.CurrentProfileChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.ProfileListChanged:
-                                this.InvokeAsyncEvent(this.ProfileListChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneCreated:
-                                this.InvokeAsyncEvent(this.SceneCreated, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneRemoved:
-                                this.InvokeAsyncEvent(this.SceneRemoved, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneNameChanged:
-                                this.InvokeAsyncEvent(this.SceneNameChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentProgramSceneChanged:
-                                this.InvokeAsyncEvent(this.CurrentProgramSceneChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentPreviewSceneChanged:
-                                this.InvokeAsyncEvent(this.CurrentPreviewSceneChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneListChanged:
-                                this.InvokeAsyncEvent(this.SceneListChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputCreated:
-                                this.InvokeAsyncEvent(this.InputCreated, eventResponseData.EventData);
-                                break;
-                            case EventType.InputRemoved:
-                                this.InvokeAsyncEvent(this.InputRemoved, eventResponseData.EventData);
-                                break;
-                            case EventType.InputNameChanged:
-                                this.InvokeAsyncEvent(this.InputNameChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputActiveStateChanged:
-                                this.InvokeAsyncEvent(this.InputActiveStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputShowStateChanged:
-                                this.InvokeAsyncEvent(this.InputShowStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputMuteStateChanged:
-                                this.InvokeAsyncEvent(this.InputMuteStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputVolumeChanged:
-                                this.InvokeAsyncEvent(this.InputVolumeChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputAudioBalanceChanged:
-                                this.InvokeAsyncEvent(this.InputAudioBalanceChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputAudioSyncOffsetChanged:
-                                this.InvokeAsyncEvent(this.InputAudioSyncOffsetChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputAudioTracksChanged:
-                                this.InvokeAsyncEvent(this.InputAudioTracksChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputAudioMonitorTypeChanged:
-                                this.InvokeAsyncEvent(this.InputAudioMonitorTypeChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.InputVolumeMeters:
-                                this.InvokeAsyncEvent(this.InputVolumeMeters, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentSceneTransitionChanged:
-                                this.InvokeAsyncEvent(this.CurrentSceneTransitionChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.CurrentSceneTransitionDurationChanged:
-                                this.InvokeAsyncEvent(this.CurrentSceneTransitionDurationChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneTransitionStarted:
-                                this.InvokeAsyncEvent(this.SceneTransitionStarted, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneTransitionEnded:
-                                this.InvokeAsyncEvent(this.SceneTransitionEnded, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneTransitionVideoEnded:
-                                this.InvokeAsyncEvent(this.SceneTransitionVideoEnded, eventResponseData.EventData);
-                                break;
-                            case EventType.SourceFilterListReindexed:
-                                this.InvokeAsyncEvent(this.SourceFilterListReindexed, eventResponseData.EventData);
-                                break;
-                            case EventType.SourceFilterCreated:
-                                this.InvokeAsyncEvent(this.SourceFilterCreated, eventResponseData.EventData);
-                                break;
-                            case EventType.SourceFilterRemoved:
-                                this.InvokeAsyncEvent(this.SourceFilterRemoved, eventResponseData.EventData);
-                                break;
-                            case EventType.SourceFilterNameChanged:
-                                this.InvokeAsyncEvent(this.SourceFilterNameChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SourceFilterEnableStateChanged:
-                                this.InvokeAsyncEvent(this.SourceFilterEnableStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemCreated:
-                                this.InvokeAsyncEvent(this.SceneItemCreated, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemRemoved:
-                                this.InvokeAsyncEvent(this.SceneItemRemoved, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemListReindexed:
-                                this.InvokeAsyncEvent(this.SceneItemListReindexed, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemEnableStateChanged:
-                                this.InvokeAsyncEvent(this.SceneItemEnableStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemLockStateChanged:
-                                this.InvokeAsyncEvent(this.SceneItemLockStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemSelected:
-                                this.InvokeAsyncEvent(this.SceneItemSelected, eventResponseData.EventData);
-                                break;
-                            case EventType.SceneItemTransformChanged:
-                                this.InvokeAsyncEvent(this.SceneItemTransformChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.StreamStateChanged:
-                                this.InvokeAsyncEvent(this.StreamStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.RecordStateChanged:
-                                this.InvokeAsyncEvent(this.RecordStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.ReplayBufferStateChanged:
-                                this.InvokeAsyncEvent(this.ReplayBufferStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.VirtualcamStateChanged:
-                                this.InvokeAsyncEvent(this.VirtualcamStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.ReplayBufferSaved:
-                                this.InvokeAsyncEvent(this.ReplayBufferSaved, eventResponseData.EventData);
-                                break;
-                            case EventType.MediaInputPlaybackStarted:
-                                this.InvokeAsyncEvent(this.MediaInputPlaybackStarted, eventResponseData.EventData);
-                                break;
-                            case EventType.MediaInputPlaybackEnded:
-                                this.InvokeAsyncEvent(this.MediaInputPlaybackEnded, eventResponseData.EventData);
-                                break;
-                            case EventType.MediaInputActionTriggered:
-                                this.InvokeAsyncEvent(this.MediaInputActionTriggered, eventResponseData.EventData);
-                                break;
-                            case EventType.StudioModeStateChanged:
-                                this.InvokeAsyncEvent(this.StudioModeStateChanged, eventResponseData.EventData);
-                                break;
-                            case EventType.ScreenshotSaved:
-                                this.InvokeAsyncEvent(this.ScreenshotSaved, eventResponseData.EventData);
-                                break;
-                            default:
-                                throw new ObsClientException($"Unknown Event '{eventResponseData.EventType}'");
-                        }
-                    }
-                    else
-                    {
-                        throw new ObsClientException("responseMessage.Data is not expected EventResponseData");
-                    }
-
+                    this.ProcessEventMessage(responseMessage);
                     break;
                 case OpCode.RequestBatchResponse:
-                    if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
-                    {
-                        if (_requests.TryGetValue(requestBatchResponseData.RequestId, out var tcs))
-                        {
-                            tcs.SetResult(requestBatchResponseData);
-                        }
-                    }
-                    else
-                    {
-                        throw new ObsClientException("responseMessage.Data is not expected RequestBatchResponseData");
-                    }
-
+                    this.ProcessRequestBatchResponseMessage(responseMessage);
                     break;
                 case OpCode.Identify:
                 case OpCode.Reidentify:

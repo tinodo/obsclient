@@ -174,11 +174,6 @@
         /// <exception cref="ArgumentException"></exception>
         private async Task SetInputVolume(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
-            if ((inputVolumeMul.HasValue && inputVolumeDb.HasValue) || (!inputVolumeMul.HasValue && !inputVolumeDb.HasValue))
-            {
-                throw new ArgumentException($"Specify either {nameof(inputVolumeMul)} or {nameof(inputVolumeDb)}");
-            }
-
             await this.SendRequestAsync(new { inputName, inputVolumeMul, inputVolumeDb });
         }
 
