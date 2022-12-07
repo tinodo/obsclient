@@ -19,13 +19,13 @@
             this.ErrorMessage = requestStatus.Comment;
         }
 
-        protected ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
+        public ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
         {
             this.ErrorCode = errorCode;
             this.ErrorMessage = errorMessage;
         }
 
-        private ObsResponseException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected ObsResponseException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
 
