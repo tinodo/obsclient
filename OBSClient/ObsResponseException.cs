@@ -11,6 +11,8 @@
 
         public string? ErrorMessage { get; init; }
 
+        public ObsResponseException() { }
+
         public ObsResponseException(RequestStatus requestStatus)
         {
             this.ErrorCode = requestStatus.Code;
