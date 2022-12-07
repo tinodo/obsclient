@@ -36,7 +36,7 @@
         //
 
         /// <summary>
-        /// he current scene collection has begun changing.
+        /// The current scene collection has begun changing.
         /// </summary>
         /// <remarks>
         /// Note: We recommend using this event to trigger a pause of all polling requests, as performing any requests during a scene collection change is considered undefined behavior and can cause crashes!
@@ -105,9 +105,6 @@
         /// <summary>
         /// The list of scenes has changed.
         /// </summary>
-        /// <remarks>
-        /// TODO: Make OBS fire this event when scenes are reordered.
-        /// </remarks>
         public event AsyncEventHandler<SceneListEventArgs>? SceneListChanged;
 
         //

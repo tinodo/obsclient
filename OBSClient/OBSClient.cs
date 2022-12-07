@@ -190,7 +190,7 @@
         {
             _eventSubscription = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
-            OBSMessage message = new(request);
+            ObsMessage message = new(request);
             await SendAsync(message);
         }
 
@@ -256,7 +256,7 @@
             return Convert.ToBase64String(hash);
         }
 
-        private void ResponseReceived(OBSMessage responseMessage)
+        private void ResponseReceived(ObsMessage responseMessage)
         {
             switch (responseMessage.Op)
             {
@@ -272,7 +272,7 @@
                         }
 
                         IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscription);
-                        OBSMessage message = new(identify);
+                        ObsMessage message = new(identify);
                         _ = SendAsync(message);
                     }
                     else
@@ -595,7 +595,7 @@
                 {
                     var response = responseBuilder.ToString();
                     Debug.WriteLine($"OBS WEBSOCKET RECEIVED: {response}");
-                    OBSMessage? responseMessage = JsonSerializer.Deserialize<OBSMessage>(response);
+                    ObsMessage? responseMessage = JsonSerializer.Deserialize<ObsMessage>(response);
                     if (responseMessage == null)
                     {
                         throw new ObsClientException("Could not deserialize OBS Studio message.");

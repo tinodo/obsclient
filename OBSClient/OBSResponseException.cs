@@ -1,26 +1,37 @@
 ﻿namespace OBSStudioClient
 {
     using OBSStudioClient.Classes;
+    using OBSStudioClient.Enums;
+    using System.Runtime.Serialization;
 
     [Serializable]
     public class ObsResponseException : Exception
     {
-        public Enums.RequestStatusCode ErrorCode { get; init; }
+        public RequestStatusCode ErrorCode { get; init; }
 
-        public string ErrorMessage { get; init; }
+        public string? ErrorMessage { get; init; }
 
         public ObsResponseException(RequestStatus requestStatus)
         {
             this.ErrorCode = requestStatus.Code;
-            this.ErrorMessage = requestStatus.Comment ?? string.Empty;
+            this.ErrorMessage = requestStatus.Comment;
         }
 
-        public ObsResponseException(Enums.RequestStatusCode errorCode, string errorMessage)
+        public ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
         {
             this.ErrorCode = errorCode;
             this.ErrorMessage = errorMessage;
         }
 
-        public override string Message => this.ErrorMessage;
+        private ObsResponseException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+        }
+
+        public override string Message => this.ErrorMessage ?? this.ErrorCode.ToString();
     }
 }

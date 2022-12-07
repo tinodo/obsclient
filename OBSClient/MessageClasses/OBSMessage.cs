@@ -6,7 +6,7 @@
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    internal class OBSMessage : IJsonOnDeserialized, IJsonOnSerializing
+    internal class ObsMessage : IJsonOnDeserialized, IJsonOnSerializing
     {
         [JsonPropertyName("d")]
         public JsonElement D { get; private set; }
@@ -18,37 +18,37 @@
         public IMessageData? Data { get; private set; }
 
         [JsonConstructor]
-        public OBSMessage(JsonElement d, OpCode op)
+        public ObsMessage(JsonElement d, OpCode op)
         {
             D = d;
             Op = op;
         }
 
-        internal OBSMessage(IMessageData data, OpCode op)
+        internal ObsMessage(IMessageData data, OpCode op)
         {
             Data = data;
             Op = op;
         }
 
-        public OBSMessage(IdentifyMessage identifyMessage)
+        public ObsMessage(IdentifyMessage identifyMessage)
         {
             Data = identifyMessage ?? throw new ArgumentNullException(nameof(identifyMessage));
             Op = OpCode.Identify;
         }
 
-        public OBSMessage(ReidentifyMessage reidentifyMessage)
+        public ObsMessage(ReidentifyMessage reidentifyMessage)
         {
             Data = reidentifyMessage ?? throw new ArgumentNullException(nameof(reidentifyMessage));
             Op = OpCode.Reidentify;
         }
 
-        public OBSMessage(RequestMessage requestMessage)
+        public ObsMessage(RequestMessage requestMessage)
         {
             Data = requestMessage ?? throw new ArgumentNullException(nameof(requestMessage));
             Op = OpCode.Request;
         }
 
-        public OBSMessage(RequestBatchMessage requestBatchMessage)
+        public ObsMessage(RequestBatchMessage requestBatchMessage)
         {
             Data = requestBatchMessage ?? throw new ArgumentNullException(nameof(requestBatchMessage));
             Op = OpCode.RequestBatch;
