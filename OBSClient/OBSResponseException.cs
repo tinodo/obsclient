@@ -2,6 +2,7 @@
 {
     using OBSStudioClient.Classes;
 
+    [Serializable]
     public class OBSResponseException : Exception
     {
         public Enums.RequestStatusCode ErrorCode { get; init; }

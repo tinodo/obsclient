@@ -518,6 +518,7 @@
                     }
                     catch
                     {
+                        // We don't care about consumers not being able to handle the event.
                     }
                 }, e ?? EventArgs.Empty, CancellationToken.None);
             }
@@ -535,6 +536,7 @@
                     }
                     catch
                     {
+                        // We don't care about consumers not being able to handle the event.
                     }
                 }, CancellationToken.None);
             }
@@ -584,6 +586,7 @@
                     }
                     catch (TaskCanceledException)
                     {
+                        // This is raised when the _cancellationTokenSource is Canceled. This is expected; this is how we close the listener.
                     }
                 } while (!messageRead && connectionOpen && !cancellationToken.IsCancellationRequested);
 
@@ -636,7 +639,7 @@
                 }
                 catch
                 {
-
+                    // Something went wrong. We'll throw a generic error later.
                 }
                 finally
                 {
