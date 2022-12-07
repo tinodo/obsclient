@@ -15,7 +15,7 @@
         public OpCode Op { get; }
 
         [JsonIgnore]
-        public IMessageData? Data { get; private set; }
+        public IMessage? Data { get; private set; }
 
         [JsonConstructor]
         public ObsMessage(JsonElement d, OpCode op)
@@ -24,7 +24,7 @@
             Op = op;
         }
 
-        internal ObsMessage(IMessageData data, OpCode op)
+        internal ObsMessage(IMessage data, OpCode op)
         {
             Data = data;
             Op = op;

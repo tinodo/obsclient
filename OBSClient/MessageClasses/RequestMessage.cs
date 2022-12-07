@@ -5,7 +5,7 @@
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public class RequestMessage : IMessageData, IJsonOnSerializing
+    public class RequestMessage : IMessage, IJsonOnSerializing
     {
         [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("requestType")]
@@ -18,7 +18,7 @@
         public JsonElement? RawRequestData { get; private set; }
 
         [JsonIgnore]
-        public IRequestData? RequestData { get; private set; }
+        public IRequest? RequestData { get; private set; }
 
         [JsonConstructor]
         public RequestMessage(RequestType requestType, string requestId, JsonElement requestData)

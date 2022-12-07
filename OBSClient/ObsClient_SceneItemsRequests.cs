@@ -13,7 +13,7 @@
         /// <returns>Array of <see cref="SceneItem"/> in the scene</returns>
         public async Task<SceneItem[]> GetSceneItemList(string sceneName)
         {
-            return (await this.SendRequestAsync<SceneItemsResponseData>(new { sceneName })).SceneItems;
+            return (await this.SendRequestAsync<SceneItemsResponse>(new { sceneName })).SceneItems;
         }
 
         /// <summary>
@@ -26,7 +26,7 @@
         /// </remarks>
         public async Task<SceneItem[]> GetGroupSceneItemList(string sceneName)
         {
-            return (await this.SendRequestAsync<SceneItemsResponseData>(new { sceneName })).SceneItems;
+            return (await this.SendRequestAsync<SceneItemsResponse>(new { sceneName })).SceneItems;
         }
 
         /// <summary>
@@ -38,7 +38,7 @@
         /// <returns>Numeric ID of the scene item</returns>
         public async Task<int> GetSceneItemId(string sceneName, string sourceName, int searchOffset = 0)
         {
-            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sourceName, searchOffset })).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponse>(new { sceneName, sourceName, searchOffset })).SceneItemId;
         }
 
         /// <summary>
@@ -50,7 +50,7 @@
         /// <returns>Numeric ID of the scene item</returns>
         public async Task<int> CreateSceneItem(string sceneName, string sourceName, bool sceneItemEnabled = true)
         {
-            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sourceName, sceneItemEnabled })).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponse>(new { sceneName, sourceName, sceneItemEnabled })).SceneItemId;
         }
 
         /// <summary>
@@ -72,7 +72,7 @@
         /// <returns>Numeric ID of the duplicated scene item</returns>
         public async Task<int> DuplicateSceneItem(string sceneName, int sceneItemId, string? destinationSceneName = null)
         {
-            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sceneItemId, destinationSceneName })).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponse>(new { sceneName, sceneItemId, destinationSceneName })).SceneItemId;
         }
 
         /// <summary>
@@ -83,7 +83,7 @@
         /// <returns>Object containing scene item transform info</returns>
         public async Task<SceneItemTransform> GetSceneItemTransform(string sceneName, int sceneItemId)
         {
-            return (await this.SendRequestAsync<SceneItemTransformResponseData>(new { sceneName, sceneItemId })).SceneItemTransform;
+            return (await this.SendRequestAsync<SceneItemTransformResponse>(new { sceneName, sceneItemId })).SceneItemTransform;
         }
 
         /// <summary>
@@ -105,7 +105,7 @@
         /// <returns>Whether the scene item is enabled. true for enabled, false for disabled</returns>
         public async Task<bool> GetSceneItemEnabled(string sceneName, int sceneItemId)
         {
-            return (await this.SendRequestAsync<SceneItemEnabledResponseData>(new { sceneName, sceneItemId })).SceneItemEnabled;
+            return (await this.SendRequestAsync<SceneItemEnabledResponse>(new { sceneName, sceneItemId })).SceneItemEnabled;
         }
 
         /// <summary>
@@ -127,7 +127,7 @@
         /// <returns>Whether the scene item is locked. true for locked, false for unlocked</returns>
         public async Task<bool> GetSceneItemLocked(string sceneName, int sceneItemId)
         {
-            return (await this.SendRequestAsync<SceneItemlockedResponseData>(new { sceneName, sceneItemId })).SceneItemLocked;
+            return (await this.SendRequestAsync<SceneItemlockedResponse>(new { sceneName, sceneItemId })).SceneItemLocked;
         }
 
         /// <summary>
@@ -153,7 +153,7 @@
         /// </remarks>
         public async Task<int> GetSceneItemIndex(string sceneName, int sceneItemId)
         {
-            return (await this.SendRequestAsync<SceneItemIndexResponseData>(new { sceneName, sceneItemId })).SceneItemIndex;
+            return (await this.SendRequestAsync<SceneItemIndexResponse>(new { sceneName, sceneItemId })).SceneItemIndex;
         }
 
         /// <summary>
@@ -175,7 +175,7 @@
         /// <returns>Current blend mode</returns>
         public async Task<BlendMode> GetSceneItemBlendMode(string sceneName, int sceneItemId)
         {
-            return (await this.SendRequestAsync<SceneItemBlendModeResponseData>(new { sceneName, sceneItemId })).SceneItemBlendMode;
+            return (await this.SendRequestAsync<SceneItemBlendModeResponse>(new { sceneName, sceneItemId })).SceneItemBlendMode;
         }
 
         /// <summary>

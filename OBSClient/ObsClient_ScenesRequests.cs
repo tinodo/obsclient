@@ -7,10 +7,10 @@
         /// <summary>
         /// Gets an array of all scenes in OBS.
         /// </summary>
-        /// <returns>A <see cref="SceneListResponseData"/></returns>
-        public async Task<SceneListResponseData> GetSceneList()
+        /// <returns>A <see cref="SceneListResponse"/></returns>
+        public async Task<SceneListResponse> GetSceneList()
         {
-            return await this.SendRequestAsync< SceneListResponseData>();
+            return await this.SendRequestAsync< SceneListResponse>();
         }
 
         /// <summary>
@@ -22,7 +22,7 @@
         /// </remarks>
         public async Task<string[]> GetGroupList()
         {
-            return (await this.SendRequestAsync<GroupsResponseData>()).Groups;
+            return (await this.SendRequestAsync<GroupsResponse>()).Groups;
         }
 
         /// <summary>
@@ -31,7 +31,7 @@
         /// <returns>Current program scene</returns>
         public async Task<string> GetCurrentProgramScene()
         {
-            return (await this.SendRequestAsync<CurrentProgramSceneNameResponseData>()).CurrentProgramSceneName;
+            return (await this.SendRequestAsync<CurrentProgramSceneNameResponse>()).CurrentProgramSceneName;
         }
 
         /// <summary>
@@ -49,7 +49,7 @@
         /// <returns>Current preview scene</returns>
         public async Task<string?> GetCurrentPreviewScene()
         {
-            return (await this.SendRequestAsync<CurrentPreviewSceneNameResponseData>()).CurrentPreviewSceneName;
+            return (await this.SendRequestAsync<CurrentPreviewSceneNameResponse>()).CurrentPreviewSceneName;
         }
 
         /// <summary>
@@ -93,10 +93,10 @@
         /// Gets the scene transition overridden for a scene.
         /// </summary>
         /// <param name="sceneName">Name of the scene</param>
-        /// <returns>A <see cref="SceneTransitionResponseData"/></returns>
-        public async Task<SceneTransitionResponseData> GetSceneSceneTransitionOverride(string sceneName)
+        /// <returns>A <see cref="SceneTransitionResponse"/></returns>
+        public async Task<SceneTransitionResponse> GetSceneSceneTransitionOverride(string sceneName)
         {
-            return await this.SendRequestAsync<SceneTransitionResponseData>(new { sceneName });
+            return await this.SendRequestAsync<SceneTransitionResponse>(new { sceneName });
         }
 
         /// <summary>

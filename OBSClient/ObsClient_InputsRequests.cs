@@ -13,7 +13,7 @@
         /// <returns>An array of <see cref="Input"/></returns>
         public async Task<Input[]> GetInputList(string? inputKind = null)
         {
-            return (await this.SendRequestAsync<InputsResponseData>(new { inputKind })).Inputs;
+            return (await this.SendRequestAsync<InputsResponse>(new { inputKind })).Inputs;
         }
 
         /// <summary>
@@ -23,16 +23,16 @@
         /// <returns>Array of input kinds</returns>
         public async Task<string[]> GetInputKindList(bool unversioned = false)
         {
-            return (await this.SendRequestAsync<InputKindsResponseData>(new { unversioned })).InputKinds;
+            return (await this.SendRequestAsync<InputKindsResponse>(new { unversioned })).InputKinds;
         }
 
         /// <summary>
         /// Gets the names of all special inputs.
         /// </summary>
-        /// <returns>A <see cref="SpecialInputsResponseData"/></returns>
-        public async Task<SpecialInputsResponseData> GetSpecialInputs()
+        /// <returns>A <see cref="SpecialInputsResponse"/></returns>
+        public async Task<SpecialInputsResponse> GetSpecialInputs()
         {
-            return await this.SendRequestAsync<SpecialInputsResponseData>();
+            return await this.SendRequestAsync<SpecialInputsResponse>();
         }
 
         /// <summary>
@@ -46,7 +46,7 @@
         /// <returns>ID of the newly created scene item</returns>
         public async Task<int> CreateInput(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
         {
-            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled })).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponse>(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled })).SceneItemId;
         }
 
         /// <summary>
@@ -78,20 +78,20 @@
         /// <returns>A <see cref="Dictionary<string, object>"/> of default settings for the input kind</returns>
         public async Task<Dictionary<string, object>> GetInputDefaultSettings(string inputKind)
         {
-            return (await this.SendRequestAsync<DefaultInputSettingsResponseData>(new{ inputKind })).DefaultInputSettings;
+            return (await this.SendRequestAsync<DefaultInputSettingsResponse>(new{ inputKind })).DefaultInputSettings;
         }
 
         /// <summary>
         /// Gets the settings of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to get the settings of</param>
-        /// <returns>A <see cref="InputSettingsResponseData"/></returns>
+        /// <returns>A <see cref="InputSettingsResponse"/></returns>
         /// <remarks>
         /// Note: Does not include defaults. To create the entire settings object, overlay inputSettings over the defaultInputSettings provided by GetInputDefaultSettings.
         /// </remarks>
-        public async Task<InputSettingsResponseData> GetInputSettings(string inputName)
+        public async Task<InputSettingsResponse> GetInputSettings(string inputName)
         {
-            return await this.SendRequestAsync<InputSettingsResponseData>(new { inputName });
+            return await this.SendRequestAsync<InputSettingsResponse>(new { inputName });
         }
 
         /// <summary>
@@ -112,7 +112,7 @@
         /// <returns>Whether the input is muted</returns>
         public async Task<bool> GetInputMute(string inputName)
         {
-            return (await this.SendRequestAsync<InputMutedResponseData>(new { inputName })).InputMuted;
+            return (await this.SendRequestAsync<InputMutedResponse>(new { inputName })).InputMuted;
         }
 
         /// <summary>
@@ -132,17 +132,17 @@
         /// <returns>Whether the input has been muted or unmuted</returns>
         public async Task<bool> ToggleInputMute(string inputName)
         {
-            return (await this.SendRequestAsync<InputMutedResponseData>(new { inputName })).InputMuted;
+            return (await this.SendRequestAsync<InputMutedResponse>(new { inputName })).InputMuted;
         }
 
         /// <summary>
         /// Gets the current volume setting of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to get the volume of</param>
-        /// <returns>A <see cref="InputVolumeResponseData"/></returns>
-        public async Task<InputVolumeResponseData> GetInputVolume(string inputName)
+        /// <returns>A <see cref="InputVolumeResponse"/></returns>
+        public async Task<InputVolumeResponse> GetInputVolume(string inputName)
         {
-            return await this.SendRequestAsync<InputVolumeResponseData>(new { inputName });
+            return await this.SendRequestAsync<InputVolumeResponse>(new { inputName });
         }
 
         /// <summary>
@@ -184,7 +184,7 @@
         /// <returns>Audio balance value from 0.0-1.0</returns>
         public async Task<float> GetInputAudioBalance(string inputName)
         {
-            return (await this.SendRequestAsync<InputAudioBalanceResponseData>(new { inputName })).InputAudioBalance;
+            return (await this.SendRequestAsync<InputAudioBalanceResponse>(new { inputName })).InputAudioBalance;
         }
 
         /// <summary>
@@ -207,7 +207,7 @@
         /// </remarks>
         public async Task<int> GetInputAudioSyncOffset(string inputName)
         {
-            return (await this.SendRequestAsync<InputAudioSyncOffsetResponseData>(new { inputName })).InputAudioSyncOffset;
+            return (await this.SendRequestAsync<InputAudioSyncOffsetResponse>(new { inputName })).InputAudioSyncOffset;
         }
 
         /// <summary>
@@ -227,7 +227,7 @@
         /// <returns>Audio monitor type</returns>
         public async Task<MonitorType> GetInputAudioMonitorType(string inputName)
         {
-            return (await this.SendRequestAsync<MonitorTypeResponseData>(new { inputName })).MonitorType;
+            return (await this.SendRequestAsync<MonitorTypeResponse>(new { inputName })).MonitorType;
         }
 
         /// <summary>
@@ -247,7 +247,7 @@
         /// <returns>Object of audio tracks and associated enable states</returns>
         public async Task<AudioTracks> GetInputAudioTracks(string inputName)
         {
-            return (await this.SendRequestAsync<InputAudioTracksResponseData>(new { inputName })).InputAudioTracks;
+            return (await this.SendRequestAsync<InputAudioTracksResponse>(new { inputName })).InputAudioTracks;
         }
 
         /// <summary>
@@ -271,7 +271,7 @@
         /// </remarks>
         public async Task<PropertyItem[]> GetInputPropertiesListPropertyItems(string inputName, string propertyName)
         {
-            return (await this.SendRequestAsync<PropertyItemsResponseData>(new { inputName, propertyName })).PropertyItems;
+            return (await this.SendRequestAsync<PropertyItemsResponse>(new { inputName, propertyName })).PropertyItems;
         }
 
         /// <summary>

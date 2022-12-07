@@ -9,10 +9,10 @@
         /// Gets the status of a media input.
         /// </summary>
         /// <param name="inputName">Name of the media input</param>
-        /// <returns>A <see cref="MediaInputStatusResponseData"/></returns>
-        public async Task<MediaInputStatusResponseData> GetMediaInputStatus(string inputName)
+        /// <returns>A <see cref="MediaInputStatusResponse"/></returns>
+        public async Task<MediaInputStatusResponse> GetMediaInputStatus(string inputName)
         {
-            return await this.SendRequestAsync<MediaInputStatusResponseData>(new { inputName });
+            return await this.SendRequestAsync<MediaInputStatusResponse>(new { inputName });
         }
 
         /// <summary>

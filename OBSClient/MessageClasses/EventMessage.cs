@@ -8,7 +8,7 @@
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public class EventMessage : IMessageData, IJsonOnDeserialized
+    public class EventMessage : IMessage, IJsonOnDeserialized
     {
         [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("eventType")]

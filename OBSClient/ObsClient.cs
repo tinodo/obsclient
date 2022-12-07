@@ -29,7 +29,7 @@
         private ConnectionState _connectionState = ConnectionState.Disconnected;
         private ClientWebSocket _client = new();
         private TaskCompletionSource<bool> _authenticationComplete = new();
-        private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessageData>> _requests = new();
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessage>> _requests = new();
 
         /// <summary>
         /// The maximum amount of time, in milliseconds, to wait for an OBS Studio response.
@@ -167,7 +167,7 @@
         /// <returns>The responses for the individual requests.</returns>
         public async Task<RequestResponseMessage[]> SendRequestBatch(RequestBatchExecutionType requestBatchExecutionType, RequestMessage[] requests, bool haltOnFailure = false)
         {
-            TaskCompletionSource<IMessageData> tcs = new();
+            TaskCompletionSource<IMessage> tcs = new();
             CancellationTokenSource cts = new(_requestTimeout);
             cts.Token.Register(() => tcs.TrySetCanceled(), false);
 
@@ -640,7 +640,7 @@
             }
         }
 
-        private async Task<IMessageData?> SendAndWaitAsync(dynamic request)
+        private async Task<IMessage?> SendAndWaitAsync(dynamic request)
         {
             if (_connectionState != ConnectionState.Connected)
             {
@@ -648,7 +648,7 @@
             }
 
             string requestId = request.d.requestId;
-            TaskCompletionSource<IMessageData> tcs = new();
+            TaskCompletionSource<IMessage> tcs = new();
             CancellationTokenSource cts = new(_requestTimeout);
             cts.Token.Register(() => tcs.TrySetCanceled(), false);
             if (this._requests.TryAdd(requestId, tcs))
@@ -690,7 +690,7 @@
             await SendRequestAndWaitAsync(requestType, requestData);
         }
 
-        private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponseData
+        private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponse
         {
             if (requestType.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase))
             {

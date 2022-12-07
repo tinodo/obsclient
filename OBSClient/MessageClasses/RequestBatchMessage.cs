@@ -4,7 +4,7 @@
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 
-    public class RequestBatchMessage : IMessageData
+    public class RequestBatchMessage : IMessage
     {
         [JsonPropertyName("requestId")]
         public string RequestId { get; }

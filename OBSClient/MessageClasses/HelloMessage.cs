@@ -4,7 +4,7 @@
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 
-    public class HelloMessage : IMessageData
+    public class HelloMessage : IMessage
     {
         [JsonPropertyName("obsWebSocketVersion")]
         public string ObsWebSocketVersion { get; }

@@ -13,7 +13,7 @@
         /// <returns>Value associated with the slot. null if not set</returns>
         public async Task<object?> GetPersistentData(Realm realm, string slotName)
         {
-            return (await this.SendRequestAsync<SlotValueResponseData>(new { realm, slotName })).SlotValue;
+            return (await this.SendRequestAsync<SlotValueResponse>(new { realm, slotName })).SlotValue;
         }
 
         /// <summary>
@@ -30,10 +30,10 @@
         /// <summary>
         /// Gets an array of all scene collections
         /// </summary>
-        /// <returns>A <see cref="SceneCollectionListResponseData"/></returns>
-        public async Task<SceneCollectionListResponseData> GetSceneCollectionList()
+        /// <returns>A <see cref="SceneCollectionListResponse"/></returns>
+        public async Task<SceneCollectionListResponse> GetSceneCollectionList()
         {
-            return await this.SendRequestAsync<SceneCollectionListResponseData>();
+            return await this.SendRequestAsync<SceneCollectionListResponse>();
         }
 
         /// <summary>
@@ -63,10 +63,10 @@
         /// <summary>
         /// Gets an array of all profiles
         /// </summary>
-        /// <returns>A <see cref="ProfileListResponseData"/></returns>
-        public async Task<ProfileListResponseData> GetProfileList()
+        /// <returns>A <see cref="ProfileListResponse"/></returns>
+        public async Task<ProfileListResponse> GetProfileList()
         {
-            return await this.SendRequestAsync<ProfileListResponseData>();
+            return await this.SendRequestAsync<ProfileListResponse>();
         }
 
         /// <summary>
@@ -101,10 +101,10 @@
         /// </summary>
         /// <param name="parameterCategory">Category of the parameter to get</param>
         /// <param name="parameterName">Name of the parameter to get</param>
-        /// <returns>A <see cref="ProfileParameterResponseData"/></returns>
-        public async Task<ProfileParameterResponseData> GetProfileParameter(string parameterCategory, string parameterName)
+        /// <returns>A <see cref="ProfileParameterResponse"/></returns>
+        public async Task<ProfileParameterResponse> GetProfileParameter(string parameterCategory, string parameterName)
         {
-            return await this.SendRequestAsync<ProfileParameterResponseData>(new { parameterCategory, parameterName });
+            return await this.SendRequestAsync<ProfileParameterResponse>(new { parameterCategory, parameterName });
         }
 
         /// <summary>
@@ -121,10 +121,10 @@
         /// <summary>
         /// Gets the current video settings.
         /// </summary>
-        /// <returns>A <see cref="VideoSettingsResponseData"/></returns>
-        public async Task<VideoSettingsResponseData> GetVideoSettings()
+        /// <returns>A <see cref="VideoSettingsResponse"/></returns>
+        public async Task<VideoSettingsResponse> GetVideoSettings()
         {
-            return await this.SendRequestAsync<VideoSettingsResponseData>();
+            return await this.SendRequestAsync<VideoSettingsResponse>();
         }
 
         /// <summary>
@@ -144,10 +144,10 @@
         /// <summary>
         /// Gets the current stream service settings (stream destination).
         /// </summary>
-        /// <returns>A <see cref="StreamServiceSettingsResponseData"/></returns>
-        public async Task<StreamServiceSettingsResponseData> GetStreamServiceSettings()
+        /// <returns>A <see cref="StreamServiceSettingsResponse"/></returns>
+        public async Task<StreamServiceSettingsResponse> GetStreamServiceSettings()
         {
-            return await this.SendRequestAsync<StreamServiceSettingsResponseData>();
+            return await this.SendRequestAsync<StreamServiceSettingsResponse>();
         }
 
         /// <summary>
@@ -169,7 +169,7 @@
         /// <returns>Output directory</returns>
         public async Task<string> GetRecordDirectory()
         {
-            return (await this.SendRequestAsync<RecordDirectoryResponseData>()).RecordDirectory;
+            return (await this.SendRequestAsync<RecordDirectoryResponse>()).RecordDirectory;
         }
     }
 }

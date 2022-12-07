@@ -8,13 +8,13 @@
         /// Gets the active and show state of a source.
         /// </summary>
         /// <param name="sourceName">Name of the source to get the active state of</param>
-        /// <returns>A <see cref="SourceActiveResponseData"/></returns>
+        /// <returns>A <see cref="SourceActiveResponse"/></returns>
         /// <remarks>
         /// Compatible with inputs and scenes.
         /// </remarks>
-        public async Task<SourceActiveResponseData> GetSourceActive(string sourceName)
+        public async Task<SourceActiveResponse> GetSourceActive(string sourceName)
         {
-            return await this.SendRequestAsync<SourceActiveResponseData>(new { sourceName });
+            return await this.SendRequestAsync<SourceActiveResponse>(new { sourceName });
         }
 
         /// <summary>
@@ -32,7 +32,7 @@
         /// </remarks>
         public async Task<string> GetSourceScreenshot(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return (await this.SendRequestAsync<ImageDataResponseData>(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
+            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
 
         /// <summary>
@@ -51,7 +51,7 @@
         /// </remarks>
         public async Task<string> SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return (await this.SendRequestAsync<ImageDataResponseData>(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
+            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
     }
 }

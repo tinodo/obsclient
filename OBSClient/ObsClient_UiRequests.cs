@@ -12,7 +12,7 @@
         /// <returns>Whether studio mode is enabled</returns>
         public async Task<bool> GetStudioModeEnabled()
         {
-            return (await this.SendRequestAsync<StudioModeEnabledData>()).StudioModeEnabled;
+            return (await this.SendRequestAsync<StudioModeEnabledResponse>()).StudioModeEnabled;
         }
 
         /// <summary>
@@ -57,7 +57,7 @@
         /// <returns>a list of detected monitors with some information</returns>
         public async Task<Monitor[]> GetMonitorList()
         {
-            return (await this.SendRequestAsync<MonitorListResponseData>()).Monitors;
+            return (await this.SendRequestAsync<MonitorListResponse>()).Monitors;
         }
 
         /// <summary>

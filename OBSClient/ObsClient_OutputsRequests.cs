@@ -7,10 +7,10 @@
         /// <summary>
         /// Gets the status of the stream output.
         /// </summary>
-        /// <returns>A <see cref="OutputStatusResponseData"/></returns>
-        public async Task<OutputStatusResponseData> GetStreamStatus()
+        /// <returns>A <see cref="OutputStatusResponse"/></returns>
+        public async Task<OutputStatusResponse> GetStreamStatus()
         {
-            return await this.SendRequestAsync<OutputStatusResponseData>();
+            return await this.SendRequestAsync<OutputStatusResponse>();
         }
 
         /// <summary>
@@ -19,7 +19,7 @@
         /// <returns>New state of the stream output</returns>
         public async Task<bool> ToggleStream()
         {
-            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponse>()).OutputActive;
         }
 
         /// <summary>

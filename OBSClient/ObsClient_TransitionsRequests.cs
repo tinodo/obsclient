@@ -10,25 +10,25 @@
         /// <returns>Array of transition kinds</returns>
         public async Task<string[]> GetTransitionKindList()
         {
-            return (await this.SendRequestAsync<TransitionKindsResponseData>()).TransitionKinds;
+            return (await this.SendRequestAsync<TransitionKindsResponse>()).TransitionKinds;
         }
 
         /// <summary>
         /// Gets an array of all scene transitions in OBS.
         /// </summary>
-        /// <returns>A <see cref="SceneTransitionListResponseData"/></returns>
-        public async Task<SceneTransitionListResponseData> GetSceneTransitionList()
+        /// <returns>A <see cref="SceneTransitionListResponse"/></returns>
+        public async Task<SceneTransitionListResponse> GetSceneTransitionList()
         {
-            return await this.SendRequestAsync<SceneTransitionListResponseData>();
+            return await this.SendRequestAsync<SceneTransitionListResponse>();
         }
 
         /// <summary>
         /// Gets information about the current scene transition.
         /// </summary>
-        /// <returns>A <see cref="ExtendedTransitionResponseData"/></returns>
-        public async Task<ExtendedTransitionResponseData> GetCurrentSceneTransition()
+        /// <returns>A <see cref="ExtendedTransitionResponse"/></returns>
+        public async Task<ExtendedTransitionResponse> GetCurrentSceneTransition()
         {
-            return await this.SendRequestAsync<ExtendedTransitionResponseData>();
+            return await this.SendRequestAsync<ExtendedTransitionResponse>();
         }
 
         /// <summary>
@@ -57,7 +57,7 @@
         /// </summary>
         /// <param name="transitionSettings">Settings object to apply to the transition. Can be {}</param>
         /// <param name="overlay">Whether to overlay over the current settings or replace them</param>
-        public async Task SetCurrentSceneTransitionSettings(ExtendedTransitionResponseData? transitionSettings, bool overlay = true)
+        public async Task SetCurrentSceneTransitionSettings(ExtendedTransitionResponse? transitionSettings, bool overlay = true)
         {
             await this.SendRequestAsync(new { transitionSettings, overlay });
         }
@@ -71,7 +71,7 @@
         /// </remarks>
         public async Task<float> GetCurrentSceneTransitionCursor()
         {
-            return (await this.SendRequestAsync<TransitionCursorResponseData>()).TransitionCursor;
+            return (await this.SendRequestAsync<TransitionCursorResponse>()).TransitionCursor;
         }
 
         /// <summary>

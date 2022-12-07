@@ -7,10 +7,10 @@
         /// <summary>
         /// Gets the status of the record output.
         /// </summary>
-        /// <returns>A <see cref="RecordStatusResponseData"/></returns>
-        public async Task<RecordStatusResponseData> GetRecordStatus()
+        /// <returns>A <see cref="RecordStatusResponse"/></returns>
+        public async Task<RecordStatusResponse> GetRecordStatus()
         {
-            return await this.SendRequestAsync<RecordStatusResponseData>();
+            return await this.SendRequestAsync<RecordStatusResponse>();
         }
 
         /// <summary>
@@ -35,7 +35,7 @@
         /// <returns>File name for the saved recording</returns>
         public async Task<string> StopRecord()
         {
-            return (await this.SendRequestAsync<OutputPathResponseData>()).OutputPath;
+            return (await this.SendRequestAsync<OutputPathResponse>()).OutputPath;
         }
 
         /// <summary>

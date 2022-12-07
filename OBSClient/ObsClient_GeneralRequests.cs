@@ -9,19 +9,19 @@
         /// <summary>
         /// Gets data about the current plugin and RPC version.
         /// </summary>
-        /// <returns>A <see cref="VersionResponseData"/> object with OBS Studio Version information.</returns>
-        public async Task<VersionResponseData> GetVersion()
+        /// <returns>A <see cref="VersionResponse"/> object with OBS Studio Version information.</returns>
+        public async Task<VersionResponse> GetVersion()
         {
-            return await this.SendRequestAsync<VersionResponseData>();
+            return await this.SendRequestAsync<VersionResponse>();
         }
 
         /// <summary>
         /// Gets statistics about OBS, obs-websocket, and the current session.
         /// </summary>
-        /// <returns>A <see cref="StatsResponseData"/> object with OBS Studio Statistics.</returns>
-        public async Task<StatsResponseData> GetStats() 
+        /// <returns>A <see cref="StatsResponse"/> object with OBS Studio Statistics.</returns>
+        public async Task<StatsResponse> GetStats() 
         {
-            return await this.SendRequestAsync<StatsResponseData>();
+            return await this.SendRequestAsync<StatsResponse>();
         }
 
         /// <summary>
@@ -39,9 +39,9 @@
         /// <param name="vendorName">Name of the vendor to use</param>
         /// <param name="requestType">The request type to call</param>
         /// <param name="requestData">Object containing appropriate request data</param>
-        public async Task<CallVendorRequestResponseData> CallVendorRequest(string vendorName, string requestType, object? requestData)
+        public async Task<CallVendorRequestResponse> CallVendorRequest(string vendorName, string requestType, object? requestData)
         {
-            return await this.SendRequestAsync<CallVendorRequestResponseData>(new {vendorName, requestType, requestData});
+            return await this.SendRequestAsync<CallVendorRequestResponse>(new {vendorName, requestType, requestData});
         }
 
         /// <summary>
@@ -50,7 +50,7 @@
         /// <returns>Array of hotkey names</returns>
         public async Task<string[]> GetHotkeyList()
         {
-            return (await this.SendRequestAsync<HotkeysResponseData>()).Hotkeys;
+            return (await this.SendRequestAsync<HotkeysResponse>()).Hotkeys;
         }
 
         /// <summary>

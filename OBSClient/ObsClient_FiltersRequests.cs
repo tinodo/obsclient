@@ -12,7 +12,7 @@
         /// <returns>Array of <see cref="Filter"/></returns>
         public async Task<Filter[]> GetSourceFilterList(string sourceName)
         {
-            return (await this.SendRequestAsync<FiltersResponseData>(new { sourceName })).Filters;
+            return (await this.SendRequestAsync<FiltersResponse>(new { sourceName })).Filters;
         }
 
         /// <summary>
@@ -22,7 +22,7 @@
         /// <returns>Object of default settings for the filter kind</returns>
         public async Task<Dictionary<string, object>> GetSourceFilterDefaultSettings(string filterKind)
         {
-            return (await this.SendRequestAsync<DefaultFilterSettingsResponseData>(new { filterKind })).DefaultFilterSettings;
+            return (await this.SendRequestAsync<DefaultFilterSettingsResponse>(new { filterKind })).DefaultFilterSettings;
         }
 
         /// <summary>
@@ -63,10 +63,10 @@
         /// </summary>
         /// <param name="sourceName">Name of the source</param>
         /// <param name="filterName">Name of the filter</param>
-        /// <returns>A <see cref="SourceFilterResponseData"/></returns>
-        public async Task<SourceFilterResponseData> GetSourceFilter(string sourceName, string filterName)
+        /// <returns>A <see cref="SourceFilterResponse"/></returns>
+        public async Task<SourceFilterResponse> GetSourceFilter(string sourceName, string filterName)
         {
-            return await this.SendRequestAsync<SourceFilterResponseData>(new { sourceName, filterName });
+            return await this.SendRequestAsync<SourceFilterResponse>(new { sourceName, filterName });
         }
 
         /// <summary>

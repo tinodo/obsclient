@@ -4,7 +4,7 @@
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 
-    public class IdentifyMessage : IMessageData
+    public class IdentifyMessage : IMessage
     {
         [JsonPropertyName("rpcVersion")]
         public int RpcVersion { get; }

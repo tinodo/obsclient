@@ -4,7 +4,7 @@
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 
-    public class ReidentifyMessage : IMessageData
+    public class ReidentifyMessage : IMessage
     {
         [JsonPropertyName("eventSubscriptions")]
         public EventSubscriptions EventSubscriptions { get; }
