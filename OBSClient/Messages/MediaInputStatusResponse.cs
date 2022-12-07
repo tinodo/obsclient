@@ -11,13 +11,13 @@
         public MediaState MediaState { get; set; }
 
         [JsonPropertyName("mediaDuration")]
-        public int? MediaDuration { get; set; }
+        public long? MediaDuration { get; set; }
 
         [JsonPropertyName("mediaCursor")]
-        public int? MediaCursor { get; set; }
+        public long? MediaCursor { get; set; }
 
         [JsonConstructor]
-        public MediaInputStatusResponse(MediaState mediaState, int? mediaDuration, int? mediaCursor)
+        public MediaInputStatusResponse(MediaState mediaState, long? mediaDuration, long? mediaCursor)
         {
             this.MediaState = mediaState;
             this.MediaDuration = mediaDuration;

@@ -8,9 +8,9 @@
         public string InputName { get; set; }
 
         [JsonPropertyName("mediaCursor")]
-        public int MediaCursor { get; set; }
+        public long MediaCursor { get; set; }
 
-        public MediaInputCursorRequest(string inputName, int mediaCursor)
+        public MediaInputCursorRequest(string inputName, long mediaCursor)
         {
             this.InputName = inputName;
             this.MediaCursor = mediaCursor;

@@ -17,15 +17,15 @@
 
 
         [JsonPropertyName("outputDuration")]
-        public int OutputDuration { get; set; }
+        public long OutputDuration { get; set; }
 
 
         [JsonPropertyName("outputBytes")]
-        public int OutputBytes { get; set; }
+        public long OutputBytes { get; set; }
 
 
         [JsonConstructor]
-        public RecordStatusResponse(bool outputActive, bool outputPaused, string outputTimecode, int outputDuration,int outputBytes)
+        public RecordStatusResponse(bool outputActive, bool outputPaused, string outputTimecode, long outputDuration, long outputBytes)
         {
             this.OutputActive = outputActive;
             this.OutputPaused = outputPaused;

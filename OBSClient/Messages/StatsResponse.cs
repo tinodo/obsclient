@@ -21,25 +21,25 @@
         public float AverageFrameRenderTime { get; set; }
 
         [JsonPropertyName("renderSkippedFrames")]
-        public int RenderSkippedFrames { get; set; }
+        public long RenderSkippedFrames { get; set; }
 
         [JsonPropertyName("renderTotalFrames")]
-        public int RenderTotalFrames { get; set; }
+        public long RenderTotalFrames { get; set; }
 
         [JsonPropertyName("outputSkippedFrames")]
-        public int OutputSkippedFrames { get; set; }
+        public long OutputSkippedFrames { get; set; }
 
         [JsonPropertyName("outputTotalFrames")]
-        public int OutputTotalFrames { get; set; }
+        public long OutputTotalFrames { get; set; }
 
         [JsonPropertyName("webSocketSessionIncomingMessages")]
-        public int WebSocketSessionIncomingMessages { get; set; }
+        public long WebSocketSessionIncomingMessages { get; set; }
 
         [JsonPropertyName("webSocketSessionOutgoingMessages")]
-        public int WebSocketSessionOutgoingMessages { get; set; }
+        public long WebSocketSessionOutgoingMessages { get; set; }
 
         [JsonConstructor]
-        public StatsResponse(float cpuUsage, float memoryUsage, float availableDiskSpace, float activeFps, float averageFrameRenderTime, int renderSkippedFrames, int renderTotalFrames, int outputSkippedFrames, int outputTotalFrames, int webSocketSessionIncomingMessages, int webSocketSessionOutgoingMessages)
+        public StatsResponse(float cpuUsage, float memoryUsage, float availableDiskSpace, float activeFps, float averageFrameRenderTime, long renderSkippedFrames, long renderTotalFrames, long outputSkippedFrames, long outputTotalFrames, long webSocketSessionIncomingMessages, long webSocketSessionOutgoingMessages)
         {
             this.CpuUsage = cpuUsage;
             this.MemoryUsage = memoryUsage;

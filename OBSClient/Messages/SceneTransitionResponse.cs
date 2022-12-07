@@ -9,9 +9,9 @@
         public string TransitionName { get; set; }
 
         [JsonPropertyName("transitionDuration")]
-        public int TransitionDuration { get; set; }
+        public long TransitionDuration { get; set; }
 
-        public SceneTransitionResponse(string transitionName, int transitionDuration)
+        public SceneTransitionResponse(string transitionName, long transitionDuration)
         {
             this.TransitionName = transitionName;
             this.TransitionDuration = transitionDuration;

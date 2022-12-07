@@ -17,7 +17,7 @@
 
 
         [JsonPropertyName("outputDuration")]
-        public int OutputDuration { get; set; }
+        public long OutputDuration { get; set; }
 
 
         [JsonPropertyName("outputCongestion")]
@@ -25,18 +25,18 @@
 
 
         [JsonPropertyName("outputBytes")]
-        public int OutputBytes { get; set; }
+        public long OutputBytes { get; set; }
 
 
         [JsonPropertyName("outputSkippedFrames")]
-        public int OutputSkippedFrames { get; set; }
+        public long OutputSkippedFrames { get; set; }
 
 
         [JsonPropertyName("outputTotalFrames")]
-        public int OutputTotalFrames { get; set; }
+        public long OutputTotalFrames { get; set; }
 
         [JsonConstructor]
-        public OutputStatusResponse(bool outputActive, bool outputReconnecting, string outputTimecode, int outputDuration, float outputCongestion, int outputBytes, int outputSkippedFrames, int outputTotalFrames)
+        public OutputStatusResponse(bool outputActive, bool outputReconnecting, string outputTimecode, long outputDuration, float outputCongestion, long outputBytes, long outputSkippedFrames, long outputTotalFrames)
         {
             this.OutputActive = outputActive;
             this.OutputReconnecting = outputReconnecting;

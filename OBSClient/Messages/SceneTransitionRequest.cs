@@ -11,10 +11,10 @@
         public string? TransitionName { get; set; }
 
         [JsonPropertyName("transitionDuration")]
-        public int? TransitionDuration { get; set; }
+        public long? TransitionDuration { get; set; }
 
         [JsonConstructor]
-        public SceneTransitionRequest(string sceneName, string? transitionName, int? transitionDuration)
+        public SceneTransitionRequest(string sceneName, string? transitionName, long? transitionDuration)
         {
             this.SceneName = sceneName;
             this.TransitionName = transitionName;
