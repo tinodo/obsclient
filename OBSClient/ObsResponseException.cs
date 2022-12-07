@@ -19,7 +19,7 @@
             this.ErrorMessage = requestStatus.Comment;
         }
 
-        public ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
+        protected ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
         {
             this.ErrorCode = errorCode;
             this.ErrorMessage = errorMessage;
