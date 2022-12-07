@@ -10,94 +10,94 @@
         /// Gets the status of the virtualcam output.
         /// </summary>
         /// <returns>Whether the output is active</returns>
-        public bool GetVirtualCamStatus()
+        public async Task<bool> GetVirtualCamStatus()
         {
-            return this.SendRequest<OutputActiveResponseData>().OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
         }
 
         /// <summary>
         /// Toggles the state of the virtualcam output.
         /// </summary>
         /// <returns>Whether the output is active</returns>
-        public bool ToggleVirtualCam()
+        public async Task<bool> ToggleVirtualCam()
         {
-            return this.SendRequest<OutputActiveResponseData>().OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
         }
 
         /// <summary>
         /// Starts the virtualcam output.
         /// </summary>
-        public void StartVirtualCam()
+        public async Task StartVirtualCam()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Stops the virtualcam output.
         /// </summary>
-        public void StopVirtualCam()
+        public async Task StopVirtualCam()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Gets the status of the replay buffer output.
         /// </summary>
         /// <returns>Whether the output is active</returns>
-        public bool GetReplayBufferStatus()
+        public async Task<bool> GetReplayBufferStatus()
         {
-            return this.SendRequest<OutputActiveResponseData>().OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
         }
 
         /// <summary>
         /// Toggles the state of the replay buffer output.
         /// </summary>
         /// <returns>Whether the output is active</returns>
-        public bool ToggleReplayBuffer()
+        public async Task<bool> ToggleReplayBuffer()
         {
-            return this.SendRequest<OutputActiveResponseData>().OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
         }
 
         /// <summary>
         /// Starts the replay buffer output.
         /// </summary>
-        public void StartReplayBuffer()
+        public async Task StartReplayBuffer()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Stops the replay buffer output.
         /// </summary>
-        public void StopReplayBuffer()
+        public async Task StopReplayBuffer()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Saves the contents of the replay buffer output.
         /// </summary>
-        public void SaveReplayBuffer()
+        public async Task SaveReplayBuffer()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Gets the filename of the last replay buffer save file.
         /// </summary>
         /// <returns>File path</returns>
-        public string GetLastReplayBufferReplay()
+        public async Task<string> GetLastReplayBufferReplay()
         {
-            return this.SendRequest<SavedReplayPathResponseData>().SavedReplayPath;
+            return (await this.SendRequestAsync<SavedReplayPathResponseData>()).SavedReplayPath;
         }
 
         /// <summary>
         /// Gets the list of available outputs.
         /// </summary>
         /// <returns>Array of <see cref="Output"/></returns>
-        public Output[] GetOutputList()
+        public async Task<Output[]> GetOutputList()
         {
-            return this.SendRequest<OutputsResponseData>().Outputs;
+            return (await this.SendRequestAsync<OutputsResponseData>()).Outputs;
         }
 
         /// <summary>
@@ -105,9 +105,9 @@
         /// </summary>
         /// <param name="outputName">Output name</param>
         /// <returns>A <see cref="OutputStatusResponseData"/></returns>
-        public OutputStatusResponseData GetOutputStatus(string outputName)
+        public async Task<OutputStatusResponseData> GetOutputStatus(string outputName)
         {
-            return this.SendRequest<OutputStatusResponseData>(new { outputName });
+            return await this.SendRequestAsync<OutputStatusResponseData>(new { outputName });
         }
 
         /// <summary>
@@ -115,27 +115,27 @@
         /// </summary>
         /// <param name="outputName">Output name</param>
         /// <returns>Whether the output is active</returns>
-        public bool ToggleOutput(string outputName)
+        public async Task<bool> ToggleOutput(string outputName)
         {
-            return this.SendRequest<OutputActiveResponseData>(new { outputName }).OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>(new { outputName })).OutputActive;
         }
 
         /// <summary>
         /// Starts an output.
         /// </summary>
         /// <param name="outputName">Output name</param>
-        public void StartOutput(string outputName)
+        public async Task StartOutput(string outputName)
         {
-            this.SendRequest(new { outputName });
+            await this.SendRequestAsync(new { outputName });
         }
 
         /// <summary>
         /// Stops an output.
         /// </summary>
         /// <param name="outputName">Output name</param>
-        public void StopOutput(string outputName)
+        public async Task StopOutput(string outputName)
         {
-            this.SendRequest(new { outputName });
+            await this.SendRequestAsync(new { outputName });
         }
 
         /// <summary>
@@ -143,9 +143,9 @@
         /// </summary>
         /// <param name="outputName">Output name</param>
         /// <returns>A <see cref="OutputSettingsResponseData"/></returns>
-        public Dictionary<string, object> GetOutputSettings(string outputName)
+        public async Task<Dictionary<string, object>> GetOutputSettings(string outputName)
         {
-            return this.SendRequest<OutputSettingsResponseData>(new { outputName }).OutputSettings;
+            return (await this.SendRequestAsync<OutputSettingsResponseData>(new { outputName })).OutputSettings;
         }
 
         /// <summary>
@@ -153,9 +153,9 @@
         /// </summary>
         /// <param name="outputName">Output name</param>
         /// <param name="outputSettings">Output settings</param>
-        public void SetOutputSettings(string outputName, Dictionary<string, object> outputSettings)
+        public async Task SetOutputSettings(string outputName, Dictionary<string, object> outputSettings)
         {
-            this.SendRequest(new { outputName, outputSettings });
+            await this.SendRequestAsync(new { outputName, outputSettings });
         }
     }
 }

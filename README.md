@@ -3,8 +3,13 @@ A complete .NET WebSocket Client for OBS Studio version 28 and up.
 
 ```
 ObsClient client = new();
-client.Connect();
-client.SetCurrentProgramScene("Gaming Scene");
+bool isConnected = await client.ConnectAsync();
+if (isConnected)
+{
+    await client.SetCurrentProgramScene("Gaming Scene");
+    Monitor[] monitors = await client.GetMonitorList();
+    client.Disconnect();
+}
 ```
 
 

@@ -10,54 +10,54 @@
         /// Gets whether studio is enabled.
         /// </summary>
         /// <returns>Whether studio mode is enabled</returns>
-        public bool GetStudioModeEnabled()
+        public async Task<bool> GetStudioModeEnabled()
         {
-            return this.SendRequest<StudioModeEnabledData>().StudioModeEnabled;
+            return (await this.SendRequestAsync<StudioModeEnabledData>()).StudioModeEnabled;
         }
 
         /// <summary>
         /// Enables or disables studio mode
         /// </summary>
         /// <param name="studioModeEnabled">True == Enabled, False == Disabled</param>
-        public void SetStudioModeEnabled(bool studioModeEnabled)
+        public async Task SetStudioModeEnabled(bool studioModeEnabled)
         {
-            this.SendRequest(new { studioModeEnabled });
+            await this.SendRequestAsync(new { studioModeEnabled });
         }
 
         /// <summary>
         /// Opens the properties dialog of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to open the dialog of</param>
-        public void OpenInputPropertiesDialog(string inputName)
+        public async Task OpenInputPropertiesDialog(string inputName)
         {
-            this.SendRequest(new { inputName });
+            await this.SendRequestAsync(new { inputName });
         }
 
         /// <summary>
         /// Opens the filters dialog of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to open the dialog of</param>
-        public void OpenInputFiltersDialog(string inputName)
+        public async Task OpenInputFiltersDialog(string inputName)
         {
-            this.SendRequest(new { inputName });
+            await this.SendRequestAsync(new { inputName });
         }
 
         /// <summary>
         /// Opens the interact dialog of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to open the dialog of</param>
-        public void OpenInputInteractDialog(string inputName)
+        public async Task OpenInputInteractDialog(string inputName)
         {
-            this.SendRequest(new { inputName });
+            await this.SendRequestAsync(new { inputName });
         }
 
         /// <summary>
         /// Gets a list of connected monitors and information about them.
         /// </summary>
         /// <returns>a list of detected monitors with some information</returns>
-        public Monitor[] GetMonitorList()
+        public async Task<Monitor[]> GetMonitorList()
         {
-            return this.SendRequest<MonitorListResponseData>().Monitors;
+            return (await this.SendRequestAsync<MonitorListResponseData>()).Monitors;
         }
 
         /// <summary>
@@ -66,9 +66,9 @@
         /// <param name="videoMixType">Type of mix to open</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void OpenVideoMixProjectorOnMonitor(MixType videoMixType, int monitorIndex)
+        public async Task OpenVideoMixProjectorOnMonitor(MixType videoMixType, int monitorIndex)
         {
-            this.OpenVideoMixProjector(videoMixType, monitorIndex, null);
+            await this.OpenVideoMixProjector(videoMixType, monitorIndex, null);
         }
 
         /// <summary>
@@ -77,9 +77,9 @@
         /// <param name="videoMixType">Type of mix to open</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format.  See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void OpenVideoMixProjectorWindow(MixType videoMixType, string projectorGeometry)
+        public async Task OpenVideoMixProjectorWindow(MixType videoMixType, string projectorGeometry)
         {
-            this.OpenVideoMixProjector(videoMixType, null, projectorGeometry);
+            await this.OpenVideoMixProjector(videoMixType, null, projectorGeometry);
         }
 
         /// <summary>
@@ -89,9 +89,9 @@
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        private void OpenVideoMixProjector(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
+        private async Task OpenVideoMixProjector(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
         {
-            this.SendRequest(new { videoMixType, monitorIndex, projectorGeometry });
+            await this.SendRequestAsync(new { videoMixType, monitorIndex, projectorGeometry });
         }
 
         /// <summary>
@@ -100,9 +100,9 @@
         /// <param name="sourceName">Name of the source to open a projector for</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode.</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void OpenSourceProjectorOnMonitor(string sourceName, int monitorIndex)
+        public async Task OpenSourceProjectorOnMonitor(string sourceName, int monitorIndex)
         {
-            this.OpenSourceProjector(sourceName, monitorIndex, null);
+            await this.OpenSourceProjector(sourceName, monitorIndex, null);
         }
 
         /// <summary>
@@ -111,9 +111,9 @@
         /// <param name="sourceName">Name of the source to open a projector for</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void OpenSourceProjectorWindow(string sourceName, string projectorGeometry)
+        public async Task OpenSourceProjectorWindow(string sourceName, string projectorGeometry)
         {
-            this.OpenSourceProjector(sourceName, null, projectorGeometry);
+            await this.OpenSourceProjector(sourceName, null, projectorGeometry);
         }
 
         /// <summary>
@@ -123,9 +123,9 @@
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        private void OpenSourceProjector(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
+        private async Task OpenSourceProjector(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
         {
-            this.SendRequest(new { sourceName, monitorIndex, projectorGeometry });
+            await this.SendRequestAsync(new { sourceName, monitorIndex, projectorGeometry });
         }
     }
 }

@@ -28,7 +28,7 @@
         private CancellationTokenSource _cancellationTokenSource = new();
         private ConnectionState _connectionState = ConnectionState.Disconnected;
         private ClientWebSocket _client = new();
-
+        private TaskCompletionSource<bool> _authenticationComplete = new();
         private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessageData>> _requests = new();
 
         /// <summary>
@@ -120,6 +120,7 @@
             _eventSubscriptions = eventSubscription;
             _cancellationTokenSource = new CancellationTokenSource();
             _client = new();
+            _authenticationComplete = new();
 
             Uri uri;
             try
@@ -143,7 +144,7 @@
             }
 
             _ = Task.Run(() => Receiver(_cancellationTokenSource.Token));
-            return true;
+            return _authenticationComplete.Task.Result;
         }
 
         /// <summary>
@@ -164,7 +165,7 @@
         /// <param name="requests">The Requests in the batch.</param>
         /// <param name="haltOnFailure">True, to continue processing requests even though one might have failed, or False to stop when any requests fails.</param>
         /// <returns>The responses for the individual requests.</returns>
-        public RequestResponseMessage[] SendRequestBatch(RequestBatchExecutionType requestBatchExecutionType, RequestMessage[] requests, bool haltOnFailure = false)
+        public async Task<RequestResponseMessage[]> SendRequestBatch(RequestBatchExecutionType requestBatchExecutionType, RequestMessage[] requests, bool haltOnFailure = false)
         {
             TaskCompletionSource<IMessageData> tcs = new();
             CancellationTokenSource cts = new(_requestTimeout);
@@ -175,7 +176,7 @@
             var d = new { requestId, haltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = this.SendAndWaitAsync(new { d, op });
+            var result = await this.SendAndWaitAsync(new { d, op });
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData.Results;
@@ -186,7 +187,7 @@
             }
         }
 
-        public async Task Reidentify(EventSubscriptions eventSubscription)
+        public async Task ReidentifyAsync(EventSubscriptions eventSubscription)
         {
             _eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
@@ -256,7 +257,7 @@
             return Convert.ToBase64String(hash);
         }
 
-        private void ResponseReceived(ObsMessage responseMessage)
+        private async Task ResponseReceived(ObsMessage responseMessage)
         {
             switch (responseMessage.Op)
             {
@@ -273,7 +274,7 @@
 
                         IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscriptions);
                         ObsMessage message = new(identify);
-                        _ = SendAsync(message);
+                        await SendAsync(message);
                     }
                     else
                     {
@@ -288,6 +289,7 @@
                         throw new ObsClientException("responseMessage.Data is not expected IdentifyResponseData");
                     }
 
+                    if (_authenticationComplete.Task.Status != TaskStatus.RanToCompletion) _authenticationComplete.SetResult(true);
                     this.ConnectionState = ConnectionState.Connected;
                     break;
                 case OpCode.RequestResponse:
@@ -568,7 +570,6 @@
                     {
                         var bytes = new byte[4096];
                         var res = await _client.ReceiveAsync(bytes, cancellationToken);
-
                         if (res.MessageType == WebSocketMessageType.Close)
                         {
                             this.ConnectionState = ConnectionState.Disconnecting;
@@ -577,6 +578,10 @@
                             this.ConnectionState = ConnectionState.Disconnected;
                             this.InvokeAsyncEvent(this.ConnectionClosed, new ConnectionClosedEventArgs(closeCode, res.CloseStatusDescription ?? "Unknown"));
                             connectionOpen = false;
+                            if (closeCode == WebSocketCloseCode.AuthenticationFailed && _authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
+                            {
+                                _authenticationComplete.SetResult(false);
+                            }
                         }
                         else
                         {
@@ -614,7 +619,7 @@
             }
         }
 
-        private IMessageData? SendAndWaitAsync(dynamic request)
+        private async Task<IMessageData?> SendAndWaitAsync(dynamic request)
         {
             if (_connectionState != ConnectionState.Connected)
             {
@@ -629,7 +634,7 @@
             {
                 try
                 {
-                    _ = this.SendAsync(request);
+                    await this.SendAsync(request);
                     var result = tcs.Task.Result;
                     return result;
                 }
@@ -654,23 +659,33 @@
             throw new TimeoutException("Timeout waiting for OBS Studio response.");
         }
 
-        private void SendRequest(object? requestData = null, [CallerMemberName] string requestType = "")
+        private async Task SendRequestAsync(object? requestData = null, [CallerMemberName] string requestType = "")
         {
-            _ = SendRequestAndWait(requestType, requestData);
+            if (requestType.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase))
+            {
+                requestType = requestType[..^5];
+            }
+
+            await SendRequestAndWaitAsync(requestType, requestData);
         }
 
-        private T SendRequest<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponseData
+        private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponseData
         {
-            var requestResponseData = SendRequestAndWait(requestType, requestData);
+            if (requestType.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase))
+            {
+                requestType = requestType[..^5];
+            }
+
+            var requestResponseData = await SendRequestAndWaitAsync(requestType, requestData);
             return (T)requestResponseData.ResponseData!;
         }
 
-        private RequestResponseMessage SendRequestAndWait(string requestType, object? requestData = null)
+        private async Task<RequestResponseMessage> SendRequestAndWaitAsync(string requestType, object? requestData = null)
         {
             var requestId = Guid.NewGuid().ToString();
             var d = new { requestType, requestId, requestData };
             var op = (int)OpCode.Request;
-            var result = this.SendAndWaitAsync(new { d, op });
+            var result = await this.SendAndWaitAsync(new { d, op });
             if (result is RequestResponseMessage requestResponseData)
             {
                 if (requestResponseData.RequestStatus.Result)

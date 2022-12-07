@@ -8,58 +8,58 @@
         /// Gets the status of the record output.
         /// </summary>
         /// <returns>A <see cref="RecordStatusResponseData"/></returns>
-        public RecordStatusResponseData GetRecordStatus()
+        public async Task<RecordStatusResponseData> GetRecordStatus()
         {
-            return this.SendRequest<RecordStatusResponseData>();
+            return await this.SendRequestAsync<RecordStatusResponseData>();
         }
 
         /// <summary>
         /// Toggles the status of the record output.
         /// </summary>
-        public void ToggleRecord()
+        public async Task ToggleRecord()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Starts the record output.
         /// </summary>
-        public void StartRecord()
+        public async Task StartRecord()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Stops the record output.
         /// </summary>
         /// <returns>File name for the saved recording</returns>
-        public string StopRecord()
+        public async Task<string> StopRecord()
         {
-            return this.SendRequest<OutputPathResponseData>().OutputPath;
+            return (await this.SendRequestAsync<OutputPathResponseData>()).OutputPath;
         }
 
         /// <summary>
         /// Toggles pause on the record output.
         /// </summary>
-        public void ToggleRecordPause()
+        public async Task ToggleRecordPause()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Pauses the record output.
         /// </summary>
-        public void PauseRecord()
+        public async Task PauseRecord()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Resumes the record output.
         /// </summary>
-        public void ResumeRecord()
+        public async Task ResumeRecord()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
     }
 }

@@ -13,7 +13,8 @@ namespace SampleWindowsAppliation
         private ObsClient _client = new();
         private delegate void SafeListboxRemove(object itemToRemove, ListBox listBox);
         private delegate void SafeListboxRefresh(ListBox listBox);
-
+        private delegate void SafeUpdateTitle();
+        private const string Title = "Obs Client";
         public Form1()
         {
             InitializeComponent();
@@ -76,10 +77,16 @@ namespace SampleWindowsAppliation
 
             _client.PropertyChanged += PropertyChanged;
 
+            this.UpdateTitle();
         }
 
         private void PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == "ConnectionState")
+            {
+                Task.Run(() => this.UpdateTitle());
+            }
+
             Debug.WriteLine($"{e.PropertyName} - {_client.ConnectionState}");
         }
 
@@ -388,6 +395,21 @@ namespace SampleWindowsAppliation
             }
         }
 
+        private void UpdateTitle()
+        {
+            if (this.InvokeRequired)
+            {
+                var d = new SafeUpdateTitle(this.UpdateTitle);
+                this.Invoke(d);
+            }
+            else
+            {
+                this.Text = $"{Title} - {_client.ConnectionState}";
+            }
+
+            //Application.DoEvents();
+        }
+
         private void RefreshListbox(ListBox listBox)
         {
             if (listBox.InvokeRequired)
@@ -416,8 +438,12 @@ namespace SampleWindowsAppliation
             return Task.CompletedTask;
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private async void button2_Click(object sender, EventArgs e)
         {
+            _ = await _client.ConnectAsync("banaan");
+            var xxx = _client.GetMonitorList();
+            await _client.ReidentifyAsync(EventSubscriptions.Ui);
+
             try
             {
                 //var i = _client.GetInputKindList();
@@ -485,11 +511,11 @@ namespace SampleWindowsAppliation
                 //_client.OpenSourceProjector("Moveable Camera Intermediate Scene", 1, geo);
 
                 //var xxx = _client.GetPersistentData(Enums.Realm.OBS_WEBSOCKET_DATA_REALM_PROFILE, "[General]");
-                var result = _client.GetInputKindList();
-                foreach (var ik in result)
-                {
-                    var result1 = _client.GetInputDefaultSettings(ik);
-                }
+                //var result = _client.GetInputKindList();
+                //foreach (var ik in result)
+                //{
+                //    var result1 = _client.GetInputDefaultSettings(ik);
+                //}
             }
             catch (ObsResponseException error)
             {
@@ -497,25 +523,25 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private void btnStartVirtualCam_Click(object sender, EventArgs e)
+        private async void btnStartVirtualCam_Click(object sender, EventArgs e)
         {
-            _client.StartVirtualCam();
+            await _client.StartVirtualCam();
         }
 
-        private void btnStopVirtualCamera_Click(object sender, EventArgs e)
+        private async void btnStopVirtualCamera_Click(object sender, EventArgs e)
         {
-            _client.StopVirtualCam();
+            await _client.StopVirtualCam();
         }
 
-        private void btnToggleVirtualCamera_Click(object sender, EventArgs e)
+        private async void btnToggleVirtualCamera_Click(object sender, EventArgs e)
         {
-            var result = _client.ToggleVirtualCam();
+            var result = await _client.ToggleVirtualCam();
             MessageBox.Show(result.ToString(), "ToggleVirtualCam");
         }
 
-        private void btnGetVirtualCameraState_Click(object sender, EventArgs e)
+        private async void btnGetVirtualCameraState_Click(object sender, EventArgs e)
         {
-            var result = _client.GetVirtualCamStatus();
+            var result = await _client.GetVirtualCamStatus();
             MessageBox.Show(result.ToString(), "GetVirtualCamStatus");
         }
 
@@ -524,25 +550,25 @@ namespace SampleWindowsAppliation
             _client.Disconnect();
         }
 
-        private void button7_Click(object sender, EventArgs e)
+        private async void button7_Click(object sender, EventArgs e)
         {
-            _client.SetStudioModeEnabled(true);
+            await _client.SetStudioModeEnabled(true);
         }
 
-        private void button6_Click(object sender, EventArgs e)
+        private async void button6_Click(object sender, EventArgs e)
         {
-            _client.SetStudioModeEnabled(false);
+            await _client.SetStudioModeEnabled(false);
         }
 
-        private void button5_Click(object sender, EventArgs e)
+        private async void button5_Click(object sender, EventArgs e)
         {
-            var result = _client.GetStudioModeEnabled();
+            var result = await _client.GetStudioModeEnabled();
             MessageBox.Show(result.ToString(), "GetStudioModeEnabled");
         }
 
-        private void button4_Click(object sender, EventArgs e)
+        private async void button4_Click(object sender, EventArgs e)
         {
-            var monitors = _client.GetMonitorList();
+            var monitors = await _client.GetMonitorList();
             var result = string.Empty;
             foreach (var monitor in monitors)
             {
@@ -552,9 +578,9 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetMonitorList");
         }
 
-        private void btnGetVersion_Click(object sender, EventArgs e)
+        private async void btnGetVersion_Click(object sender, EventArgs e)
         {
-            var version = _client.GetVersion();
+            var version = await _client.GetVersion();
             var result = $"OBS Studio {version.ObsVersion} ({version.Platform} - {version.PlatformDescription})" + Environment.NewLine;
             result += $"WebSockets {version.ObsWebSocketVersion} - RPC Version {version.RpcVersion}" + Environment.NewLine;
             result += $"Requests: {string.Join(", ", version.AvailableRequests)}" + Environment.NewLine;
@@ -562,9 +588,9 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetVersion");
         }
 
-        private void btnGetStats_Click(object sender, EventArgs e)
+        private async void btnGetStats_Click(object sender, EventArgs e)
         {
-            var stats = _client.GetStats();
+            var stats = await _client.GetStats();
             var result = $"ActiveFps: {stats.ActiveFps}" + Environment.NewLine;
             result += $"AvailableDiskSpace: {stats.AvailableDiskSpace}" + Environment.NewLine;
             result += $"AverageFrameRenderTime: {stats.AverageFrameRenderTime}" + Environment.NewLine;
@@ -579,37 +605,37 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetStats");
         }
 
-        private void btnGetHotkeyList_Click(object sender, EventArgs e)
+        private async void btnGetHotkeyList_Click(object sender, EventArgs e)
         {
-            var hotkeyList = _client.GetHotkeyList();
+            var hotkeyList = await _client.GetHotkeyList();
             MessageBox.Show(string.Join(", ", hotkeyList), "GetHotkeyList");
         }
 
-        private void btnGetSceneCollectionList_Click(object sender, EventArgs e)
+        private async void btnGetSceneCollectionList_Click(object sender, EventArgs e)
         {
-            var sceneCollectionList = _client.GetSceneCollectionList();
+            var sceneCollectionList = await _client.GetSceneCollectionList();
             var result = $"CurrentSceneCollectionName: {sceneCollectionList.CurrentSceneCollectionName}" + Environment.NewLine;
             result += $"SceneCollections: {string.Join(", ", sceneCollectionList.SceneCollections)}";
             MessageBox.Show(result, "GetSceneCollectionList");
         }
 
-        private void btnGetProfileList_Click(object sender, EventArgs e)
+        private async void btnGetProfileList_Click(object sender, EventArgs e)
         {
-            var profileList = _client.GetProfileList();
+            var profileList = await _client.GetProfileList();
             var result = $"CurrentProfileName: {profileList.CurrentProfileName}" + Environment.NewLine;
             result += $"Profiles: {string.Join(", ", profileList.Profiles)}";
             MessageBox.Show(result, "GetProfileList");
         }
 
-        private void btnGetRecordDirectory_Click(object sender, EventArgs e)
+        private async void btnGetRecordDirectory_Click(object sender, EventArgs e)
         {
-            var recordDirectory = _client.GetRecordDirectory();
+            var recordDirectory = await _client.GetRecordDirectory();
             MessageBox.Show(recordDirectory, "GetRecordDirectory");
         }
 
-        private void btnGetSceneList_Click(object sender, EventArgs e)
+        private async void btnGetSceneList_Click(object sender, EventArgs e)
         {
-            var sceneList = _client.GetSceneList();
+            var sceneList = await _client.GetSceneList();
             this.lbScenes.Items.Clear();
             var result = $"CurrentPreviewSceneName: {sceneList.CurrentPreviewSceneName}" + Environment.NewLine;
             result += $"CurrentProgramSceneName: {sceneList.CurrentProgramSceneName}" + Environment.NewLine;
@@ -623,28 +649,28 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetSceneList");
         }
 
-        private void btnGetGroupList_Click(object sender, EventArgs e)
+        private async void btnGetGroupList_Click(object sender, EventArgs e)
         {
-            var groupList = _client.GetGroupList();
+            var groupList = await _client.GetGroupList();
             MessageBox.Show(string.Join(", ", groupList), "GetGroupList");
             this.lbGroups.DataSource = groupList;
         }
 
-        private void btnGetCurrentProgramScene_Click(object sender, EventArgs e)
+        private async void btnGetCurrentProgramScene_Click(object sender, EventArgs e)
         {
-            var result = _client.GetCurrentProgramScene();
+            var result = await _client.GetCurrentProgramScene();
             MessageBox.Show(result, "GetCurrentProgramScene");
         }
 
-        private void btnGetCurrentPreviewScene_Click(object sender, EventArgs e)
+        private async void btnGetCurrentPreviewScene_Click(object sender, EventArgs e)
         {
-            var result = _client.GetCurrentPreviewScene();
+            var result = await _client.GetCurrentPreviewScene();
             MessageBox.Show(result, "GetCurrentPreviewScene");
         }
 
-        private void btnGetInputList_Click(object sender, EventArgs e)
+        private async void btnGetInputList_Click(object sender, EventArgs e)
         {
-            var inputs = _client.GetInputList();
+            var inputs = await _client.GetInputList();
             var result = "Inputs:" + Environment.NewLine;
             foreach (var input in inputs)
             {
@@ -654,15 +680,15 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetInputList");
         }
 
-        private void btnGetInputKindList_Click(object sender, EventArgs e)
+        private async void btnGetInputKindList_Click(object sender, EventArgs e)
         {
-            var inputKindList = _client.GetInputKindList();
+            var inputKindList = await _client.GetInputKindList();
             MessageBox.Show("Input Kinds: " + string.Join(", ", inputKindList), "GetInputKindList");
         }
 
-        private void btnGetSpecialInputs_Click(object sender, EventArgs e)
+        private async void btnGetSpecialInputs_Click(object sender, EventArgs e)
         {
-            var specialInputs = _client.GetSpecialInputs();
+            var specialInputs = await _client.GetSpecialInputs();
             var result = $"Mic1: {specialInputs.Mic1}" + Environment.NewLine;
             result += $"Mic2: {specialInputs.Mic2}" + Environment.NewLine;
             result += $"Mic3: {specialInputs.Mic3}" + Environment.NewLine;
@@ -672,7 +698,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetSpecialInputs");
         }
 
-        private void btnSetCurrentProgramScene_Click(object sender, EventArgs e)
+        private async void btnSetCurrentProgramScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -680,11 +706,11 @@ namespace SampleWindowsAppliation
             }
             else
             {
-                _client.SetCurrentProgramScene(scene.SceneName);
+                await _client.SetCurrentProgramScene(scene.SceneName);
             }
         }
 
-        private void btnSetCurrentPreviewScene_Click(object sender, EventArgs e)
+        private async void btnSetCurrentPreviewScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -692,11 +718,11 @@ namespace SampleWindowsAppliation
             }
             else
             {
-                _client.SetCurrentPreviewScene(scene.SceneName);
+                await _client.SetCurrentPreviewScene(scene.SceneName);
             }
         }
 
-        private void btnRemoveScene_Click(object sender, EventArgs e)
+        private async void btnRemoveScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -704,7 +730,7 @@ namespace SampleWindowsAppliation
             }
             else
             {
-                _client.RemoveScene(scene.SceneName);
+                await _client.RemoveScene(scene.SceneName);
             }
         }
 
@@ -713,7 +739,7 @@ namespace SampleWindowsAppliation
             this.lbScenes.DisplayMember = "SceneName";
         }
 
-        private void btnCreateScene_Click(object sender, EventArgs e)
+        private async void btnCreateScene_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
@@ -721,11 +747,11 @@ namespace SampleWindowsAppliation
             }
             else
             {
-                _client.CreateScene(this.tbNameItem.Text);
+                await _client.CreateScene(this.tbNameItem.Text);
             }
         }
 
-        private void btnSetSceneName_Click(object sender, EventArgs e)
+        private async void btnSetSceneName_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
@@ -739,7 +765,7 @@ namespace SampleWindowsAppliation
                 return;
             }
 
-            _client.SetSceneName(scene.SceneName, this.tbNameItem.Text);
+            await _client.SetSceneName(scene.SceneName, this.tbNameItem.Text);
         }
     }
 }

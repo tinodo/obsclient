@@ -1,6 +1,5 @@
 ﻿namespace OBSStudioClient
 {
-    using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
 
     public partial class ObsClient
@@ -9,9 +8,9 @@
         /// Gets an array of all scenes in OBS.
         /// </summary>
         /// <returns>A <see cref="SceneListResponseData"/></returns>
-        public SceneListResponseData GetSceneList()
+        public async Task<SceneListResponseData> GetSceneList()
         {
-            return this.SendRequest< SceneListResponseData>();
+            return await this.SendRequestAsync< SceneListResponseData>();
         }
 
         /// <summary>
@@ -21,63 +20,63 @@
         /// <remarks>
         /// Groups in OBS are actually scenes, but renamed and modified. In obs-websocket, we treat them as scenes where we can.
         /// </remarks>
-        public string[] GetGroupList()
+        public async Task<string[]> GetGroupList()
         {
-            return this.SendRequest<GroupsResponseData>().Groups;
+            return (await this.SendRequestAsync<GroupsResponseData>()).Groups;
         }
 
         /// <summary>
         /// Gets the current program scene.
         /// </summary>
         /// <returns>Current program scene</returns>
-        public string GetCurrentProgramScene()
+        public async Task<string> GetCurrentProgramScene()
         {
-            return this.SendRequest<CurrentProgramSceneNameResponseData>().CurrentProgramSceneName;
+            return (await this.SendRequestAsync<CurrentProgramSceneNameResponseData>()).CurrentProgramSceneName;
         }
 
         /// <summary>
         /// Sets the current program scene.
         /// </summary>
         /// <param name="sceneName">Scene to set as the current program scene</param>
-        public void SetCurrentProgramScene(string sceneName)
+        public async Task SetCurrentProgramScene(string sceneName)
         {
-            this.SendRequest(new { sceneName });
+            await this.SendRequestAsync(new { sceneName });
         }
 
         /// <summary>
         /// Gets the current preview scene.
         /// </summary>
         /// <returns>Current preview scene</returns>
-        public string? GetCurrentPreviewScene()
+        public async Task<string?> GetCurrentPreviewScene()
         {
-            return this.SendRequest<CurrentPreviewSceneNameResponseData>().CurrentPreviewSceneName;
+            return (await this.SendRequestAsync<CurrentPreviewSceneNameResponseData>()).CurrentPreviewSceneName;
         }
 
         /// <summary>
         /// Sets the current preview scene.
         /// </summary>
         /// <param name="sceneName">Scene to set as the current preview scene</param>
-        public void SetCurrentPreviewScene(string sceneName)
+        public async Task SetCurrentPreviewScene(string sceneName)
         {
-            this.SendRequest(new { sceneName });
+            await this.SendRequestAsync(new { sceneName });
         }
 
         /// <summary>
         /// Creates a new scene in OBS.
         /// </summary>
         /// <param name="sceneName">Name for the new scene</param>
-        public void CreateScene(string sceneName)
+        public async Task CreateScene(string sceneName)
         {
-            this.SendRequest(new { sceneName });
+            await this.SendRequestAsync(new { sceneName });
         }
 
         /// <summary>
         /// Removes a scene from OBS.
         /// </summary>
         /// <param name="sceneName">Name of the scene to remove</param>
-        public void RemoveScene(string sceneName)
+        public async Task RemoveScene(string sceneName)
         {
-            this.SendRequest(new { sceneName });
+            await this.SendRequestAsync(new { sceneName });
         }
 
         /// <summary>
@@ -85,9 +84,9 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene to be renamed</param>
         /// <param name="newSceneName">New name for the scene</param>
-        public void SetSceneName(string sceneName, string newSceneName)
+        public async Task SetSceneName(string sceneName, string newSceneName)
         {
-            this.SendRequest(new { sceneName, newSceneName });
+            await this.SendRequestAsync(new { sceneName, newSceneName });
         }
 
         /// <summary>
@@ -95,9 +94,9 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene</param>
         /// <returns>A <see cref="SceneTransitionResponseData"/></returns>
-        public SceneTransitionResponseData GetSceneSceneTransitionOverride(string sceneName)
+        public async Task<SceneTransitionResponseData> GetSceneSceneTransitionOverride(string sceneName)
         {
-            return this.SendRequest<SceneTransitionResponseData>(new { sceneName });
+            return await this.SendRequestAsync<SceneTransitionResponseData>(new { sceneName });
         }
 
         /// <summary>
@@ -106,9 +105,9 @@
         /// <param name="sceneName">Name of the scene</param>
         /// <param name="transitionName">Name of the scene transition to use as override. Specify null to remove</param>
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove (>= 50, <= 20000)</param>
-        public void SetSceneSceneTransitionOverride(string sceneName, string? transitionName, int? transitionDuration)
+        public async Task SetSceneSceneTransitionOverride(string sceneName, string? transitionName, int? transitionDuration)
         {
-            this.SendRequest(new { sceneName, transitionName, transitionDuration });
+            await this.SendRequestAsync(new { sceneName, transitionName, transitionDuration });
         }
     }
 }

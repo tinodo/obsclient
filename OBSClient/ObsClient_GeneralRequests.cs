@@ -10,27 +10,27 @@
         /// Gets data about the current plugin and RPC version.
         /// </summary>
         /// <returns>A <see cref="VersionResponseData"/> object with OBS Studio Version information.</returns>
-        public VersionResponseData GetVersion()
+        public async Task<VersionResponseData> GetVersion()
         {
-            return this.SendRequest<VersionResponseData>();
+            return await this.SendRequestAsync<VersionResponseData>();
         }
 
         /// <summary>
         /// Gets statistics about OBS, obs-websocket, and the current session.
         /// </summary>
         /// <returns>A <see cref="StatsResponseData"/> object with OBS Studio Statistics.</returns>
-        public StatsResponseData GetStats() 
+        public async Task<StatsResponseData> GetStats() 
         {
-            return this.SendRequest<StatsResponseData>();
+            return await this.SendRequestAsync<StatsResponseData>();
         }
 
         /// <summary>
         /// Broadcasts a CustomEvent to all WebSocket clients. Receivers are clients which are identified and subscribed.
         /// </summary>
         /// <param name="eventData">Data payload to emit to all receivers</param>
-        public void BroadcastCustomEvent(object eventData)
+        public async Task BroadcastCustomEvent(object eventData)
         {
-            this.SendRequest(new { eventData });
+            await this.SendRequestAsync(new { eventData });
         }
 
         /// <summary>
@@ -39,27 +39,27 @@
         /// <param name="vendorName">Name of the vendor to use</param>
         /// <param name="requestType">The request type to call</param>
         /// <param name="requestData">Object containing appropriate request data</param>
-        public CallVendorRequestResponseData CallVendorRequest(string vendorName, string requestType, object? requestData)
+        public async Task<CallVendorRequestResponseData> CallVendorRequest(string vendorName, string requestType, object? requestData)
         {
-            return this.SendRequest<CallVendorRequestResponseData>(new {vendorName, requestType, requestData});
+            return await this.SendRequestAsync<CallVendorRequestResponseData>(new {vendorName, requestType, requestData});
         }
 
         /// <summary>
         /// Gets an array of all hotkey names in OBS
         /// </summary>
         /// <returns>Array of hotkey names</returns>
-        public string[] GetHotkeyList()
+        public async Task<string[]> GetHotkeyList()
         {
-            return this.SendRequest<HotkeysResponseData>().Hotkeys;
+            return (await this.SendRequestAsync<HotkeysResponseData>()).Hotkeys;
         }
 
         /// <summary>
         /// Triggers a hotkey using its name. See <see cref="GetHotkeyList"/>
         /// </summary>
         /// <param name="hotkeyName">Name of the hotkey to trigger</param>
-        public void TriggerHotkeyByName(string hotkeyName)
+        public async Task TriggerHotkeyByName(string hotkeyName)
         {
-            this.SendRequest(new { hotkeyName });
+            await this.SendRequestAsync(new { hotkeyName });
         }
 
         /// <summary>
@@ -67,10 +67,10 @@
         /// </summary>
         /// <param name="keyId">The OBS key ID to use. See https://github.com/obsproject/obs-studio/blob/master/libobs/obs-hotkeys.h</param>
         /// <param name="keyModifier">Key modifiers to apply</param>
-        public void TriggerHotkeyByKeySequence(ObsKey? keyId, KeyModifier? keyModifier)
+        public async Task TriggerHotkeyByKeySequence(ObsKey? keyId, KeyModifier? keyModifier)
         {
             KeyModifiers keyModifiers = new(keyModifier);
-            this.SendRequest(new { keyId, keyModifiers });
+            await this.SendRequestAsync(new { keyId, keyModifiers });
         }
 
         /// <summary>

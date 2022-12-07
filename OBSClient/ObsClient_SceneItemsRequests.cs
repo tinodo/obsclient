@@ -11,9 +11,9 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene to get the items of</param>
         /// <returns>Array of <see cref="SceneItem"/> in the scene</returns>
-        public SceneItem[] GetSceneItemList(string sceneName)
+        public async Task<SceneItem[]> GetSceneItemList(string sceneName)
         {
-            return this.SendRequest<SceneItemsResponseData>(new { sceneName }).SceneItems;
+            return (await this.SendRequestAsync<SceneItemsResponseData>(new { sceneName })).SceneItems;
         }
 
         /// <summary>
@@ -24,9 +24,9 @@
         /// <remarks>
         /// Using groups at all in OBS is discouraged, as they are very broken under the hood. Please use nested scenes instead.
         /// </remarks>
-        public SceneItem[] GetGroupSceneItemList(string sceneName)
+        public async Task<SceneItem[]> GetGroupSceneItemList(string sceneName)
         {
-            return this.SendRequest<SceneItemsResponseData>(new { sceneName }).SceneItems;
+            return (await this.SendRequestAsync<SceneItemsResponseData>(new { sceneName })).SceneItems;
         }
 
         /// <summary>
@@ -36,9 +36,9 @@
         /// <param name="sourceName">Name of the source to find</param>
         /// <param name="searchOffset">Number of matches to skip during search. >= 0 means first forward. -1 means last (top) item (>= -1)</param>
         /// <returns>Numeric ID of the scene item</returns>
-        public int GetSceneItemId(string sceneName, string sourceName, int searchOffset = 0)
+        public async Task<int> GetSceneItemId(string sceneName, string sourceName, int searchOffset = 0)
         {
-            return this.SendRequest<SceneItemIdResponseData>(new { sceneName, sourceName, searchOffset }).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sourceName, searchOffset })).SceneItemId;
         }
 
         /// <summary>
@@ -48,9 +48,9 @@
         /// <param name="sourceName">Name of the source to add to the scene</param>
         /// <param name="sceneItemEnabled">Enable state to apply to the scene item on creation</param>
         /// <returns>Numeric ID of the scene item</returns>
-        public int CreateSceneItem(string sceneName, string sourceName, bool sceneItemEnabled = true)
+        public async Task<int> CreateSceneItem(string sceneName, string sourceName, bool sceneItemEnabled = true)
         {
-            return this.SendRequest<SceneItemIdResponseData>(new { sceneName, sourceName, sceneItemEnabled }).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sourceName, sceneItemEnabled })).SceneItemId;
         }
 
         /// <summary>
@@ -58,9 +58,9 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        public void RemoveSceneItem(string sceneName, int sceneItemId)
+        public async Task RemoveSceneItem(string sceneName, int sceneItemId)
         {
-            this.SendRequest(new { sceneName, sceneItemId });
+            await this.SendRequestAsync(new { sceneName, sceneItemId });
         }
 
         /// <summary>
@@ -70,9 +70,9 @@
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="destinationSceneName">Name of the scene to create the duplicated item in</param>
         /// <returns>Numeric ID of the duplicated scene item</returns>
-        public int DuplicateSceneItem(string sceneName, int sceneItemId, string? destinationSceneName = null)
+        public async Task<int> DuplicateSceneItem(string sceneName, int sceneItemId, string? destinationSceneName = null)
         {
-            return this.SendRequest<SceneItemIdResponseData>(new { sceneName, sceneItemId, destinationSceneName }).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, sceneItemId, destinationSceneName })).SceneItemId;
         }
 
         /// <summary>
@@ -81,9 +81,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <returns>Object containing scene item transform info</returns>
-        public SceneItemTransform GetSceneItemTransform(string sceneName, int sceneItemId)
+        public async Task<SceneItemTransform> GetSceneItemTransform(string sceneName, int sceneItemId)
         {
-            return this.SendRequest<SceneItemTransformResponseData>(new { sceneName, sceneItemId }).SceneItemTransform;
+            return (await this.SendRequestAsync<SceneItemTransformResponseData>(new { sceneName, sceneItemId })).SceneItemTransform;
         }
 
         /// <summary>
@@ -92,9 +92,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public void SetSceneItemTransform(string sceneName, int sceneItemId, SceneItemTransform sceneItemTransform)
+        public async Task SetSceneItemTransform(string sceneName, int sceneItemId, SceneItemTransform sceneItemTransform)
         {
-            this.SendRequest(new { sceneName, sceneItemId, sceneItemTransform });
+            await this.SendRequestAsync(new { sceneName, sceneItemId, sceneItemTransform });
         }
 
         /// <summary>
@@ -103,9 +103,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <returns>Whether the scene item is enabled. true for enabled, false for disabled</returns>
-        public bool GetSceneItemEnabled(string sceneName, int sceneItemId)
+        public async Task<bool> GetSceneItemEnabled(string sceneName, int sceneItemId)
         {
-            return this.SendRequest<SceneItemEnabledResponseData>(new { sceneName, sceneItemId }).SceneItemEnabled;
+            return (await this.SendRequestAsync<SceneItemEnabledResponseData>(new { sceneName, sceneItemId })).SceneItemEnabled;
         }
 
         /// <summary>
@@ -114,9 +114,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="sceneItemEnabled">	New enable state of the scene item</param>
-        public void SetSceneItemEnabled(string sceneName, int sceneItemId, bool sceneItemEnabled)
+        public async Task SetSceneItemEnabled(string sceneName, int sceneItemId, bool sceneItemEnabled)
         {
-            this.SendRequest(new { sceneName, sceneItemId, sceneItemEnabled });
+            await this.SendRequestAsync(new { sceneName, sceneItemId, sceneItemEnabled });
         }
 
         /// <summary>
@@ -125,9 +125,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <returns>Whether the scene item is locked. true for locked, false for unlocked</returns>
-        public bool GetSceneItemLocked(string sceneName, int sceneItemId)
+        public async Task<bool> GetSceneItemLocked(string sceneName, int sceneItemId)
         {
-            return this.SendRequest<SceneItemlockedResponseData>(new { sceneName, sceneItemId }).SceneItemLocked;
+            return (await this.SendRequestAsync<SceneItemlockedResponseData>(new { sceneName, sceneItemId })).SceneItemLocked;
         }
 
         /// <summary>
@@ -136,9 +136,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="sceneItemLocked">New lock state of the scene item</param>
-        public void SetSceneItemLocked(string sceneName, int sceneItemId, bool sceneItemLocked)
+        public async Task SetSceneItemLocked(string sceneName, int sceneItemId, bool sceneItemLocked)
         {
-            this.SendRequest(new { sceneName, sceneItemId, sceneItemLocked });
+            await this.SendRequestAsync(new { sceneName, sceneItemId, sceneItemLocked });
         }
 
         /// <summary>
@@ -151,9 +151,9 @@
         /// An index of 0 is at the bottom of the source list in the UI.
         /// Scenes and Groups
         /// </remarks>
-        public int GetSceneItemIndex(string sceneName, int sceneItemId)
+        public async Task<int> GetSceneItemIndex(string sceneName, int sceneItemId)
         {
-            return this.SendRequest<SceneItemIndexResponseData>(new { sceneName, sceneItemId }).SceneItemIndex;
+            return (await this.SendRequestAsync<SceneItemIndexResponseData>(new { sceneName, sceneItemId })).SceneItemIndex;
         }
 
         /// <summary>
@@ -162,9 +162,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="sceneItemIndex">New index position of the scene item (>= 0)</param>
-        public void SetSceneItemIndex(string sceneName, int sceneItemId, int sceneItemIndex)
+        public async Task SetSceneItemIndex(string sceneName, int sceneItemId, int sceneItemIndex)
         {
-            this.SendRequest(new { sceneName, sceneItemId, sceneItemIndex });
+            await this.SendRequestAsync(new { sceneName, sceneItemId, sceneItemIndex });
         }
 
         /// <summary>
@@ -173,9 +173,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <returns>Current blend mode</returns>
-        public BlendMode GetSceneItemBlendMode(string sceneName, int sceneItemId)
+        public async Task<BlendMode> GetSceneItemBlendMode(string sceneName, int sceneItemId)
         {
-            return this.SendRequest<SceneItemBlendModeResponseData>(new { sceneName, sceneItemId }).SceneItemBlendMode;
+            return (await this.SendRequestAsync<SceneItemBlendModeResponseData>(new { sceneName, sceneItemId })).SceneItemBlendMode;
         }
 
         /// <summary>
@@ -184,9 +184,9 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         /// <param name="sceneItemBlendMode">New blend mode</param>
-        public void SetSceneItemBlendMode(string sceneName, int sceneItemId, BlendMode sceneItemBlendMode)
+        public async Task SetSceneItemBlendMode(string sceneName, int sceneItemId, BlendMode sceneItemBlendMode)
         {
-            this.SendRequest(new { sceneName, sceneItemId, sceneItemBlendMode });
+            await this.SendRequestAsync(new { sceneName, sceneItemId, sceneItemBlendMode });
         }
     }
 }

@@ -12,9 +12,9 @@
         /// <remarks>
         /// Compatible with inputs and scenes.
         /// </remarks>
-        public SourceActiveResponseData GetSourceActive(string sourceName)
+        public async Task<SourceActiveResponseData> GetSourceActive(string sourceName)
         {
-            return this.SendRequest<SourceActiveResponseData>(new { sourceName });
+            return await this.SendRequestAsync<SourceActiveResponseData>(new { sourceName });
         }
 
         /// <summary>
@@ -30,9 +30,9 @@
         /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
         /// Compatible with inputs and scenes.
         /// </remarks>
-        public string GetSourceScreenshot(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        public async Task<string> GetSourceScreenshot(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return this.SendRequest<ImageDataResponseData>(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality }).ImageData;
+            return (await this.SendRequestAsync<ImageDataResponseData>(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
 
         /// <summary>
@@ -49,9 +49,9 @@
         /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
         /// Compatible with inputs and scenes.
         /// </remarks>
-        public string SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        public async Task<string> SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return this.SendRequest<ImageDataResponseData>(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality }).ImageData;
+            return (await this.SendRequestAsync<ImageDataResponseData>(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
     }
 }

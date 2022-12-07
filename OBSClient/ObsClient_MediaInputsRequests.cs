@@ -10,9 +10,9 @@
         /// </summary>
         /// <param name="inputName">Name of the media input</param>
         /// <returns>A <see cref="MediaInputStatusResponseData"/></returns>
-        public MediaInputStatusResponseData GetMediaInputStatus(string inputName)
+        public async Task<MediaInputStatusResponseData> GetMediaInputStatus(string inputName)
         {
-            return this.SendRequest<MediaInputStatusResponseData>(new { inputName });
+            return await this.SendRequestAsync<MediaInputStatusResponseData>(new { inputName });
         }
 
         /// <summary>
@@ -23,9 +23,9 @@
         /// <remarks>
         /// This request does not perform bounds checking of the cursor position.
         /// </remarks>
-        public void SetMediaInputCursor(string inputName, int mediaCursor)
+        public async Task SetMediaInputCursor(string inputName, int mediaCursor)
         {
-            this.SendRequest(new { inputName, mediaCursor });
+            await this.SendRequestAsync(new { inputName, mediaCursor });
         }
 
         /// <summary>
@@ -36,9 +36,9 @@
         /// <remarks>
         /// This request does not perform bounds checking of the cursor position.
         /// </remarks>
-        public void OffsetMediaInputCursor(string inputName, int mediaCursorOffset)
+        public async Task OffsetMediaInputCursor(string inputName, int mediaCursorOffset)
         {
-            this.SendRequest(new { inputName, mediaCursorOffset });
+            await this.SendRequestAsync(new { inputName, mediaCursorOffset });
         }
 
         /// <summary>
@@ -46,9 +46,9 @@
         /// </summary>
         /// <param name="inputName">Name of the media input</param>
         /// <param name="mediaAction">Identifier of the ObsMediaInputAction enum</param>
-        public void TriggerMediaInputAction(string inputName, ObsMediaInputAction mediaAction)
+        public async Task TriggerMediaInputAction(string inputName, ObsMediaInputAction mediaAction)
         {
-            this.SendRequest(new { inputName, mediaAction });
+            await this.SendRequestAsync(new { inputName, mediaAction });
         }
     }
 }

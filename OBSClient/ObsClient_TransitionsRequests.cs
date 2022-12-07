@@ -8,27 +8,27 @@
         /// Gets an array of all available transition kinds.
         /// </summary>
         /// <returns>Array of transition kinds</returns>
-        public string[] GetTransitionKindList()
+        public async Task<string[]> GetTransitionKindList()
         {
-            return this.SendRequest<TransitionKindsResponseData>().TransitionKinds;
+            return (await this.SendRequestAsync<TransitionKindsResponseData>()).TransitionKinds;
         }
 
         /// <summary>
         /// Gets an array of all scene transitions in OBS.
         /// </summary>
         /// <returns>A <see cref="SceneTransitionListResponseData"/></returns>
-        public SceneTransitionListResponseData GetSceneTransitionList()
+        public async Task<SceneTransitionListResponseData> GetSceneTransitionList()
         {
-            return this.SendRequest<SceneTransitionListResponseData>();
+            return await this.SendRequestAsync<SceneTransitionListResponseData>();
         }
 
         /// <summary>
         /// Gets information about the current scene transition.
         /// </summary>
         /// <returns>A <see cref="ExtendedTransitionResponseData"/></returns>
-        public ExtendedTransitionResponseData GetCurrentSceneTransition()
+        public async Task<ExtendedTransitionResponseData> GetCurrentSceneTransition()
         {
-            return this.SendRequest<ExtendedTransitionResponseData>();
+            return await this.SendRequestAsync<ExtendedTransitionResponseData>();
         }
 
         /// <summary>
@@ -38,18 +38,18 @@
         /// <remarks>
         /// Small note: While the namespace of scene transitions is generally unique, that uniqueness is not a guarantee as it is with other resources like inputs.
         /// </remarks>
-        public void SetCurrentSceneTransition(string transitionName)
+        public async Task SetCurrentSceneTransition(string transitionName)
         {
-            this.SendRequest(new { transitionName });
+            await this.SendRequestAsync(new { transitionName });
         }
 
         /// <summary>
         /// Sets the duration of the current scene transition, if it is not fixed.
         /// </summary>
         /// <param name="transitionDuration">Duration in milliseconds (>= 50, <= 20000)</param>
-        public void SetCurrentSceneTransitionDuration(float transitionDuration)
+        public async Task SetCurrentSceneTransitionDuration(float transitionDuration)
         {
-            this.SendRequest(new { transitionDuration });
+            await this.SendRequestAsync(new { transitionDuration });
         }
 
         /// <summary>
@@ -57,9 +57,9 @@
         /// </summary>
         /// <param name="transitionSettings">Settings object to apply to the transition. Can be {}</param>
         /// <param name="overlay">Whether to overlay over the current settings or replace them</param>
-        public void SetCurrentSceneTransitionSettings(ExtendedTransitionResponseData? transitionSettings, bool overlay = true)
+        public async Task SetCurrentSceneTransitionSettings(ExtendedTransitionResponseData? transitionSettings, bool overlay = true)
         {
-            this.SendRequest(new { transitionSettings, overlay });
+            await this.SendRequestAsync(new { transitionSettings, overlay });
         }
 
         /// <summary>
@@ -69,17 +69,17 @@
         /// <remarks>
         /// Note: transitionCursor will return 1.0 when the transition is inactive.
         /// </remarks>
-        public float GetCurrentSceneTransitionCursor()
+        public async Task<float> GetCurrentSceneTransitionCursor()
         {
-            return this.SendRequest<TransitionCursorResponseData>().TransitionCursor;
+            return (await this.SendRequestAsync<TransitionCursorResponseData>()).TransitionCursor;
         }
 
         /// <summary>
         /// Triggers the current scene transition. Same functionality as the Transition button in studio mode.
         /// </summary>
-        public void TriggerStudioModeTransition()
+        public async Task TriggerStudioModeTransition()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
@@ -90,9 +90,9 @@
         /// <remarks>
         /// Very important note: This will be deprecated and replaced in a future version of obs-websocket.
         /// </remarks>
-        public void SetTBarPosition(float position, bool release = true)
+        public async Task SetTBarPosition(float position, bool release = true)
         {
-            this.SendRequest(new { position, release });
+            await this.SendRequestAsync(new { position, release });
         }
     }
 }

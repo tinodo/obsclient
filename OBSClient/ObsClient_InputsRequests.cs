@@ -11,9 +11,9 @@
         /// </summary>
         /// <param name="inputKind">Restrict the array to only inputs of the specified kind</param>
         /// <returns>An array of <see cref="Input"/></returns>
-        public Input[] GetInputList(string? inputKind = null)
+        public async Task<Input[]> GetInputList(string? inputKind = null)
         {
-            return this.SendRequest<InputsResponseData>(new { inputKind }).Inputs;
+            return (await this.SendRequestAsync<InputsResponseData>(new { inputKind })).Inputs;
         }
 
         /// <summary>
@@ -21,18 +21,18 @@
         /// </summary>
         /// <param name="unversioned">True == Return all kinds as unversioned, False == Return with version suffixes (if available)</param>
         /// <returns>Array of input kinds</returns>
-        public string[] GetInputKindList(bool unversioned = false)
+        public async Task<string[]> GetInputKindList(bool unversioned = false)
         {
-            return this.SendRequest<InputKindsResponseData>(new { unversioned }).InputKinds;
+            return (await this.SendRequestAsync<InputKindsResponseData>(new { unversioned })).InputKinds;
         }
 
         /// <summary>
         /// Gets the names of all special inputs.
         /// </summary>
         /// <returns>A <see cref="SpecialInputsResponseData"/></returns>
-        public SpecialInputsResponseData GetSpecialInputs()
+        public async Task<SpecialInputsResponseData> GetSpecialInputs()
         {
-            return this.SendRequest<SpecialInputsResponseData>();
+            return await this.SendRequestAsync<SpecialInputsResponseData>();
         }
 
         /// <summary>
@@ -44,9 +44,9 @@
         /// <param name="inputSettings">Settings object to initialize the input with</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
         /// <returns>ID of the newly created scene item</returns>
-        public int CreateInput(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        public async Task<int> CreateInput(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
         {
-            return this.SendRequest<SceneItemIdResponseData>(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled }).SceneItemId;
+            return (await this.SendRequestAsync<SceneItemIdResponseData>(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled })).SceneItemId;
         }
 
         /// <summary>
@@ -56,9 +56,9 @@
         /// <remarks>
         /// Note: Will immediately remove all associated scene items.
         /// </remarks>
-        public void RemoveInput(string inputName)
+        public async Task RemoveInput(string inputName)
         {
-            this.SendRequest(new { inputName });
+            await this.SendRequestAsync(new { inputName });
         }
 
         /// <summary>
@@ -66,9 +66,9 @@
         /// </summary>
         /// <param name="inputName">Current input name</param>
         /// <param name="newInputName">New name for the input</param>
-        public void SetInputName(string inputName, string newInputName) 
+        public async Task SetInputName(string inputName, string newInputName) 
         {
-            this.SendRequest(new { inputName, newInputName });
+            await this.SendRequestAsync(new { inputName, newInputName });
         }
 
         /// <summary>
@@ -76,9 +76,9 @@
         /// </summary>
         /// <param name="inputKind">Input kind to get the default settings for</param>
         /// <returns>A <see cref="Dictionary<string, object>"/> of default settings for the input kind</returns>
-        public Dictionary<string, object> GetInputDefaultSettings(string inputKind)
+        public async Task<Dictionary<string, object>> GetInputDefaultSettings(string inputKind)
         {
-            return this.SendRequest<DefaultInputSettingsResponseData>(new{ inputKind }).DefaultInputSettings;
+            return (await this.SendRequestAsync<DefaultInputSettingsResponseData>(new{ inputKind })).DefaultInputSettings;
         }
 
         /// <summary>
@@ -89,9 +89,9 @@
         /// <remarks>
         /// Note: Does not include defaults. To create the entire settings object, overlay inputSettings over the defaultInputSettings provided by GetInputDefaultSettings.
         /// </remarks>
-        public InputSettingsResponseData GetInputSettings(string inputName)
+        public async Task<InputSettingsResponseData> GetInputSettings(string inputName)
         {
-            return this.SendRequest<InputSettingsResponseData>(new { inputName });
+            return await this.SendRequestAsync<InputSettingsResponseData>(new { inputName });
         }
 
         /// <summary>
@@ -100,9 +100,9 @@
         /// <param name="inputName">Name of the input to set the settings of</param>
         /// <param name="inputSettings">Object of settings to apply</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
-        public void SetInputSettings(string inputName, Dictionary<string, object> inputSettings, bool overlay = true)
+        public async Task SetInputSettings(string inputName, Dictionary<string, object> inputSettings, bool overlay = true)
         {
-            this.SendRequest(new { inputName, inputSettings, overlay });
+            await this.SendRequestAsync(new { inputName, inputSettings, overlay });
         }
 
         /// <summary>
@@ -110,9 +110,9 @@
         /// </summary>
         /// <param name="inputName">Name of input to get the mute state of</param>
         /// <returns>Whether the input is muted</returns>
-        public bool GetInputMute(string inputName)
+        public async Task<bool> GetInputMute(string inputName)
         {
-            return this.SendRequest<InputMutedResponseData>(new { inputName }).InputMuted;
+            return (await this.SendRequestAsync<InputMutedResponseData>(new { inputName })).InputMuted;
         }
 
         /// <summary>
@@ -120,9 +120,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the mute state of</param>
         /// <param name="inputMuted">Whether to mute the input or not</param>
-        public void SetInputMute(string inputName, bool inputMuted)
+        public async Task SetInputMute(string inputName, bool inputMuted)
         {
-            this.SendRequest(new { inputName, inputMuted });
+            await this.SendRequestAsync(new { inputName, inputMuted });
         }
 
         /// <summary>
@@ -130,9 +130,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to toggle the mute state of</param>
         /// <returns>Whether the input has been muted or unmuted</returns>
-        public bool ToggleInputMute(string inputName)
+        public async Task<bool> ToggleInputMute(string inputName)
         {
-            return this.SendRequest<InputMutedResponseData>(new { inputName }).InputMuted;
+            return (await this.SendRequestAsync<InputMutedResponseData>(new { inputName })).InputMuted;
         }
 
         /// <summary>
@@ -140,9 +140,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to get the volume of</param>
         /// <returns>A <see cref="InputVolumeResponseData"/></returns>
-        public InputVolumeResponseData GetInputVolume(string inputName)
+        public async Task<InputVolumeResponseData> GetInputVolume(string inputName)
         {
-            return this.SendRequest<InputVolumeResponseData>(new { inputName });
+            return await this.SendRequestAsync<InputVolumeResponseData>(new { inputName });
         }
 
         /// <summary>
@@ -150,9 +150,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the volume of</param>
         /// <param name="inputVolumeMul">Volume setting in mul (>= 0, <= 20)</param>
-        public void SetInputVolumeMul(string inputName, float inputVolumeMul)
+        public async Task SetInputVolumeMul(string inputName, float inputVolumeMul)
         {
-            this.SetInputVolume(inputName, inputVolumeMul, null);
+            await this.SetInputVolume(inputName, inputVolumeMul, null);
         }
 
         /// <summary>
@@ -160,9 +160,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the volume of</param>
         /// <param name="inputVolumeDb">Volume setting in dB (>= -100, <= 26)</param>
-        public void SetInputVolumeDb(string inputName, float inputVolumeDb)
+        public async Task SetInputVolumeDb(string inputName, float inputVolumeDb)
         {
-            this.SetInputVolume(inputName, null, inputVolumeDb);
+            await this.SetInputVolume(inputName, null, inputVolumeDb);
         }
 
         /// <summary>
@@ -172,14 +172,14 @@
         /// <param name="inputVolumeMul">Volume setting in mul (>= 0, <= 20)</param>
         /// <param name="inputVolumeDb">Volume setting in dB (>= -100, <= 26)</param>
         /// <exception cref="ArgumentException"></exception>
-        private void SetInputVolume(string inputName, float? inputVolumeMul, float? inputVolumeDb)
+        private async Task SetInputVolume(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
             if ((inputVolumeMul.HasValue && inputVolumeDb.HasValue) || (!inputVolumeMul.HasValue && !inputVolumeDb.HasValue))
             {
                 throw new ArgumentException($"Specify either {nameof(inputVolumeMul)} or {nameof(inputVolumeDb)}");
             }
 
-            this.SendRequest(new { inputName, inputVolumeMul, inputVolumeDb });
+            await this.SendRequestAsync(new { inputName, inputVolumeMul, inputVolumeDb });
         }
 
         /// <summary>
@@ -187,9 +187,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to get the audio balance of</param>
         /// <returns>Audio balance value from 0.0-1.0</returns>
-        public float GetInputAudioBalance(string inputName)
+        public async Task<float> GetInputAudioBalance(string inputName)
         {
-            return this.SendRequest<InputAudioBalanceResponseData>(new { inputName }).InputAudioBalance;
+            return (await this.SendRequestAsync<InputAudioBalanceResponseData>(new { inputName })).InputAudioBalance;
         }
 
         /// <summary>
@@ -197,9 +197,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio balance of</param>
         /// <param name="inputAudioBalance">New audio balance value (>= 0.0, <= 1.0)</param>
-        public void SetInputAudioBalance(string inputName, float inputAudioBalance)
+        public async Task SetInputAudioBalance(string inputName, float inputAudioBalance)
         {
-            this.SendRequest(new { inputName, inputAudioBalance });
+            await this.SendRequestAsync(new { inputName, inputAudioBalance });
         }
 
         /// <summary>
@@ -210,9 +210,9 @@
         /// <remarks>
         /// Note: The audio sync offset can be negative too!
         /// </remarks>
-        public int GetInputAudioSyncOffset(string inputName)
+        public async Task<int> GetInputAudioSyncOffset(string inputName)
         {
-            return this.SendRequest<InputAudioSyncOffsetResponseData>(new { inputName }).InputAudioSyncOffset;
+            return (await this.SendRequestAsync<InputAudioSyncOffsetResponseData>(new { inputName })).InputAudioSyncOffset;
         }
 
         /// <summary>
@@ -220,9 +220,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio sync offset of</param>
         /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds (>= -950, <= 20000)</param>
-        public void SetInputAudioSyncOffset(string inputName, int inputAudioSyncOffset)
+        public async Task SetInputAudioSyncOffset(string inputName, int inputAudioSyncOffset)
         {
-            this.SendRequest(new { inputName, inputAudioSyncOffset });
+            await this.SendRequestAsync(new { inputName, inputAudioSyncOffset });
         }
 
         /// <summary>
@@ -230,9 +230,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to get the audio monitor type of</param>
         /// <returns>Audio monitor type</returns>
-        public MonitorType GetInputAudioMonitorType(string inputName)
+        public async Task<MonitorType> GetInputAudioMonitorType(string inputName)
         {
-            return this.SendRequest<MonitorTypeResponseData>(new { inputName }).MonitorType;
+            return (await this.SendRequestAsync<MonitorTypeResponseData>(new { inputName })).MonitorType;
         }
 
         /// <summary>
@@ -240,9 +240,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio monitor type of</param>
         /// <param name="monitorType">Audio monitor type</param>
-        public void SetInputAudioMonitorType(string inputName, MonitorType monitorType)
+        public async Task SetInputAudioMonitorType(string inputName, MonitorType monitorType)
         {
-            this.SendRequest(new { inputName, monitorType });
+            await this.SendRequestAsync(new { inputName, monitorType });
         }
 
         /// <summary>
@@ -250,9 +250,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input</param>
         /// <returns>Object of audio tracks and associated enable states</returns>
-        public AudioTracks GetInputAudioTracks(string inputName)
+        public async Task<AudioTracks> GetInputAudioTracks(string inputName)
         {
-            return this.SendRequest<InputAudioTracksResponseData>(new { inputName }).InputAudioTracks;
+            return (await this.SendRequestAsync<InputAudioTracksResponseData>(new { inputName })).InputAudioTracks;
         }
 
         /// <summary>
@@ -260,9 +260,9 @@
         /// </summary>
         /// <param name="inputName">Name of the input</param>
         /// <param name="inputAudioTracks">Track settings to apply</param>
-        public void SetInputAudioTracks(string inputName, AudioTracks inputAudioTracks)
+        public async Task SetInputAudioTracks(string inputName, AudioTracks inputAudioTracks)
         {
-            this.SendRequest(new { inputName, inputAudioTracks });
+            await this.SendRequestAsync(new { inputName, inputAudioTracks });
         }
 
         /// <summary>
@@ -274,9 +274,9 @@
         /// <remarks>
         /// Note: Use this in cases where an input provides a dynamic, selectable list of items. For example, display capture, where it provides a list of available displays.
         /// </remarks>
-        public PropertyItem[] GetInputPropertiesListPropertyItems(string inputName, string propertyName)
+        public async Task<PropertyItem[]> GetInputPropertiesListPropertyItems(string inputName, string propertyName)
         {
-            return this.SendRequest<PropertyItemsResponseData>(new { inputName, propertyName }).PropertyItems;
+            return (await this.SendRequestAsync<PropertyItemsResponseData>(new { inputName, propertyName })).PropertyItems;
         }
 
         /// <summary>
@@ -287,9 +287,9 @@
         /// <remarks>
         /// Note: Use this in cases where there is a button in the properties of an input that cannot be accessed in any other way. For example, browser sources, where there is a refresh button.
         /// </remarks>
-        public void PressInputPropertiesButton(string inputName, string propertyName)
+        public async Task PressInputPropertiesButton(string inputName, string propertyName)
         {
-            this.SendRequest(new { inputName, propertyName });
+            await this.SendRequestAsync(new { inputName, propertyName });
         }
     }
 }

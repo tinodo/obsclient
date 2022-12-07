@@ -11,9 +11,9 @@
         /// <param name="realm">The data realm to select. OBS_WEBSOCKET_DATA_REALM_GLOBAL or OBS_WEBSOCKET_DATA_REALM_PROFILE</param>
         /// <param name="slotName">The name of the slot to retrieve data from</param>
         /// <returns>Value associated with the slot. null if not set</returns>
-        public object? GetPersistentData(Realm realm, string slotName)
+        public async Task<object?> GetPersistentData(Realm realm, string slotName)
         {
-            return this.SendRequest<SlotValueResponseData>(new { realm, slotName }).SlotValue;
+            return (await this.SendRequestAsync<SlotValueResponseData>(new { realm, slotName })).SlotValue;
         }
 
         /// <summary>
@@ -22,18 +22,18 @@
         /// <param name="realm">The data realm to select. OBS_WEBSOCKET_DATA_REALM_GLOBAL or OBS_WEBSOCKET_DATA_REALM_PROFILE</param>
         /// <param name="slotName">The name of the slot to retrieve data from</param>
         /// <param name="slotValue">The value to apply to the slot</param>
-        public void SetPersistentData(Realm realm, string slotName, object slotValue)
+        public async Task SetPersistentData(Realm realm, string slotName, object slotValue)
         {
-            this.SendRequest(new { realm, slotName, slotValue });
+            await this.SendRequestAsync(new { realm, slotName, slotValue });
         }
 
         /// <summary>
         /// Gets an array of all scene collections
         /// </summary>
         /// <returns>A <see cref="SceneCollectionListResponseData"/></returns>
-        public SceneCollectionListResponseData GetSceneCollectionList()
+        public async Task<SceneCollectionListResponseData> GetSceneCollectionList()
         {
-            return this.SendRequest<SceneCollectionListResponseData>();
+            return await this.SendRequestAsync<SceneCollectionListResponseData>();
         }
 
         /// <summary>
@@ -43,9 +43,9 @@
         /// <remarks>
         /// Note: This will block until the collection has finished changing.
         /// </remarks>
-        public void SetCurrentSceneCollection(string sceneCollectionName)
+        public async Task SetCurrentSceneCollection(string sceneCollectionName)
         {
-            this.SendRequest(new { sceneCollectionName });
+            await this.SendRequestAsync(new { sceneCollectionName });
         }
 
         /// <summary>
@@ -55,45 +55,45 @@
         /// <remarks>
         /// Note: This will block until the collection has finished changing.
         /// </remarks>
-        public void CreateSceneCollection(string sceneCollectionName)
+        public async Task CreateSceneCollection(string sceneCollectionName)
         {
-            this.SendRequest(new { sceneCollectionName });
+            await this.SendRequestAsync(new { sceneCollectionName });
         }
 
         /// <summary>
         /// Gets an array of all profiles
         /// </summary>
         /// <returns>A <see cref="ProfileListResponseData"/></returns>
-        public ProfileListResponseData GetProfileList()
+        public async Task<ProfileListResponseData> GetProfileList()
         {
-            return this.SendRequest<ProfileListResponseData>();
+            return await this.SendRequestAsync<ProfileListResponseData>();
         }
 
         /// <summary>
         /// Switches to a profile.
         /// </summary>
         /// <param name="profileName">Name of the profile to switch to</param>
-        public void SetCurrentProfile(string profileName)
+        public async Task SetCurrentProfile(string profileName)
         {
-            this.SendRequest(new { profileName });
+            await this.SendRequestAsync(new { profileName });
         }
 
         /// <summary>
         /// Creates a new profile, switching to it in the process
         /// </summary>
         /// <param name="profileName">Name for the new profile</param>
-        public void CreateProfile(string profileName)
+        public async Task CreateProfile(string profileName)
         {
-            this.SendRequest(new { profileName });
+            await this.SendRequestAsync(new { profileName });
         }
 
         /// <summary>
         /// Removes a profile. If the current profile is chosen, it will change to a different profile first.
         /// </summary>
         /// <param name="profileName">Name of the profile to remove</param>
-        public void RemoveProfile(string profileName)
+        public async Task RemoveProfile(string profileName)
         {
-            this.SendRequest(new { profileName });
+            await this.SendRequestAsync(new { profileName });
         }
 
         /// <summary>
@@ -102,9 +102,9 @@
         /// <param name="parameterCategory">Category of the parameter to get</param>
         /// <param name="parameterName">Name of the parameter to get</param>
         /// <returns>A <see cref="ProfileParameterResponseData"/></returns>
-        public ProfileParameterResponseData GetProfileParameter(string parameterCategory, string parameterName)
+        public async Task<ProfileParameterResponseData> GetProfileParameter(string parameterCategory, string parameterName)
         {
-            return this.SendRequest<ProfileParameterResponseData>(new { parameterCategory, parameterName });
+            return await this.SendRequestAsync<ProfileParameterResponseData>(new { parameterCategory, parameterName });
         }
 
         /// <summary>
@@ -113,18 +113,18 @@
         /// <param name="parameterCategory">Category of the parameter to set</param>
         /// <param name="parameterName">Name of the parameter to set</param>
         /// <param name="parameterValue">Value of the parameter to set. Use null to delete</param>
-        public void SetProfileParameter(string parameterCategory, string parameterName, string? parameterValue)
+        public async Task SetProfileParameter(string parameterCategory, string parameterName, string? parameterValue)
         {
-            this.SendRequest(new { parameterCategory, parameterName, parameterValue });
+            await this.SendRequestAsync(new { parameterCategory, parameterName, parameterValue });
         }
 
         /// <summary>
         /// Gets the current video settings.
         /// </summary>
         /// <returns>A <see cref="VideoSettingsResponseData"/></returns>
-        public VideoSettingsResponseData GetVideoSettings()
+        public async Task<VideoSettingsResponseData> GetVideoSettings()
         {
-            return this.SendRequest<VideoSettingsResponseData>();
+            return await this.SendRequestAsync<VideoSettingsResponseData>();
         }
 
         /// <summary>
@@ -136,18 +136,18 @@
         /// <param name="baseHeight">Height of the base (canvas) resolution in pixels (>= 1, <= 4096)</param>
         /// <param name="outputWidth">Width of the output resolution in pixels (>= 1, <= 4096)</param>
         /// <param name="outputHeight">Height of the output resolution in pixels (>= 1, <= 4096)</param>
-        public void SetVideoSettings(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
+        public async Task SetVideoSettings(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
         {
-            this.SendRequest(new { fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight });
+            await this.SendRequestAsync(new { fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight });
         }
 
         /// <summary>
         /// Gets the current stream service settings (stream destination).
         /// </summary>
         /// <returns>A <see cref="StreamServiceSettingsResponseData"/></returns>
-        public StreamServiceSettingsResponseData GetStreamServiceSettings()
+        public async Task<StreamServiceSettingsResponseData> GetStreamServiceSettings()
         {
-            return this.SendRequest<StreamServiceSettingsResponseData>();
+            return await this.SendRequestAsync<StreamServiceSettingsResponseData>();
         }
 
         /// <summary>
@@ -158,18 +158,18 @@
         /// <remarks>
         /// Note: Simple RTMP settings can be set with type rtmp_custom and the settings fields server and key.
         /// </remarks>
-        public void SetStreamServiceSettings(string streamServiceType, object streamServiceSettings)
+        public async Task SetStreamServiceSettings(string streamServiceType, object streamServiceSettings)
         {
-            this.SendRequest(new { streamServiceType, streamServiceSettings });
+            await this.SendRequestAsync(new { streamServiceType, streamServiceSettings });
         }
 
         /// <summary>
         /// Gets the current directory that the record output is set to.
         /// </summary>
         /// <returns>Output directory</returns>
-        public string GetRecordDirectory()
+        public async Task<string> GetRecordDirectory()
         {
-            return this.SendRequest<RecordDirectoryResponseData>().RecordDirectory;
+            return (await this.SendRequestAsync<RecordDirectoryResponseData>()).RecordDirectory;
         }
     }
 }

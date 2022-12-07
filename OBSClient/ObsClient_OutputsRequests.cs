@@ -8,43 +8,43 @@
         /// Gets the status of the stream output.
         /// </summary>
         /// <returns>A <see cref="OutputStatusResponseData"/></returns>
-        public OutputStatusResponseData GetStreamStatus()
+        public async Task<OutputStatusResponseData> GetStreamStatus()
         {
-            return this.SendRequest<OutputStatusResponseData>();
+            return await this.SendRequestAsync<OutputStatusResponseData>();
         }
 
         /// <summary>
         /// Toggles the status of the stream output.
         /// </summary>
         /// <returns>New state of the stream output</returns>
-        public bool ToggleStream()
+        public async Task<bool> ToggleStream()
         {
-            return this.SendRequest<OutputActiveResponseData>().OutputActive;
+            return (await this.SendRequestAsync<OutputActiveResponseData>()).OutputActive;
         }
 
         /// <summary>
         /// Starts the stream output.
         /// </summary>
-        public void StartStream()
+        public async Task StartStream()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Stops the stream output.
         /// </summary>
-        public void StopStream()
+        public async Task StopStream()
         {
-            this.SendRequest();
+            await this.SendRequestAsync();
         }
 
         /// <summary>
         /// Sends CEA-608 caption text over the stream output.
         /// </summary>
         /// <param name="captionText">Caption text</param>
-        public void SendStreamCaption(string captionText)
+        public async Task SendStreamCaption(string captionText)
         {
-            this.SendRequest(new { captionText });
+            await this.SendRequestAsync(new { captionText });
         }
     }
 }
