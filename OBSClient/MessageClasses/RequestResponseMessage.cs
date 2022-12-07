@@ -35,7 +35,6 @@
             this.RawResponseData = rawResponseData;
         }
 
-        [OnDeserialized]
         public void OnDeserialized()
         {
             if (this.RawResponseData != null)

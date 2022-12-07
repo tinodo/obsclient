@@ -3,9 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleWindowsAppliation", "SampleWindowsAppliation\SampleWindowsAppliation.csproj", "{6508D6E8-D6D6-4B79-9649-CF940CC28A0C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SampleWindowsAppliation", "SampleWindowsAppliation\SampleWindowsAppliation.csproj", "{6508D6E8-D6D6-4B79-9649-CF940CC28A0C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OBSClient", "OBSClient\OBSClient.csproj", "{55595D94-3BB4-4286-A47C-2733DE06A385}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OBSClient", "OBSClient\OBSClient.csproj", "{55595D94-3BB4-4286-A47C-2733DE06A385}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5DD71475-6294-4AAE-A562-235364D6EBD3}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

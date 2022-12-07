@@ -31,7 +31,6 @@
             RawEventData = rawEventData;
         }
 
-        [OnDeserialized]
         public void OnDeserialized()
         {
             if (RawEventData != null)
