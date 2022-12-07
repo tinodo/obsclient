@@ -1,5 +1,5 @@
 # ObsClient
-A .NET WebSocket Client for OBS Studio version 28 and up.  
+A complete .NET WebSocket Client for OBS Studio version 28 and up.  
 
 ```
 ObsClient client = new();

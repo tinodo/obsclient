@@ -23,7 +23,7 @@
         private int _port = 4455;
         private string _password = string.Empty;
         private int _requestTimeout = 500;
-        private EventSubscriptions _eventSubscription = EventSubscriptions.All;
+        private EventSubscriptions _eventSubscriptions = EventSubscriptions.All;
 
         private CancellationTokenSource _cancellationTokenSource = new();
         private ConnectionState _connectionState = ConnectionState.Disconnected;
@@ -117,7 +117,7 @@
             _hostname = hostname;
             _port = port;
             _password = password;
-            _eventSubscription = eventSubscription;
+            _eventSubscriptions = eventSubscription;
             _cancellationTokenSource = new CancellationTokenSource();
             _client = new();
 
@@ -188,7 +188,7 @@
 
         public async Task Reidentify(EventSubscriptions eventSubscription)
         {
-            _eventSubscription = eventSubscription;
+            _eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
             await SendAsync(message);
@@ -271,7 +271,7 @@
                             authentication = HashEncode(base64secret + helloResponseData.Authentication.Challenge);
                         }
 
-                        IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscription);
+                        IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscriptions);
                         ObsMessage message = new(identify);
                         _ = SendAsync(message);
                     }
