@@ -22,3 +22,4 @@ if (isConnected)
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tinodo_obsclient&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tinodo_obsclient)
 ![Build](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)
+[![NuGet](https://img.shields.io/nuget/v/obsclient.svg?style=flat)](https://www.nuget.org/packages/obsclient)  

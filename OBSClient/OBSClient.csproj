@@ -16,6 +16,7 @@
     <PackageTags>obs</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Version>1.0.1</Version>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
