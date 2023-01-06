@@ -66,7 +66,7 @@
         /// </summary>
         /// <param name="inputName">Current input name</param>
         /// <param name="newInputName">New name for the input</param>
-        public async Task SetInputName(string inputName, string newInputName) 
+        public async Task SetInputName(string inputName, string newInputName)
         {
             await this.SendRequestAsync(new { inputName, newInputName });
         }
@@ -75,10 +75,10 @@
         /// Gets the default settings for an input kind.
         /// </summary>
         /// <param name="inputKind">Input kind to get the default settings for</param>
-        /// <returns>A <see cref="Dictionary<string, object>"/> of default settings for the input kind</returns>
+        /// <returns>Default settings for the input kind.</returns>
         public async Task<Dictionary<string, object>> GetInputDefaultSettings(string inputKind)
         {
-            return (await this.SendRequestAsync<DefaultInputSettingsResponse>(new{ inputKind })).DefaultInputSettings;
+            return (await this.SendRequestAsync<DefaultInputSettingsResponse>(new { inputKind })).DefaultInputSettings;
         }
 
         /// <summary>
@@ -149,7 +149,7 @@
         /// Sets the volume setting of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the volume of</param>
-        /// <param name="inputVolumeMul">Volume setting in mul (>= 0, <= 20)</param>
+        /// <param name="inputVolumeMul">Volume setting in mul.</param>
         public async Task SetInputVolumeMul(string inputName, float inputVolumeMul)
         {
             await this.SetInputVolume(inputName, inputVolumeMul, null);
@@ -159,7 +159,7 @@
         /// Sets the volume setting of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the volume of</param>
-        /// <param name="inputVolumeDb">Volume setting in dB (>= -100, <= 26)</param>
+        /// <param name="inputVolumeDb">Volume setting in dB.</param>
         public async Task SetInputVolumeDb(string inputName, float inputVolumeDb)
         {
             await this.SetInputVolume(inputName, null, inputVolumeDb);
@@ -169,8 +169,8 @@
         /// Sets the volume setting of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the volume of</param>
-        /// <param name="inputVolumeMul">Volume setting in mul (>= 0, <= 20)</param>
-        /// <param name="inputVolumeDb">Volume setting in dB (>= -100, <= 26)</param>
+        /// <param name="inputVolumeMul">Volume setting in mul.</param>
+        /// <param name="inputVolumeDb">Volume setting in dB.</param>
         /// <exception cref="ArgumentException"></exception>
         private async Task SetInputVolume(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
@@ -191,7 +191,7 @@
         /// Sets the audio balance of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio balance of</param>
-        /// <param name="inputAudioBalance">New audio balance value (>= 0.0, <= 1.0)</param>
+        /// <param name="inputAudioBalance">New audio balance value.</param>
         public async Task SetInputAudioBalance(string inputName, float inputAudioBalance)
         {
             await this.SendRequestAsync(new { inputName, inputAudioBalance });
@@ -214,7 +214,7 @@
         /// Sets the audio sync offset of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio sync offset of</param>
-        /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds (>= -950, <= 20000)</param>
+        /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds.</param>
         public async Task SetInputAudioSyncOffset(string inputName, int inputAudioSyncOffset)
         {
             await this.SendRequestAsync(new { inputName, inputAudioSyncOffset });

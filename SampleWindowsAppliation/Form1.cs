@@ -6,6 +6,7 @@ namespace SampleWindowsAppliation
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
+    using OBSStudioClient.Exceptions;
     using OBSStudioClient.MessageClasses;
 
     public partial class Form1 : Form
@@ -438,91 +439,6 @@ namespace SampleWindowsAppliation
             return Task.CompletedTask;
         }
 
-        private async void button2_Click(object sender, EventArgs e)
-        {
-            _ = await _client.ConnectAsync("banaan");
-            var xxx = _client.GetMonitorList();
-            await _client.ReidentifyAsync(EventSubscriptions.Ui);
-
-            try
-            {
-                //var i = _client.GetInputKindList();
-                //foreach (var j in i)
-                //{
-                //    var result = _client.GetInputDefaultSettings("wasapi_input_capture");
-                //}
-                //var x = _client.GetOutputList();
-
-                //var result = _client.GetOutputSettings(x[0].OutputName);
-                //_client.SetOutputSettings(x[0].OutputName, new() { { "path", @"C:\Users\tinodo\Videos" } });
-                //var result2 = _client.GetOutputSettings(x[0].OutputName);
-                //MessageBox.Show(result.ToString());
-
-
-
-                //var result1 = _client.GetVersion();
-                //var result2 = _client.GetStats();
-                //var result3 = _client.GetHotkeyList();
-                //_client.TriggerHotkeyByKeySequence(Enums.ObsKey.OBS_KEY_A, Enums.KeyModifier.Control | Enums.KeyModifier.Shift);
-
-
-                //var result = _client.GetSceneItemTransform("Presentation Scene", 2);
-
-                //var result1 = _client.GetSceneItemList("Presentation Scene");
-                //var result2 = _client.GetGroupSceneItemList("Group 1");
-                //var result3 = _client.GetSceneItemId("Presentation Scene", "Presentation Screen");
-                //var result4 = _client.CreateSceneItem("Presentation Scene", "Virtual Break");
-                //_client.RemoveSceneItem("Presentation Scene", result4);
-                //var result6 = _client.DuplicateSceneItem("Presentation Scene", 4);
-                //var result7 = _client.GetSceneItemTransform("Presentation Scene", 4);
-                //_client.SetSceneItemTransform("Presentation Scene", 4, result7);
-                //var result9 = _client.GetSceneItemEnabled("Presentation Scene", 4);
-                //_client.SetSceneItemEnabled("Presentation Scene", 4, false);
-                //var result11 = _client.GetSceneItemLocked("Presentation Scene", 4);
-                //_client.SetSceneItemLocked("Presentation Scene", 4, true);
-                //var result13 = _client.GetSceneItemIndex("Presentation Scene", 4);
-                //_client.SetSceneItemIndex("Presentation Scene", 4, 0);
-                //var result15 = _client.GetSceneItemBlendMode("Presentation Scene", 4);
-                //_client.SetSceneItemBlendMode("Presentation Scene", 4, Enums.BlendMode.OBS_BLEND_NORMAL);
-
-                //List<RequestMessage> requests = new();
-                //int? sleepFrames = null;
-                //RequestMessage r1 = new(RequestType.StartVirtualCam, Guid.NewGuid().ToString());
-                //RequestMessage r2 = new(RequestType.Sleep, Guid.NewGuid().ToString(), new { sleepMillis = 2000, sleepFrames});
-                //RequestMessage r3 = new(RequestType.SetStudioModeEnabled, Guid.NewGuid().ToString(), new { studioModeEnabled = true });
-                //requests.Add(r1);
-                //requests.Add(r2);
-                //requests.Add(r3);
-                //_client.SendRequestBatch(RequestBatchExecutionType.SerialRealtime, requests.ToArray());
-                //var result = _client.GetSourceFilter("Moveable Camera Intermediate Scene", "Move Camera Left Top");
-
-                //_client.Reidentify(Enums.EventSubscription.None);
-                //var geo = _client.GetQtGeometry(0, 0, 20, 599, 399, false, false);
-                //var monitors = _client.GetMonitorList();
-                ////var geo = _client.GetQtGeometry(1, -2000, 120, 999, 599, false, false, monitors[1].MonitorWidth);
-                //var geo = OBSClient.GetGeometry(1, -2000, 200, 840, 480, false, false, monitors[1].MonitorWidth);
-                //_client.OpenSourceProjectorWindow("Moveable Camera Intermediate Scene", geo);
-                //_client.OpenSourceProjector("Moveable Camera Intermediate Scene", 1, geo);
-                //geo = _client.GetQtGeometry(1, 100, 120, 499, 599, false, false, monitors[1].MonitorWidth);
-                //_client.OpenSourceProjector("Moveable Camera Intermediate Scene", 1, geo);
-                //geo = _client.GetQtGeometry(2, 100, 120, 499, 599, false, false, monitors[2].MonitorWidth);
-                //_client.OpenSourceProjector("Moveable Camera Intermediate Scene", 1, geo);
-                //geo = _client.GetQtGeometry(3, 100, 120, 499, 599, false, false, monitors[3].MonitorWidth);
-                //_client.OpenSourceProjector("Moveable Camera Intermediate Scene", 1, geo);
-
-                //var xxx = _client.GetPersistentData(Enums.Realm.OBS_WEBSOCKET_DATA_REALM_PROFILE, "[General]");
-                //var result = _client.GetInputKindList();
-                //foreach (var ik in result)
-                //{
-                //    var result1 = _client.GetInputDefaultSettings(ik);
-                //}
-            }
-            catch (ObsResponseException error)
-            {
-                MessageBox.Show($"{error.ErrorCode}: {error.Message}", "OBS Response Exception");
-            }
-        }
-
         private async void btnStartVirtualCam_Click(object sender, EventArgs e)
         {
             await _client.StartVirtualCam();
@@ -550,23 +466,23 @@ namespace SampleWindowsAppliation
             _client.Disconnect();
         }
 
-        private async void button7_Click(object sender, EventArgs e)
+        private async void btnStartStudioMode_Click(object sender, EventArgs e)
         {
             await _client.SetStudioModeEnabled(true);
         }
 
-        private async void button6_Click(object sender, EventArgs e)
+        private async void btnStopStudioMode_Click(object sender, EventArgs e)
         {
             await _client.SetStudioModeEnabled(false);
         }
 
-        private async void button5_Click(object sender, EventArgs e)
+        private async void btnGetStudioModeEnabled_Click(object sender, EventArgs e)
         {
             var result = await _client.GetStudioModeEnabled();
             MessageBox.Show(result.ToString(), "GetStudioModeEnabled");
         }
 
-        private async void button4_Click(object sender, EventArgs e)
+        private async void btnGetMonitorList_Click(object sender, EventArgs e)
         {
             var monitors = await _client.GetMonitorList();
             var result = string.Empty;

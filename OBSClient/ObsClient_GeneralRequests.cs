@@ -19,7 +19,7 @@
         /// Gets statistics about OBS, obs-websocket, and the current session.
         /// </summary>
         /// <returns>A <see cref="StatsResponse"/> object with OBS Studio Statistics.</returns>
-        public async Task<StatsResponse> GetStats() 
+        public async Task<StatsResponse> GetStats()
         {
             return await this.SendRequestAsync<StatsResponse>();
         }
@@ -41,7 +41,7 @@
         /// <param name="requestData">Object containing appropriate request data</param>
         public async Task<CallVendorRequestResponse> CallVendorRequest(string vendorName, string requestType, object? requestData)
         {
-            return await this.SendRequestAsync<CallVendorRequestResponse>(new {vendorName, requestType, requestData});
+            return await this.SendRequestAsync<CallVendorRequestResponse>(new { vendorName, requestType, requestData });
         }
 
         /// <summary>
@@ -82,7 +82,9 @@
         /// <remarks>
         /// This method was only added for your reference. You can use Sleep in <see cref="SendRequestBatch(RequestBatchExecutionType, MessageClasses.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
         /// </remarks>
+#pragma warning disable IDE0060
         public void Sleep(int? sleepMillis, int? sleepFrames)
+#pragma warning restore IDE0060
         {
             throw new NotSupportedException("Only available in request batches with types SERIAL_REALTIME or SERIAL_FRAME.");
         }

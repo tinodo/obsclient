@@ -46,7 +46,7 @@
         /// <summary>
         /// Sets the duration of the current scene transition, if it is not fixed.
         /// </summary>
-        /// <param name="transitionDuration">Duration in milliseconds (>= 50, <= 20000)</param>
+        /// <param name="transitionDuration">Duration in milliseconds.</param>
         public async Task SetCurrentSceneTransitionDuration(float transitionDuration)
         {
             await this.SendRequestAsync(new { transitionDuration });
@@ -85,7 +85,7 @@
         /// <summary>
         /// Sets the position of the TBar.
         /// </summary>
-        /// <param name="position">New position (>= 0.0, <= 1.0)</param>
+        /// <param name="position">New position.</param>
         /// <param name="release">Whether to release the TBar. Only set false if you know that you will be sending another position update</param>
         /// <remarks>
         /// Very important note: This will be deprecated and replaced in a future version of obs-websocket.

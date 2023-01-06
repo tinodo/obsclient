@@ -9,7 +9,7 @@
 
         [JsonPropertyName("sceneItemId")]
         public int SceneItemId { get; set; }
-        
+
         [JsonConstructor]
         public SceneItemRequest(string sceneName, int sceneItemId)
         {

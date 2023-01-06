@@ -1,6 +1,7 @@
 ﻿namespace OBSStudioClient.MessageClasses
 {
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Exceptions;
     using OBSStudioClient.Interfaces;
     using OBSStudioClient.Messages;
     using System.Text.Json;
@@ -20,58 +21,58 @@
         [JsonConstructor]
         public ObsMessage(JsonElement d, OpCode op)
         {
-            D = d;
-            Op = op;
+            this.D = d;
+            this.Op = op;
         }
 
         internal ObsMessage(IMessage data, OpCode op)
         {
-            Data = data;
-            Op = op;
+            this.Data = data;
+            this.Op = op;
         }
 
         public ObsMessage(IdentifyMessage identifyMessage)
         {
-            Data = identifyMessage ?? throw new ArgumentNullException(nameof(identifyMessage));
-            Op = OpCode.Identify;
+            this.Data = identifyMessage ?? throw new ArgumentNullException(nameof(identifyMessage));
+            this.Op = OpCode.Identify;
         }
 
         public ObsMessage(ReidentifyMessage reidentifyMessage)
         {
-            Data = reidentifyMessage ?? throw new ArgumentNullException(nameof(reidentifyMessage));
-            Op = OpCode.Reidentify;
+            this.Data = reidentifyMessage ?? throw new ArgumentNullException(nameof(reidentifyMessage));
+            this.Op = OpCode.Reidentify;
         }
 
         public ObsMessage(RequestMessage requestMessage)
         {
-            Data = requestMessage ?? throw new ArgumentNullException(nameof(requestMessage));
-            Op = OpCode.Request;
+            this.Data = requestMessage ?? throw new ArgumentNullException(nameof(requestMessage));
+            this.Op = OpCode.Request;
         }
 
         public ObsMessage(RequestBatchMessage requestBatchMessage)
         {
-            Data = requestBatchMessage ?? throw new ArgumentNullException(nameof(requestBatchMessage));
-            Op = OpCode.RequestBatch;
+            this.Data = requestBatchMessage ?? throw new ArgumentNullException(nameof(requestBatchMessage));
+            this.Op = OpCode.RequestBatch;
         }
 
         public void OnDeserialized()
         {
-            Data = Op switch
+            this.Data = this.Op switch
             {
-                OpCode.Hello => D.Deserialize<HelloMessage>(),
-                OpCode.Identified => D.Deserialize<IdentifiedMessage>(),
-                OpCode.Event => D.Deserialize<EventMessage>(),
-                OpCode.RequestResponse => D.Deserialize<RequestResponseMessage>(),
-                OpCode.RequestBatchResponse => D.Deserialize<RequestBatchResponseMessage>(),
-                _ => throw new ObsClientException($"The OpCode {Op} is unexpected."),
+                OpCode.Hello => this.D.Deserialize<HelloMessage>(),
+                OpCode.Identified => this.D.Deserialize<IdentifiedMessage>(),
+                OpCode.Event => this.D.Deserialize<EventMessage>(),
+                OpCode.RequestResponse => this.D.Deserialize<RequestResponseMessage>(),
+                OpCode.RequestBatchResponse => this.D.Deserialize<RequestBatchResponseMessage>(),
+                _ => throw new ObsClientException($"The OpCode {this.Op} is unexpected."),
             };
         }
 
         public void OnSerializing()
         {
-            if (Data != null)
+            if (this.Data != null)
             {
-                D = JsonSerializer.SerializeToElement(Data, Data.GetType());
+                this.D = JsonSerializer.SerializeToElement(this.Data, this.Data.GetType());
             }
         }
     }

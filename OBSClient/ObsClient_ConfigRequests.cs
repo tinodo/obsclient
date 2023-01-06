@@ -130,12 +130,12 @@
         /// <summary>
         /// Sets the current video settings.
         /// </summary>
-        /// <param name="fpsNumerator">Numerator of the fractional FPS value (>= 1)</param>
-        /// <param name="fpsDenominator">Denominator of the fractional FPS value (>= 1)</param>
-        /// <param name="baseWidth">Width of the base (canvas) resolution in pixels (>= 1, <= 4096)</param>
-        /// <param name="baseHeight">Height of the base (canvas) resolution in pixels (>= 1, <= 4096)</param>
-        /// <param name="outputWidth">Width of the output resolution in pixels (>= 1, <= 4096)</param>
-        /// <param name="outputHeight">Height of the output resolution in pixels (>= 1, <= 4096)</param>
+        /// <param name="fpsNumerator">Numerator of the fractional FPS value.</param>
+        /// <param name="fpsDenominator">Denominator of the fractional FPS value.</param>
+        /// <param name="baseWidth">Width of the base (canvas) resolution in pixels.</param>
+        /// <param name="baseHeight">Height of the base (canvas) resolution in pixels.</param>
+        /// <param name="outputWidth">Width of the output resolution in pixels.</param>
+        /// <param name="outputHeight">Height of the output resolution in pixels.</param>
         public async Task SetVideoSettings(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
         {
             await this.SendRequestAsync(new { fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight });

@@ -1,7 +1,7 @@
 ﻿namespace OBSStudioClient.Messages
 {
-    using System.Text.Json.Serialization;
     using OBSStudioClient.Classes;
+    using System.Text.Json.Serialization;
 
     public class SceneItemTransformRequest
     {

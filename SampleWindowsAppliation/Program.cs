@@ -1,6 +1,6 @@
 namespace SampleWindowsAppliation
 {
-    using OBSStudioClient;
+    using OBSStudioClient.Exceptions;
 
     internal static class Program
     {

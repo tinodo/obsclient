@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
             this.tbHostname = new System.Windows.Forms.TextBox();
             this.nudPort = new System.Windows.Forms.NumericUpDown();
             this.tbPassword = new System.Windows.Forms.TextBox();
@@ -38,10 +37,10 @@
             this.btnToggleVirtualCamera = new System.Windows.Forms.Button();
             this.btnGetVirtualCameraState = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
-            this.button4 = new System.Windows.Forms.Button();
-            this.button5 = new System.Windows.Forms.Button();
-            this.button6 = new System.Windows.Forms.Button();
-            this.button7 = new System.Windows.Forms.Button();
+            this.btnGetMonitorList = new System.Windows.Forms.Button();
+            this.btnGetStudioModeEnabled = new System.Windows.Forms.Button();
+            this.btnStopStudioMode = new System.Windows.Forms.Button();
+            this.btnStartStudioMode = new System.Windows.Forms.Button();
             this.btnSleep = new System.Windows.Forms.Button();
             this.btnTriggerHotkeyByKeySequence = new System.Windows.Forms.Button();
             this.btnTriggerHotkeyByName = new System.Windows.Forms.Button();
@@ -101,13 +100,28 @@
             this.btnGetSpecialInputs = new System.Windows.Forms.Button();
             this.btnGetInputKindList = new System.Windows.Forms.Button();
             this.btnGetInputList = new System.Windows.Forms.Button();
-            this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.tpFiltersRequests = new System.Windows.Forms.TabPage();
+            this.tbMediaInputsRequests = new System.Windows.Forms.TabPage();
+            this.tpOutputsRequests = new System.Windows.Forms.TabPage();
+            this.tbRecordRequests = new System.Windows.Forms.TabPage();
+            this.tbSceneItemsRequests = new System.Windows.Forms.TabPage();
+            this.tpStreamRequests = new System.Windows.Forms.TabPage();
+            this.tpTransitionsRequests = new System.Windows.Forms.TabPage();
+            this.tpUIRequests = new System.Windows.Forms.TabPage();
+            this.btnOpenInputInteractDialog = new System.Windows.Forms.Button();
+            this.btnOpenInputFiltersDialog = new System.Windows.Forms.Button();
+            this.btnOpenInputPropertiesDialog = new System.Windows.Forms.Button();
             this.lbScenes = new System.Windows.Forms.ListBox();
             this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.lbGroups = new System.Windows.Forms.ListBox();
             this.tbNameItem = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
+            this.btnOpenVideoMixProjectorOnMonitor = new System.Windows.Forms.Button();
+            this.btnOpenVideoMixProjectorWindow = new System.Windows.Forms.Button();
+            this.btnOpenSourceProjectorOnMonitor = new System.Windows.Forms.Button();
+            this.button5 = new System.Windows.Forms.Button();
+            this.btnOpenSourceProjectorWindow = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.nudPort)).BeginInit();
             this.tabControl1.SuspendLayout();
             this.tpGeneralRequests.SuspendLayout();
@@ -115,6 +129,8 @@
             this.tpSourcesRequests.SuspendLayout();
             this.tpScenesRequests.SuspendLayout();
             this.tpInputsRequests.SuspendLayout();
+            this.tpOutputsRequests.SuspendLayout();
+            this.tpUIRequests.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
@@ -126,16 +142,6 @@
             this.button1.Text = "Connect";
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
-            // 
-            // button2
-            // 
-            this.button2.Location = new System.Drawing.Point(382, 101);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(150, 46);
-            this.button2.TabIndex = 1;
-            this.button2.Text = "Test";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // tbHostname
             // 
@@ -172,7 +178,7 @@
             // 
             // btnStartVirtualCam
             // 
-            this.btnStartVirtualCam.Location = new System.Drawing.Point(992, 39);
+            this.btnStartVirtualCam.Location = new System.Drawing.Point(3, 108);
             this.btnStartVirtualCam.Name = "btnStartVirtualCam";
             this.btnStartVirtualCam.Size = new System.Drawing.Size(340, 46);
             this.btnStartVirtualCam.TabIndex = 5;
@@ -182,7 +188,7 @@
             // 
             // btnStopVirtualCamera
             // 
-            this.btnStopVirtualCamera.Location = new System.Drawing.Point(992, 91);
+            this.btnStopVirtualCamera.Location = new System.Drawing.Point(0, 160);
             this.btnStopVirtualCamera.Name = "btnStopVirtualCamera";
             this.btnStopVirtualCamera.Size = new System.Drawing.Size(340, 46);
             this.btnStopVirtualCamera.TabIndex = 6;
@@ -192,7 +198,7 @@
             // 
             // btnToggleVirtualCamera
             // 
-            this.btnToggleVirtualCamera.Location = new System.Drawing.Point(992, 143);
+            this.btnToggleVirtualCamera.Location = new System.Drawing.Point(3, 56);
             this.btnToggleVirtualCamera.Name = "btnToggleVirtualCamera";
             this.btnToggleVirtualCamera.Size = new System.Drawing.Size(340, 46);
             this.btnToggleVirtualCamera.TabIndex = 7;
@@ -202,7 +208,7 @@
             // 
             // btnGetVirtualCameraState
             // 
-            this.btnGetVirtualCameraState.Location = new System.Drawing.Point(992, 195);
+            this.btnGetVirtualCameraState.Location = new System.Drawing.Point(3, 4);
             this.btnGetVirtualCameraState.Name = "btnGetVirtualCameraState";
             this.btnGetVirtualCameraState.Size = new System.Drawing.Size(340, 46);
             this.btnGetVirtualCameraState.TabIndex = 8;
@@ -220,45 +226,45 @@
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
-            // button4
+            // btnGetMonitorList
             // 
-            this.button4.Location = new System.Drawing.Point(1338, 195);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(340, 46);
-            this.button4.TabIndex = 13;
-            this.button4.Text = "Get Monitor List";
-            this.button4.UseVisualStyleBackColor = true;
-            this.button4.Click += new System.EventHandler(this.button4_Click);
+            this.btnGetMonitorList.Location = new System.Drawing.Point(3, 316);
+            this.btnGetMonitorList.Name = "btnGetMonitorList";
+            this.btnGetMonitorList.Size = new System.Drawing.Size(340, 46);
+            this.btnGetMonitorList.TabIndex = 13;
+            this.btnGetMonitorList.Text = "Get Monitor List";
+            this.btnGetMonitorList.UseVisualStyleBackColor = true;
+            this.btnGetMonitorList.Click += new System.EventHandler(this.btnGetMonitorList_Click);
             // 
-            // button5
+            // btnGetStudioModeEnabled
             // 
-            this.button5.Location = new System.Drawing.Point(1338, 143);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(340, 46);
-            this.button5.TabIndex = 12;
-            this.button5.Text = "Get Studio Mode";
-            this.button5.UseVisualStyleBackColor = true;
-            this.button5.Click += new System.EventHandler(this.button5_Click);
+            this.btnGetStudioModeEnabled.Location = new System.Drawing.Point(3, 4);
+            this.btnGetStudioModeEnabled.Name = "btnGetStudioModeEnabled";
+            this.btnGetStudioModeEnabled.Size = new System.Drawing.Size(340, 46);
+            this.btnGetStudioModeEnabled.TabIndex = 12;
+            this.btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
+            this.btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
+            this.btnGetStudioModeEnabled.Click += new System.EventHandler(this.btnGetStudioModeEnabled_Click);
             // 
-            // button6
+            // btnStopStudioMode
             // 
-            this.button6.Location = new System.Drawing.Point(1338, 91);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(340, 46);
-            this.button6.TabIndex = 11;
-            this.button6.Text = "Stop Studio Mode";
-            this.button6.UseVisualStyleBackColor = true;
-            this.button6.Click += new System.EventHandler(this.button6_Click);
+            this.btnStopStudioMode.Location = new System.Drawing.Point(3, 108);
+            this.btnStopStudioMode.Name = "btnStopStudioMode";
+            this.btnStopStudioMode.Size = new System.Drawing.Size(340, 46);
+            this.btnStopStudioMode.TabIndex = 11;
+            this.btnStopStudioMode.Text = "Stop Studio Mode";
+            this.btnStopStudioMode.UseVisualStyleBackColor = true;
+            this.btnStopStudioMode.Click += new System.EventHandler(this.btnStopStudioMode_Click);
             // 
-            // button7
+            // btnStartStudioMode
             // 
-            this.button7.Location = new System.Drawing.Point(1338, 39);
-            this.button7.Name = "button7";
-            this.button7.Size = new System.Drawing.Size(340, 46);
-            this.button7.TabIndex = 10;
-            this.button7.Text = "Start Studio Mode";
-            this.button7.UseVisualStyleBackColor = true;
-            this.button7.Click += new System.EventHandler(this.button7_Click);
+            this.btnStartStudioMode.Location = new System.Drawing.Point(3, 56);
+            this.btnStartStudioMode.Name = "btnStartStudioMode";
+            this.btnStartStudioMode.Size = new System.Drawing.Size(340, 46);
+            this.btnStartStudioMode.TabIndex = 10;
+            this.btnStartStudioMode.Text = "Start Studio Mode";
+            this.btnStartStudioMode.UseVisualStyleBackColor = true;
+            this.btnStartStudioMode.Click += new System.EventHandler(this.btnStartStudioMode_Click);
             // 
             // btnSleep
             // 
@@ -504,7 +510,14 @@
             this.tabControl1.Controls.Add(this.tpSourcesRequests);
             this.tabControl1.Controls.Add(this.tpScenesRequests);
             this.tabControl1.Controls.Add(this.tpInputsRequests);
-            this.tabControl1.Controls.Add(this.tabPage4);
+            this.tabControl1.Controls.Add(this.tpFiltersRequests);
+            this.tabControl1.Controls.Add(this.tbMediaInputsRequests);
+            this.tabControl1.Controls.Add(this.tpOutputsRequests);
+            this.tabControl1.Controls.Add(this.tbRecordRequests);
+            this.tabControl1.Controls.Add(this.tbSceneItemsRequests);
+            this.tabControl1.Controls.Add(this.tpStreamRequests);
+            this.tabControl1.Controls.Add(this.tpTransitionsRequests);
+            this.tabControl1.Controls.Add(this.tpUIRequests);
             this.tabControl1.Location = new System.Drawing.Point(23, 261);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -898,14 +911,120 @@
             this.btnGetInputList.UseVisualStyleBackColor = true;
             this.btnGetInputList.Click += new System.EventHandler(this.btnGetInputList_Click);
             // 
-            // tabPage4
+            // tpFiltersRequests
             // 
-            this.tabPage4.Location = new System.Drawing.Point(8, 46);
-            this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(1241, 450);
-            this.tabPage4.TabIndex = 5;
-            this.tabPage4.Text = "tabPage4";
-            this.tabPage4.UseVisualStyleBackColor = true;
+            this.tpFiltersRequests.Location = new System.Drawing.Point(8, 46);
+            this.tpFiltersRequests.Name = "tpFiltersRequests";
+            this.tpFiltersRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tpFiltersRequests.TabIndex = 5;
+            this.tpFiltersRequests.Text = "Filters Requests";
+            this.tpFiltersRequests.UseVisualStyleBackColor = true;
+            // 
+            // tbMediaInputsRequests
+            // 
+            this.tbMediaInputsRequests.Location = new System.Drawing.Point(8, 46);
+            this.tbMediaInputsRequests.Name = "tbMediaInputsRequests";
+            this.tbMediaInputsRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tbMediaInputsRequests.TabIndex = 6;
+            this.tbMediaInputsRequests.Text = "Media Inputs Requests";
+            this.tbMediaInputsRequests.UseVisualStyleBackColor = true;
+            // 
+            // tpOutputsRequests
+            // 
+            this.tpOutputsRequests.Controls.Add(this.btnGetVirtualCameraState);
+            this.tpOutputsRequests.Controls.Add(this.btnToggleVirtualCamera);
+            this.tpOutputsRequests.Controls.Add(this.btnStartVirtualCam);
+            this.tpOutputsRequests.Controls.Add(this.btnStopVirtualCamera);
+            this.tpOutputsRequests.Location = new System.Drawing.Point(8, 46);
+            this.tpOutputsRequests.Name = "tpOutputsRequests";
+            this.tpOutputsRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tpOutputsRequests.TabIndex = 7;
+            this.tpOutputsRequests.Text = "Outputs Requests";
+            this.tpOutputsRequests.UseVisualStyleBackColor = true;
+            // 
+            // tbRecordRequests
+            // 
+            this.tbRecordRequests.Location = new System.Drawing.Point(8, 46);
+            this.tbRecordRequests.Name = "tbRecordRequests";
+            this.tbRecordRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tbRecordRequests.TabIndex = 8;
+            this.tbRecordRequests.Text = "Record Requests";
+            this.tbRecordRequests.UseVisualStyleBackColor = true;
+            // 
+            // tbSceneItemsRequests
+            // 
+            this.tbSceneItemsRequests.Location = new System.Drawing.Point(8, 46);
+            this.tbSceneItemsRequests.Name = "tbSceneItemsRequests";
+            this.tbSceneItemsRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tbSceneItemsRequests.TabIndex = 9;
+            this.tbSceneItemsRequests.Text = "Scene Items Requests";
+            this.tbSceneItemsRequests.UseVisualStyleBackColor = true;
+            // 
+            // tpStreamRequests
+            // 
+            this.tpStreamRequests.Location = new System.Drawing.Point(8, 46);
+            this.tpStreamRequests.Name = "tpStreamRequests";
+            this.tpStreamRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tpStreamRequests.TabIndex = 10;
+            this.tpStreamRequests.Text = "Stream Requests";
+            this.tpStreamRequests.UseVisualStyleBackColor = true;
+            // 
+            // tpTransitionsRequests
+            // 
+            this.tpTransitionsRequests.Location = new System.Drawing.Point(8, 46);
+            this.tpTransitionsRequests.Name = "tpTransitionsRequests";
+            this.tpTransitionsRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tpTransitionsRequests.TabIndex = 11;
+            this.tpTransitionsRequests.Text = "Transitions Requests";
+            this.tpTransitionsRequests.UseVisualStyleBackColor = true;
+            // 
+            // tpUIRequests
+            // 
+            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorWindow);
+            this.tpUIRequests.Controls.Add(this.button5);
+            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorOnMonitor);
+            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorWindow);
+            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorOnMonitor);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputInteractDialog);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputFiltersDialog);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputPropertiesDialog);
+            this.tpUIRequests.Controls.Add(this.btnGetStudioModeEnabled);
+            this.tpUIRequests.Controls.Add(this.btnStartStudioMode);
+            this.tpUIRequests.Controls.Add(this.btnStopStudioMode);
+            this.tpUIRequests.Controls.Add(this.btnGetMonitorList);
+            this.tpUIRequests.Location = new System.Drawing.Point(8, 46);
+            this.tpUIRequests.Name = "tpUIRequests";
+            this.tpUIRequests.Size = new System.Drawing.Size(1241, 450);
+            this.tpUIRequests.TabIndex = 12;
+            this.tpUIRequests.Text = "UI Requests";
+            this.tpUIRequests.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputInteractDialog
+            // 
+            this.btnOpenInputInteractDialog.Location = new System.Drawing.Point(3, 264);
+            this.btnOpenInputInteractDialog.Name = "btnOpenInputInteractDialog";
+            this.btnOpenInputInteractDialog.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenInputInteractDialog.TabIndex = 15;
+            this.btnOpenInputInteractDialog.Text = "OpenInputInteractDialog";
+            this.btnOpenInputInteractDialog.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputFiltersDialog
+            // 
+            this.btnOpenInputFiltersDialog.Location = new System.Drawing.Point(3, 212);
+            this.btnOpenInputFiltersDialog.Name = "btnOpenInputFiltersDialog";
+            this.btnOpenInputFiltersDialog.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenInputFiltersDialog.TabIndex = 14;
+            this.btnOpenInputFiltersDialog.Text = "OpenInputFiltersDialog";
+            this.btnOpenInputFiltersDialog.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputPropertiesDialog
+            // 
+            this.btnOpenInputPropertiesDialog.Location = new System.Drawing.Point(3, 160);
+            this.btnOpenInputPropertiesDialog.Name = "btnOpenInputPropertiesDialog";
+            this.btnOpenInputPropertiesDialog.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenInputPropertiesDialog.TabIndex = 13;
+            this.btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
+            this.btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
             // 
             // lbScenes
             // 
@@ -958,13 +1077,58 @@
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(138, 32);
             this.label6.TabIndex = 25;
-            this.label6.Text = "Name Item:";
+            this.label6.Text = "Item Name:";
+            // 
+            // btnOpenVideoMixProjectorOnMonitor
+            // 
+            this.btnOpenVideoMixProjectorOnMonitor.Location = new System.Drawing.Point(351, 4);
+            this.btnOpenVideoMixProjectorOnMonitor.Name = "btnOpenVideoMixProjectorOnMonitor";
+            this.btnOpenVideoMixProjectorOnMonitor.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenVideoMixProjectorOnMonitor.TabIndex = 16;
+            this.btnOpenVideoMixProjectorOnMonitor.Text = "OpenVideoMixProjectorOnMonitor";
+            this.btnOpenVideoMixProjectorOnMonitor.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenVideoMixProjectorWindow
+            // 
+            this.btnOpenVideoMixProjectorWindow.Location = new System.Drawing.Point(351, 56);
+            this.btnOpenVideoMixProjectorWindow.Name = "btnOpenVideoMixProjectorWindow";
+            this.btnOpenVideoMixProjectorWindow.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenVideoMixProjectorWindow.TabIndex = 17;
+            this.btnOpenVideoMixProjectorWindow.Text = "OpenVideoMixProjectorWindow";
+            this.btnOpenVideoMixProjectorWindow.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenSourceProjectorOnMonitor
+            // 
+            this.btnOpenSourceProjectorOnMonitor.Location = new System.Drawing.Point(351, 108);
+            this.btnOpenSourceProjectorOnMonitor.Name = "btnOpenSourceProjectorOnMonitor";
+            this.btnOpenSourceProjectorOnMonitor.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenSourceProjectorOnMonitor.TabIndex = 18;
+            this.btnOpenSourceProjectorOnMonitor.Text = "OpenSourceProjectorOnMonitor";
+            this.btnOpenSourceProjectorOnMonitor.UseVisualStyleBackColor = true;
+            // 
+            // button5
+            // 
+            this.button5.Location = new System.Drawing.Point(349, 160);
+            this.button5.Name = "button5";
+            this.button5.Size = new System.Drawing.Size(340, 46);
+            this.button5.TabIndex = 19;
+            this.button5.Text = "OpenVideoMixProjectorOnMonitor";
+            this.button5.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenSourceProjectorWindow
+            // 
+            this.btnOpenSourceProjectorWindow.Location = new System.Drawing.Point(351, 212);
+            this.btnOpenSourceProjectorWindow.Name = "btnOpenSourceProjectorWindow";
+            this.btnOpenSourceProjectorWindow.Size = new System.Drawing.Size(340, 46);
+            this.btnOpenSourceProjectorWindow.TabIndex = 20;
+            this.btnOpenSourceProjectorWindow.Text = "OpenSourceProjectorWindow";
+            this.btnOpenSourceProjectorWindow.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 32F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(2196, 871);
+            this.ClientSize = new System.Drawing.Size(1986, 849);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.tbNameItem);
             this.Controls.Add(this.label5);
@@ -975,22 +1139,13 @@
             this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.button4);
-            this.Controls.Add(this.button5);
-            this.Controls.Add(this.button6);
-            this.Controls.Add(this.button7);
             this.Controls.Add(this.button3);
-            this.Controls.Add(this.btnGetVirtualCameraState);
-            this.Controls.Add(this.btnToggleVirtualCamera);
-            this.Controls.Add(this.btnStopVirtualCamera);
-            this.Controls.Add(this.btnStartVirtualCam);
             this.Controls.Add(this.tbPassword);
             this.Controls.Add(this.nudPort);
             this.Controls.Add(this.tbHostname);
-            this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "OBS Client - Sample Windows Application";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.nudPort)).EndInit();
             this.tabControl1.ResumeLayout(false);
@@ -999,6 +1154,8 @@
             this.tpSourcesRequests.ResumeLayout(false);
             this.tpScenesRequests.ResumeLayout(false);
             this.tpInputsRequests.ResumeLayout(false);
+            this.tpOutputsRequests.ResumeLayout(false);
+            this.tpUIRequests.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1007,7 +1164,6 @@
         #endregion
 
         private Button button1;
-        private Button button2;
         private TextBox tbHostname;
         private NumericUpDown nudPort;
         private TextBox tbPassword;
@@ -1016,10 +1172,10 @@
         private Button btnToggleVirtualCamera;
         private Button btnGetVirtualCameraState;
         private Button button3;
-        private Button button4;
-        private Button button5;
-        private Button button6;
-        private Button button7;
+        private Button btnGetMonitorList;
+        private Button btnGetStudioModeEnabled;
+        private Button btnStopStudioMode;
+        private Button btnStartStudioMode;
         private Button btnGetVersion;
         private Button btnGetStats;
         private Button btnGetHotkeyList;
@@ -1053,7 +1209,7 @@
         private TabPage tpSourcesRequests;
         private TabPage tpScenesRequests;
         private TabPage tpInputsRequests;
-        private TabPage tabPage4;
+        private TabPage tpFiltersRequests;
         private Button btnSaveSourceScreenshot;
         private Button btnSetSourceActive;
         private Button btnGetSourceActive;
@@ -1086,5 +1242,20 @@
         private ListBox lbGroups;
         private TextBox tbNameItem;
         private Label label6;
+        private TabPage tbMediaInputsRequests;
+        private TabPage tpOutputsRequests;
+        private TabPage tbRecordRequests;
+        private TabPage tbSceneItemsRequests;
+        private TabPage tpStreamRequests;
+        private TabPage tpTransitionsRequests;
+        private TabPage tpUIRequests;
+        private Button btnOpenInputPropertiesDialog;
+        private Button btnOpenInputFiltersDialog;
+        private Button btnOpenInputInteractDialog;
+        private Button btnOpenVideoMixProjectorOnMonitor;
+        private Button btnOpenSourceProjectorWindow;
+        private Button button5;
+        private Button btnOpenSourceProjectorOnMonitor;
+        private Button btnOpenVideoMixProjectorWindow;
     }
 }

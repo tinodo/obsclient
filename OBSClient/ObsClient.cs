@@ -1,6 +1,7 @@
 ﻿namespace OBSStudioClient
 {
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Exceptions;
     using OBSStudioClient.Interfaces;
     using OBSStudioClient.MessageClasses;
     using OBSStudioClient.Messages;
@@ -14,9 +15,12 @@
     using System.Text;
     using System.Text.Json;
 
-    // https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md
-    // CURRENT VERSION IMPLEMENTED: 5.1.0
-
+    /// <summary>
+    /// The OBS Studio WebSockets Client
+    /// </summary>
+    /// <remarks>
+    /// Implements <see href="https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md"/>
+    /// </remarks>
     public partial class ObsClient : INotifyPropertyChanged
     {
         private string _hostname = "localhost";
@@ -35,27 +39,27 @@
         /// The maximum amount of time, in milliseconds, to wait for an OBS Studio response.
         /// </summary>
         /// <remarks>
-        /// The minimum value is 150. Please take into account that when sending Batch Requests, specifically with a long Sleep requests, this default value of 500 might not be enough.
+        /// The minimum value is 150. Please take into account that when sending Batch Requests, specifically with long Sleep requests, this default value of 500 might not be enough.
         /// </remarks>
         public int RequestTimeout
         {
             get
             {
-                return _requestTimeout;
+                return this._requestTimeout;
             }
             set
             {
                 if (value < 150)
                 {
-                    _requestTimeout = 150;
+                    this._requestTimeout = 150;
                 }
                 else
                 {
-                    _requestTimeout = value;
+                    this._requestTimeout = value;
                 }
             }
         }
-        
+
         /// <summary>
         /// The current state of the connection to OBS Studio.
         /// </summary>
@@ -63,13 +67,13 @@
         {
             get
             {
-                return _connectionState;
+                return this._connectionState;
             }
             private set
             {
-                if (_connectionState != value)
+                if (this._connectionState != value)
                 {
-                    _connectionState = value;
+                    this._connectionState = value;
                     this.OnPropertyChanged();
                 }
             }
@@ -85,7 +89,20 @@
         /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        /// <summary>
+        /// Async delegate for events that have event data.
+        /// </summary>
+        /// <typeparam name="T">The type of event data.</typeparam>
+        /// <param name="sender">The <see cref="ObsClient"/> that initiated the event.</param>
+        /// <param name="e">The event data.</param>
+        /// <returns>A delegate for the event.</returns>
         public delegate Task AsyncEventHandler<in T>(object? sender, T e) where T : EventArgs;
+
+        /// <summary>
+        /// Async delegate for events that don't have event data.
+        /// </summary>
+        /// <param name="sender">The <see cref="ObsClient"/> that initiated the event.</param>
+        /// <returns>A delegate for the event.</returns>
         public delegate Task AsyncEventHandler(object? sender);
 
         /// <summary>
@@ -109,23 +126,23 @@
         /// </remarks>
         public async Task<bool> ConnectAsync(string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All)
         {
-            if (_connectionState != ConnectionState.Disconnected)
+            if (this._connectionState != ConnectionState.Disconnected)
             {
                 return true;
             }
 
-            _hostname = hostname;
-            _port = port;
-            _password = password;
-            _eventSubscriptions = eventSubscription;
-            _cancellationTokenSource = new CancellationTokenSource();
-            _client = new();
-            _authenticationComplete = new();
+            this._hostname = hostname;
+            this._port = port;
+            this._password = password;
+            this._eventSubscriptions = eventSubscription;
+            this._cancellationTokenSource = new CancellationTokenSource();
+            this._client = new();
+            this._authenticationComplete = new();
 
             Uri uri;
             try
             {
-                uri = new($"ws://{_hostname}:{_port}");
+                uri = new($"ws://{this._hostname}:{this._port}");
             }
             catch (UriFormatException)
             {
@@ -135,7 +152,7 @@
             this.ConnectionState = ConnectionState.Connecting;
             try
             {
-                await _client.ConnectAsync(uri, _cancellationTokenSource.Token);
+                await this._client.ConnectAsync(uri, this._cancellationTokenSource.Token);
             }
             catch (WebSocketException)
             {
@@ -143,8 +160,8 @@
                 return false;
             }
 
-            _ = Task.Run(() => Receiver(_cancellationTokenSource.Token));
-            return _authenticationComplete.Task.Result;
+            _ = Task.Run(() => this.Receiver(this._cancellationTokenSource.Token));
+            return this._authenticationComplete.Task.Result;
         }
 
         /// <summary>
@@ -152,9 +169,9 @@
         /// </summary>
         public void Disconnect()
         {
-            if (_connectionState != ConnectionState.Disconnected)
+            if (this._connectionState != ConnectionState.Disconnected)
             {
-                _cancellationTokenSource.Cancel();
+                this._cancellationTokenSource.Cancel();
             }
         }
 
@@ -168,7 +185,7 @@
         public async Task<RequestResponseMessage[]> SendRequestBatch(RequestBatchExecutionType requestBatchExecutionType, RequestMessage[] requests, bool haltOnFailure = false)
         {
             TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(_requestTimeout);
+            CancellationTokenSource cts = new(this._requestTimeout);
             cts.Token.Register(() => tcs.TrySetCanceled(), false);
 
             var executionType = (int)requestBatchExecutionType;
@@ -187,12 +204,17 @@
             }
         }
 
+        /// <summary>
+        /// Sends a Reidentify request to OBS Studio, typically to subscribe to a different set of events.
+        /// </summary>
+        /// <param name="eventSubscription">The events to subscribe to.</param>
+        /// <returns>An awaitable task.</returns>
         public async Task ReidentifyAsync(EventSubscriptions eventSubscription)
         {
-            _eventSubscriptions = eventSubscription;
+            this._eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
-            await SendAsync(message);
+            await this.SendAsync(message);
         }
 
         /// <summary>
@@ -246,7 +268,7 @@
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
-            this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         private static string HashEncode(string input)
@@ -265,13 +287,13 @@
                 string? authentication = null;
                 if (helloResponseData.Authentication != null)
                 {
-                    var base64secret = HashEncode(_password + helloResponseData.Authentication.Salt);
+                    var base64secret = HashEncode(this._password + helloResponseData.Authentication.Salt);
                     authentication = HashEncode(base64secret + helloResponseData.Authentication.Challenge);
                 }
 
-                IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, _eventSubscriptions);
+                IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, this._eventSubscriptions);
                 ObsMessage message = new(identify);
-                await SendAsync(message);
+                await this.SendAsync(message);
             }
             else
             {
@@ -287,7 +309,7 @@
                 throw new ObsClientException("responseMessage.Data is not expected IdentifyResponseData");
             }
 
-            if (_authenticationComplete.Task.Status != TaskStatus.RanToCompletion) _authenticationComplete.SetResult(true);
+            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
             this.ConnectionState = ConnectionState.Connected;
         }
 
@@ -295,7 +317,7 @@
         {
             if (responseMessage.Data is RequestResponseMessage requestResponseData)
             {
-                if (_requests.TryGetValue(requestResponseData.RequestId, out var tcs))
+                if (this._requests.TryGetValue(requestResponseData.RequestId, out var tcs))
                 {
                     tcs.SetResult(requestResponseData);
                 }
@@ -314,166 +336,166 @@
                 {
                     case EventType.ExitStarted:
                         this.ConnectionState = ConnectionState.Disconnecting;
-                        this.InvokeAsyncEvent(this.ExitStarted);
+                        this.InvokeAsyncEvent(ExitStarted);
                         break;
                     case EventType.VendorEvent:
-                        this.InvokeAsyncEvent(this.VendorEvent, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(VendorEvent, eventResponseData.EventData);
                         break;
                     case EventType.CustomEvent:
-                        this.InvokeAsyncEvent(this.CustomEvent, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CustomEvent, eventResponseData.EventData);
                         break;
                     case EventType.CurrentSceneCollectionChanging:
-                        this.InvokeAsyncEvent(this.CurrentSceneCollectionChanging, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentSceneCollectionChanging, eventResponseData.EventData);
                         break;
                     case EventType.CurrentSceneCollectionChanged:
-                        this.InvokeAsyncEvent(this.CurrentSceneCollectionChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentSceneCollectionChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneCollectionListChanged:
-                        this.InvokeAsyncEvent(this.SceneCollectionListChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneCollectionListChanged, eventResponseData.EventData);
                         break;
                     case EventType.CurrentProfileChanging:
-                        this.InvokeAsyncEvent(this.CurrentProfileChanging, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentProfileChanging, eventResponseData.EventData);
                         break;
                     case EventType.CurrentProfileChanged:
-                        this.InvokeAsyncEvent(this.CurrentProfileChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentProfileChanged, eventResponseData.EventData);
                         break;
                     case EventType.ProfileListChanged:
-                        this.InvokeAsyncEvent(this.ProfileListChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(ProfileListChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneCreated:
-                        this.InvokeAsyncEvent(this.SceneCreated, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneCreated, eventResponseData.EventData);
                         break;
                     case EventType.SceneRemoved:
-                        this.InvokeAsyncEvent(this.SceneRemoved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneRemoved, eventResponseData.EventData);
                         break;
                     case EventType.SceneNameChanged:
-                        this.InvokeAsyncEvent(this.SceneNameChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneNameChanged, eventResponseData.EventData);
                         break;
                     case EventType.CurrentProgramSceneChanged:
-                        this.InvokeAsyncEvent(this.CurrentProgramSceneChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentProgramSceneChanged, eventResponseData.EventData);
                         break;
                     case EventType.CurrentPreviewSceneChanged:
-                        this.InvokeAsyncEvent(this.CurrentPreviewSceneChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentPreviewSceneChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneListChanged:
-                        this.InvokeAsyncEvent(this.SceneListChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneListChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputCreated:
-                        this.InvokeAsyncEvent(this.InputCreated, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputCreated, eventResponseData.EventData);
                         break;
                     case EventType.InputRemoved:
-                        this.InvokeAsyncEvent(this.InputRemoved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputRemoved, eventResponseData.EventData);
                         break;
                     case EventType.InputNameChanged:
-                        this.InvokeAsyncEvent(this.InputNameChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputNameChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputActiveStateChanged:
-                        this.InvokeAsyncEvent(this.InputActiveStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputActiveStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputShowStateChanged:
-                        this.InvokeAsyncEvent(this.InputShowStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputShowStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputMuteStateChanged:
-                        this.InvokeAsyncEvent(this.InputMuteStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputMuteStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputVolumeChanged:
-                        this.InvokeAsyncEvent(this.InputVolumeChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputVolumeChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputAudioBalanceChanged:
-                        this.InvokeAsyncEvent(this.InputAudioBalanceChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputAudioBalanceChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputAudioSyncOffsetChanged:
-                        this.InvokeAsyncEvent(this.InputAudioSyncOffsetChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputAudioSyncOffsetChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputAudioTracksChanged:
-                        this.InvokeAsyncEvent(this.InputAudioTracksChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputAudioTracksChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputAudioMonitorTypeChanged:
-                        this.InvokeAsyncEvent(this.InputAudioMonitorTypeChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputAudioMonitorTypeChanged, eventResponseData.EventData);
                         break;
                     case EventType.InputVolumeMeters:
-                        this.InvokeAsyncEvent(this.InputVolumeMeters, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(InputVolumeMeters, eventResponseData.EventData);
                         break;
                     case EventType.CurrentSceneTransitionChanged:
-                        this.InvokeAsyncEvent(this.CurrentSceneTransitionChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentSceneTransitionChanged, eventResponseData.EventData);
                         break;
                     case EventType.CurrentSceneTransitionDurationChanged:
-                        this.InvokeAsyncEvent(this.CurrentSceneTransitionDurationChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(CurrentSceneTransitionDurationChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneTransitionStarted:
-                        this.InvokeAsyncEvent(this.SceneTransitionStarted, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneTransitionStarted, eventResponseData.EventData);
                         break;
                     case EventType.SceneTransitionEnded:
-                        this.InvokeAsyncEvent(this.SceneTransitionEnded, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneTransitionEnded, eventResponseData.EventData);
                         break;
                     case EventType.SceneTransitionVideoEnded:
-                        this.InvokeAsyncEvent(this.SceneTransitionVideoEnded, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneTransitionVideoEnded, eventResponseData.EventData);
                         break;
                     case EventType.SourceFilterListReindexed:
-                        this.InvokeAsyncEvent(this.SourceFilterListReindexed, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SourceFilterListReindexed, eventResponseData.EventData);
                         break;
                     case EventType.SourceFilterCreated:
-                        this.InvokeAsyncEvent(this.SourceFilterCreated, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SourceFilterCreated, eventResponseData.EventData);
                         break;
                     case EventType.SourceFilterRemoved:
-                        this.InvokeAsyncEvent(this.SourceFilterRemoved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SourceFilterRemoved, eventResponseData.EventData);
                         break;
                     case EventType.SourceFilterNameChanged:
-                        this.InvokeAsyncEvent(this.SourceFilterNameChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SourceFilterNameChanged, eventResponseData.EventData);
                         break;
                     case EventType.SourceFilterEnableStateChanged:
-                        this.InvokeAsyncEvent(this.SourceFilterEnableStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SourceFilterEnableStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemCreated:
-                        this.InvokeAsyncEvent(this.SceneItemCreated, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemCreated, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemRemoved:
-                        this.InvokeAsyncEvent(this.SceneItemRemoved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemRemoved, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemListReindexed:
-                        this.InvokeAsyncEvent(this.SceneItemListReindexed, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemListReindexed, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemEnableStateChanged:
-                        this.InvokeAsyncEvent(this.SceneItemEnableStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemEnableStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemLockStateChanged:
-                        this.InvokeAsyncEvent(this.SceneItemLockStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemLockStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemSelected:
-                        this.InvokeAsyncEvent(this.SceneItemSelected, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemSelected, eventResponseData.EventData);
                         break;
                     case EventType.SceneItemTransformChanged:
-                        this.InvokeAsyncEvent(this.SceneItemTransformChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(SceneItemTransformChanged, eventResponseData.EventData);
                         break;
                     case EventType.StreamStateChanged:
-                        this.InvokeAsyncEvent(this.StreamStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(StreamStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.RecordStateChanged:
-                        this.InvokeAsyncEvent(this.RecordStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(RecordStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.ReplayBufferStateChanged:
-                        this.InvokeAsyncEvent(this.ReplayBufferStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(ReplayBufferStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.VirtualcamStateChanged:
-                        this.InvokeAsyncEvent(this.VirtualcamStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(VirtualcamStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.ReplayBufferSaved:
-                        this.InvokeAsyncEvent(this.ReplayBufferSaved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(ReplayBufferSaved, eventResponseData.EventData);
                         break;
                     case EventType.MediaInputPlaybackStarted:
-                        this.InvokeAsyncEvent(this.MediaInputPlaybackStarted, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(MediaInputPlaybackStarted, eventResponseData.EventData);
                         break;
                     case EventType.MediaInputPlaybackEnded:
-                        this.InvokeAsyncEvent(this.MediaInputPlaybackEnded, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(MediaInputPlaybackEnded, eventResponseData.EventData);
                         break;
                     case EventType.MediaInputActionTriggered:
-                        this.InvokeAsyncEvent(this.MediaInputActionTriggered, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(MediaInputActionTriggered, eventResponseData.EventData);
                         break;
                     case EventType.StudioModeStateChanged:
-                        this.InvokeAsyncEvent(this.StudioModeStateChanged, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(StudioModeStateChanged, eventResponseData.EventData);
                         break;
                     case EventType.ScreenshotSaved:
-                        this.InvokeAsyncEvent(this.ScreenshotSaved, eventResponseData.EventData);
+                        this.InvokeAsyncEvent(ScreenshotSaved, eventResponseData.EventData);
                         break;
                     default:
                         throw new ObsClientException($"Unknown Event '{eventResponseData.EventType}'");
@@ -489,7 +511,7 @@
         {
             if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
             {
-                if (_requests.TryGetValue(requestBatchResponseData.RequestId, out var tcs))
+                if (this._requests.TryGetValue(requestBatchResponseData.RequestId, out var tcs))
                 {
                     tcs.SetResult(requestBatchResponseData);
                 }
@@ -567,14 +589,14 @@
 
         private async Task SendAsync(dynamic request)
         {
-            if (_client.State != WebSocketState.Open)
+            if (this._client.State != WebSocketState.Open)
             {
                 throw new ObsClientException("Client is not connected.");
             }
 
             var bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
-            await _client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, _cancellationTokenSource.Token);
+            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._cancellationTokenSource.Token);
         }
 
         private async Task Receiver(CancellationToken cancellationToken)
@@ -590,18 +612,18 @@
                     try
                     {
                         var bytes = new byte[4096];
-                        var res = await _client.ReceiveAsync(bytes, cancellationToken);
+                        var res = await this._client.ReceiveAsync(bytes, cancellationToken);
                         if (res.MessageType == WebSocketMessageType.Close)
                         {
                             this.ConnectionState = ConnectionState.Disconnecting;
                             WebSocketCloseCode closeCode = res.CloseStatus.HasValue ? (WebSocketCloseCode)(int)res.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
-                            await _client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+                            await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
                             this.ConnectionState = ConnectionState.Disconnected;
-                            this.InvokeAsyncEvent(this.ConnectionClosed, new ConnectionClosedEventArgs(closeCode, res.CloseStatusDescription ?? "Unknown"));
+                            this.InvokeAsyncEvent(ConnectionClosed, new ConnectionClosedEventArgs(closeCode, res.CloseStatusDescription ?? "Unknown"));
                             connectionOpen = false;
-                            if (closeCode == WebSocketCloseCode.AuthenticationFailed && _authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
+                            if (closeCode == WebSocketCloseCode.AuthenticationFailed && this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
                             {
-                                _authenticationComplete.SetResult(false);
+                                this._authenticationComplete.SetResult(false);
                             }
                         }
                         else
@@ -636,26 +658,26 @@
             if (connectionOpen)
             {
                 this.ConnectionState = ConnectionState.Disconnected;
-                this.InvokeAsyncEvent(this.ConnectionClosed, new ConnectionClosedEventArgs(WebSocketCloseCode.NormalClosure, "Disconnecting due to request."));
+                this.InvokeAsyncEvent(ConnectionClosed, new ConnectionClosedEventArgs(WebSocketCloseCode.NormalClosure, "Disconnecting due to request."));
             }
         }
 
         private async Task<IMessage?> SendAndWaitAsync(dynamic request)
         {
-            if (_connectionState != ConnectionState.Connected)
+            if (this._connectionState != ConnectionState.Connected)
             {
                 throw new ObsClientException("Not connected.");
             }
 
             string requestId = request.d.requestId;
             TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(_requestTimeout);
+            CancellationTokenSource cts = new(this._requestTimeout);
             cts.Token.Register(() => tcs.TrySetCanceled(), false);
             if (this._requests.TryAdd(requestId, tcs))
             {
                 try
                 {
-                    await this.SendAsync(request);
+                    await SendAsync(request);
                     var result = tcs.Task.Result;
                     return result;
                 }
@@ -687,7 +709,7 @@
                 requestType = requestType[..^5];
             }
 
-            await SendRequestAndWaitAsync(requestType, requestData);
+            await this.SendRequestAndWaitAsync(requestType, requestData);
         }
 
         private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponse
@@ -697,7 +719,7 @@
                 requestType = requestType[..^5];
             }
 
-            var requestResponseData = await SendRequestAndWaitAsync(requestType, requestData);
+            var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData);
             return (T)requestResponseData.ResponseData!;
         }
 

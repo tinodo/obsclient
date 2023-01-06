@@ -10,7 +10,7 @@
         /// <returns>A <see cref="SceneListResponse"/></returns>
         public async Task<SceneListResponse> GetSceneList()
         {
-            return await this.SendRequestAsync< SceneListResponse>();
+            return await this.SendRequestAsync<SceneListResponse>();
         }
 
         /// <summary>
@@ -103,8 +103,8 @@
         /// Gets the scene transition overridden for a scene.
         /// </summary>
         /// <param name="sceneName">Name of the scene</param>
-        /// <param name="transitionName">Name of the scene transition to use as override. Specify null to remove</param>
-        /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove (>= 50, <= 20000)</param>
+        /// <param name="transitionName">Name of the scene transition to use as override. Specify null to remove.</param>
+        /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove.</param>
         public async Task SetSceneSceneTransitionOverride(string sceneName, string? transitionName, int? transitionDuration)
         {
             await this.SendRequestAsync(new { sceneName, transitionName, transitionDuration });

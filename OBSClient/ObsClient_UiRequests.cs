@@ -16,7 +16,7 @@
         }
 
         /// <summary>
-        /// Enables or disables studio mode
+        /// Enables or disables studio mode.
         /// </summary>
         /// <param name="studioModeEnabled">True == Enabled, False == Disabled</param>
         public async Task SetStudioModeEnabled(bool studioModeEnabled)

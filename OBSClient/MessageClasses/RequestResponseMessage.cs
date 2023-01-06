@@ -1,31 +1,56 @@
 ﻿namespace OBSStudioClient.Messages
 {
     using OBSStudioClient.Classes;
-    using OBSStudioClient.Interfaces;
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Exceptions;
+    using OBSStudioClient.Interfaces;
     using System;
-    using System.Text.Json.Serialization;
     using System.Text.Json;
-    using System.Runtime.Serialization;
+    using System.Text.Json.Serialization;
 
+    /// <summary>
+    /// Class for Request Response Messages
+    /// </summary>
     public class RequestResponseMessage : IMessage, IJsonOnDeserialized
     {
-        [JsonConverter(typeof(JsonStringEnumConverter))]    
+        /// <summary>
+        /// The type of request this is a response to.
+        /// </summary>
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("requestType")]
         public RequestType RequestType { get; }
 
+        /// <summary>
+        /// The identifier of the original request.
+        /// </summary>
         [JsonPropertyName("requestId")]
         public string RequestId { get; }
 
+        /// <summary>
+        /// The status of the request.
+        /// </summary>
         [JsonPropertyName("requestStatus")]
         public RequestStatus RequestStatus { get; }
 
+        /// <summary>
+        /// The raw JSON response data
+        /// </summary>
         [JsonPropertyName("responseData")]
         public JsonElement? RawResponseData { get; }
 
+        /// <summary>
+        /// The deserialized response data.
+        /// </summary>
         [JsonIgnore]
         public IResponse? ResponseData { get; private set; }
 
+        /// <summary>
+        /// Creates a new instance of a <see cref="RequestResponseMessage"/>
+        /// </summary>
+        /// <param name="requestType">The type of request this is a response to.</param>
+        /// <param name="requestId">The identifier of the original request.</param>
+        /// <param name="requestStatus">The status of the request.</param>
+        /// <param name="rawResponseData"> The raw JSON response data</param>
         [JsonConstructor]
         public RequestResponseMessage(RequestType requestType, string requestId, RequestStatus requestStatus, JsonElement? rawResponseData)
         {
@@ -35,6 +60,12 @@
             this.RawResponseData = rawResponseData;
         }
 
+        /// <summary>
+        /// Deserializes the raw JSON response to Response Data
+        /// </summary>
+        /// <exception cref="NotImplementedException">Not implemented.</exception>
+        /// <exception cref="NotSupportedException">The response data is unknown.</exception>
+        /// <exception cref="ObsClientException">Deserialization failed</exception>
         public void OnDeserialized()
         {
             if (this.RawResponseData != null)

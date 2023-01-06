@@ -5,7 +5,7 @@
     public class ScreenshotRequest
     {
         [JsonPropertyName("sourceName")]
-        public string SourceName { get; set;}
+        public string SourceName { get; set; }
 
         [JsonPropertyName("imageFormat")]
         public string ImageFormat { get; set; }
