@@ -5,13 +5,13 @@ on:
       - main
     paths-ignore:
       - 'docs/**'
-      - 'SampleWindowsAppliation/**'
+      - 'SampleWindowsApplication/**'
       - README.md      
   pull_request:
     types: [opened, synchronize, reopened]
     paths-ignore:
       - 'docs/**'
-      - 'SampleWindowsAppliation/**'
+      - 'SampleWindowsApplication/**'
       - README.md
 env:
   PROJECT: OBSClient
