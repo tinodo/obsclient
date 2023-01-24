@@ -1,5 +1,6 @@
 ﻿namespace OBSStudioClient.Classes
 {
+    using OBSStudioClient.Enums;
     using System.Text.Json.Serialization;
 
     /// <summary>
@@ -30,7 +31,7 @@
         /// </summary>
         [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("boundsType")]
-        public Coordinates BoundsType { get; }
+        public Bounds BoundsType { get; }
 
         /// <summary>
         /// Gets the width of the scene transform bounds.
@@ -138,7 +139,7 @@
         /// <param name="sourceWidth">The source width.</param>
         /// <param name="width">The width.</param>
         [JsonConstructor]
-        public SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Coordinates boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width)
+        public SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Bounds boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width)
         {
             this.Alignment = alignment;
             this.BoundsAlignment = boundsAlignment;

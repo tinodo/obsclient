@@ -31,7 +31,7 @@
         /// Gets the <see cref="FilterSettings"/>.
         /// </summary>
         [JsonPropertyName("filterSettings")]
-        public FilterSettings FilterSettings { get; }
+        public Dictionary<string, object> FilterSettings { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SourceFilterResponse"/> class.
@@ -41,7 +41,7 @@
         /// <param name="filterKind">The filter kind.</param>
         /// <param name="filterSettings">The <see cref="FilterSettings"/>.</param>
         [JsonConstructor]
-        public SourceFilterResponse(bool filterEnabled, int filterIndex, string filterKind, FilterSettings filterSettings)
+        public SourceFilterResponse(bool filterEnabled, int filterIndex, string filterKind, Dictionary<string, object> filterSettings)
         {
             this.FilterEnabled = filterEnabled;
             this.FilterIndex = filterIndex;

@@ -594,6 +594,7 @@
                 throw new ObsClientException("Client is not connected.");
             }
 
+            Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             var bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
             await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._cancellationTokenSource.Token);

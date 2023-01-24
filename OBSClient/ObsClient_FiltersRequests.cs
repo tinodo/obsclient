@@ -87,7 +87,7 @@
         /// <param name="filterName">Name of the filter to set the settings of</param>
         /// <param name="filterSettings">Object of settings to apply</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
-        public async Task SetSourceFilterSettings(string sourceName, string filterName, FilterSettings filterSettings, bool overlay = true)
+        public async Task SetSourceFilterSettings(string sourceName, string filterName, Dictionary<string, object> filterSettings, bool overlay = true)
         {
             await this.SendRequestAsync(new { sourceName, filterName, filterSettings, overlay });
         }

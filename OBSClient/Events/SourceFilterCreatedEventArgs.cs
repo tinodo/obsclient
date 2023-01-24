@@ -36,7 +36,7 @@
         /// Gets the <see cref="FilterSettings"/>
         /// </summary>
         [JsonPropertyName("filterSettings")]
-        public FilterSettings FilterSettings { get; }
+        public Dictionary<string, object> FilterSettings { get; }
 
         /// <summary>
         /// Gets the default filter settings.
@@ -54,7 +54,7 @@
         /// <param name="filterSettings">The filter settings.</param>
         /// <param name="defaultFilterSettings">The default filter settings.</param>
         [JsonConstructor]
-        public SourceFilterCreatedEventArgs(string sourceName, string filterName, string filterKind, int filterIndex, FilterSettings filterSettings, Dictionary<string, object> defaultFilterSettings)
+        public SourceFilterCreatedEventArgs(string sourceName, string filterName, string filterKind, int filterIndex, Dictionary<string, object> filterSettings, Dictionary<string, object> defaultFilterSettings)
         {
             this.SourceName = sourceName;
             this.FilterName = filterName;

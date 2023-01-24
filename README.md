@@ -4,8 +4,8 @@ Currently implementing: [**obs-websocket 5.1.0 Protocol**](https://github.com/ob
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 1.1.0`  
-From the command line: `dotnet add package OBSClient --version 1.1.0`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 1.2.0`  
+From the command line: `dotnet add package OBSClient --version 1.2.0`  
 
 ## Sample usage
 ```

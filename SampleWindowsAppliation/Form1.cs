@@ -431,6 +431,53 @@ namespace SampleWindowsAppliation
             {
                 MessageBox.Show("Could not connect.");
             }
+            _client.RequestTimeout = 1000;
+            //List<RequestMessage> requests = new()
+            //{
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Azure Hero Blue", new { sourceName = "Azure Hero Blue" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Survey", new { sourceName = "Survey" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Random Azure Video", new { sourceName = "Random Azure Video" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Timer", new { sourceName = "Timer" }),
+            //    new RequetMessage(RequestType.GetSourceFilterList, "Break Background", new { sourceName = "Break Background" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Break Text", new { sourceName = "Break Text" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Course Title", new { sourceName = "Course Title" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "QR", new { sourceName = "QR" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Green Screen Effects Scene", new { sourceName = "Green Screen Effects Scene" }),
+            //    new RequestMessage(RequestType.GetSourceFilterList, "Mic and Censor Beep", new { sourceName = "Mic and Censor Beep" })
+            //};
+            //var filters = await _client.SendRequestBatch(RequestBatchExecutionType.SerialFrame, requests.ToArray());
+
+            Thread.Sleep(1000);
+            var xxx = await _client.GetSourceFilter("Timer Music", "Audio Monitor");
+            var yyy = await _client.GetSourceFilterDefaultSettings("audio_monitor");
+            var zzz = await _client.GetSourceFilterList("Timer Music");
+
+            var scenes = await _client.GetSceneList();
+            foreach (var scene in scenes.Scenes)
+            {
+                var sceneItems = await _client.GetSceneItemList(scene.SceneName);
+                var sceneFilters = await _client.GetSourceFilterList(scene.SceneName);
+                foreach (var sceneFilter in sceneFilters)
+                {
+                    var sf = await _client.GetSourceFilter(scene.SceneName, sceneFilter.FilterName);
+                    //var sss = await _client.GetSceneItemEnabled(scene.SceneName, sceneFilter.FilterIndex);
+                }
+
+                foreach (var sceneItem in sceneItems)
+                {
+                    var sourceItems = await _client.GetSourceFilterList(sceneItem.SourceName);
+                    var sss2 = await _client.GetSceneItemEnabled(scene.SceneName, sceneItem.SceneItemId);
+                    try
+                    {
+                        var tt = await _client.GetInputMute(sceneItem.SourceName);
+                    }
+                    catch { }
+                    //foreach (var sourceItem in sourceItems)
+                    //{
+                    //    var sf2 = await _client.GetSourceFilter(sceneItem.SourceName, sourceItem.FilterName);
+                    //}
+                }
+            }
         }
 
         private Task ObsConnectionClosed(object? sender, ConnectionClosedEventArgs e)

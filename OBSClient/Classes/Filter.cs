@@ -35,7 +35,8 @@
         /// Gets the <see cref="FilterSettings"/>.
         /// </summary>
         [JsonPropertyName("filterSettings")]
-        public FilterSettings FilterSettings { get; }
+        //public FilterSettings FilterSettings { get; }
+        public Dictionary<string, object> FilterSettings { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Filter"/> class.
@@ -46,13 +47,13 @@
         /// <param name="filterName">The filter name.</param>
         /// <param name="filterSettings">The <see cref="FilterSettings"/>.</param>
         [JsonConstructor]
-        public Filter(bool filterEnabled, int filterIndex, string filterKind, string filterName, FilterSettings filterSettings)
+        public Filter(bool filterEnabled, int filterIndex, string filterKind, string filterName, Dictionary<string, object> filterSettings)
         {
             this.FilterEnabled = filterEnabled;
             this.FilterIndex = filterIndex;
             this.FilterKind = filterKind;
             this.FilterName = filterName;
-            this.FilterSettings = filterSettings;
+            this.FilterSettings = filterSettings ?? new();
         }
     }
 }
