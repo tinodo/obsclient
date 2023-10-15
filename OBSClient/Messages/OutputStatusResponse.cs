@@ -1,5 +1,6 @@
 ﻿namespace OBSStudioClient.Messages
 {
+    using OBSStudioClient.Converters;
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 
@@ -36,6 +37,7 @@
         /// Gets the congestion of the output.
         /// </summary>
         [JsonPropertyName("outputCongestion")]
+        [JsonConverter(typeof(NullableNumberToNumberConverter))]
         public float OutputCongestion { get; }
 
         /// <summary>
