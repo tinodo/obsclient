@@ -28,1137 +28,1140 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.button1 = new System.Windows.Forms.Button();
-            this.tbHostname = new System.Windows.Forms.TextBox();
-            this.nudPort = new System.Windows.Forms.NumericUpDown();
-            this.tbPassword = new System.Windows.Forms.TextBox();
-            this.btnStartVirtualCam = new System.Windows.Forms.Button();
-            this.btnStopVirtualCamera = new System.Windows.Forms.Button();
-            this.btnToggleVirtualCamera = new System.Windows.Forms.Button();
-            this.btnGetVirtualCameraState = new System.Windows.Forms.Button();
-            this.button3 = new System.Windows.Forms.Button();
-            this.btnGetMonitorList = new System.Windows.Forms.Button();
-            this.btnGetStudioModeEnabled = new System.Windows.Forms.Button();
-            this.btnStopStudioMode = new System.Windows.Forms.Button();
-            this.btnStartStudioMode = new System.Windows.Forms.Button();
-            this.btnSleep = new System.Windows.Forms.Button();
-            this.btnTriggerHotkeyByKeySequence = new System.Windows.Forms.Button();
-            this.btnTriggerHotkeyByName = new System.Windows.Forms.Button();
-            this.btnGetHotkeyList = new System.Windows.Forms.Button();
-            this.btnCallVendorRequest = new System.Windows.Forms.Button();
-            this.btnBroadcastCustomEvent = new System.Windows.Forms.Button();
-            this.btnGetStats = new System.Windows.Forms.Button();
-            this.btnGetVersion = new System.Windows.Forms.Button();
-            this.btnGetProfileList = new System.Windows.Forms.Button();
-            this.btnCreateSceneCollection = new System.Windows.Forms.Button();
-            this.btnSetCurrentSceneCollection = new System.Windows.Forms.Button();
-            this.btnGetSceneCollectionList = new System.Windows.Forms.Button();
-            this.btnSetPersistentData = new System.Windows.Forms.Button();
-            this.btnGetPersistentData = new System.Windows.Forms.Button();
-            this.btnSetCurrentProfile = new System.Windows.Forms.Button();
-            this.btnCreateProfile = new System.Windows.Forms.Button();
-            this.btnRemoveProfile = new System.Windows.Forms.Button();
-            this.btnGetProfileParameter = new System.Windows.Forms.Button();
-            this.btnSetProfileParameter = new System.Windows.Forms.Button();
-            this.btnGetVideoSettings = new System.Windows.Forms.Button();
-            this.btnSetVideoSettings = new System.Windows.Forms.Button();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
-            this.tabControl1 = new System.Windows.Forms.TabControl();
-            this.tpGeneralRequests = new System.Windows.Forms.TabPage();
-            this.tpConfigRequests = new System.Windows.Forms.TabPage();
-            this.btnGetRecordDirectory = new System.Windows.Forms.Button();
-            this.btnSetStreamServiceSettings = new System.Windows.Forms.Button();
-            this.btnGetStreamServiceSettings = new System.Windows.Forms.Button();
-            this.tpSourcesRequests = new System.Windows.Forms.TabPage();
-            this.btnSaveSourceScreenshot = new System.Windows.Forms.Button();
-            this.btnSetSourceActive = new System.Windows.Forms.Button();
-            this.btnGetSourceActive = new System.Windows.Forms.Button();
-            this.tpScenesRequests = new System.Windows.Forms.TabPage();
-            this.btnSetSceneSceneTransitionOverride = new System.Windows.Forms.Button();
-            this.btnGetSceneSceneTransitionOverride = new System.Windows.Forms.Button();
-            this.btnSetSceneName = new System.Windows.Forms.Button();
-            this.btnRemoveScene = new System.Windows.Forms.Button();
-            this.btnCreateScene = new System.Windows.Forms.Button();
-            this.btnSetCurrentPreviewScene = new System.Windows.Forms.Button();
-            this.btnGetCurrentPreviewScene = new System.Windows.Forms.Button();
-            this.btnSetCurrentProgramScene = new System.Windows.Forms.Button();
-            this.btnGetCurrentProgramScene = new System.Windows.Forms.Button();
-            this.btnGetGroupList = new System.Windows.Forms.Button();
-            this.btnGetSceneList = new System.Windows.Forms.Button();
-            this.tpInputsRequests = new System.Windows.Forms.TabPage();
-            this.btnToggleInputMute = new System.Windows.Forms.Button();
-            this.btnSetInputMute = new System.Windows.Forms.Button();
-            this.btnGetInputMute = new System.Windows.Forms.Button();
-            this.btnSetInputSettings = new System.Windows.Forms.Button();
-            this.btnGetInputSettings = new System.Windows.Forms.Button();
-            this.btnGetInputDefaultSettings = new System.Windows.Forms.Button();
-            this.btnSetInputName = new System.Windows.Forms.Button();
-            this.btnRemoveInput = new System.Windows.Forms.Button();
-            this.btnCreateInput = new System.Windows.Forms.Button();
-            this.btnGetSpecialInputs = new System.Windows.Forms.Button();
-            this.btnGetInputKindList = new System.Windows.Forms.Button();
-            this.btnGetInputList = new System.Windows.Forms.Button();
-            this.tpFiltersRequests = new System.Windows.Forms.TabPage();
-            this.tbMediaInputsRequests = new System.Windows.Forms.TabPage();
-            this.tpOutputsRequests = new System.Windows.Forms.TabPage();
-            this.tbRecordRequests = new System.Windows.Forms.TabPage();
-            this.tbSceneItemsRequests = new System.Windows.Forms.TabPage();
-            this.tpStreamRequests = new System.Windows.Forms.TabPage();
-            this.tpTransitionsRequests = new System.Windows.Forms.TabPage();
-            this.tpUIRequests = new System.Windows.Forms.TabPage();
-            this.btnOpenInputInteractDialog = new System.Windows.Forms.Button();
-            this.btnOpenInputFiltersDialog = new System.Windows.Forms.Button();
-            this.btnOpenInputPropertiesDialog = new System.Windows.Forms.Button();
-            this.lbScenes = new System.Windows.Forms.ListBox();
-            this.label4 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
-            this.lbGroups = new System.Windows.Forms.ListBox();
-            this.tbNameItem = new System.Windows.Forms.TextBox();
-            this.label6 = new System.Windows.Forms.Label();
-            this.btnOpenVideoMixProjectorOnMonitor = new System.Windows.Forms.Button();
-            this.btnOpenVideoMixProjectorWindow = new System.Windows.Forms.Button();
-            this.btnOpenSourceProjectorOnMonitor = new System.Windows.Forms.Button();
-            this.button5 = new System.Windows.Forms.Button();
-            this.btnOpenSourceProjectorWindow = new System.Windows.Forms.Button();
-            ((System.ComponentModel.ISupportInitialize)(this.nudPort)).BeginInit();
-            this.tabControl1.SuspendLayout();
-            this.tpGeneralRequests.SuspendLayout();
-            this.tpConfigRequests.SuspendLayout();
-            this.tpSourcesRequests.SuspendLayout();
-            this.tpScenesRequests.SuspendLayout();
-            this.tpInputsRequests.SuspendLayout();
-            this.tpOutputsRequests.SuspendLayout();
-            this.tpUIRequests.SuspendLayout();
+            button1 = new Button();
+            tbHostname = new TextBox();
+            nudPort = new NumericUpDown();
+            tbPassword = new TextBox();
+            btnStartVirtualCam = new Button();
+            btnStopVirtualCamera = new Button();
+            btnToggleVirtualCamera = new Button();
+            btnGetVirtualCameraState = new Button();
+            button3 = new Button();
+            btnGetMonitorList = new Button();
+            btnGetStudioModeEnabled = new Button();
+            btnStopStudioMode = new Button();
+            btnStartStudioMode = new Button();
+            btnSleep = new Button();
+            btnTriggerHotkeyByKeySequence = new Button();
+            btnTriggerHotkeyByName = new Button();
+            btnGetHotkeyList = new Button();
+            btnCallVendorRequest = new Button();
+            btnBroadcastCustomEvent = new Button();
+            btnGetStats = new Button();
+            btnGetVersion = new Button();
+            btnGetProfileList = new Button();
+            btnCreateSceneCollection = new Button();
+            btnSetCurrentSceneCollection = new Button();
+            btnGetSceneCollectionList = new Button();
+            btnSetPersistentData = new Button();
+            btnGetPersistentData = new Button();
+            btnSetCurrentProfile = new Button();
+            btnCreateProfile = new Button();
+            btnRemoveProfile = new Button();
+            btnGetProfileParameter = new Button();
+            btnSetProfileParameter = new Button();
+            btnGetVideoSettings = new Button();
+            btnSetVideoSettings = new Button();
+            label1 = new Label();
+            label2 = new Label();
+            label3 = new Label();
+            tabControl1 = new TabControl();
+            tpGeneralRequests = new TabPage();
+            tpConfigRequests = new TabPage();
+            btnGetRecordDirectory = new Button();
+            btnSetStreamServiceSettings = new Button();
+            btnGetStreamServiceSettings = new Button();
+            tpSourcesRequests = new TabPage();
+            btnSaveSourceScreenshot = new Button();
+            btnSetSourceActive = new Button();
+            btnGetSourceActive = new Button();
+            tpScenesRequests = new TabPage();
+            btnSetSceneSceneTransitionOverride = new Button();
+            btnGetSceneSceneTransitionOverride = new Button();
+            btnSetSceneName = new Button();
+            btnRemoveScene = new Button();
+            btnCreateScene = new Button();
+            btnSetCurrentPreviewScene = new Button();
+            btnGetCurrentPreviewScene = new Button();
+            btnSetCurrentProgramScene = new Button();
+            btnGetCurrentProgramScene = new Button();
+            btnGetGroupList = new Button();
+            btnGetSceneList = new Button();
+            tpInputsRequests = new TabPage();
+            btnToggleInputMute = new Button();
+            btnSetInputMute = new Button();
+            btnGetInputMute = new Button();
+            btnSetInputSettings = new Button();
+            btnGetInputSettings = new Button();
+            btnGetInputDefaultSettings = new Button();
+            btnSetInputName = new Button();
+            btnRemoveInput = new Button();
+            btnCreateInput = new Button();
+            btnGetSpecialInputs = new Button();
+            btnGetInputKindList = new Button();
+            btnGetInputList = new Button();
+            tpFiltersRequests = new TabPage();
+            tbMediaInputsRequests = new TabPage();
+            tpOutputsRequests = new TabPage();
+            tbRecordRequests = new TabPage();
+            tbSceneItemsRequests = new TabPage();
+            tpStreamRequests = new TabPage();
+            tpTransitionsRequests = new TabPage();
+            tpUIRequests = new TabPage();
+            btnOpenSourceProjectorWindow = new Button();
+            button5 = new Button();
+            btnOpenSourceProjectorOnMonitor = new Button();
+            btnOpenVideoMixProjectorWindow = new Button();
+            btnOpenVideoMixProjectorOnMonitor = new Button();
+            btnOpenInputInteractDialog = new Button();
+            btnOpenInputFiltersDialog = new Button();
+            btnOpenInputPropertiesDialog = new Button();
+            lbScenes = new ListBox();
+            label4 = new Label();
+            label5 = new Label();
+            lbGroups = new ListBox();
+            tbNameItem = new TextBox();
+            label6 = new Label();
+            bnGetStreamStatus = new Button();
+            ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
+            tabControl1.SuspendLayout();
+            tpGeneralRequests.SuspendLayout();
+            tpConfigRequests.SuspendLayout();
+            tpSourcesRequests.SuspendLayout();
+            tpScenesRequests.SuspendLayout();
+            tpInputsRequests.SuspendLayout();
+            tpOutputsRequests.SuspendLayout();
+            tpUIRequests.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(382, 8);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(150, 46);
-            this.button1.TabIndex = 0;
-            this.button1.Text = "Connect";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            button1.Location = new Point(382, 8);
+            button1.Name = "button1";
+            button1.Size = new Size(150, 46);
+            button1.TabIndex = 0;
+            button1.Text = "Connect";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += this.button1_Click;
             // 
             // tbHostname
             // 
-            this.tbHostname.Location = new System.Drawing.Point(146, 15);
-            this.tbHostname.Name = "tbHostname";
-            this.tbHostname.Size = new System.Drawing.Size(200, 39);
-            this.tbHostname.TabIndex = 2;
-            this.tbHostname.Text = "localhost";
+            tbHostname.Location = new Point(146, 15);
+            tbHostname.Name = "tbHostname";
+            tbHostname.Size = new Size(200, 39);
+            tbHostname.TabIndex = 2;
+            tbHostname.Text = "localhost";
             // 
             // nudPort
             // 
-            this.nudPort.Location = new System.Drawing.Point(146, 60);
-            this.nudPort.Maximum = new decimal(new int[] {
-            65535,
-            0,
-            0,
-            0});
-            this.nudPort.Name = "nudPort";
-            this.nudPort.Size = new System.Drawing.Size(200, 39);
-            this.nudPort.TabIndex = 3;
-            this.nudPort.Value = new decimal(new int[] {
-            4455,
-            0,
-            0,
-            0});
+            nudPort.Location = new Point(146, 60);
+            nudPort.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
+            nudPort.Name = "nudPort";
+            nudPort.Size = new Size(200, 39);
+            nudPort.TabIndex = 3;
+            nudPort.Value = new decimal(new int[] { 4455, 0, 0, 0 });
             // 
             // tbPassword
             // 
-            this.tbPassword.Location = new System.Drawing.Point(146, 105);
-            this.tbPassword.Name = "tbPassword";
-            this.tbPassword.Size = new System.Drawing.Size(200, 39);
-            this.tbPassword.TabIndex = 4;
-            this.tbPassword.UseSystemPasswordChar = true;
+            tbPassword.Location = new Point(146, 105);
+            tbPassword.Name = "tbPassword";
+            tbPassword.Size = new Size(200, 39);
+            tbPassword.TabIndex = 4;
+            tbPassword.UseSystemPasswordChar = true;
             // 
             // btnStartVirtualCam
             // 
-            this.btnStartVirtualCam.Location = new System.Drawing.Point(3, 108);
-            this.btnStartVirtualCam.Name = "btnStartVirtualCam";
-            this.btnStartVirtualCam.Size = new System.Drawing.Size(340, 46);
-            this.btnStartVirtualCam.TabIndex = 5;
-            this.btnStartVirtualCam.Text = "Start Virtual Camera";
-            this.btnStartVirtualCam.UseVisualStyleBackColor = true;
-            this.btnStartVirtualCam.Click += new System.EventHandler(this.btnStartVirtualCam_Click);
+            btnStartVirtualCam.Location = new Point(3, 108);
+            btnStartVirtualCam.Name = "btnStartVirtualCam";
+            btnStartVirtualCam.Size = new Size(340, 46);
+            btnStartVirtualCam.TabIndex = 5;
+            btnStartVirtualCam.Text = "Start Virtual Camera";
+            btnStartVirtualCam.UseVisualStyleBackColor = true;
+            btnStartVirtualCam.Click += this.btnStartVirtualCam_Click;
             // 
             // btnStopVirtualCamera
             // 
-            this.btnStopVirtualCamera.Location = new System.Drawing.Point(0, 160);
-            this.btnStopVirtualCamera.Name = "btnStopVirtualCamera";
-            this.btnStopVirtualCamera.Size = new System.Drawing.Size(340, 46);
-            this.btnStopVirtualCamera.TabIndex = 6;
-            this.btnStopVirtualCamera.Text = "Stop Virtual Camera";
-            this.btnStopVirtualCamera.UseVisualStyleBackColor = true;
-            this.btnStopVirtualCamera.Click += new System.EventHandler(this.btnStopVirtualCamera_Click);
+            btnStopVirtualCamera.Location = new Point(0, 160);
+            btnStopVirtualCamera.Name = "btnStopVirtualCamera";
+            btnStopVirtualCamera.Size = new Size(340, 46);
+            btnStopVirtualCamera.TabIndex = 6;
+            btnStopVirtualCamera.Text = "Stop Virtual Camera";
+            btnStopVirtualCamera.UseVisualStyleBackColor = true;
+            btnStopVirtualCamera.Click += this.btnStopVirtualCamera_Click;
             // 
             // btnToggleVirtualCamera
             // 
-            this.btnToggleVirtualCamera.Location = new System.Drawing.Point(3, 56);
-            this.btnToggleVirtualCamera.Name = "btnToggleVirtualCamera";
-            this.btnToggleVirtualCamera.Size = new System.Drawing.Size(340, 46);
-            this.btnToggleVirtualCamera.TabIndex = 7;
-            this.btnToggleVirtualCamera.Text = "Toggle Virtual Camera";
-            this.btnToggleVirtualCamera.UseVisualStyleBackColor = true;
-            this.btnToggleVirtualCamera.Click += new System.EventHandler(this.btnToggleVirtualCamera_Click);
+            btnToggleVirtualCamera.Location = new Point(3, 56);
+            btnToggleVirtualCamera.Name = "btnToggleVirtualCamera";
+            btnToggleVirtualCamera.Size = new Size(340, 46);
+            btnToggleVirtualCamera.TabIndex = 7;
+            btnToggleVirtualCamera.Text = "Toggle Virtual Camera";
+            btnToggleVirtualCamera.UseVisualStyleBackColor = true;
+            btnToggleVirtualCamera.Click += this.btnToggleVirtualCamera_Click;
             // 
             // btnGetVirtualCameraState
             // 
-            this.btnGetVirtualCameraState.Location = new System.Drawing.Point(3, 4);
-            this.btnGetVirtualCameraState.Name = "btnGetVirtualCameraState";
-            this.btnGetVirtualCameraState.Size = new System.Drawing.Size(340, 46);
-            this.btnGetVirtualCameraState.TabIndex = 8;
-            this.btnGetVirtualCameraState.Text = "Get Virtual Camera Status";
-            this.btnGetVirtualCameraState.UseVisualStyleBackColor = true;
-            this.btnGetVirtualCameraState.Click += new System.EventHandler(this.btnGetVirtualCameraState_Click);
+            btnGetVirtualCameraState.Location = new Point(3, 4);
+            btnGetVirtualCameraState.Name = "btnGetVirtualCameraState";
+            btnGetVirtualCameraState.Size = new Size(340, 46);
+            btnGetVirtualCameraState.TabIndex = 8;
+            btnGetVirtualCameraState.Text = "Get Virtual Camera Status";
+            btnGetVirtualCameraState.UseVisualStyleBackColor = true;
+            btnGetVirtualCameraState.Click += this.btnGetVirtualCameraState_Click;
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(382, 55);
-            this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(150, 46);
-            this.button3.TabIndex = 9;
-            this.button3.Text = "Disconnect";
-            this.button3.UseVisualStyleBackColor = true;
-            this.button3.Click += new System.EventHandler(this.button3_Click);
+            button3.Location = new Point(382, 55);
+            button3.Name = "button3";
+            button3.Size = new Size(150, 46);
+            button3.TabIndex = 9;
+            button3.Text = "Disconnect";
+            button3.UseVisualStyleBackColor = true;
+            button3.Click += this.button3_Click;
             // 
             // btnGetMonitorList
             // 
-            this.btnGetMonitorList.Location = new System.Drawing.Point(3, 316);
-            this.btnGetMonitorList.Name = "btnGetMonitorList";
-            this.btnGetMonitorList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetMonitorList.TabIndex = 13;
-            this.btnGetMonitorList.Text = "Get Monitor List";
-            this.btnGetMonitorList.UseVisualStyleBackColor = true;
-            this.btnGetMonitorList.Click += new System.EventHandler(this.btnGetMonitorList_Click);
+            btnGetMonitorList.Location = new Point(3, 316);
+            btnGetMonitorList.Name = "btnGetMonitorList";
+            btnGetMonitorList.Size = new Size(340, 46);
+            btnGetMonitorList.TabIndex = 13;
+            btnGetMonitorList.Text = "Get Monitor List";
+            btnGetMonitorList.UseVisualStyleBackColor = true;
+            btnGetMonitorList.Click += this.btnGetMonitorList_Click;
             // 
             // btnGetStudioModeEnabled
             // 
-            this.btnGetStudioModeEnabled.Location = new System.Drawing.Point(3, 4);
-            this.btnGetStudioModeEnabled.Name = "btnGetStudioModeEnabled";
-            this.btnGetStudioModeEnabled.Size = new System.Drawing.Size(340, 46);
-            this.btnGetStudioModeEnabled.TabIndex = 12;
-            this.btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
-            this.btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
-            this.btnGetStudioModeEnabled.Click += new System.EventHandler(this.btnGetStudioModeEnabled_Click);
+            btnGetStudioModeEnabled.Location = new Point(3, 4);
+            btnGetStudioModeEnabled.Name = "btnGetStudioModeEnabled";
+            btnGetStudioModeEnabled.Size = new Size(340, 46);
+            btnGetStudioModeEnabled.TabIndex = 12;
+            btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
+            btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
+            btnGetStudioModeEnabled.Click += this.btnGetStudioModeEnabled_Click;
             // 
             // btnStopStudioMode
             // 
-            this.btnStopStudioMode.Location = new System.Drawing.Point(3, 108);
-            this.btnStopStudioMode.Name = "btnStopStudioMode";
-            this.btnStopStudioMode.Size = new System.Drawing.Size(340, 46);
-            this.btnStopStudioMode.TabIndex = 11;
-            this.btnStopStudioMode.Text = "Stop Studio Mode";
-            this.btnStopStudioMode.UseVisualStyleBackColor = true;
-            this.btnStopStudioMode.Click += new System.EventHandler(this.btnStopStudioMode_Click);
+            btnStopStudioMode.Location = new Point(3, 108);
+            btnStopStudioMode.Name = "btnStopStudioMode";
+            btnStopStudioMode.Size = new Size(340, 46);
+            btnStopStudioMode.TabIndex = 11;
+            btnStopStudioMode.Text = "Stop Studio Mode";
+            btnStopStudioMode.UseVisualStyleBackColor = true;
+            btnStopStudioMode.Click += this.btnStopStudioMode_Click;
             // 
             // btnStartStudioMode
             // 
-            this.btnStartStudioMode.Location = new System.Drawing.Point(3, 56);
-            this.btnStartStudioMode.Name = "btnStartStudioMode";
-            this.btnStartStudioMode.Size = new System.Drawing.Size(340, 46);
-            this.btnStartStudioMode.TabIndex = 10;
-            this.btnStartStudioMode.Text = "Start Studio Mode";
-            this.btnStartStudioMode.UseVisualStyleBackColor = true;
-            this.btnStartStudioMode.Click += new System.EventHandler(this.btnStartStudioMode_Click);
+            btnStartStudioMode.Location = new Point(3, 56);
+            btnStartStudioMode.Name = "btnStartStudioMode";
+            btnStartStudioMode.Size = new Size(340, 46);
+            btnStartStudioMode.TabIndex = 10;
+            btnStartStudioMode.Text = "Start Studio Mode";
+            btnStartStudioMode.UseVisualStyleBackColor = true;
+            btnStartStudioMode.Click += this.btnStartStudioMode_Click;
             // 
             // btnSleep
             // 
-            this.btnSleep.Enabled = false;
-            this.btnSleep.Location = new System.Drawing.Point(17, 330);
-            this.btnSleep.Name = "btnSleep";
-            this.btnSleep.Size = new System.Drawing.Size(340, 46);
-            this.btnSleep.TabIndex = 22;
-            this.btnSleep.Text = "Sleep";
-            this.btnSleep.UseVisualStyleBackColor = true;
+            btnSleep.Enabled = false;
+            btnSleep.Location = new Point(17, 330);
+            btnSleep.Name = "btnSleep";
+            btnSleep.Size = new Size(340, 46);
+            btnSleep.TabIndex = 22;
+            btnSleep.Text = "Sleep";
+            btnSleep.UseVisualStyleBackColor = true;
             // 
             // btnTriggerHotkeyByKeySequence
             // 
-            this.btnTriggerHotkeyByKeySequence.Enabled = false;
-            this.btnTriggerHotkeyByKeySequence.Location = new System.Drawing.Point(17, 278);
-            this.btnTriggerHotkeyByKeySequence.Name = "btnTriggerHotkeyByKeySequence";
-            this.btnTriggerHotkeyByKeySequence.Size = new System.Drawing.Size(381, 46);
-            this.btnTriggerHotkeyByKeySequence.TabIndex = 21;
-            this.btnTriggerHotkeyByKeySequence.Text = "Trigger Hotkey By Key Sequence";
-            this.btnTriggerHotkeyByKeySequence.UseVisualStyleBackColor = true;
+            btnTriggerHotkeyByKeySequence.Enabled = false;
+            btnTriggerHotkeyByKeySequence.Location = new Point(17, 278);
+            btnTriggerHotkeyByKeySequence.Name = "btnTriggerHotkeyByKeySequence";
+            btnTriggerHotkeyByKeySequence.Size = new Size(381, 46);
+            btnTriggerHotkeyByKeySequence.TabIndex = 21;
+            btnTriggerHotkeyByKeySequence.Text = "Trigger Hotkey By Key Sequence";
+            btnTriggerHotkeyByKeySequence.UseVisualStyleBackColor = true;
             // 
             // btnTriggerHotkeyByName
             // 
-            this.btnTriggerHotkeyByName.Enabled = false;
-            this.btnTriggerHotkeyByName.Location = new System.Drawing.Point(17, 226);
-            this.btnTriggerHotkeyByName.Name = "btnTriggerHotkeyByName";
-            this.btnTriggerHotkeyByName.Size = new System.Drawing.Size(340, 46);
-            this.btnTriggerHotkeyByName.TabIndex = 20;
-            this.btnTriggerHotkeyByName.Text = "Trigger Hotkey By Name";
-            this.btnTriggerHotkeyByName.UseVisualStyleBackColor = true;
+            btnTriggerHotkeyByName.Enabled = false;
+            btnTriggerHotkeyByName.Location = new Point(17, 226);
+            btnTriggerHotkeyByName.Name = "btnTriggerHotkeyByName";
+            btnTriggerHotkeyByName.Size = new Size(340, 46);
+            btnTriggerHotkeyByName.TabIndex = 20;
+            btnTriggerHotkeyByName.Text = "Trigger Hotkey By Name";
+            btnTriggerHotkeyByName.UseVisualStyleBackColor = true;
             // 
             // btnGetHotkeyList
             // 
-            this.btnGetHotkeyList.Location = new System.Drawing.Point(17, 174);
-            this.btnGetHotkeyList.Name = "btnGetHotkeyList";
-            this.btnGetHotkeyList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetHotkeyList.TabIndex = 19;
-            this.btnGetHotkeyList.Text = "Get Hotkey List";
-            this.btnGetHotkeyList.UseVisualStyleBackColor = true;
-            this.btnGetHotkeyList.Click += new System.EventHandler(this.btnGetHotkeyList_Click);
+            btnGetHotkeyList.Location = new Point(17, 174);
+            btnGetHotkeyList.Name = "btnGetHotkeyList";
+            btnGetHotkeyList.Size = new Size(340, 46);
+            btnGetHotkeyList.TabIndex = 19;
+            btnGetHotkeyList.Text = "Get Hotkey List";
+            btnGetHotkeyList.UseVisualStyleBackColor = true;
+            btnGetHotkeyList.Click += this.btnGetHotkeyList_Click;
             // 
             // btnCallVendorRequest
             // 
-            this.btnCallVendorRequest.Enabled = false;
-            this.btnCallVendorRequest.Location = new System.Drawing.Point(17, 122);
-            this.btnCallVendorRequest.Name = "btnCallVendorRequest";
-            this.btnCallVendorRequest.Size = new System.Drawing.Size(340, 46);
-            this.btnCallVendorRequest.TabIndex = 18;
-            this.btnCallVendorRequest.Text = "Call Vendor Request";
-            this.btnCallVendorRequest.UseVisualStyleBackColor = true;
+            btnCallVendorRequest.Enabled = false;
+            btnCallVendorRequest.Location = new Point(17, 122);
+            btnCallVendorRequest.Name = "btnCallVendorRequest";
+            btnCallVendorRequest.Size = new Size(340, 46);
+            btnCallVendorRequest.TabIndex = 18;
+            btnCallVendorRequest.Text = "Call Vendor Request";
+            btnCallVendorRequest.UseVisualStyleBackColor = true;
             // 
             // btnBroadcastCustomEvent
             // 
-            this.btnBroadcastCustomEvent.Enabled = false;
-            this.btnBroadcastCustomEvent.Location = new System.Drawing.Point(17, 70);
-            this.btnBroadcastCustomEvent.Name = "btnBroadcastCustomEvent";
-            this.btnBroadcastCustomEvent.Size = new System.Drawing.Size(340, 46);
-            this.btnBroadcastCustomEvent.TabIndex = 17;
-            this.btnBroadcastCustomEvent.Text = "Broadcast Custom Event";
-            this.btnBroadcastCustomEvent.UseVisualStyleBackColor = true;
+            btnBroadcastCustomEvent.Enabled = false;
+            btnBroadcastCustomEvent.Location = new Point(17, 70);
+            btnBroadcastCustomEvent.Name = "btnBroadcastCustomEvent";
+            btnBroadcastCustomEvent.Size = new Size(340, 46);
+            btnBroadcastCustomEvent.TabIndex = 17;
+            btnBroadcastCustomEvent.Text = "Broadcast Custom Event";
+            btnBroadcastCustomEvent.UseVisualStyleBackColor = true;
             // 
             // btnGetStats
             // 
-            this.btnGetStats.Location = new System.Drawing.Point(194, 18);
-            this.btnGetStats.Name = "btnGetStats";
-            this.btnGetStats.Size = new System.Drawing.Size(163, 46);
-            this.btnGetStats.TabIndex = 16;
-            this.btnGetStats.Text = "Get Stats";
-            this.btnGetStats.UseVisualStyleBackColor = true;
-            this.btnGetStats.Click += new System.EventHandler(this.btnGetStats_Click);
+            btnGetStats.Location = new Point(194, 18);
+            btnGetStats.Name = "btnGetStats";
+            btnGetStats.Size = new Size(163, 46);
+            btnGetStats.TabIndex = 16;
+            btnGetStats.Text = "Get Stats";
+            btnGetStats.UseVisualStyleBackColor = true;
+            btnGetStats.Click += this.btnGetStats_Click;
             // 
             // btnGetVersion
             // 
-            this.btnGetVersion.Location = new System.Drawing.Point(17, 18);
-            this.btnGetVersion.Name = "btnGetVersion";
-            this.btnGetVersion.Size = new System.Drawing.Size(163, 46);
-            this.btnGetVersion.TabIndex = 15;
-            this.btnGetVersion.Text = "Get Version";
-            this.btnGetVersion.UseVisualStyleBackColor = true;
-            this.btnGetVersion.Click += new System.EventHandler(this.btnGetVersion_Click);
+            btnGetVersion.Location = new Point(17, 18);
+            btnGetVersion.Name = "btnGetVersion";
+            btnGetVersion.Size = new Size(163, 46);
+            btnGetVersion.TabIndex = 15;
+            btnGetVersion.Text = "Get Version";
+            btnGetVersion.UseVisualStyleBackColor = true;
+            btnGetVersion.Click += this.btnGetVersion_Click;
             // 
             // btnGetProfileList
             // 
-            this.btnGetProfileList.Location = new System.Drawing.Point(18, 278);
-            this.btnGetProfileList.Name = "btnGetProfileList";
-            this.btnGetProfileList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetProfileList.TabIndex = 28;
-            this.btnGetProfileList.Text = "Get Profile List";
-            this.btnGetProfileList.UseVisualStyleBackColor = true;
-            this.btnGetProfileList.Click += new System.EventHandler(this.btnGetProfileList_Click);
+            btnGetProfileList.Location = new Point(18, 278);
+            btnGetProfileList.Name = "btnGetProfileList";
+            btnGetProfileList.Size = new Size(340, 46);
+            btnGetProfileList.TabIndex = 28;
+            btnGetProfileList.Text = "Get Profile List";
+            btnGetProfileList.UseVisualStyleBackColor = true;
+            btnGetProfileList.Click += this.btnGetProfileList_Click;
             // 
             // btnCreateSceneCollection
             // 
-            this.btnCreateSceneCollection.Enabled = false;
-            this.btnCreateSceneCollection.Location = new System.Drawing.Point(18, 226);
-            this.btnCreateSceneCollection.Name = "btnCreateSceneCollection";
-            this.btnCreateSceneCollection.Size = new System.Drawing.Size(340, 46);
-            this.btnCreateSceneCollection.TabIndex = 27;
-            this.btnCreateSceneCollection.Text = "Create Scene Collection";
-            this.btnCreateSceneCollection.UseVisualStyleBackColor = true;
+            btnCreateSceneCollection.Enabled = false;
+            btnCreateSceneCollection.Location = new Point(18, 226);
+            btnCreateSceneCollection.Name = "btnCreateSceneCollection";
+            btnCreateSceneCollection.Size = new Size(340, 46);
+            btnCreateSceneCollection.TabIndex = 27;
+            btnCreateSceneCollection.Text = "Create Scene Collection";
+            btnCreateSceneCollection.UseVisualStyleBackColor = true;
             // 
             // btnSetCurrentSceneCollection
             // 
-            this.btnSetCurrentSceneCollection.Enabled = false;
-            this.btnSetCurrentSceneCollection.Location = new System.Drawing.Point(18, 174);
-            this.btnSetCurrentSceneCollection.Name = "btnSetCurrentSceneCollection";
-            this.btnSetCurrentSceneCollection.Size = new System.Drawing.Size(340, 46);
-            this.btnSetCurrentSceneCollection.TabIndex = 26;
-            this.btnSetCurrentSceneCollection.Text = "Set Current Scene Collection";
-            this.btnSetCurrentSceneCollection.UseVisualStyleBackColor = true;
+            btnSetCurrentSceneCollection.Enabled = false;
+            btnSetCurrentSceneCollection.Location = new Point(18, 174);
+            btnSetCurrentSceneCollection.Name = "btnSetCurrentSceneCollection";
+            btnSetCurrentSceneCollection.Size = new Size(340, 46);
+            btnSetCurrentSceneCollection.TabIndex = 26;
+            btnSetCurrentSceneCollection.Text = "Set Current Scene Collection";
+            btnSetCurrentSceneCollection.UseVisualStyleBackColor = true;
             // 
             // btnGetSceneCollectionList
             // 
-            this.btnGetSceneCollectionList.Location = new System.Drawing.Point(18, 122);
-            this.btnGetSceneCollectionList.Name = "btnGetSceneCollectionList";
-            this.btnGetSceneCollectionList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetSceneCollectionList.TabIndex = 25;
-            this.btnGetSceneCollectionList.Text = "Get Scene Collection List";
-            this.btnGetSceneCollectionList.UseVisualStyleBackColor = true;
-            this.btnGetSceneCollectionList.Click += new System.EventHandler(this.btnGetSceneCollectionList_Click);
+            btnGetSceneCollectionList.Location = new Point(18, 122);
+            btnGetSceneCollectionList.Name = "btnGetSceneCollectionList";
+            btnGetSceneCollectionList.Size = new Size(340, 46);
+            btnGetSceneCollectionList.TabIndex = 25;
+            btnGetSceneCollectionList.Text = "Get Scene Collection List";
+            btnGetSceneCollectionList.UseVisualStyleBackColor = true;
+            btnGetSceneCollectionList.Click += this.btnGetSceneCollectionList_Click;
             // 
             // btnSetPersistentData
             // 
-            this.btnSetPersistentData.Enabled = false;
-            this.btnSetPersistentData.Location = new System.Drawing.Point(18, 70);
-            this.btnSetPersistentData.Name = "btnSetPersistentData";
-            this.btnSetPersistentData.Size = new System.Drawing.Size(340, 46);
-            this.btnSetPersistentData.TabIndex = 24;
-            this.btnSetPersistentData.Text = "Set Persistent Data";
-            this.btnSetPersistentData.UseVisualStyleBackColor = true;
+            btnSetPersistentData.Enabled = false;
+            btnSetPersistentData.Location = new Point(18, 70);
+            btnSetPersistentData.Name = "btnSetPersistentData";
+            btnSetPersistentData.Size = new Size(340, 46);
+            btnSetPersistentData.TabIndex = 24;
+            btnSetPersistentData.Text = "Set Persistent Data";
+            btnSetPersistentData.UseVisualStyleBackColor = true;
             // 
             // btnGetPersistentData
             // 
-            this.btnGetPersistentData.Enabled = false;
-            this.btnGetPersistentData.Location = new System.Drawing.Point(18, 18);
-            this.btnGetPersistentData.Name = "btnGetPersistentData";
-            this.btnGetPersistentData.Size = new System.Drawing.Size(340, 46);
-            this.btnGetPersistentData.TabIndex = 23;
-            this.btnGetPersistentData.Text = "Get Persistent Data";
-            this.btnGetPersistentData.UseVisualStyleBackColor = true;
+            btnGetPersistentData.Enabled = false;
+            btnGetPersistentData.Location = new Point(18, 18);
+            btnGetPersistentData.Name = "btnGetPersistentData";
+            btnGetPersistentData.Size = new Size(340, 46);
+            btnGetPersistentData.TabIndex = 23;
+            btnGetPersistentData.Text = "Get Persistent Data";
+            btnGetPersistentData.UseVisualStyleBackColor = true;
             // 
             // btnSetCurrentProfile
             // 
-            this.btnSetCurrentProfile.Enabled = false;
-            this.btnSetCurrentProfile.Location = new System.Drawing.Point(18, 330);
-            this.btnSetCurrentProfile.Name = "btnSetCurrentProfile";
-            this.btnSetCurrentProfile.Size = new System.Drawing.Size(340, 46);
-            this.btnSetCurrentProfile.TabIndex = 29;
-            this.btnSetCurrentProfile.Text = "Set Current Profile";
-            this.btnSetCurrentProfile.UseVisualStyleBackColor = true;
+            btnSetCurrentProfile.Enabled = false;
+            btnSetCurrentProfile.Location = new Point(18, 330);
+            btnSetCurrentProfile.Name = "btnSetCurrentProfile";
+            btnSetCurrentProfile.Size = new Size(340, 46);
+            btnSetCurrentProfile.TabIndex = 29;
+            btnSetCurrentProfile.Text = "Set Current Profile";
+            btnSetCurrentProfile.UseVisualStyleBackColor = true;
             // 
             // btnCreateProfile
             // 
-            this.btnCreateProfile.Enabled = false;
-            this.btnCreateProfile.Location = new System.Drawing.Point(18, 382);
-            this.btnCreateProfile.Name = "btnCreateProfile";
-            this.btnCreateProfile.Size = new System.Drawing.Size(340, 46);
-            this.btnCreateProfile.TabIndex = 30;
-            this.btnCreateProfile.Text = "Create Profile";
-            this.btnCreateProfile.UseVisualStyleBackColor = true;
+            btnCreateProfile.Enabled = false;
+            btnCreateProfile.Location = new Point(18, 382);
+            btnCreateProfile.Name = "btnCreateProfile";
+            btnCreateProfile.Size = new Size(340, 46);
+            btnCreateProfile.TabIndex = 30;
+            btnCreateProfile.Text = "Create Profile";
+            btnCreateProfile.UseVisualStyleBackColor = true;
             // 
             // btnRemoveProfile
             // 
-            this.btnRemoveProfile.Enabled = false;
-            this.btnRemoveProfile.Location = new System.Drawing.Point(364, 18);
-            this.btnRemoveProfile.Name = "btnRemoveProfile";
-            this.btnRemoveProfile.Size = new System.Drawing.Size(340, 46);
-            this.btnRemoveProfile.TabIndex = 31;
-            this.btnRemoveProfile.Text = "Remove Profile";
-            this.btnRemoveProfile.UseVisualStyleBackColor = true;
+            btnRemoveProfile.Enabled = false;
+            btnRemoveProfile.Location = new Point(364, 18);
+            btnRemoveProfile.Name = "btnRemoveProfile";
+            btnRemoveProfile.Size = new Size(340, 46);
+            btnRemoveProfile.TabIndex = 31;
+            btnRemoveProfile.Text = "Remove Profile";
+            btnRemoveProfile.UseVisualStyleBackColor = true;
             // 
             // btnGetProfileParameter
             // 
-            this.btnGetProfileParameter.Enabled = false;
-            this.btnGetProfileParameter.Location = new System.Drawing.Point(364, 70);
-            this.btnGetProfileParameter.Name = "btnGetProfileParameter";
-            this.btnGetProfileParameter.Size = new System.Drawing.Size(340, 46);
-            this.btnGetProfileParameter.TabIndex = 32;
-            this.btnGetProfileParameter.Text = "Get Profile Parameter";
-            this.btnGetProfileParameter.UseVisualStyleBackColor = true;
+            btnGetProfileParameter.Enabled = false;
+            btnGetProfileParameter.Location = new Point(364, 70);
+            btnGetProfileParameter.Name = "btnGetProfileParameter";
+            btnGetProfileParameter.Size = new Size(340, 46);
+            btnGetProfileParameter.TabIndex = 32;
+            btnGetProfileParameter.Text = "Get Profile Parameter";
+            btnGetProfileParameter.UseVisualStyleBackColor = true;
             // 
             // btnSetProfileParameter
             // 
-            this.btnSetProfileParameter.Enabled = false;
-            this.btnSetProfileParameter.Location = new System.Drawing.Point(364, 122);
-            this.btnSetProfileParameter.Name = "btnSetProfileParameter";
-            this.btnSetProfileParameter.Size = new System.Drawing.Size(340, 46);
-            this.btnSetProfileParameter.TabIndex = 33;
-            this.btnSetProfileParameter.Text = "Set Profile Parameter";
-            this.btnSetProfileParameter.UseVisualStyleBackColor = true;
+            btnSetProfileParameter.Enabled = false;
+            btnSetProfileParameter.Location = new Point(364, 122);
+            btnSetProfileParameter.Name = "btnSetProfileParameter";
+            btnSetProfileParameter.Size = new Size(340, 46);
+            btnSetProfileParameter.TabIndex = 33;
+            btnSetProfileParameter.Text = "Set Profile Parameter";
+            btnSetProfileParameter.UseVisualStyleBackColor = true;
             // 
             // btnGetVideoSettings
             // 
-            this.btnGetVideoSettings.Enabled = false;
-            this.btnGetVideoSettings.Location = new System.Drawing.Point(364, 174);
-            this.btnGetVideoSettings.Name = "btnGetVideoSettings";
-            this.btnGetVideoSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnGetVideoSettings.TabIndex = 34;
-            this.btnGetVideoSettings.Text = "Get Video Settings";
-            this.btnGetVideoSettings.UseVisualStyleBackColor = true;
+            btnGetVideoSettings.Enabled = false;
+            btnGetVideoSettings.Location = new Point(364, 174);
+            btnGetVideoSettings.Name = "btnGetVideoSettings";
+            btnGetVideoSettings.Size = new Size(340, 46);
+            btnGetVideoSettings.TabIndex = 34;
+            btnGetVideoSettings.Text = "Get Video Settings";
+            btnGetVideoSettings.UseVisualStyleBackColor = true;
             // 
             // btnSetVideoSettings
             // 
-            this.btnSetVideoSettings.Enabled = false;
-            this.btnSetVideoSettings.Location = new System.Drawing.Point(364, 226);
-            this.btnSetVideoSettings.Name = "btnSetVideoSettings";
-            this.btnSetVideoSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnSetVideoSettings.TabIndex = 35;
-            this.btnSetVideoSettings.Text = "Set Video Settings";
-            this.btnSetVideoSettings.UseVisualStyleBackColor = true;
+            btnSetVideoSettings.Enabled = false;
+            btnSetVideoSettings.Location = new Point(364, 226);
+            btnSetVideoSettings.Name = "btnSetVideoSettings";
+            btnSetVideoSettings.Size = new Size(340, 46);
+            btnSetVideoSettings.TabIndex = 35;
+            btnSetVideoSettings.Text = "Set Video Settings";
+            btnSetVideoSettings.UseVisualStyleBackColor = true;
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 15);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(128, 32);
-            this.label1.TabIndex = 16;
-            this.label1.Text = "Hostname:";
+            label1.AutoSize = true;
+            label1.Location = new Point(12, 15);
+            label1.Name = "label1";
+            label1.Size = new Size(128, 32);
+            label1.TabIndex = 16;
+            label1.Text = "Hostname:";
             // 
             // label2
             // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(12, 62);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(61, 32);
-            this.label2.TabIndex = 17;
-            this.label2.Text = "Port:";
+            label2.AutoSize = true;
+            label2.Location = new Point(12, 62);
+            label2.Name = "label2";
+            label2.Size = new Size(61, 32);
+            label2.TabIndex = 17;
+            label2.Text = "Port:";
             // 
             // label3
             // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(12, 105);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(116, 32);
-            this.label3.TabIndex = 18;
-            this.label3.Text = "Password:";
+            label3.AutoSize = true;
+            label3.Location = new Point(12, 105);
+            label3.Name = "label3";
+            label3.Size = new Size(116, 32);
+            label3.TabIndex = 18;
+            label3.Text = "Password:";
             // 
             // tabControl1
             // 
-            this.tabControl1.Controls.Add(this.tpGeneralRequests);
-            this.tabControl1.Controls.Add(this.tpConfigRequests);
-            this.tabControl1.Controls.Add(this.tpSourcesRequests);
-            this.tabControl1.Controls.Add(this.tpScenesRequests);
-            this.tabControl1.Controls.Add(this.tpInputsRequests);
-            this.tabControl1.Controls.Add(this.tpFiltersRequests);
-            this.tabControl1.Controls.Add(this.tbMediaInputsRequests);
-            this.tabControl1.Controls.Add(this.tpOutputsRequests);
-            this.tabControl1.Controls.Add(this.tbRecordRequests);
-            this.tabControl1.Controls.Add(this.tbSceneItemsRequests);
-            this.tabControl1.Controls.Add(this.tpStreamRequests);
-            this.tabControl1.Controls.Add(this.tpTransitionsRequests);
-            this.tabControl1.Controls.Add(this.tpUIRequests);
-            this.tabControl1.Location = new System.Drawing.Point(23, 261);
-            this.tabControl1.Name = "tabControl1";
-            this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(1257, 504);
-            this.tabControl1.TabIndex = 19;
+            tabControl1.Controls.Add(tpGeneralRequests);
+            tabControl1.Controls.Add(tpConfigRequests);
+            tabControl1.Controls.Add(tpSourcesRequests);
+            tabControl1.Controls.Add(tpScenesRequests);
+            tabControl1.Controls.Add(tpInputsRequests);
+            tabControl1.Controls.Add(tpFiltersRequests);
+            tabControl1.Controls.Add(tbMediaInputsRequests);
+            tabControl1.Controls.Add(tpOutputsRequests);
+            tabControl1.Controls.Add(tbRecordRequests);
+            tabControl1.Controls.Add(tbSceneItemsRequests);
+            tabControl1.Controls.Add(tpStreamRequests);
+            tabControl1.Controls.Add(tpTransitionsRequests);
+            tabControl1.Controls.Add(tpUIRequests);
+            tabControl1.Location = new Point(23, 261);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(1257, 504);
+            tabControl1.TabIndex = 19;
             // 
             // tpGeneralRequests
             // 
-            this.tpGeneralRequests.Controls.Add(this.btnSleep);
-            this.tpGeneralRequests.Controls.Add(this.btnGetVersion);
-            this.tpGeneralRequests.Controls.Add(this.btnTriggerHotkeyByKeySequence);
-            this.tpGeneralRequests.Controls.Add(this.btnGetStats);
-            this.tpGeneralRequests.Controls.Add(this.btnTriggerHotkeyByName);
-            this.tpGeneralRequests.Controls.Add(this.btnBroadcastCustomEvent);
-            this.tpGeneralRequests.Controls.Add(this.btnGetHotkeyList);
-            this.tpGeneralRequests.Controls.Add(this.btnCallVendorRequest);
-            this.tpGeneralRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpGeneralRequests.Name = "tpGeneralRequests";
-            this.tpGeneralRequests.Padding = new System.Windows.Forms.Padding(3);
-            this.tpGeneralRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpGeneralRequests.TabIndex = 0;
-            this.tpGeneralRequests.Text = "General Requests";
-            this.tpGeneralRequests.UseVisualStyleBackColor = true;
+            tpGeneralRequests.Controls.Add(btnSleep);
+            tpGeneralRequests.Controls.Add(btnGetVersion);
+            tpGeneralRequests.Controls.Add(btnTriggerHotkeyByKeySequence);
+            tpGeneralRequests.Controls.Add(btnGetStats);
+            tpGeneralRequests.Controls.Add(btnTriggerHotkeyByName);
+            tpGeneralRequests.Controls.Add(btnBroadcastCustomEvent);
+            tpGeneralRequests.Controls.Add(btnGetHotkeyList);
+            tpGeneralRequests.Controls.Add(btnCallVendorRequest);
+            tpGeneralRequests.Location = new Point(8, 46);
+            tpGeneralRequests.Name = "tpGeneralRequests";
+            tpGeneralRequests.Padding = new Padding(3);
+            tpGeneralRequests.Size = new Size(1241, 450);
+            tpGeneralRequests.TabIndex = 0;
+            tpGeneralRequests.Text = "General Requests";
+            tpGeneralRequests.UseVisualStyleBackColor = true;
             // 
             // tpConfigRequests
             // 
-            this.tpConfigRequests.Controls.Add(this.btnGetRecordDirectory);
-            this.tpConfigRequests.Controls.Add(this.btnSetStreamServiceSettings);
-            this.tpConfigRequests.Controls.Add(this.btnGetStreamServiceSettings);
-            this.tpConfigRequests.Controls.Add(this.btnSetVideoSettings);
-            this.tpConfigRequests.Controls.Add(this.btnGetPersistentData);
-            this.tpConfigRequests.Controls.Add(this.btnGetVideoSettings);
-            this.tpConfigRequests.Controls.Add(this.btnSetPersistentData);
-            this.tpConfigRequests.Controls.Add(this.btnSetProfileParameter);
-            this.tpConfigRequests.Controls.Add(this.btnGetSceneCollectionList);
-            this.tpConfigRequests.Controls.Add(this.btnGetProfileParameter);
-            this.tpConfigRequests.Controls.Add(this.btnSetCurrentSceneCollection);
-            this.tpConfigRequests.Controls.Add(this.btnRemoveProfile);
-            this.tpConfigRequests.Controls.Add(this.btnCreateSceneCollection);
-            this.tpConfigRequests.Controls.Add(this.btnCreateProfile);
-            this.tpConfigRequests.Controls.Add(this.btnGetProfileList);
-            this.tpConfigRequests.Controls.Add(this.btnSetCurrentProfile);
-            this.tpConfigRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpConfigRequests.Name = "tpConfigRequests";
-            this.tpConfigRequests.Padding = new System.Windows.Forms.Padding(3);
-            this.tpConfigRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpConfigRequests.TabIndex = 1;
-            this.tpConfigRequests.Text = "Config Requests";
-            this.tpConfigRequests.UseVisualStyleBackColor = true;
+            tpConfigRequests.Controls.Add(btnGetRecordDirectory);
+            tpConfigRequests.Controls.Add(btnSetStreamServiceSettings);
+            tpConfigRequests.Controls.Add(btnGetStreamServiceSettings);
+            tpConfigRequests.Controls.Add(btnSetVideoSettings);
+            tpConfigRequests.Controls.Add(btnGetPersistentData);
+            tpConfigRequests.Controls.Add(btnGetVideoSettings);
+            tpConfigRequests.Controls.Add(btnSetPersistentData);
+            tpConfigRequests.Controls.Add(btnSetProfileParameter);
+            tpConfigRequests.Controls.Add(btnGetSceneCollectionList);
+            tpConfigRequests.Controls.Add(btnGetProfileParameter);
+            tpConfigRequests.Controls.Add(btnSetCurrentSceneCollection);
+            tpConfigRequests.Controls.Add(btnRemoveProfile);
+            tpConfigRequests.Controls.Add(btnCreateSceneCollection);
+            tpConfigRequests.Controls.Add(btnCreateProfile);
+            tpConfigRequests.Controls.Add(btnGetProfileList);
+            tpConfigRequests.Controls.Add(btnSetCurrentProfile);
+            tpConfigRequests.Location = new Point(8, 46);
+            tpConfigRequests.Name = "tpConfigRequests";
+            tpConfigRequests.Padding = new Padding(3);
+            tpConfigRequests.Size = new Size(1241, 450);
+            tpConfigRequests.TabIndex = 1;
+            tpConfigRequests.Text = "Config Requests";
+            tpConfigRequests.UseVisualStyleBackColor = true;
             // 
             // btnGetRecordDirectory
             // 
-            this.btnGetRecordDirectory.Location = new System.Drawing.Point(364, 382);
-            this.btnGetRecordDirectory.Name = "btnGetRecordDirectory";
-            this.btnGetRecordDirectory.Size = new System.Drawing.Size(340, 46);
-            this.btnGetRecordDirectory.TabIndex = 38;
-            this.btnGetRecordDirectory.Text = "Get Record Directory";
-            this.btnGetRecordDirectory.UseVisualStyleBackColor = true;
-            this.btnGetRecordDirectory.Click += new System.EventHandler(this.btnGetRecordDirectory_Click);
+            btnGetRecordDirectory.Location = new Point(364, 382);
+            btnGetRecordDirectory.Name = "btnGetRecordDirectory";
+            btnGetRecordDirectory.Size = new Size(340, 46);
+            btnGetRecordDirectory.TabIndex = 38;
+            btnGetRecordDirectory.Text = "Get Record Directory";
+            btnGetRecordDirectory.UseVisualStyleBackColor = true;
+            btnGetRecordDirectory.Click += this.btnGetRecordDirectory_Click;
             // 
             // btnSetStreamServiceSettings
             // 
-            this.btnSetStreamServiceSettings.Enabled = false;
-            this.btnSetStreamServiceSettings.Location = new System.Drawing.Point(364, 330);
-            this.btnSetStreamServiceSettings.Name = "btnSetStreamServiceSettings";
-            this.btnSetStreamServiceSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnSetStreamServiceSettings.TabIndex = 37;
-            this.btnSetStreamServiceSettings.Text = "Set Stream Service Settings";
-            this.btnSetStreamServiceSettings.UseVisualStyleBackColor = true;
+            btnSetStreamServiceSettings.Enabled = false;
+            btnSetStreamServiceSettings.Location = new Point(364, 330);
+            btnSetStreamServiceSettings.Name = "btnSetStreamServiceSettings";
+            btnSetStreamServiceSettings.Size = new Size(340, 46);
+            btnSetStreamServiceSettings.TabIndex = 37;
+            btnSetStreamServiceSettings.Text = "Set Stream Service Settings";
+            btnSetStreamServiceSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetStreamServiceSettings
             // 
-            this.btnGetStreamServiceSettings.Enabled = false;
-            this.btnGetStreamServiceSettings.Location = new System.Drawing.Point(364, 278);
-            this.btnGetStreamServiceSettings.Name = "btnGetStreamServiceSettings";
-            this.btnGetStreamServiceSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnGetStreamServiceSettings.TabIndex = 36;
-            this.btnGetStreamServiceSettings.Text = "Get Stream Service Settings";
-            this.btnGetStreamServiceSettings.UseVisualStyleBackColor = true;
+            btnGetStreamServiceSettings.Enabled = false;
+            btnGetStreamServiceSettings.Location = new Point(364, 278);
+            btnGetStreamServiceSettings.Name = "btnGetStreamServiceSettings";
+            btnGetStreamServiceSettings.Size = new Size(340, 46);
+            btnGetStreamServiceSettings.TabIndex = 36;
+            btnGetStreamServiceSettings.Text = "Get Stream Service Settings";
+            btnGetStreamServiceSettings.UseVisualStyleBackColor = true;
             // 
             // tpSourcesRequests
             // 
-            this.tpSourcesRequests.Controls.Add(this.btnSaveSourceScreenshot);
-            this.tpSourcesRequests.Controls.Add(this.btnSetSourceActive);
-            this.tpSourcesRequests.Controls.Add(this.btnGetSourceActive);
-            this.tpSourcesRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpSourcesRequests.Name = "tpSourcesRequests";
-            this.tpSourcesRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpSourcesRequests.TabIndex = 2;
-            this.tpSourcesRequests.Text = "Sources Requests";
-            this.tpSourcesRequests.UseVisualStyleBackColor = true;
+            tpSourcesRequests.Controls.Add(btnSaveSourceScreenshot);
+            tpSourcesRequests.Controls.Add(btnSetSourceActive);
+            tpSourcesRequests.Controls.Add(btnGetSourceActive);
+            tpSourcesRequests.Location = new Point(8, 46);
+            tpSourcesRequests.Name = "tpSourcesRequests";
+            tpSourcesRequests.Size = new Size(1241, 450);
+            tpSourcesRequests.TabIndex = 2;
+            tpSourcesRequests.Text = "Sources Requests";
+            tpSourcesRequests.UseVisualStyleBackColor = true;
             // 
             // btnSaveSourceScreenshot
             // 
-            this.btnSaveSourceScreenshot.Enabled = false;
-            this.btnSaveSourceScreenshot.Location = new System.Drawing.Point(3, 107);
-            this.btnSaveSourceScreenshot.Name = "btnSaveSourceScreenshot";
-            this.btnSaveSourceScreenshot.Size = new System.Drawing.Size(340, 46);
-            this.btnSaveSourceScreenshot.TabIndex = 22;
-            this.btnSaveSourceScreenshot.Text = "Save Source Screenshot";
-            this.btnSaveSourceScreenshot.UseVisualStyleBackColor = true;
+            btnSaveSourceScreenshot.Enabled = false;
+            btnSaveSourceScreenshot.Location = new Point(3, 107);
+            btnSaveSourceScreenshot.Name = "btnSaveSourceScreenshot";
+            btnSaveSourceScreenshot.Size = new Size(340, 46);
+            btnSaveSourceScreenshot.TabIndex = 22;
+            btnSaveSourceScreenshot.Text = "Save Source Screenshot";
+            btnSaveSourceScreenshot.UseVisualStyleBackColor = true;
             // 
             // btnSetSourceActive
             // 
-            this.btnSetSourceActive.Enabled = false;
-            this.btnSetSourceActive.Location = new System.Drawing.Point(3, 55);
-            this.btnSetSourceActive.Name = "btnSetSourceActive";
-            this.btnSetSourceActive.Size = new System.Drawing.Size(340, 46);
-            this.btnSetSourceActive.TabIndex = 21;
-            this.btnSetSourceActive.Text = "Set Source Active";
-            this.btnSetSourceActive.UseVisualStyleBackColor = true;
+            btnSetSourceActive.Enabled = false;
+            btnSetSourceActive.Location = new Point(3, 55);
+            btnSetSourceActive.Name = "btnSetSourceActive";
+            btnSetSourceActive.Size = new Size(340, 46);
+            btnSetSourceActive.TabIndex = 21;
+            btnSetSourceActive.Text = "Set Source Active";
+            btnSetSourceActive.UseVisualStyleBackColor = true;
             // 
             // btnGetSourceActive
             // 
-            this.btnGetSourceActive.Enabled = false;
-            this.btnGetSourceActive.Location = new System.Drawing.Point(3, 3);
-            this.btnGetSourceActive.Name = "btnGetSourceActive";
-            this.btnGetSourceActive.Size = new System.Drawing.Size(340, 46);
-            this.btnGetSourceActive.TabIndex = 20;
-            this.btnGetSourceActive.Text = "Get Source Active";
-            this.btnGetSourceActive.UseVisualStyleBackColor = true;
+            btnGetSourceActive.Enabled = false;
+            btnGetSourceActive.Location = new Point(3, 3);
+            btnGetSourceActive.Name = "btnGetSourceActive";
+            btnGetSourceActive.Size = new Size(340, 46);
+            btnGetSourceActive.TabIndex = 20;
+            btnGetSourceActive.Text = "Get Source Active";
+            btnGetSourceActive.UseVisualStyleBackColor = true;
             // 
             // tpScenesRequests
             // 
-            this.tpScenesRequests.Controls.Add(this.btnSetSceneSceneTransitionOverride);
-            this.tpScenesRequests.Controls.Add(this.btnGetSceneSceneTransitionOverride);
-            this.tpScenesRequests.Controls.Add(this.btnSetSceneName);
-            this.tpScenesRequests.Controls.Add(this.btnRemoveScene);
-            this.tpScenesRequests.Controls.Add(this.btnCreateScene);
-            this.tpScenesRequests.Controls.Add(this.btnSetCurrentPreviewScene);
-            this.tpScenesRequests.Controls.Add(this.btnGetCurrentPreviewScene);
-            this.tpScenesRequests.Controls.Add(this.btnSetCurrentProgramScene);
-            this.tpScenesRequests.Controls.Add(this.btnGetCurrentProgramScene);
-            this.tpScenesRequests.Controls.Add(this.btnGetGroupList);
-            this.tpScenesRequests.Controls.Add(this.btnGetSceneList);
-            this.tpScenesRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpScenesRequests.Name = "tpScenesRequests";
-            this.tpScenesRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpScenesRequests.TabIndex = 3;
-            this.tpScenesRequests.Text = "Scenes Requests";
-            this.tpScenesRequests.UseVisualStyleBackColor = true;
+            tpScenesRequests.Controls.Add(btnSetSceneSceneTransitionOverride);
+            tpScenesRequests.Controls.Add(btnGetSceneSceneTransitionOverride);
+            tpScenesRequests.Controls.Add(btnSetSceneName);
+            tpScenesRequests.Controls.Add(btnRemoveScene);
+            tpScenesRequests.Controls.Add(btnCreateScene);
+            tpScenesRequests.Controls.Add(btnSetCurrentPreviewScene);
+            tpScenesRequests.Controls.Add(btnGetCurrentPreviewScene);
+            tpScenesRequests.Controls.Add(btnSetCurrentProgramScene);
+            tpScenesRequests.Controls.Add(btnGetCurrentProgramScene);
+            tpScenesRequests.Controls.Add(btnGetGroupList);
+            tpScenesRequests.Controls.Add(btnGetSceneList);
+            tpScenesRequests.Location = new Point(8, 46);
+            tpScenesRequests.Name = "tpScenesRequests";
+            tpScenesRequests.Size = new Size(1241, 450);
+            tpScenesRequests.TabIndex = 3;
+            tpScenesRequests.Text = "Scenes Requests";
+            tpScenesRequests.UseVisualStyleBackColor = true;
             // 
             // btnSetSceneSceneTransitionOverride
             // 
-            this.btnSetSceneSceneTransitionOverride.Enabled = false;
-            this.btnSetSceneSceneTransitionOverride.Location = new System.Drawing.Point(351, 107);
-            this.btnSetSceneSceneTransitionOverride.Name = "btnSetSceneSceneTransitionOverride";
-            this.btnSetSceneSceneTransitionOverride.Size = new System.Drawing.Size(460, 46);
-            this.btnSetSceneSceneTransitionOverride.TabIndex = 30;
-            this.btnSetSceneSceneTransitionOverride.Text = "Set Scene Scene Transition Override";
-            this.btnSetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
+            btnSetSceneSceneTransitionOverride.Enabled = false;
+            btnSetSceneSceneTransitionOverride.Location = new Point(351, 107);
+            btnSetSceneSceneTransitionOverride.Name = "btnSetSceneSceneTransitionOverride";
+            btnSetSceneSceneTransitionOverride.Size = new Size(460, 46);
+            btnSetSceneSceneTransitionOverride.TabIndex = 30;
+            btnSetSceneSceneTransitionOverride.Text = "Set Scene Scene Transition Override";
+            btnSetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
             // 
             // btnGetSceneSceneTransitionOverride
             // 
-            this.btnGetSceneSceneTransitionOverride.Enabled = false;
-            this.btnGetSceneSceneTransitionOverride.Location = new System.Drawing.Point(351, 55);
-            this.btnGetSceneSceneTransitionOverride.Name = "btnGetSceneSceneTransitionOverride";
-            this.btnGetSceneSceneTransitionOverride.Size = new System.Drawing.Size(460, 46);
-            this.btnGetSceneSceneTransitionOverride.TabIndex = 29;
-            this.btnGetSceneSceneTransitionOverride.Text = "Get Scene Scene Transition Override";
-            this.btnGetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
+            btnGetSceneSceneTransitionOverride.Enabled = false;
+            btnGetSceneSceneTransitionOverride.Location = new Point(351, 55);
+            btnGetSceneSceneTransitionOverride.Name = "btnGetSceneSceneTransitionOverride";
+            btnGetSceneSceneTransitionOverride.Size = new Size(460, 46);
+            btnGetSceneSceneTransitionOverride.TabIndex = 29;
+            btnGetSceneSceneTransitionOverride.Text = "Get Scene Scene Transition Override";
+            btnGetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
             // 
             // btnSetSceneName
             // 
-            this.btnSetSceneName.Location = new System.Drawing.Point(351, 3);
-            this.btnSetSceneName.Name = "btnSetSceneName";
-            this.btnSetSceneName.Size = new System.Drawing.Size(340, 46);
-            this.btnSetSceneName.TabIndex = 28;
-            this.btnSetSceneName.Text = "Set Scene Name";
-            this.btnSetSceneName.UseVisualStyleBackColor = true;
-            this.btnSetSceneName.Click += new System.EventHandler(this.btnSetSceneName_Click);
+            btnSetSceneName.Location = new Point(351, 3);
+            btnSetSceneName.Name = "btnSetSceneName";
+            btnSetSceneName.Size = new Size(340, 46);
+            btnSetSceneName.TabIndex = 28;
+            btnSetSceneName.Text = "Set Scene Name";
+            btnSetSceneName.UseVisualStyleBackColor = true;
+            btnSetSceneName.Click += this.btnSetSceneName_Click;
             // 
             // btnRemoveScene
             // 
-            this.btnRemoveScene.Location = new System.Drawing.Point(3, 367);
-            this.btnRemoveScene.Name = "btnRemoveScene";
-            this.btnRemoveScene.Size = new System.Drawing.Size(340, 46);
-            this.btnRemoveScene.TabIndex = 27;
-            this.btnRemoveScene.Text = "Remove Scene";
-            this.btnRemoveScene.UseVisualStyleBackColor = true;
-            this.btnRemoveScene.Click += new System.EventHandler(this.btnRemoveScene_Click);
+            btnRemoveScene.Location = new Point(3, 367);
+            btnRemoveScene.Name = "btnRemoveScene";
+            btnRemoveScene.Size = new Size(340, 46);
+            btnRemoveScene.TabIndex = 27;
+            btnRemoveScene.Text = "Remove Scene";
+            btnRemoveScene.UseVisualStyleBackColor = true;
+            btnRemoveScene.Click += this.btnRemoveScene_Click;
             // 
             // btnCreateScene
             // 
-            this.btnCreateScene.Location = new System.Drawing.Point(3, 315);
-            this.btnCreateScene.Name = "btnCreateScene";
-            this.btnCreateScene.Size = new System.Drawing.Size(340, 46);
-            this.btnCreateScene.TabIndex = 26;
-            this.btnCreateScene.Text = "Create Scene";
-            this.btnCreateScene.UseVisualStyleBackColor = true;
-            this.btnCreateScene.Click += new System.EventHandler(this.btnCreateScene_Click);
+            btnCreateScene.Location = new Point(3, 315);
+            btnCreateScene.Name = "btnCreateScene";
+            btnCreateScene.Size = new Size(340, 46);
+            btnCreateScene.TabIndex = 26;
+            btnCreateScene.Text = "Create Scene";
+            btnCreateScene.UseVisualStyleBackColor = true;
+            btnCreateScene.Click += this.btnCreateScene_Click;
             // 
             // btnSetCurrentPreviewScene
             // 
-            this.btnSetCurrentPreviewScene.Location = new System.Drawing.Point(3, 263);
-            this.btnSetCurrentPreviewScene.Name = "btnSetCurrentPreviewScene";
-            this.btnSetCurrentPreviewScene.Size = new System.Drawing.Size(340, 46);
-            this.btnSetCurrentPreviewScene.TabIndex = 25;
-            this.btnSetCurrentPreviewScene.Text = "Set Current Preview Scene";
-            this.btnSetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            this.btnSetCurrentPreviewScene.Click += new System.EventHandler(this.btnSetCurrentPreviewScene_Click);
+            btnSetCurrentPreviewScene.Location = new Point(3, 263);
+            btnSetCurrentPreviewScene.Name = "btnSetCurrentPreviewScene";
+            btnSetCurrentPreviewScene.Size = new Size(340, 46);
+            btnSetCurrentPreviewScene.TabIndex = 25;
+            btnSetCurrentPreviewScene.Text = "Set Current Preview Scene";
+            btnSetCurrentPreviewScene.UseVisualStyleBackColor = true;
+            btnSetCurrentPreviewScene.Click += this.btnSetCurrentPreviewScene_Click;
             // 
             // btnGetCurrentPreviewScene
             // 
-            this.btnGetCurrentPreviewScene.Location = new System.Drawing.Point(3, 211);
-            this.btnGetCurrentPreviewScene.Name = "btnGetCurrentPreviewScene";
-            this.btnGetCurrentPreviewScene.Size = new System.Drawing.Size(340, 46);
-            this.btnGetCurrentPreviewScene.TabIndex = 24;
-            this.btnGetCurrentPreviewScene.Text = "Get Current Preview Scene";
-            this.btnGetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            this.btnGetCurrentPreviewScene.Click += new System.EventHandler(this.btnGetCurrentPreviewScene_Click);
+            btnGetCurrentPreviewScene.Location = new Point(3, 211);
+            btnGetCurrentPreviewScene.Name = "btnGetCurrentPreviewScene";
+            btnGetCurrentPreviewScene.Size = new Size(340, 46);
+            btnGetCurrentPreviewScene.TabIndex = 24;
+            btnGetCurrentPreviewScene.Text = "Get Current Preview Scene";
+            btnGetCurrentPreviewScene.UseVisualStyleBackColor = true;
+            btnGetCurrentPreviewScene.Click += this.btnGetCurrentPreviewScene_Click;
             // 
             // btnSetCurrentProgramScene
             // 
-            this.btnSetCurrentProgramScene.Location = new System.Drawing.Point(3, 159);
-            this.btnSetCurrentProgramScene.Name = "btnSetCurrentProgramScene";
-            this.btnSetCurrentProgramScene.Size = new System.Drawing.Size(340, 46);
-            this.btnSetCurrentProgramScene.TabIndex = 23;
-            this.btnSetCurrentProgramScene.Text = "Set Current Program Scene";
-            this.btnSetCurrentProgramScene.UseVisualStyleBackColor = true;
-            this.btnSetCurrentProgramScene.Click += new System.EventHandler(this.btnSetCurrentProgramScene_Click);
+            btnSetCurrentProgramScene.Location = new Point(3, 159);
+            btnSetCurrentProgramScene.Name = "btnSetCurrentProgramScene";
+            btnSetCurrentProgramScene.Size = new Size(340, 46);
+            btnSetCurrentProgramScene.TabIndex = 23;
+            btnSetCurrentProgramScene.Text = "Set Current Program Scene";
+            btnSetCurrentProgramScene.UseVisualStyleBackColor = true;
+            btnSetCurrentProgramScene.Click += this.btnSetCurrentProgramScene_Click;
             // 
             // btnGetCurrentProgramScene
             // 
-            this.btnGetCurrentProgramScene.Location = new System.Drawing.Point(3, 107);
-            this.btnGetCurrentProgramScene.Name = "btnGetCurrentProgramScene";
-            this.btnGetCurrentProgramScene.Size = new System.Drawing.Size(340, 46);
-            this.btnGetCurrentProgramScene.TabIndex = 22;
-            this.btnGetCurrentProgramScene.Text = "Get Current Program Scene";
-            this.btnGetCurrentProgramScene.UseVisualStyleBackColor = true;
-            this.btnGetCurrentProgramScene.Click += new System.EventHandler(this.btnGetCurrentProgramScene_Click);
+            btnGetCurrentProgramScene.Location = new Point(3, 107);
+            btnGetCurrentProgramScene.Name = "btnGetCurrentProgramScene";
+            btnGetCurrentProgramScene.Size = new Size(340, 46);
+            btnGetCurrentProgramScene.TabIndex = 22;
+            btnGetCurrentProgramScene.Text = "Get Current Program Scene";
+            btnGetCurrentProgramScene.UseVisualStyleBackColor = true;
+            btnGetCurrentProgramScene.Click += this.btnGetCurrentProgramScene_Click;
             // 
             // btnGetGroupList
             // 
-            this.btnGetGroupList.Location = new System.Drawing.Point(3, 55);
-            this.btnGetGroupList.Name = "btnGetGroupList";
-            this.btnGetGroupList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetGroupList.TabIndex = 21;
-            this.btnGetGroupList.Text = "Get Group List";
-            this.btnGetGroupList.UseVisualStyleBackColor = true;
-            this.btnGetGroupList.Click += new System.EventHandler(this.btnGetGroupList_Click);
+            btnGetGroupList.Location = new Point(3, 55);
+            btnGetGroupList.Name = "btnGetGroupList";
+            btnGetGroupList.Size = new Size(340, 46);
+            btnGetGroupList.TabIndex = 21;
+            btnGetGroupList.Text = "Get Group List";
+            btnGetGroupList.UseVisualStyleBackColor = true;
+            btnGetGroupList.Click += this.btnGetGroupList_Click;
             // 
             // btnGetSceneList
             // 
-            this.btnGetSceneList.Location = new System.Drawing.Point(3, 3);
-            this.btnGetSceneList.Name = "btnGetSceneList";
-            this.btnGetSceneList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetSceneList.TabIndex = 20;
-            this.btnGetSceneList.Text = "Get Scene List";
-            this.btnGetSceneList.UseVisualStyleBackColor = true;
-            this.btnGetSceneList.Click += new System.EventHandler(this.btnGetSceneList_Click);
+            btnGetSceneList.Location = new Point(3, 3);
+            btnGetSceneList.Name = "btnGetSceneList";
+            btnGetSceneList.Size = new Size(340, 46);
+            btnGetSceneList.TabIndex = 20;
+            btnGetSceneList.Text = "Get Scene List";
+            btnGetSceneList.UseVisualStyleBackColor = true;
+            btnGetSceneList.Click += this.btnGetSceneList_Click;
             // 
             // tpInputsRequests
             // 
-            this.tpInputsRequests.Controls.Add(this.btnToggleInputMute);
-            this.tpInputsRequests.Controls.Add(this.btnSetInputMute);
-            this.tpInputsRequests.Controls.Add(this.btnGetInputMute);
-            this.tpInputsRequests.Controls.Add(this.btnSetInputSettings);
-            this.tpInputsRequests.Controls.Add(this.btnGetInputSettings);
-            this.tpInputsRequests.Controls.Add(this.btnGetInputDefaultSettings);
-            this.tpInputsRequests.Controls.Add(this.btnSetInputName);
-            this.tpInputsRequests.Controls.Add(this.btnRemoveInput);
-            this.tpInputsRequests.Controls.Add(this.btnCreateInput);
-            this.tpInputsRequests.Controls.Add(this.btnGetSpecialInputs);
-            this.tpInputsRequests.Controls.Add(this.btnGetInputKindList);
-            this.tpInputsRequests.Controls.Add(this.btnGetInputList);
-            this.tpInputsRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpInputsRequests.Name = "tpInputsRequests";
-            this.tpInputsRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpInputsRequests.TabIndex = 4;
-            this.tpInputsRequests.Text = "Inputs Requests";
-            this.tpInputsRequests.UseVisualStyleBackColor = true;
+            tpInputsRequests.Controls.Add(btnToggleInputMute);
+            tpInputsRequests.Controls.Add(btnSetInputMute);
+            tpInputsRequests.Controls.Add(btnGetInputMute);
+            tpInputsRequests.Controls.Add(btnSetInputSettings);
+            tpInputsRequests.Controls.Add(btnGetInputSettings);
+            tpInputsRequests.Controls.Add(btnGetInputDefaultSettings);
+            tpInputsRequests.Controls.Add(btnSetInputName);
+            tpInputsRequests.Controls.Add(btnRemoveInput);
+            tpInputsRequests.Controls.Add(btnCreateInput);
+            tpInputsRequests.Controls.Add(btnGetSpecialInputs);
+            tpInputsRequests.Controls.Add(btnGetInputKindList);
+            tpInputsRequests.Controls.Add(btnGetInputList);
+            tpInputsRequests.Location = new Point(8, 46);
+            tpInputsRequests.Name = "tpInputsRequests";
+            tpInputsRequests.Size = new Size(1241, 450);
+            tpInputsRequests.TabIndex = 4;
+            tpInputsRequests.Text = "Inputs Requests";
+            tpInputsRequests.UseVisualStyleBackColor = true;
             // 
             // btnToggleInputMute
             // 
-            this.btnToggleInputMute.Enabled = false;
-            this.btnToggleInputMute.Location = new System.Drawing.Point(351, 159);
-            this.btnToggleInputMute.Name = "btnToggleInputMute";
-            this.btnToggleInputMute.Size = new System.Drawing.Size(340, 46);
-            this.btnToggleInputMute.TabIndex = 32;
-            this.btnToggleInputMute.Text = "Toggle Input Mute";
-            this.btnToggleInputMute.UseVisualStyleBackColor = true;
+            btnToggleInputMute.Enabled = false;
+            btnToggleInputMute.Location = new Point(351, 159);
+            btnToggleInputMute.Name = "btnToggleInputMute";
+            btnToggleInputMute.Size = new Size(340, 46);
+            btnToggleInputMute.TabIndex = 32;
+            btnToggleInputMute.Text = "Toggle Input Mute";
+            btnToggleInputMute.UseVisualStyleBackColor = true;
             // 
             // btnSetInputMute
             // 
-            this.btnSetInputMute.Enabled = false;
-            this.btnSetInputMute.Location = new System.Drawing.Point(351, 107);
-            this.btnSetInputMute.Name = "btnSetInputMute";
-            this.btnSetInputMute.Size = new System.Drawing.Size(340, 46);
-            this.btnSetInputMute.TabIndex = 31;
-            this.btnSetInputMute.Text = "Set Input Mute";
-            this.btnSetInputMute.UseVisualStyleBackColor = true;
+            btnSetInputMute.Enabled = false;
+            btnSetInputMute.Location = new Point(351, 107);
+            btnSetInputMute.Name = "btnSetInputMute";
+            btnSetInputMute.Size = new Size(340, 46);
+            btnSetInputMute.TabIndex = 31;
+            btnSetInputMute.Text = "Set Input Mute";
+            btnSetInputMute.UseVisualStyleBackColor = true;
             // 
             // btnGetInputMute
             // 
-            this.btnGetInputMute.Enabled = false;
-            this.btnGetInputMute.Location = new System.Drawing.Point(351, 55);
-            this.btnGetInputMute.Name = "btnGetInputMute";
-            this.btnGetInputMute.Size = new System.Drawing.Size(340, 46);
-            this.btnGetInputMute.TabIndex = 30;
-            this.btnGetInputMute.Text = "Get Input Mute";
-            this.btnGetInputMute.UseVisualStyleBackColor = true;
+            btnGetInputMute.Enabled = false;
+            btnGetInputMute.Location = new Point(351, 55);
+            btnGetInputMute.Name = "btnGetInputMute";
+            btnGetInputMute.Size = new Size(340, 46);
+            btnGetInputMute.TabIndex = 30;
+            btnGetInputMute.Text = "Get Input Mute";
+            btnGetInputMute.UseVisualStyleBackColor = true;
             // 
             // btnSetInputSettings
             // 
-            this.btnSetInputSettings.Enabled = false;
-            this.btnSetInputSettings.Location = new System.Drawing.Point(351, 3);
-            this.btnSetInputSettings.Name = "btnSetInputSettings";
-            this.btnSetInputSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnSetInputSettings.TabIndex = 29;
-            this.btnSetInputSettings.Text = "Set Input Settings";
-            this.btnSetInputSettings.UseVisualStyleBackColor = true;
+            btnSetInputSettings.Enabled = false;
+            btnSetInputSettings.Location = new Point(351, 3);
+            btnSetInputSettings.Name = "btnSetInputSettings";
+            btnSetInputSettings.Size = new Size(340, 46);
+            btnSetInputSettings.TabIndex = 29;
+            btnSetInputSettings.Text = "Set Input Settings";
+            btnSetInputSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetInputSettings
             // 
-            this.btnGetInputSettings.Enabled = false;
-            this.btnGetInputSettings.Location = new System.Drawing.Point(3, 367);
-            this.btnGetInputSettings.Name = "btnGetInputSettings";
-            this.btnGetInputSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnGetInputSettings.TabIndex = 28;
-            this.btnGetInputSettings.Text = "Get Input Settings";
-            this.btnGetInputSettings.UseVisualStyleBackColor = true;
+            btnGetInputSettings.Enabled = false;
+            btnGetInputSettings.Location = new Point(3, 367);
+            btnGetInputSettings.Name = "btnGetInputSettings";
+            btnGetInputSettings.Size = new Size(340, 46);
+            btnGetInputSettings.TabIndex = 28;
+            btnGetInputSettings.Text = "Get Input Settings";
+            btnGetInputSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetInputDefaultSettings
             // 
-            this.btnGetInputDefaultSettings.Enabled = false;
-            this.btnGetInputDefaultSettings.Location = new System.Drawing.Point(3, 315);
-            this.btnGetInputDefaultSettings.Name = "btnGetInputDefaultSettings";
-            this.btnGetInputDefaultSettings.Size = new System.Drawing.Size(340, 46);
-            this.btnGetInputDefaultSettings.TabIndex = 27;
-            this.btnGetInputDefaultSettings.Text = "Get Input Default Settings";
-            this.btnGetInputDefaultSettings.UseVisualStyleBackColor = true;
+            btnGetInputDefaultSettings.Enabled = false;
+            btnGetInputDefaultSettings.Location = new Point(3, 315);
+            btnGetInputDefaultSettings.Name = "btnGetInputDefaultSettings";
+            btnGetInputDefaultSettings.Size = new Size(340, 46);
+            btnGetInputDefaultSettings.TabIndex = 27;
+            btnGetInputDefaultSettings.Text = "Get Input Default Settings";
+            btnGetInputDefaultSettings.UseVisualStyleBackColor = true;
             // 
             // btnSetInputName
             // 
-            this.btnSetInputName.Enabled = false;
-            this.btnSetInputName.Location = new System.Drawing.Point(3, 263);
-            this.btnSetInputName.Name = "btnSetInputName";
-            this.btnSetInputName.Size = new System.Drawing.Size(340, 46);
-            this.btnSetInputName.TabIndex = 26;
-            this.btnSetInputName.Text = "Set Input Name";
-            this.btnSetInputName.UseVisualStyleBackColor = true;
+            btnSetInputName.Enabled = false;
+            btnSetInputName.Location = new Point(3, 263);
+            btnSetInputName.Name = "btnSetInputName";
+            btnSetInputName.Size = new Size(340, 46);
+            btnSetInputName.TabIndex = 26;
+            btnSetInputName.Text = "Set Input Name";
+            btnSetInputName.UseVisualStyleBackColor = true;
             // 
             // btnRemoveInput
             // 
-            this.btnRemoveInput.Enabled = false;
-            this.btnRemoveInput.Location = new System.Drawing.Point(3, 211);
-            this.btnRemoveInput.Name = "btnRemoveInput";
-            this.btnRemoveInput.Size = new System.Drawing.Size(340, 46);
-            this.btnRemoveInput.TabIndex = 25;
-            this.btnRemoveInput.Text = "Remove Input";
-            this.btnRemoveInput.UseVisualStyleBackColor = true;
+            btnRemoveInput.Enabled = false;
+            btnRemoveInput.Location = new Point(3, 211);
+            btnRemoveInput.Name = "btnRemoveInput";
+            btnRemoveInput.Size = new Size(340, 46);
+            btnRemoveInput.TabIndex = 25;
+            btnRemoveInput.Text = "Remove Input";
+            btnRemoveInput.UseVisualStyleBackColor = true;
             // 
             // btnCreateInput
             // 
-            this.btnCreateInput.Enabled = false;
-            this.btnCreateInput.Location = new System.Drawing.Point(0, 159);
-            this.btnCreateInput.Name = "btnCreateInput";
-            this.btnCreateInput.Size = new System.Drawing.Size(340, 46);
-            this.btnCreateInput.TabIndex = 24;
-            this.btnCreateInput.Text = "Create Input";
-            this.btnCreateInput.UseVisualStyleBackColor = true;
+            btnCreateInput.Enabled = false;
+            btnCreateInput.Location = new Point(0, 159);
+            btnCreateInput.Name = "btnCreateInput";
+            btnCreateInput.Size = new Size(340, 46);
+            btnCreateInput.TabIndex = 24;
+            btnCreateInput.Text = "Create Input";
+            btnCreateInput.UseVisualStyleBackColor = true;
             // 
             // btnGetSpecialInputs
             // 
-            this.btnGetSpecialInputs.Location = new System.Drawing.Point(0, 107);
-            this.btnGetSpecialInputs.Name = "btnGetSpecialInputs";
-            this.btnGetSpecialInputs.Size = new System.Drawing.Size(340, 46);
-            this.btnGetSpecialInputs.TabIndex = 23;
-            this.btnGetSpecialInputs.Text = "Get Special Inputs";
-            this.btnGetSpecialInputs.UseVisualStyleBackColor = true;
-            this.btnGetSpecialInputs.Click += new System.EventHandler(this.btnGetSpecialInputs_Click);
+            btnGetSpecialInputs.Location = new Point(0, 107);
+            btnGetSpecialInputs.Name = "btnGetSpecialInputs";
+            btnGetSpecialInputs.Size = new Size(340, 46);
+            btnGetSpecialInputs.TabIndex = 23;
+            btnGetSpecialInputs.Text = "Get Special Inputs";
+            btnGetSpecialInputs.UseVisualStyleBackColor = true;
+            btnGetSpecialInputs.Click += this.btnGetSpecialInputs_Click;
             // 
             // btnGetInputKindList
             // 
-            this.btnGetInputKindList.Location = new System.Drawing.Point(3, 55);
-            this.btnGetInputKindList.Name = "btnGetInputKindList";
-            this.btnGetInputKindList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetInputKindList.TabIndex = 22;
-            this.btnGetInputKindList.Text = "Get Input Kind List";
-            this.btnGetInputKindList.UseVisualStyleBackColor = true;
-            this.btnGetInputKindList.Click += new System.EventHandler(this.btnGetInputKindList_Click);
+            btnGetInputKindList.Location = new Point(3, 55);
+            btnGetInputKindList.Name = "btnGetInputKindList";
+            btnGetInputKindList.Size = new Size(340, 46);
+            btnGetInputKindList.TabIndex = 22;
+            btnGetInputKindList.Text = "Get Input Kind List";
+            btnGetInputKindList.UseVisualStyleBackColor = true;
+            btnGetInputKindList.Click += this.btnGetInputKindList_Click;
             // 
             // btnGetInputList
             // 
-            this.btnGetInputList.Location = new System.Drawing.Point(3, 3);
-            this.btnGetInputList.Name = "btnGetInputList";
-            this.btnGetInputList.Size = new System.Drawing.Size(340, 46);
-            this.btnGetInputList.TabIndex = 21;
-            this.btnGetInputList.Text = "Get Input List";
-            this.btnGetInputList.UseVisualStyleBackColor = true;
-            this.btnGetInputList.Click += new System.EventHandler(this.btnGetInputList_Click);
+            btnGetInputList.Location = new Point(3, 3);
+            btnGetInputList.Name = "btnGetInputList";
+            btnGetInputList.Size = new Size(340, 46);
+            btnGetInputList.TabIndex = 21;
+            btnGetInputList.Text = "Get Input List";
+            btnGetInputList.UseVisualStyleBackColor = true;
+            btnGetInputList.Click += this.btnGetInputList_Click;
             // 
             // tpFiltersRequests
             // 
-            this.tpFiltersRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpFiltersRequests.Name = "tpFiltersRequests";
-            this.tpFiltersRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpFiltersRequests.TabIndex = 5;
-            this.tpFiltersRequests.Text = "Filters Requests";
-            this.tpFiltersRequests.UseVisualStyleBackColor = true;
+            tpFiltersRequests.Location = new Point(8, 46);
+            tpFiltersRequests.Name = "tpFiltersRequests";
+            tpFiltersRequests.Size = new Size(1241, 450);
+            tpFiltersRequests.TabIndex = 5;
+            tpFiltersRequests.Text = "Filters Requests";
+            tpFiltersRequests.UseVisualStyleBackColor = true;
             // 
             // tbMediaInputsRequests
             // 
-            this.tbMediaInputsRequests.Location = new System.Drawing.Point(8, 46);
-            this.tbMediaInputsRequests.Name = "tbMediaInputsRequests";
-            this.tbMediaInputsRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tbMediaInputsRequests.TabIndex = 6;
-            this.tbMediaInputsRequests.Text = "Media Inputs Requests";
-            this.tbMediaInputsRequests.UseVisualStyleBackColor = true;
+            tbMediaInputsRequests.Location = new Point(8, 46);
+            tbMediaInputsRequests.Name = "tbMediaInputsRequests";
+            tbMediaInputsRequests.Size = new Size(1241, 450);
+            tbMediaInputsRequests.TabIndex = 6;
+            tbMediaInputsRequests.Text = "Media Inputs Requests";
+            tbMediaInputsRequests.UseVisualStyleBackColor = true;
             // 
             // tpOutputsRequests
             // 
-            this.tpOutputsRequests.Controls.Add(this.btnGetVirtualCameraState);
-            this.tpOutputsRequests.Controls.Add(this.btnToggleVirtualCamera);
-            this.tpOutputsRequests.Controls.Add(this.btnStartVirtualCam);
-            this.tpOutputsRequests.Controls.Add(this.btnStopVirtualCamera);
-            this.tpOutputsRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpOutputsRequests.Name = "tpOutputsRequests";
-            this.tpOutputsRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpOutputsRequests.TabIndex = 7;
-            this.tpOutputsRequests.Text = "Outputs Requests";
-            this.tpOutputsRequests.UseVisualStyleBackColor = true;
+            tpOutputsRequests.Controls.Add(bnGetStreamStatus);
+            tpOutputsRequests.Controls.Add(btnGetVirtualCameraState);
+            tpOutputsRequests.Controls.Add(btnToggleVirtualCamera);
+            tpOutputsRequests.Controls.Add(btnStartVirtualCam);
+            tpOutputsRequests.Controls.Add(btnStopVirtualCamera);
+            tpOutputsRequests.Location = new Point(8, 46);
+            tpOutputsRequests.Name = "tpOutputsRequests";
+            tpOutputsRequests.Size = new Size(1241, 450);
+            tpOutputsRequests.TabIndex = 7;
+            tpOutputsRequests.Text = "Outputs Requests";
+            tpOutputsRequests.UseVisualStyleBackColor = true;
             // 
             // tbRecordRequests
             // 
-            this.tbRecordRequests.Location = new System.Drawing.Point(8, 46);
-            this.tbRecordRequests.Name = "tbRecordRequests";
-            this.tbRecordRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tbRecordRequests.TabIndex = 8;
-            this.tbRecordRequests.Text = "Record Requests";
-            this.tbRecordRequests.UseVisualStyleBackColor = true;
+            tbRecordRequests.Location = new Point(8, 46);
+            tbRecordRequests.Name = "tbRecordRequests";
+            tbRecordRequests.Size = new Size(1241, 450);
+            tbRecordRequests.TabIndex = 8;
+            tbRecordRequests.Text = "Record Requests";
+            tbRecordRequests.UseVisualStyleBackColor = true;
             // 
             // tbSceneItemsRequests
             // 
-            this.tbSceneItemsRequests.Location = new System.Drawing.Point(8, 46);
-            this.tbSceneItemsRequests.Name = "tbSceneItemsRequests";
-            this.tbSceneItemsRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tbSceneItemsRequests.TabIndex = 9;
-            this.tbSceneItemsRequests.Text = "Scene Items Requests";
-            this.tbSceneItemsRequests.UseVisualStyleBackColor = true;
+            tbSceneItemsRequests.Location = new Point(8, 46);
+            tbSceneItemsRequests.Name = "tbSceneItemsRequests";
+            tbSceneItemsRequests.Size = new Size(1241, 450);
+            tbSceneItemsRequests.TabIndex = 9;
+            tbSceneItemsRequests.Text = "Scene Items Requests";
+            tbSceneItemsRequests.UseVisualStyleBackColor = true;
             // 
             // tpStreamRequests
             // 
-            this.tpStreamRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpStreamRequests.Name = "tpStreamRequests";
-            this.tpStreamRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpStreamRequests.TabIndex = 10;
-            this.tpStreamRequests.Text = "Stream Requests";
-            this.tpStreamRequests.UseVisualStyleBackColor = true;
+            tpStreamRequests.Location = new Point(8, 46);
+            tpStreamRequests.Name = "tpStreamRequests";
+            tpStreamRequests.Size = new Size(1241, 450);
+            tpStreamRequests.TabIndex = 10;
+            tpStreamRequests.Text = "Stream Requests";
+            tpStreamRequests.UseVisualStyleBackColor = true;
             // 
             // tpTransitionsRequests
             // 
-            this.tpTransitionsRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpTransitionsRequests.Name = "tpTransitionsRequests";
-            this.tpTransitionsRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpTransitionsRequests.TabIndex = 11;
-            this.tpTransitionsRequests.Text = "Transitions Requests";
-            this.tpTransitionsRequests.UseVisualStyleBackColor = true;
+            tpTransitionsRequests.Location = new Point(8, 46);
+            tpTransitionsRequests.Name = "tpTransitionsRequests";
+            tpTransitionsRequests.Size = new Size(1241, 450);
+            tpTransitionsRequests.TabIndex = 11;
+            tpTransitionsRequests.Text = "Transitions Requests";
+            tpTransitionsRequests.UseVisualStyleBackColor = true;
             // 
             // tpUIRequests
             // 
-            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorWindow);
-            this.tpUIRequests.Controls.Add(this.button5);
-            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorOnMonitor);
-            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorWindow);
-            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorOnMonitor);
-            this.tpUIRequests.Controls.Add(this.btnOpenInputInteractDialog);
-            this.tpUIRequests.Controls.Add(this.btnOpenInputFiltersDialog);
-            this.tpUIRequests.Controls.Add(this.btnOpenInputPropertiesDialog);
-            this.tpUIRequests.Controls.Add(this.btnGetStudioModeEnabled);
-            this.tpUIRequests.Controls.Add(this.btnStartStudioMode);
-            this.tpUIRequests.Controls.Add(this.btnStopStudioMode);
-            this.tpUIRequests.Controls.Add(this.btnGetMonitorList);
-            this.tpUIRequests.Location = new System.Drawing.Point(8, 46);
-            this.tpUIRequests.Name = "tpUIRequests";
-            this.tpUIRequests.Size = new System.Drawing.Size(1241, 450);
-            this.tpUIRequests.TabIndex = 12;
-            this.tpUIRequests.Text = "UI Requests";
-            this.tpUIRequests.UseVisualStyleBackColor = true;
-            // 
-            // btnOpenInputInteractDialog
-            // 
-            this.btnOpenInputInteractDialog.Location = new System.Drawing.Point(3, 264);
-            this.btnOpenInputInteractDialog.Name = "btnOpenInputInteractDialog";
-            this.btnOpenInputInteractDialog.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenInputInteractDialog.TabIndex = 15;
-            this.btnOpenInputInteractDialog.Text = "OpenInputInteractDialog";
-            this.btnOpenInputInteractDialog.UseVisualStyleBackColor = true;
-            // 
-            // btnOpenInputFiltersDialog
-            // 
-            this.btnOpenInputFiltersDialog.Location = new System.Drawing.Point(3, 212);
-            this.btnOpenInputFiltersDialog.Name = "btnOpenInputFiltersDialog";
-            this.btnOpenInputFiltersDialog.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenInputFiltersDialog.TabIndex = 14;
-            this.btnOpenInputFiltersDialog.Text = "OpenInputFiltersDialog";
-            this.btnOpenInputFiltersDialog.UseVisualStyleBackColor = true;
-            // 
-            // btnOpenInputPropertiesDialog
-            // 
-            this.btnOpenInputPropertiesDialog.Location = new System.Drawing.Point(3, 160);
-            this.btnOpenInputPropertiesDialog.Name = "btnOpenInputPropertiesDialog";
-            this.btnOpenInputPropertiesDialog.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenInputPropertiesDialog.TabIndex = 13;
-            this.btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
-            this.btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
-            // 
-            // lbScenes
-            // 
-            this.lbScenes.FormattingEnabled = true;
-            this.lbScenes.ItemHeight = 32;
-            this.lbScenes.Location = new System.Drawing.Point(1307, 311);
-            this.lbScenes.Name = "lbScenes";
-            this.lbScenes.Size = new System.Drawing.Size(288, 452);
-            this.lbScenes.TabIndex = 20;
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(1307, 261);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(93, 32);
-            this.label4.TabIndex = 21;
-            this.label4.Text = "Scenes:";
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(1601, 260);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(95, 32);
-            this.label5.TabIndex = 23;
-            this.label5.Text = "Groups:";
-            // 
-            // lbGroups
-            // 
-            this.lbGroups.FormattingEnabled = true;
-            this.lbGroups.ItemHeight = 32;
-            this.lbGroups.Location = new System.Drawing.Point(1601, 310);
-            this.lbGroups.Name = "lbGroups";
-            this.lbGroups.Size = new System.Drawing.Size(288, 452);
-            this.lbGroups.TabIndex = 22;
-            // 
-            // tbNameItem
-            // 
-            this.tbNameItem.Location = new System.Drawing.Point(167, 192);
-            this.tbNameItem.Name = "tbNameItem";
-            this.tbNameItem.Size = new System.Drawing.Size(200, 39);
-            this.tbNameItem.TabIndex = 24;
-            this.tbNameItem.Text = "Some Item Name";
-            // 
-            // label6
-            // 
-            this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(23, 195);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(138, 32);
-            this.label6.TabIndex = 25;
-            this.label6.Text = "Item Name:";
-            // 
-            // btnOpenVideoMixProjectorOnMonitor
-            // 
-            this.btnOpenVideoMixProjectorOnMonitor.Location = new System.Drawing.Point(351, 4);
-            this.btnOpenVideoMixProjectorOnMonitor.Name = "btnOpenVideoMixProjectorOnMonitor";
-            this.btnOpenVideoMixProjectorOnMonitor.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenVideoMixProjectorOnMonitor.TabIndex = 16;
-            this.btnOpenVideoMixProjectorOnMonitor.Text = "OpenVideoMixProjectorOnMonitor";
-            this.btnOpenVideoMixProjectorOnMonitor.UseVisualStyleBackColor = true;
-            // 
-            // btnOpenVideoMixProjectorWindow
-            // 
-            this.btnOpenVideoMixProjectorWindow.Location = new System.Drawing.Point(351, 56);
-            this.btnOpenVideoMixProjectorWindow.Name = "btnOpenVideoMixProjectorWindow";
-            this.btnOpenVideoMixProjectorWindow.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenVideoMixProjectorWindow.TabIndex = 17;
-            this.btnOpenVideoMixProjectorWindow.Text = "OpenVideoMixProjectorWindow";
-            this.btnOpenVideoMixProjectorWindow.UseVisualStyleBackColor = true;
-            // 
-            // btnOpenSourceProjectorOnMonitor
-            // 
-            this.btnOpenSourceProjectorOnMonitor.Location = new System.Drawing.Point(351, 108);
-            this.btnOpenSourceProjectorOnMonitor.Name = "btnOpenSourceProjectorOnMonitor";
-            this.btnOpenSourceProjectorOnMonitor.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenSourceProjectorOnMonitor.TabIndex = 18;
-            this.btnOpenSourceProjectorOnMonitor.Text = "OpenSourceProjectorOnMonitor";
-            this.btnOpenSourceProjectorOnMonitor.UseVisualStyleBackColor = true;
-            // 
-            // button5
-            // 
-            this.button5.Location = new System.Drawing.Point(349, 160);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(340, 46);
-            this.button5.TabIndex = 19;
-            this.button5.Text = "OpenVideoMixProjectorOnMonitor";
-            this.button5.UseVisualStyleBackColor = true;
+            tpUIRequests.Controls.Add(btnOpenSourceProjectorWindow);
+            tpUIRequests.Controls.Add(button5);
+            tpUIRequests.Controls.Add(btnOpenSourceProjectorOnMonitor);
+            tpUIRequests.Controls.Add(btnOpenVideoMixProjectorWindow);
+            tpUIRequests.Controls.Add(btnOpenVideoMixProjectorOnMonitor);
+            tpUIRequests.Controls.Add(btnOpenInputInteractDialog);
+            tpUIRequests.Controls.Add(btnOpenInputFiltersDialog);
+            tpUIRequests.Controls.Add(btnOpenInputPropertiesDialog);
+            tpUIRequests.Controls.Add(btnGetStudioModeEnabled);
+            tpUIRequests.Controls.Add(btnStartStudioMode);
+            tpUIRequests.Controls.Add(btnStopStudioMode);
+            tpUIRequests.Controls.Add(btnGetMonitorList);
+            tpUIRequests.Location = new Point(8, 46);
+            tpUIRequests.Name = "tpUIRequests";
+            tpUIRequests.Size = new Size(1241, 450);
+            tpUIRequests.TabIndex = 12;
+            tpUIRequests.Text = "UI Requests";
+            tpUIRequests.UseVisualStyleBackColor = true;
             // 
             // btnOpenSourceProjectorWindow
             // 
-            this.btnOpenSourceProjectorWindow.Location = new System.Drawing.Point(351, 212);
-            this.btnOpenSourceProjectorWindow.Name = "btnOpenSourceProjectorWindow";
-            this.btnOpenSourceProjectorWindow.Size = new System.Drawing.Size(340, 46);
-            this.btnOpenSourceProjectorWindow.TabIndex = 20;
-            this.btnOpenSourceProjectorWindow.Text = "OpenSourceProjectorWindow";
-            this.btnOpenSourceProjectorWindow.UseVisualStyleBackColor = true;
+            btnOpenSourceProjectorWindow.Location = new Point(351, 212);
+            btnOpenSourceProjectorWindow.Name = "btnOpenSourceProjectorWindow";
+            btnOpenSourceProjectorWindow.Size = new Size(340, 46);
+            btnOpenSourceProjectorWindow.TabIndex = 20;
+            btnOpenSourceProjectorWindow.Text = "OpenSourceProjectorWindow";
+            btnOpenSourceProjectorWindow.UseVisualStyleBackColor = true;
+            // 
+            // button5
+            // 
+            button5.Location = new Point(349, 160);
+            button5.Name = "button5";
+            button5.Size = new Size(340, 46);
+            button5.TabIndex = 19;
+            button5.Text = "OpenVideoMixProjectorOnMonitor";
+            button5.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenSourceProjectorOnMonitor
+            // 
+            btnOpenSourceProjectorOnMonitor.Location = new Point(351, 108);
+            btnOpenSourceProjectorOnMonitor.Name = "btnOpenSourceProjectorOnMonitor";
+            btnOpenSourceProjectorOnMonitor.Size = new Size(340, 46);
+            btnOpenSourceProjectorOnMonitor.TabIndex = 18;
+            btnOpenSourceProjectorOnMonitor.Text = "OpenSourceProjectorOnMonitor";
+            btnOpenSourceProjectorOnMonitor.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenVideoMixProjectorWindow
+            // 
+            btnOpenVideoMixProjectorWindow.Location = new Point(351, 56);
+            btnOpenVideoMixProjectorWindow.Name = "btnOpenVideoMixProjectorWindow";
+            btnOpenVideoMixProjectorWindow.Size = new Size(340, 46);
+            btnOpenVideoMixProjectorWindow.TabIndex = 17;
+            btnOpenVideoMixProjectorWindow.Text = "OpenVideoMixProjectorWindow";
+            btnOpenVideoMixProjectorWindow.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenVideoMixProjectorOnMonitor
+            // 
+            btnOpenVideoMixProjectorOnMonitor.Location = new Point(351, 4);
+            btnOpenVideoMixProjectorOnMonitor.Name = "btnOpenVideoMixProjectorOnMonitor";
+            btnOpenVideoMixProjectorOnMonitor.Size = new Size(340, 46);
+            btnOpenVideoMixProjectorOnMonitor.TabIndex = 16;
+            btnOpenVideoMixProjectorOnMonitor.Text = "OpenVideoMixProjectorOnMonitor";
+            btnOpenVideoMixProjectorOnMonitor.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputInteractDialog
+            // 
+            btnOpenInputInteractDialog.Location = new Point(3, 264);
+            btnOpenInputInteractDialog.Name = "btnOpenInputInteractDialog";
+            btnOpenInputInteractDialog.Size = new Size(340, 46);
+            btnOpenInputInteractDialog.TabIndex = 15;
+            btnOpenInputInteractDialog.Text = "OpenInputInteractDialog";
+            btnOpenInputInteractDialog.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputFiltersDialog
+            // 
+            btnOpenInputFiltersDialog.Location = new Point(3, 212);
+            btnOpenInputFiltersDialog.Name = "btnOpenInputFiltersDialog";
+            btnOpenInputFiltersDialog.Size = new Size(340, 46);
+            btnOpenInputFiltersDialog.TabIndex = 14;
+            btnOpenInputFiltersDialog.Text = "OpenInputFiltersDialog";
+            btnOpenInputFiltersDialog.UseVisualStyleBackColor = true;
+            // 
+            // btnOpenInputPropertiesDialog
+            // 
+            btnOpenInputPropertiesDialog.Location = new Point(3, 160);
+            btnOpenInputPropertiesDialog.Name = "btnOpenInputPropertiesDialog";
+            btnOpenInputPropertiesDialog.Size = new Size(340, 46);
+            btnOpenInputPropertiesDialog.TabIndex = 13;
+            btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
+            btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
+            // 
+            // lbScenes
+            // 
+            lbScenes.FormattingEnabled = true;
+            lbScenes.ItemHeight = 32;
+            lbScenes.Location = new Point(1307, 311);
+            lbScenes.Name = "lbScenes";
+            lbScenes.Size = new Size(288, 452);
+            lbScenes.TabIndex = 20;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new Point(1307, 261);
+            label4.Name = "label4";
+            label4.Size = new Size(93, 32);
+            label4.TabIndex = 21;
+            label4.Text = "Scenes:";
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new Point(1601, 260);
+            label5.Name = "label5";
+            label5.Size = new Size(95, 32);
+            label5.TabIndex = 23;
+            label5.Text = "Groups:";
+            // 
+            // lbGroups
+            // 
+            lbGroups.FormattingEnabled = true;
+            lbGroups.ItemHeight = 32;
+            lbGroups.Location = new Point(1601, 310);
+            lbGroups.Name = "lbGroups";
+            lbGroups.Size = new Size(288, 452);
+            lbGroups.TabIndex = 22;
+            // 
+            // tbNameItem
+            // 
+            tbNameItem.Location = new Point(167, 192);
+            tbNameItem.Name = "tbNameItem";
+            tbNameItem.Size = new Size(200, 39);
+            tbNameItem.TabIndex = 24;
+            tbNameItem.Text = "Some Item Name";
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new Point(23, 195);
+            label6.Name = "label6";
+            label6.Size = new Size(138, 32);
+            label6.TabIndex = 25;
+            label6.Text = "Item Name:";
+            // 
+            // bnGetStreamStatus
+            // 
+            bnGetStreamStatus.Location = new Point(0, 212);
+            bnGetStreamStatus.Name = "bnGetStreamStatus";
+            bnGetStreamStatus.Size = new Size(340, 46);
+            bnGetStreamStatus.TabIndex = 9;
+            bnGetStreamStatus.Text = "Get Stream Status";
+            bnGetStreamStatus.UseVisualStyleBackColor = true;
+            bnGetStreamStatus.Click += this.bnGetStreamStatus_Click;
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 32F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1986, 849);
-            this.Controls.Add(this.label6);
-            this.Controls.Add(this.tbNameItem);
-            this.Controls.Add(this.label5);
-            this.Controls.Add(this.lbGroups);
-            this.Controls.Add(this.label4);
-            this.Controls.Add(this.lbScenes);
-            this.Controls.Add(this.tabControl1);
-            this.Controls.Add(this.label3);
-            this.Controls.Add(this.label2);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.button3);
-            this.Controls.Add(this.tbPassword);
-            this.Controls.Add(this.nudPort);
-            this.Controls.Add(this.tbHostname);
-            this.Controls.Add(this.button1);
+            this.AutoScaleDimensions = new SizeF(13F, 32F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(1986, 849);
+            this.Controls.Add(label6);
+            this.Controls.Add(tbNameItem);
+            this.Controls.Add(label5);
+            this.Controls.Add(lbGroups);
+            this.Controls.Add(label4);
+            this.Controls.Add(lbScenes);
+            this.Controls.Add(tabControl1);
+            this.Controls.Add(label3);
+            this.Controls.Add(label2);
+            this.Controls.Add(label1);
+            this.Controls.Add(button3);
+            this.Controls.Add(tbPassword);
+            this.Controls.Add(nudPort);
+            this.Controls.Add(tbHostname);
+            this.Controls.Add(button1);
             this.Name = "Form1";
             this.Text = "OBS Client - Sample Windows Application";
-            this.Load += new System.EventHandler(this.Form1_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.nudPort)).EndInit();
-            this.tabControl1.ResumeLayout(false);
-            this.tpGeneralRequests.ResumeLayout(false);
-            this.tpConfigRequests.ResumeLayout(false);
-            this.tpSourcesRequests.ResumeLayout(false);
-            this.tpScenesRequests.ResumeLayout(false);
-            this.tpInputsRequests.ResumeLayout(false);
-            this.tpOutputsRequests.ResumeLayout(false);
-            this.tpUIRequests.ResumeLayout(false);
+            this.Load += this.Form1_Load;
+            ((System.ComponentModel.ISupportInitialize)nudPort).EndInit();
+            tabControl1.ResumeLayout(false);
+            tpGeneralRequests.ResumeLayout(false);
+            tpConfigRequests.ResumeLayout(false);
+            tpSourcesRequests.ResumeLayout(false);
+            tpScenesRequests.ResumeLayout(false);
+            tpInputsRequests.ResumeLayout(false);
+            tpOutputsRequests.ResumeLayout(false);
+            tpUIRequests.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -1257,5 +1260,6 @@
         private Button button5;
         private Button btnOpenSourceProjectorOnMonitor;
         private Button btnOpenVideoMixProjectorWindow;
+        private Button bnGetStreamStatus;
     }
 }

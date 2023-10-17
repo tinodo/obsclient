@@ -21,22 +21,32 @@
     /// <remarks>
     /// Implements <see href="https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md"/>
     /// </remarks>
-    public partial class ObsClient : INotifyPropertyChanged
+    public partial class ObsClient : INotifyPropertyChanged, IDisposable
     {
         private string _hostname = "localhost";
+
         private int _port = 4455;
+
         private string _password = string.Empty;
+
         private int _requestTimeout = 500;
+        
         private EventSubscriptions _eventSubscriptions = EventSubscriptions.All;
 
         private CancellationTokenSource _cancellationTokenSource = new();
+        
         private ConnectionState _connectionState = ConnectionState.Disconnected;
+        
         private ClientWebSocket _client = new();
+        
         private TaskCompletionSource<bool> _authenticationComplete = new();
+
+        private bool _disposed;
+        
         private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessage>> _requests = new();
 
         /// <summary>
-        /// The maximum amount of time, in milliseconds, to wait for an OBS Studio response.
+        /// The maximum amount of time, in milliseconds, to wait for an OBS Studio response after a request.
         /// </summary>
         /// <remarks>
         /// The minimum value is 150. Please take into account that when sending Batch Requests, specifically with long Sleep requests, this default value of 500 might not be enough.
@@ -139,14 +149,19 @@
             this._client = new();
             this._authenticationComplete = new();
 
-            Uri uri;
-            try
+            //Uri uri;
+            //try
+            //{
+            //    uri = new($"ws://{this._hostname}:{this._port}");
+            //}
+            //catch (UriFormatException)
+            //{
+            //    return false;
+            //}
+
+            if (!Uri.TryCreate($"ws://{this._hostname}:{this._port}", UriKind.Absolute, out Uri? uri))
             {
-                uri = new($"ws://{this._hostname}:{this._port}");
-            }
-            catch (UriFormatException)
-            {
-                return false;
+                throw new ArgumentException("Invalid hostname or port number.");
             }
 
             this.ConnectionState = ConnectionState.Connecting;
@@ -594,7 +609,10 @@
                 throw new ObsClientException("Client is not connected.");
             }
 
+#if DEBUG
             Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
+#endif
+            
             var bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
             await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._cancellationTokenSource.Token);
@@ -643,7 +661,11 @@
                 if (!cancellationToken.IsCancellationRequested && connectionOpen)
                 {
                     var response = responseBuilder.ToString();
-                    Debug.WriteLine($"OBS WEBSOCKET RECEIVED: {response}");
+
+#if DEBUG
+                    Debug.WriteLine($"Received: {response}");
+#endif
+
                     ObsMessage? responseMessage = JsonSerializer.Deserialize<ObsMessage>(response);
                     if (responseMessage == null)
                     {
@@ -697,10 +719,10 @@
             }
             else
             {
-                throw new ObsClientException("Unexpected");
+                throw new ObsClientException($"Unexpected error trying to add an already added tasks ({requestId}) to the task list.");
             }
 
-            throw new TimeoutException("Timeout waiting for OBS Studio response.");
+            throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
         }
 
         private async Task SendRequestAsync(object? requestData = null, [CallerMemberName] string requestType = "")
@@ -743,8 +765,36 @@
             }
             else
             {
-                throw new ObsClientException("Unexpected response.");
+                throw new ObsClientException($"Unexpected response from OBS Studio to request {requestId}.");
             }
+        }
+
+        /// <summary>
+        /// Disposes of the <see cref="ObsClient"/>.
+        /// </summary>
+        /// <param name="disposing">A value indicating whether we already called the method.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    this.Disconnect();
+                    this._client.Dispose();
+                }
+
+                this._requests.Clear();
+                _disposed = true;
+            }
+        }
+
+        /// <summary>
+        /// Disposes of an <see cref="ObsClient"/>.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

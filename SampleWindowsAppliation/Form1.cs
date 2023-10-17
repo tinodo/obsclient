@@ -112,7 +112,7 @@ namespace SampleWindowsAppliation
         }
 
         private Task SourceFilterRemoved(object? sender, SourceFilterRemovedEventArgs e)
-        {            
+        {
             return Task.CompletedTask;
         }
 
@@ -674,7 +674,7 @@ namespace SampleWindowsAppliation
                 MessageBox.Show("Enter an item name first.");
                 return;
             }
-            
+
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
                 MessageBox.Show("Select a Scene first.");
@@ -682,6 +682,21 @@ namespace SampleWindowsAppliation
             }
 
             await _client.SetSceneName(scene.SceneName, this.tbNameItem.Text);
+        }
+
+        private async void bnGetStreamStatus_Click(object sender, EventArgs e)
+        {
+            var response = await _client.GetStreamStatus();
+            var result = string.Empty;
+            result += $"OutputActive: {response.OutputActive}" + Environment.NewLine;
+            result += $"OutputActive: {response.OutputBytes}" + Environment.NewLine;
+            result += $"OutputCongestion: {response.OutputCongestion}" + Environment.NewLine;
+            result += $"OutputDuration: {response.OutputDuration}" + Environment.NewLine;
+            result += $"OutputReconnecting: {response.OutputReconnecting}" + Environment.NewLine;
+            result += $"OutputSkippedFrames: {response.OutputSkippedFrames}" + Environment.NewLine;
+            result += $"OutputTimecode: {response.OutputTimecode}" + Environment.NewLine;
+            result += $"OutputTotalFrames: {response.OutputTotalFrames}" + Environment.NewLine;
+            MessageBox.Show(result, "GetStreamStatus");
         }
     }
 }
