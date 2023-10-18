@@ -41,6 +41,11 @@
         UnsupportedRequestBatchExecutionType = 206,
 
         /// <summary>
+        /// The server is not ready to handle the request.
+        /// </summary>
+        NotReady = 207,
+
+        /// <summary>
         /// Missing Request Field.
         /// </summary>
         MissingRequestField = 300,

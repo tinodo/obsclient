@@ -171,5 +171,14 @@
         {
             return (await this.SendRequestAsync<RecordDirectoryResponse>()).RecordDirectory;
         }
+
+        /// <summary>
+        /// Sets the current directory that the record output writes files to.
+        /// </summary>
+        /// <param name="recordDirectory">Output directory</param>
+        public async Task SetRecordDirectory(string recordDirectory)
+        {
+            await this.SendRequestAsync(new { recordDirectory });
+        }
     }
 }
