@@ -218,6 +218,7 @@
                     RequestType.ToggleRecordPause => this.RawResponseData.Value.Deserialize<OutputPausedResponse>(),
                     RequestType.PauseRecord => null,
                     RequestType.ResumeRecord => null,
+                    RequestType.SetRecordDirectory => null,
 
                     // Media Inputs Requests
                     RequestType.GetMediaInputStatus => this.RawResponseData.Value.Deserialize<MediaInputStatusResponse>(),

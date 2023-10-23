@@ -149,16 +149,6 @@
             this._client = new();
             this._authenticationComplete = new();
 
-            //Uri uri;
-            //try
-            //{
-            //    uri = new($"ws://{this._hostname}:{this._port}");
-            //}
-            //catch (UriFormatException)
-            //{
-            //    return false;
-            //}
-
             if (!Uri.TryCreate($"ws://{this._hostname}:{this._port}", UriKind.Absolute, out Uri? uri))
             {
                 throw new ArgumentException("Invalid hostname or port number.");

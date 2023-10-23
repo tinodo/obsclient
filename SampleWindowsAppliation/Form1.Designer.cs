@@ -105,6 +105,7 @@
             tpOutputsRequests = new TabPage();
             bnGetStreamStatus = new Button();
             tbRecordRequests = new TabPage();
+            button2 = new Button();
             btnResumeRecord = new Button();
             btnPauseRecord = new Button();
             btnToggleRecordPause = new Button();
@@ -132,6 +133,8 @@
             label6 = new Label();
             label7 = new Label();
             lblRecordState = new Label();
+            label8 = new Label();
+            tbRecordFolder = new TextBox();
             ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
             tabControl1.SuspendLayout();
             tpGeneralRequests.SuspendLayout();
@@ -958,6 +961,7 @@
             // 
             // tbRecordRequests
             // 
+            tbRecordRequests.Controls.Add(button2);
             tbRecordRequests.Controls.Add(btnResumeRecord);
             tbRecordRequests.Controls.Add(btnPauseRecord);
             tbRecordRequests.Controls.Add(btnToggleRecordPause);
@@ -971,6 +975,16 @@
             tbRecordRequests.TabIndex = 8;
             tbRecordRequests.Text = "Record Requests";
             tbRecordRequests.UseVisualStyleBackColor = true;
+            // 
+            // button2
+            // 
+            button2.Location = new Point(3, 368);
+            button2.Name = "button2";
+            button2.Size = new Size(340, 46);
+            button2.TabIndex = 16;
+            button2.Text = "Set Record Directory";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += this.button2_Click;
             // 
             // btnResumeRecord
             // 
@@ -1233,11 +1247,29 @@
             lblRecordState.TabIndex = 27;
             lblRecordState.Text = "N/A";
             // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new Point(1307, 60);
+            label8.Name = "label8";
+            label8.Size = new Size(166, 32);
+            label8.TabIndex = 28;
+            label8.Text = "Record Folder:";
+            // 
+            // tbRecordFolder
+            // 
+            tbRecordFolder.Location = new Point(1479, 57);
+            tbRecordFolder.Name = "tbRecordFolder";
+            tbRecordFolder.Size = new Size(200, 39);
+            tbRecordFolder.TabIndex = 29;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new SizeF(13F, 32F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(1986, 849);
+            this.Controls.Add(tbRecordFolder);
+            this.Controls.Add(label8);
             this.Controls.Add(lblRecordState);
             this.Controls.Add(label7);
             this.Controls.Add(label6);
@@ -1378,5 +1410,8 @@
         private Button btnGetRecordStatus;
         private Label label7;
         private Label lblRecordState;
+        private Button button2;
+        private Label label8;
+        private TextBox tbRecordFolder;
     }
 }

@@ -35,7 +35,6 @@
         /// Gets the <see cref="FilterSettings"/>.
         /// </summary>
         [JsonPropertyName("filterSettings")]
-        //public FilterSettings FilterSettings { get; }
         public Dictionary<string, object> FilterSettings { get; }
 
         /// <summary>

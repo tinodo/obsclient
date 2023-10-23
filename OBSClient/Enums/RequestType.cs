@@ -132,6 +132,11 @@
         /// </summary>
         GetRecordDirectory,
 
+        /// <summary>
+        /// SetRecordDirectory Request
+        /// </summary>
+        SetRecordDirectory,
+
         //Sources Requests
 
         /// <summary>

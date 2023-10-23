@@ -2,22 +2,26 @@
 {
     using System.Text.Json.Serialization;
 
-    public class SceneItemIndexRequest
+    /// <summary>
+    /// Provides the Request Data for OBS Client Batch requests that require a sceneName, sceneItemId and sceneItemIndex.
+    /// </summary>
+    public class SceneItemIndexRequest : SceneItemRequest
     {
-        [JsonPropertyName("sceneName")]
-        public string SceneName { get; set; }
-
-        [JsonPropertyName("sceneItemId")]
-        public int SceneItemId { get; set; }
-
+        /// <summary>
+        /// Gets or sets the scene item index.
+        /// </summary>
         [JsonPropertyName("sceneItemIndex")]
         public int SceneItemIndex { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SceneItemIndexRequest"/> class.
+        /// </summary>
+        /// <param name="sceneName">The scene name.</param>
+        /// <param name="sceneItemId">The scene item id.</param>
+        /// <param name="sceneItemIndex">The scene item index.</param>
         [JsonConstructor]
-        public SceneItemIndexRequest(string sceneName, int sceneItemId, int sceneItemIndex)
+        public SceneItemIndexRequest(string sceneName, int sceneItemId, int sceneItemIndex) : base (sceneName, sceneItemId)
         {
-            this.SceneName = sceneName;
-            this.SceneItemId = sceneItemId;
             this.SceneItemIndex = sceneItemIndex;
         }
     }

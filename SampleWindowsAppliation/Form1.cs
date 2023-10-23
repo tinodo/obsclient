@@ -16,6 +16,7 @@ namespace SampleWindowsAppliation
         private delegate void SafeListboxRefresh(ListBox listBox);
         private delegate void SafeUpdateTitle();
         private delegate void SafeUpdateRecordState(string text);
+        private delegate void SafeUpdateRecordFolder(string text);
         private const string Title = "Obs Client";
         public Form1()
         {
@@ -248,6 +249,7 @@ namespace SampleWindowsAppliation
         {
             var active = e.OutputActive ? "Active" : "Inactive";
             RefreshRecordState($"{e.OutputState} ({active})");
+            RefreshRecordFolder(e.OutputPath);
             return Task.CompletedTask;
         }
 
@@ -440,6 +442,19 @@ namespace SampleWindowsAppliation
             }
         }
 
+        private void RefreshRecordFolder(string text)
+        {
+            if (tbRecordFolder.InvokeRequired)
+            {
+                var d = new SafeUpdateRecordFolder(RefreshRecordFolder);
+                tbRecordFolder.Invoke(d, new object[] { text });
+            }
+            else
+            {
+                tbRecordFolder.Text = text;
+            }
+        }
+
         private async void button1_Click(object sender, EventArgs e)
         {
             var result = await _client.ConnectAsync(this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
@@ -562,7 +577,7 @@ namespace SampleWindowsAppliation
         private async void btnGetRecordDirectory_Click(object sender, EventArgs e)
         {
             var recordDirectory = await _client.GetRecordDirectory();
-            MessageBox.Show(recordDirectory, "GetRecordDirectory");
+            RefreshRecordFolder(recordDirectory);
         }
 
         private async void btnGetSceneList_Click(object sender, EventArgs e)
@@ -758,6 +773,11 @@ namespace SampleWindowsAppliation
         private async void btnResumeRecord_Click(object sender, EventArgs e)
         {
             await _client.ResumeRecord();
+        }
+
+        private async void button2_Click(object sender, EventArgs e)
+        {
+            await _client.SetRecordDirectory(this.tbRecordFolder.Text);
         }
     }
 }
