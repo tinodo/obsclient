@@ -15,6 +15,7 @@ namespace SampleWindowsAppliation
         private delegate void SafeListboxRemove(object itemToRemove, ListBox listBox);
         private delegate void SafeListboxRefresh(ListBox listBox);
         private delegate void SafeUpdateTitle();
+        private delegate void SafeUpdateRecordState(string text);
         private const string Title = "Obs Client";
         public Form1()
         {
@@ -245,6 +246,8 @@ namespace SampleWindowsAppliation
 
         private Task RecordStateChanged(object? sender, RecordStateChangedEventArgs e)
         {
+            var active = e.OutputActive ? "Active" : "Inactive";
+            RefreshRecordState($"{e.OutputState} ({active})");
             return Task.CompletedTask;
         }
 
@@ -421,6 +424,19 @@ namespace SampleWindowsAppliation
             else
             {
                 listBox.Refresh();
+            }
+        }
+
+        private void RefreshRecordState(string text)
+        {
+            if (lblRecordState.InvokeRequired)
+            {
+                var d = new SafeUpdateRecordState(RefreshRecordState);
+                lblRecordState.Invoke(d, new object[] { text });
+            }
+            else
+            {
+                lblRecordState.Text = text;
             }
         }
 
@@ -689,7 +705,7 @@ namespace SampleWindowsAppliation
             var response = await _client.GetStreamStatus();
             var result = string.Empty;
             result += $"OutputActive: {response.OutputActive}" + Environment.NewLine;
-            result += $"OutputActive: {response.OutputBytes}" + Environment.NewLine;
+            result += $"OutputBytes: {response.OutputBytes}" + Environment.NewLine;
             result += $"OutputCongestion: {response.OutputCongestion}" + Environment.NewLine;
             result += $"OutputDuration: {response.OutputDuration}" + Environment.NewLine;
             result += $"OutputReconnecting: {response.OutputReconnecting}" + Environment.NewLine;
@@ -697,6 +713,51 @@ namespace SampleWindowsAppliation
             result += $"OutputTimecode: {response.OutputTimecode}" + Environment.NewLine;
             result += $"OutputTotalFrames: {response.OutputTotalFrames}" + Environment.NewLine;
             MessageBox.Show(result, "GetStreamStatus");
+        }
+
+        private async void btnGetRecordStatus_Click(object sender, EventArgs e)
+        {
+            var response = await _client.GetRecordStatus();
+            var result = string.Empty;
+            result += $"OutputActive: {response.OutputActive}" + Environment.NewLine;
+            result += $"OutputBytes: {response.OutputBytes}" + Environment.NewLine;
+            result += $"OutputDuration: {response.OutputDuration}" + Environment.NewLine;
+            result += $"OutputPaused: {response.OutputPaused}" + Environment.NewLine;
+            result += $"OutputTimecode: {response.OutputTimecode}" + Environment.NewLine;
+            MessageBox.Show(result, "GetRecordStatus");
+        }
+
+        private async void btnToggleRecord_Click(object sender, EventArgs e)
+        {
+            var result = await _client.ToggleRecord();
+            MessageBox.Show(result.ToString(), "ToggleRecord");
+        }
+
+        private async void btnStartRecord_Click(object sender, EventArgs e)
+        {
+            await _client.StartRecord();
+        }
+
+        private async void btnStopRecord_Click(object sender, EventArgs e)
+        {
+            var result = await _client.StopRecord();
+            MessageBox.Show(result, "StopRecord");
+        }
+
+        private async void btnToggleRecordPause_Click(object sender, EventArgs e)
+        {
+            var result = await _client.ToggleRecordPause();
+            MessageBox.Show(result.ToString(), "ToggleRecordPause");
+        }
+
+        private async void btnPauseRecord_Click(object sender, EventArgs e)
+        {
+            await _client.PauseRecord();
+        }
+
+        private async void btnResumeRecord_Click(object sender, EventArgs e)
+        {
+            await _client.ResumeRecord();
         }
     }
 }

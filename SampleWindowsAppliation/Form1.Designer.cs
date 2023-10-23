@@ -103,7 +103,15 @@
             tpFiltersRequests = new TabPage();
             tbMediaInputsRequests = new TabPage();
             tpOutputsRequests = new TabPage();
+            bnGetStreamStatus = new Button();
             tbRecordRequests = new TabPage();
+            btnResumeRecord = new Button();
+            btnPauseRecord = new Button();
+            btnToggleRecordPause = new Button();
+            btnStopRecord = new Button();
+            btnStartRecord = new Button();
+            btnToggleRecord = new Button();
+            btnGetRecordStatus = new Button();
             tbSceneItemsRequests = new TabPage();
             tpStreamRequests = new TabPage();
             tpTransitionsRequests = new TabPage();
@@ -122,7 +130,8 @@
             lbGroups = new ListBox();
             tbNameItem = new TextBox();
             label6 = new Label();
-            bnGetStreamStatus = new Button();
+            label7 = new Label();
+            lblRecordState = new Label();
             ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
             tabControl1.SuspendLayout();
             tpGeneralRequests.SuspendLayout();
@@ -131,6 +140,7 @@
             tpScenesRequests.SuspendLayout();
             tpInputsRequests.SuspendLayout();
             tpOutputsRequests.SuspendLayout();
+            tbRecordRequests.SuspendLayout();
             tpUIRequests.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -936,14 +946,101 @@
             tpOutputsRequests.Text = "Outputs Requests";
             tpOutputsRequests.UseVisualStyleBackColor = true;
             // 
+            // bnGetStreamStatus
+            // 
+            bnGetStreamStatus.Location = new Point(0, 212);
+            bnGetStreamStatus.Name = "bnGetStreamStatus";
+            bnGetStreamStatus.Size = new Size(340, 46);
+            bnGetStreamStatus.TabIndex = 9;
+            bnGetStreamStatus.Text = "Get Stream Status";
+            bnGetStreamStatus.UseVisualStyleBackColor = true;
+            bnGetStreamStatus.Click += this.bnGetStreamStatus_Click;
+            // 
             // tbRecordRequests
             // 
+            tbRecordRequests.Controls.Add(btnResumeRecord);
+            tbRecordRequests.Controls.Add(btnPauseRecord);
+            tbRecordRequests.Controls.Add(btnToggleRecordPause);
+            tbRecordRequests.Controls.Add(btnStopRecord);
+            tbRecordRequests.Controls.Add(btnStartRecord);
+            tbRecordRequests.Controls.Add(btnToggleRecord);
+            tbRecordRequests.Controls.Add(btnGetRecordStatus);
             tbRecordRequests.Location = new Point(8, 46);
             tbRecordRequests.Name = "tbRecordRequests";
             tbRecordRequests.Size = new Size(1241, 450);
             tbRecordRequests.TabIndex = 8;
             tbRecordRequests.Text = "Record Requests";
             tbRecordRequests.UseVisualStyleBackColor = true;
+            // 
+            // btnResumeRecord
+            // 
+            btnResumeRecord.Location = new Point(3, 316);
+            btnResumeRecord.Name = "btnResumeRecord";
+            btnResumeRecord.Size = new Size(340, 46);
+            btnResumeRecord.TabIndex = 15;
+            btnResumeRecord.Text = "Resume Record";
+            btnResumeRecord.UseVisualStyleBackColor = true;
+            btnResumeRecord.Click += this.btnResumeRecord_Click;
+            // 
+            // btnPauseRecord
+            // 
+            btnPauseRecord.Location = new Point(3, 264);
+            btnPauseRecord.Name = "btnPauseRecord";
+            btnPauseRecord.Size = new Size(340, 46);
+            btnPauseRecord.TabIndex = 14;
+            btnPauseRecord.Text = "Pause Record";
+            btnPauseRecord.UseVisualStyleBackColor = true;
+            btnPauseRecord.Click += this.btnPauseRecord_Click;
+            // 
+            // btnToggleRecordPause
+            // 
+            btnToggleRecordPause.Location = new Point(3, 212);
+            btnToggleRecordPause.Name = "btnToggleRecordPause";
+            btnToggleRecordPause.Size = new Size(340, 46);
+            btnToggleRecordPause.TabIndex = 13;
+            btnToggleRecordPause.Text = "Toggle Record Pause";
+            btnToggleRecordPause.UseVisualStyleBackColor = true;
+            btnToggleRecordPause.Click += this.btnToggleRecordPause_Click;
+            // 
+            // btnStopRecord
+            // 
+            btnStopRecord.Location = new Point(3, 160);
+            btnStopRecord.Name = "btnStopRecord";
+            btnStopRecord.Size = new Size(340, 46);
+            btnStopRecord.TabIndex = 12;
+            btnStopRecord.Text = "Stop Record";
+            btnStopRecord.UseVisualStyleBackColor = true;
+            btnStopRecord.Click += this.btnStopRecord_Click;
+            // 
+            // btnStartRecord
+            // 
+            btnStartRecord.Location = new Point(3, 108);
+            btnStartRecord.Name = "btnStartRecord";
+            btnStartRecord.Size = new Size(340, 46);
+            btnStartRecord.TabIndex = 11;
+            btnStartRecord.Text = "Start Record";
+            btnStartRecord.UseVisualStyleBackColor = true;
+            btnStartRecord.Click += this.btnStartRecord_Click;
+            // 
+            // btnToggleRecord
+            // 
+            btnToggleRecord.Location = new Point(3, 56);
+            btnToggleRecord.Name = "btnToggleRecord";
+            btnToggleRecord.Size = new Size(340, 46);
+            btnToggleRecord.TabIndex = 10;
+            btnToggleRecord.Text = "Toggle Record";
+            btnToggleRecord.UseVisualStyleBackColor = true;
+            btnToggleRecord.Click += this.btnToggleRecord_Click;
+            // 
+            // btnGetRecordStatus
+            // 
+            btnGetRecordStatus.Location = new Point(3, 4);
+            btnGetRecordStatus.Name = "btnGetRecordStatus";
+            btnGetRecordStatus.Size = new Size(340, 46);
+            btnGetRecordStatus.TabIndex = 9;
+            btnGetRecordStatus.Text = "Get Record Status";
+            btnGetRecordStatus.UseVisualStyleBackColor = true;
+            btnGetRecordStatus.Click += this.btnGetRecordStatus_Click;
             // 
             // tbSceneItemsRequests
             // 
@@ -1118,21 +1215,31 @@
             label6.TabIndex = 25;
             label6.Text = "Item Name:";
             // 
-            // bnGetStreamStatus
+            // label7
             // 
-            bnGetStreamStatus.Location = new Point(0, 212);
-            bnGetStreamStatus.Name = "bnGetStreamStatus";
-            bnGetStreamStatus.Size = new Size(340, 46);
-            bnGetStreamStatus.TabIndex = 9;
-            bnGetStreamStatus.Text = "Get Stream Status";
-            bnGetStreamStatus.UseVisualStyleBackColor = true;
-            bnGetStreamStatus.Click += this.bnGetStreamStatus_Click;
+            label7.AutoSize = true;
+            label7.Location = new Point(1307, 22);
+            label7.Name = "label7";
+            label7.Size = new Size(152, 32);
+            label7.TabIndex = 26;
+            label7.Text = "Record State:";
+            // 
+            // lblRecordState
+            // 
+            lblRecordState.AutoSize = true;
+            lblRecordState.Location = new Point(1465, 22);
+            lblRecordState.Name = "lblRecordState";
+            lblRecordState.Size = new Size(56, 32);
+            lblRecordState.TabIndex = 27;
+            lblRecordState.Text = "N/A";
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new SizeF(13F, 32F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(1986, 849);
+            this.Controls.Add(lblRecordState);
+            this.Controls.Add(label7);
             this.Controls.Add(label6);
             this.Controls.Add(tbNameItem);
             this.Controls.Add(label5);
@@ -1159,6 +1266,7 @@
             tpScenesRequests.ResumeLayout(false);
             tpInputsRequests.ResumeLayout(false);
             tpOutputsRequests.ResumeLayout(false);
+            tbRecordRequests.ResumeLayout(false);
             tpUIRequests.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -1261,5 +1369,14 @@
         private Button btnOpenSourceProjectorOnMonitor;
         private Button btnOpenVideoMixProjectorWindow;
         private Button bnGetStreamStatus;
+        private Button btnResumeRecord;
+        private Button btnPauseRecord;
+        private Button btnToggleRecordPause;
+        private Button btnStopRecord;
+        private Button btnStartRecord;
+        private Button btnToggleRecord;
+        private Button btnGetRecordStatus;
+        private Label label7;
+        private Label lblRecordState;
     }
 }

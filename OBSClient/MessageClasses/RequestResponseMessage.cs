@@ -212,10 +212,10 @@
 
                     // Record Requests
                     RequestType.GetRecordStatus => this.RawResponseData.Value.Deserialize<RecordStatusResponse>(),
-                    RequestType.ToggleRecord => null,
+                    RequestType.ToggleRecord => this.RawResponseData.Value.Deserialize<OutputActiveResponse>(),
                     RequestType.StartRecord => null,
                     RequestType.StopRecord => this.RawResponseData.Value.Deserialize<OutputPathResponse>(),
-                    RequestType.ToggleRecordPause => null,
+                    RequestType.ToggleRecordPause => this.RawResponseData.Value.Deserialize<OutputPausedResponse>(),
                     RequestType.PauseRecord => null,
                     RequestType.ResumeRecord => null,
 

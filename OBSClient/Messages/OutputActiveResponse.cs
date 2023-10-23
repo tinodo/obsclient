@@ -5,7 +5,7 @@
 
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful request of any of these types:
-    /// GetVirtualCamStatus, ToggleVirtualCam, GetReplayBufferStatus, ToggleReplayBuffer, ToggleOutput and ToggleStream.
+    /// GetVirtualCamStatus, ToggleVirtualCam, ToggleRecord, GetReplayBufferStatus, ToggleReplayBuffer, ToggleOutput and ToggleStream.
     /// </summary>
     public class OutputActiveResponse : IResponse
     {

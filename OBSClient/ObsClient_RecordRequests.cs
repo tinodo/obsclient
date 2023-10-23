@@ -16,9 +16,9 @@
         /// <summary>
         /// Toggles the status of the record output.
         /// </summary>
-        public async Task ToggleRecord()
+        public async Task<bool> ToggleRecord()
         {
-            await this.SendRequestAsync();
+            return (await this.SendRequestAsync<OutputActiveResponse>()).OutputActive;
         }
 
         /// <summary>
@@ -41,9 +41,9 @@
         /// <summary>
         /// Toggles pause on the record output.
         /// </summary>
-        public async Task ToggleRecordPause()
+        public async Task<bool> ToggleRecordPause()
         {
-            await this.SendRequestAsync();
+            return (await this.SendRequestAsync<OutputPausedResponse>()).OutputPaused;
         }
 
         /// <summary>
