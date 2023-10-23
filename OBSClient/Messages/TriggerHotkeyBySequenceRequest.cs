@@ -34,6 +34,11 @@
             this.KeyModifiers = keyModifiers;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TriggerHotkeyBySequenceRequest"/> class.
+        /// </summary>
+        /// <param name="keyId">The key ID.</param>
+        /// <param name="keyModifier">The <see cref="KeyModifier"/>.</param>
         public TriggerHotkeyBySequenceRequest(ObsKey? keyId, KeyModifier? keyModifier)
         {
             this.KeyId = keyId;
