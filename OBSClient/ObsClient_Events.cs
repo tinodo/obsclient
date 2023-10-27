@@ -13,7 +13,7 @@
         /// <summary>
         /// Occurs when OBS has begun the shutdown process.
         /// </summary>
-        public event AsyncEventHandler? ExitStarted;
+        public event EventHandler? ExitStarted;
 
         /// <summary>
         /// Occurs when an event has been emitted from a vendor.
@@ -21,12 +21,12 @@
         /// <remarks>
         /// A vendor is a unique name registered by a third-party plugin or script, which allows for custom requests and events to be added to obs-websocket. If a plugin or script implements vendor requests or events, documentation is expected to be provided with them.
         /// </remarks>
-        public event AsyncEventHandler<VendorEventEventArgs>? VendorEvent;
+        public event EventHandler<VendorEventEventArgs>? VendorEvent;
 
         /// <summary>
-        /// Occurs when a custom event emitted by <see cref="BroadcastCustomEvent(object)"/>.
+        /// Occurs when a custom event emitted by <see cref="BroadcastCustomEvent"/>.
         /// </summary>
-        public event AsyncEventHandler<CustomEventEventArgs>? CustomEvent;
+        public event EventHandler<CustomEventEventArgs>? CustomEvent;
 
         //
         //
@@ -40,7 +40,7 @@
         /// <remarks>
         /// Note: We recommend using this event to trigger a pause of all polling requests, as performing any requests during a scene collection change is considered undefined behavior and can cause crashes!
         /// </remarks>
-        public event AsyncEventHandler<SceneCollectionNameEventArgs>? CurrentSceneCollectionChanging;
+        public event EventHandler<SceneCollectionNameEventArgs>? CurrentSceneCollectionChanging;
 
         /// <summary>
         /// Occurs when the current scene collection has changed.
@@ -48,27 +48,27 @@
         /// <remarks>
         /// Note: If polling has been paused during CurrentSceneCollectionChanging, this is the que to restart polling.
         /// </remarks>
-        public event AsyncEventHandler<SceneCollectionNameEventArgs>? CurrentSceneCollectionChanged;
+        public event EventHandler<SceneCollectionNameEventArgs>? CurrentSceneCollectionChanged;
 
         /// <summary>
         /// Occurs when the scene collection list has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneCollectionListEventArgs>? SceneCollectionListChanged;
+        public event EventHandler<SceneCollectionListEventArgs>? SceneCollectionListChanged;
 
         /// <summary>
         /// Occurs when the current profile has begun changing.
         /// </summary>
-        public event AsyncEventHandler<ProfileNameEventArgs>? CurrentProfileChanging;
+        public event EventHandler<ProfileNameEventArgs>? CurrentProfileChanging;
 
         /// <summary>
         /// Occurs when the current profile has changed.
         /// </summary>
-        public event AsyncEventHandler<ProfileNameEventArgs>? CurrentProfileChanged;
+        public event EventHandler<ProfileNameEventArgs>? CurrentProfileChanged;
 
         /// <summary>
         /// Occurs when the profile list has changed.
         /// </summary>
-        public event AsyncEventHandler<ProfileListEventArgs>? ProfileListChanged;
+        public event EventHandler<ProfileListEventArgs>? ProfileListChanged;
 
         //
         //
@@ -79,32 +79,32 @@
         /// <summary>
         /// Occurs when a new scene has been created.
         /// </summary>
-        public event AsyncEventHandler<SceneModifiedEventArgs>? SceneCreated;
+        public event EventHandler<SceneModifiedEventArgs>? SceneCreated;
 
         /// <summary>
         /// Occurs when a scene has been removed.
         /// </summary>
-        public event AsyncEventHandler<SceneModifiedEventArgs>? SceneRemoved;
+        public event EventHandler<SceneModifiedEventArgs>? SceneRemoved;
 
         /// <summary>
         /// Occurs when the name of a scene has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneNameChangedEventArgs>? SceneNameChanged;
+        public event EventHandler<SceneNameChangedEventArgs>? SceneNameChanged;
 
         /// <summary>
         /// Occurs when the current program scene has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneNameEventArgs>? CurrentProgramSceneChanged;
+        public event EventHandler<SceneNameEventArgs>? CurrentProgramSceneChanged;
 
         /// <summary>
         /// Occurs when the current preview scene has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneNameEventArgs>? CurrentPreviewSceneChanged;
+        public event EventHandler<SceneNameEventArgs>? CurrentPreviewSceneChanged;
 
         /// <summary>
         /// Occurs when the list of scenes has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneListEventArgs>? SceneListChanged;
+        public event EventHandler<SceneListEventArgs>? SceneListChanged;
 
         //
         //
@@ -115,17 +115,17 @@
         /// <summary>
         /// Occurs when an input has been created.
         /// </summary>
-        public event AsyncEventHandler<InputCreatedEventArgs>? InputCreated;
+        public event EventHandler<InputCreatedEventArgs>? InputCreated;
 
         /// <summary>
         /// Occurs when an input has been removed.
         /// </summary>
-        public event AsyncEventHandler<InputNameEventArgs>? InputRemoved;
+        public event EventHandler<InputNameEventArgs>? InputRemoved;
 
         /// <summary>
         /// Occurs when the name of an input has changed.
         /// </summary>
-        public event AsyncEventHandler<InputNameChangedEventArgs>? InputNameChanged;
+        public event EventHandler<InputNameChangedEventArgs>? InputNameChanged;
 
         /// <summary>
         /// Occurs when an input's active state has changed.
@@ -133,7 +133,7 @@
         /// <remarks>
         /// When an input is active, it means it's being shown by the program feed.
         /// </remarks>
-        public event AsyncEventHandler<InputActiveStateChangedEventArgs>? InputActiveStateChanged;
+        public event EventHandler<InputActiveStateChangedEventArgs>? InputActiveStateChanged;
 
         /// <summary>
         /// Occurs when an input's show state has changed.
@@ -141,42 +141,42 @@
         /// <remarks>
         /// When an input is showing, it means it's being shown by the preview or a dialog.
         /// </remarks>
-        public event AsyncEventHandler<InputShowStateChangedEventArgs>? InputShowStateChanged;
+        public event EventHandler<InputShowStateChangedEventArgs>? InputShowStateChanged;
 
         /// <summary>
         /// Occurs when an input's mute state has changed.
         /// </summary>
-        public event AsyncEventHandler<InputMuteStateChangedEventArgs>? InputMuteStateChanged;
+        public event EventHandler<InputMuteStateChangedEventArgs>? InputMuteStateChanged;
 
         /// <summary>
         /// Occurs when an input's volume level has changed.
         /// </summary>
-        public event AsyncEventHandler<InputVolumeChangedEventArgs>? InputVolumeChanged;
+        public event EventHandler<InputVolumeChangedEventArgs>? InputVolumeChanged;
 
         /// <summary>
         /// Occurs when the audio balance value of an input has changed.
         /// </summary>
-        public event AsyncEventHandler<InputAudioBalanceChangedEventArgs>? InputAudioBalanceChanged;
+        public event EventHandler<InputAudioBalanceChangedEventArgs>? InputAudioBalanceChanged;
 
         /// <summary>
         /// Occurs when the sync offset of an input has changed.
         /// </summary>
-        public event AsyncEventHandler<InputAudioSyncOffsetChangedEventArgs>? InputAudioSyncOffsetChanged;
+        public event EventHandler<InputAudioSyncOffsetChangedEventArgs>? InputAudioSyncOffsetChanged;
 
         /// <summary>
         /// Occurs when the audio tracks of an input have changed.
         /// </summary>
-        public event AsyncEventHandler<InputAudioTracksChangedEventArgs>? InputAudioTracksChanged;
+        public event EventHandler<InputAudioTracksChangedEventArgs>? InputAudioTracksChanged;
 
         /// <summary>
         /// Occurs when the monitor type of an input has changed.
         /// </summary>
-        public event AsyncEventHandler<InputAudioMonitorTypeChangedEventArgs>? InputAudioMonitorTypeChanged;
+        public event EventHandler<InputAudioMonitorTypeChangedEventArgs>? InputAudioMonitorTypeChanged;
 
         /// <summary>
         /// Occurs every 50 milliseconds providing volume levels of all active inputs.
         /// </summary>
-        public event AsyncEventHandler<InputVolumeMetersEventArgs>? InputVolumeMeters;
+        public event EventHandler<InputVolumeMetersEventArgs>? InputVolumeMeters;
 
         //
         //
@@ -187,17 +187,17 @@
         /// <summary>
         /// Occurs when the current scene transition has changed.
         /// </summary>
-        public event AsyncEventHandler<TransitionNameEventArgs>? CurrentSceneTransitionChanged;
+        public event EventHandler<TransitionNameEventArgs>? CurrentSceneTransitionChanged;
 
         /// <summary>
         /// Occurs when the current scene transition duration has changed.
         /// </summary>
-        public event AsyncEventHandler<TransitionDurationEventArgs>? CurrentSceneTransitionDurationChanged;
+        public event EventHandler<TransitionDurationEventArgs>? CurrentSceneTransitionDurationChanged;
 
         /// <summary>
         /// Occurs when a scene transition has started.
         /// </summary>
-        public event AsyncEventHandler<TransitionNameEventArgs>? SceneTransitionStarted;
+        public event EventHandler<TransitionNameEventArgs>? SceneTransitionStarted;
 
         /// <summary>
         /// Occurs when a scene transition has completed fully.
@@ -205,7 +205,7 @@
         /// <remarks>
         /// Note: Does not appear to trigger when the transition is interrupted by the user.
         /// </remarks>
-        public event AsyncEventHandler<TransitionNameEventArgs>? SceneTransitionEnded;
+        public event EventHandler<TransitionNameEventArgs>? SceneTransitionEnded;
 
         /// <summary>
         /// Occurs when a scene transition's video has completed fully.
@@ -214,7 +214,7 @@
         /// Useful for stinger transitions to tell when the video actually ends. SceneTransitionEnded only signifies the cut point, not the completion of transition playback.
         /// Note: Appears to be called by every transition, regardless of relevance.
         /// </remarks>
-        public event AsyncEventHandler<TransitionNameEventArgs>? SceneTransitionVideoEnded;
+        public event EventHandler<TransitionNameEventArgs>? SceneTransitionVideoEnded;
 
         //
         //
@@ -225,27 +225,27 @@
         /// <summary>
         /// Occurs when a source's filter list has been reindexed.
         /// </summary>
-        public event AsyncEventHandler<SourceFiltersEventArgs>? SourceFilterListReindexed;
+        public event EventHandler<SourceFiltersEventArgs>? SourceFilterListReindexed;
 
         /// <summary>
         /// Occurs when a filter has been added to a source.
         /// </summary>
-        public event AsyncEventHandler<SourceFilterCreatedEventArgs>? SourceFilterCreated;
+        public event EventHandler<SourceFilterCreatedEventArgs>? SourceFilterCreated;
 
         /// <summary>
         /// Occurs when a filter has been removed from a source.
         /// </summary>
-        public event AsyncEventHandler<SourceFilterRemovedEventArgs>? SourceFilterRemoved;
+        public event EventHandler<SourceFilterRemovedEventArgs>? SourceFilterRemoved;
 
         /// <summary>
         /// Occurs when the name of a source filter has changed.
         /// </summary>
-        public event AsyncEventHandler<SourceFilterNameChangedEventArgs>? SourceFilterNameChanged;
+        public event EventHandler<SourceFilterNameChangedEventArgs>? SourceFilterNameChanged;
 
         /// <summary>
         /// Occurs when a source filter's enable state has changed.
         /// </summary>
-        public event AsyncEventHandler<SourceFilterEnableStateChangedEventArgs>? SourceFilterEnableStateChanged;
+        public event EventHandler<SourceFilterEnableStateChangedEventArgs>? SourceFilterEnableStateChanged;
 
         //
         //
@@ -256,37 +256,37 @@
         /// <summary>
         /// Occurs when a scene item has been created.
         /// </summary>
-        public event AsyncEventHandler<SceneItemCreatedEventArgs>? SceneItemCreated;
+        public event EventHandler<SceneItemCreatedEventArgs>? SceneItemCreated;
 
         /// <summary>
         /// Occurs when a scene item has been removed.
         /// </summary>
-        public event AsyncEventHandler<SceneItemRemovedEventArgs>? SceneItemRemoved;
+        public event EventHandler<SceneItemRemovedEventArgs>? SceneItemRemoved;
 
         /// <summary>
         /// Occurs when a scene's item list has been reindexed.
         /// </summary>
-        public event AsyncEventHandler<SceneItemListReindexedEventArgs>? SceneItemListReindexed;
+        public event EventHandler<SceneItemListReindexedEventArgs>? SceneItemListReindexed;
 
         /// <summary>
         /// Occurs when a scene item's enable state has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneItemEnableStateChangedEventArgs>? SceneItemEnableStateChanged;
+        public event EventHandler<SceneItemEnableStateChangedEventArgs>? SceneItemEnableStateChanged;
 
         /// <summary>
         /// Occurs when a scene item's lock state has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneItemLockStateChangedEventArgs>? SceneItemLockStateChanged;
+        public event EventHandler<SceneItemLockStateChangedEventArgs>? SceneItemLockStateChanged;
 
         /// <summary>
         /// Occurs when a scene item has been selected in the Ui.
         /// </summary>
-        public event AsyncEventHandler<SceneItemSelectedEventArgs>? SceneItemSelected;
+        public event EventHandler<SceneItemSelectedEventArgs>? SceneItemSelected;
 
         /// <summary>
         /// Occurs when the transform/crop of a scene item has changed.
         /// </summary>
-        public event AsyncEventHandler<SceneItemTransformChangedEventArgs>? SceneItemTransformChanged;
+        public event EventHandler<SceneItemTransformChangedEventArgs>? SceneItemTransformChanged;
 
         //
         //
@@ -297,27 +297,27 @@
         /// <summary>
         /// Occurs when the state of the stream output has changed.
         /// </summary>
-        public event AsyncEventHandler<OutputStateChangedEventArgs>? StreamStateChanged;
+        public event EventHandler<OutputStateChangedEventArgs>? StreamStateChanged;
 
         /// <summary>
         /// Occurs when the state of the record output has changed.
         /// </summary>
-        public event AsyncEventHandler<RecordStateChangedEventArgs>? RecordStateChanged;
+        public event EventHandler<RecordStateChangedEventArgs>? RecordStateChanged;
 
         /// <summary>
         /// Occurs when the state of the replay buffer output has changed.
         /// </summary>
-        public event AsyncEventHandler<OutputStateChangedEventArgs>? ReplayBufferStateChanged;
+        public event EventHandler<OutputStateChangedEventArgs>? ReplayBufferStateChanged;
 
         /// <summary>
         /// Occurs when the state of the virtualcam output has changed.
         /// </summary>
-        public event AsyncEventHandler<OutputStateChangedEventArgs>? VirtualcamStateChanged;
+        public event EventHandler<OutputStateChangedEventArgs>? VirtualcamStateChanged;
 
         /// <summary>
         /// Occurs when the replay buffer has been saved.
         /// </summary>
-        public event AsyncEventHandler<ReplayBufferSavedEventArgs>? ReplayBufferSaved;
+        public event EventHandler<ReplayBufferSavedEventArgs>? ReplayBufferSaved;
 
         //
         //
@@ -328,17 +328,17 @@
         /// <summary>
         /// Occurs when a media input has started playing.
         /// </summary>
-        public event AsyncEventHandler<InputNameEventArgs>? MediaInputPlaybackStarted;
+        public event EventHandler<InputNameEventArgs>? MediaInputPlaybackStarted;
 
         /// <summary>
         /// Occurs when a media input has finished playing.
         /// </summary>
-        public event AsyncEventHandler<InputNameEventArgs>? MediaInputPlaybackEnded;
+        public event EventHandler<InputNameEventArgs>? MediaInputPlaybackEnded;
 
         /// <summary>
         /// Occurs when an action has been performed on an input.
         /// </summary>
-        public event AsyncEventHandler<MediaInputActionTriggeredEventArgs>? MediaInputActionTriggered;
+        public event EventHandler<MediaInputActionTriggeredEventArgs>? MediaInputActionTriggered;
 
         //
         //
@@ -349,7 +349,7 @@
         /// <summary>
         /// Occurs when Studio mode has been enabled or disabled.
         /// </summary>
-        public event AsyncEventHandler<StudioModeStateChangedEventArgs>? StudioModeStateChanged;
+        public event EventHandler<StudioModeStateChangedEventArgs>? StudioModeStateChanged;
 
         /// <summary>
         /// Occurs when a screenshot has been saved.
@@ -357,6 +357,6 @@
         /// <remarks>
         /// Note: Triggered for the screenshot feature available in Settings -> Hotkeys -> Screenshot Output ONLY. Applications using Get/SaveSourceScreenshot should implement a CustomEvent if this kind of inter-client communication is desired.
         /// </remarks>
-        public event AsyncEventHandler<ScreenshotSavedEventArgs>? ScreenshotSaved;
+        public event EventHandler<ScreenshotSavedEventArgs>? ScreenshotSaved;
     }
 }

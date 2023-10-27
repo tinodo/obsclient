@@ -135,6 +135,7 @@
             lblRecordState = new Label();
             label8 = new Label();
             tbRecordFolder = new TextBox();
+            cbAutoReconnect = new CheckBox();
             ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
             tabControl1.SuspendLayout();
             tpGeneralRequests.SuspendLayout();
@@ -1214,7 +1215,7 @@
             // 
             // tbNameItem
             // 
-            tbNameItem.Location = new Point(167, 192);
+            tbNameItem.Location = new Point(168, 203);
             tbNameItem.Name = "tbNameItem";
             tbNameItem.Size = new Size(200, 39);
             tbNameItem.TabIndex = 24;
@@ -1223,7 +1224,7 @@
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(23, 195);
+            label6.Location = new Point(24, 206);
             label6.Name = "label6";
             label6.Size = new Size(138, 32);
             label6.TabIndex = 25;
@@ -1263,11 +1264,25 @@
             tbRecordFolder.Size = new Size(200, 39);
             tbRecordFolder.TabIndex = 29;
             // 
+            // cbAutoReconnect
+            // 
+            cbAutoReconnect.AutoSize = true;
+            cbAutoReconnect.Checked = true;
+            cbAutoReconnect.CheckState = CheckState.Checked;
+            cbAutoReconnect.Location = new Point(146, 150);
+            cbAutoReconnect.Name = "cbAutoReconnect";
+            cbAutoReconnect.Size = new Size(208, 36);
+            cbAutoReconnect.TabIndex = 30;
+            cbAutoReconnect.Text = "AutoReconnect";
+            cbAutoReconnect.UseVisualStyleBackColor = true;
+            cbAutoReconnect.CheckedChanged += this.cbAutoReconnect_CheckedChanged;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new SizeF(13F, 32F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(1986, 849);
+            this.Controls.Add(cbAutoReconnect);
             this.Controls.Add(tbRecordFolder);
             this.Controls.Add(label8);
             this.Controls.Add(lblRecordState);
@@ -1413,5 +1428,6 @@
         private Button button2;
         private Label label8;
         private TextBox tbRecordFolder;
+        private CheckBox cbAutoReconnect;
     }
 }

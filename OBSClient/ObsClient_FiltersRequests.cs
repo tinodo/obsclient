@@ -1,7 +1,8 @@
 ﻿namespace OBSStudioClient
 {
     using OBSStudioClient.Classes;
-    using OBSStudioClient.Messages;
+    using OBSStudioClient.Requests;
+    using OBSStudioClient.Responses;
 
     public partial class ObsClient
     {

@@ -5,8 +5,13 @@
     using System.Runtime.Serialization;
 
     /// <summary>
-    /// Represents an exception that occured on the OBS Studio side.
+    /// Represents an exception that is thrown when OBS Studio returns an error in a message.
     /// </summary>
+    /// <remarks>
+    /// You can continue using the <see cref="ObsClient"/> after this exception is thrown.
+    /// This exception does not indicate that the communication between the client and OBS Studio is lost, but merely that OBS Studio has returned an error in reply to your request.
+    /// For example, when you call GetCurrentPreviewScene, but Studio Mode is not turned on in OBS Studio.
+    /// </remarks>
     [Serializable]
     public class ObsResponseException : Exception
     {

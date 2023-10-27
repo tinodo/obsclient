@@ -4,24 +4,27 @@ namespace SampleWindowsAppliation
     using System.Diagnostics;
     using OBSStudioClient;
     using OBSStudioClient.Classes;
-    using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
-    using OBSStudioClient.Exceptions;
-    using OBSStudioClient.MessageClasses;
 
     public partial class Form1 : Form
     {
-        private ObsClient _client = new();
+        private readonly ObsClient _client = new();
+        
         private delegate void SafeListboxRemove(object itemToRemove, ListBox listBox);
+        
         private delegate void SafeListboxRefresh(ListBox listBox);
+        
         private delegate void SafeUpdateTitle();
+        
         private delegate void SafeUpdateRecordState(string text);
+        
         private delegate void SafeUpdateRecordFolder(string text);
+        
         private const string Title = "Obs Client";
+
         public Form1()
         {
             InitializeComponent();
-
             _client.ConnectionClosed += ObsConnectionClosed;
             _client.CurrentPreviewSceneChanged += CurrentPreviewSceneChanged;
             _client.CurrentProfileChanged += CurrentProfileChanged;
@@ -93,72 +96,59 @@ namespace SampleWindowsAppliation
             Debug.WriteLine($"{e.PropertyName} - {_client.ConnectionState}");
         }
 
-        private Task VirtualcamStateChanged(object? sender, OutputStateChangedEventArgs e)
+        private void VirtualcamStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task VendorEvent(object? sender, VendorEventEventArgs e)
+        private void VendorEvent(object? sender, VendorEventEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task StudioModeStateChanged(object? sender, StudioModeStateChangedEventArgs e)
+        private void StudioModeStateChanged(object? sender, StudioModeStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task StreamStateChanged(object? sender, OutputStateChangedEventArgs e)
+        private void StreamStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SourceFilterRemoved(object? sender, SourceFilterRemovedEventArgs e)
+        private void SourceFilterRemoved(object? sender, SourceFilterRemovedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SourceFilterNameChanged(object? sender, SourceFilterNameChangedEventArgs e)
+        private void SourceFilterNameChanged(object? sender, SourceFilterNameChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SourceFilterListReindexed(object? sender, SourceFiltersEventArgs e)
+        private void SourceFilterListReindexed(object? sender, SourceFiltersEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SourceFilterEnableStateChanged(object? sender, SourceFilterEnableStateChangedEventArgs e)
+        private void SourceFilterEnableStateChanged(object? sender, SourceFilterEnableStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SourceFilterCreated(object? sender, SourceFilterCreatedEventArgs e)
+        private void SourceFilterCreated(object? sender, SourceFilterCreatedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task ScreenshotSaved(object? sender, ScreenshotSavedEventArgs e)
+        private void ScreenshotSaved(object? sender, ScreenshotSavedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneTransitionVideoEnded(object? sender, TransitionNameEventArgs e)
+        private void SceneTransitionVideoEnded(object? sender, TransitionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneTransitionStarted(object? sender, TransitionNameEventArgs e)
+        private void SceneTransitionStarted(object? sender, TransitionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneTransitionEnded(object? sender, TransitionNameEventArgs e)
+        private void SceneTransitionEnded(object? sender, TransitionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneRemoved(object? sender, SceneModifiedEventArgs e)
+        private void SceneRemoved(object? sender, SceneModifiedEventArgs e)
         {
             Scene? scene = null;
             foreach (Scene s in this.lbScenes.Items)
@@ -174,213 +164,172 @@ namespace SampleWindowsAppliation
             {
                 this.RemoveItemFromListbox(scene, this.lbScenes);
             }
-
-            return Task.CompletedTask;
         }
 
-        private Task SceneNameChanged(object? sender, SceneNameChangedEventArgs e)
+        private void SceneNameChanged(object? sender, SceneNameChangedEventArgs e)
         {
             MessageBox.Show($"Scene '{e.OldSceneName}' was renamed to '{e.SceneName}'. Refresh the Scenes List using Get Scene List.");
-            return Task.CompletedTask;
         }
 
-        private Task SceneListChanged(object? sender, SceneListEventArgs e)
+        private void SceneListChanged(object? sender, SceneListEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemTransformChanged(object? sender, SceneItemTransformChangedEventArgs e)
+        private void SceneItemTransformChanged(object? sender, SceneItemTransformChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemSelected(object? sender, SceneItemSelectedEventArgs e)
+        private void SceneItemSelected(object? sender, SceneItemSelectedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemRemoved(object? sender, SceneItemRemovedEventArgs e)
+        private void SceneItemRemoved(object? sender, SceneItemRemovedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemLockStateChanged(object? sender, SceneItemLockStateChangedEventArgs e)
+        private void SceneItemLockStateChanged(object? sender, SceneItemLockStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemListReindexed(object? sender, SceneItemListReindexedEventArgs e)
+        private void SceneItemListReindexed(object? sender, SceneItemListReindexedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemEnableStateChanged(object? sender, SceneItemEnableStateChangedEventArgs e)
+        private void SceneItemEnableStateChanged(object? sender, SceneItemEnableStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneItemCreated(object? sender, SceneItemCreatedEventArgs e)
+        private void SceneItemCreated(object? sender, SceneItemCreatedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task SceneCreated(object? sender, SceneModifiedEventArgs e)
+        private void SceneCreated(object? sender, SceneModifiedEventArgs e)
         {
             MessageBox.Show($"Scene '{e.SceneName}' created. Refresh the Scenes List using Get Scene List.");
-            return Task.CompletedTask;
         }
 
-        private Task SceneCollectionListChanged(object? sender, SceneCollectionListEventArgs e)
+        private void SceneCollectionListChanged(object? sender, SceneCollectionListEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task ReplayBufferStateChanged(object? sender, OutputStateChangedEventArgs e)
+        private void ReplayBufferStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task ReplayBufferSaved(object? sender, ReplayBufferSavedEventArgs e)
+        private void ReplayBufferSaved(object? sender, ReplayBufferSavedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task RecordStateChanged(object? sender, RecordStateChangedEventArgs e)
+        private void RecordStateChanged(object? sender, RecordStateChangedEventArgs e)
         {
             var active = e.OutputActive ? "Active" : "Inactive";
             RefreshRecordState($"{e.OutputState} ({active})");
             RefreshRecordFolder(e.OutputPath);
-            return Task.CompletedTask;
         }
 
-        private Task ProfileListChanged(object? sender, ProfileListEventArgs e)
+        private void ProfileListChanged(object? sender, ProfileListEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task MediaInputPlaybackStarted(object? sender, InputNameEventArgs e)
+        private void MediaInputPlaybackStarted(object? sender, InputNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task MediaInputPlaybackEnded(object? sender, InputNameEventArgs e)
+        private void MediaInputPlaybackEnded(object? sender, InputNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task MediaInputActionTriggered(object? sender, MediaInputActionTriggeredEventArgs e)
+        private void MediaInputActionTriggered(object? sender, MediaInputActionTriggeredEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputVolumeMeters(object? sender, InputVolumeMetersEventArgs e)
+        private void InputVolumeMeters(object? sender, InputVolumeMetersEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputVolumeChanged(object? sender, InputVolumeChangedEventArgs e)
+        private void InputVolumeChanged(object? sender, InputVolumeChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputShowStateChanged(object? sender, InputShowStateChangedEventArgs e)
+        private void InputShowStateChanged(object? sender, InputShowStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputRemoved(object? sender, InputNameEventArgs e)
+        private void InputRemoved(object? sender, InputNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputNameChanged(object? sender, InputNameChangedEventArgs e)
+        private void InputNameChanged(object? sender, InputNameChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputMuteStateChanged(object? sender, InputMuteStateChangedEventArgs e)
+        private void InputMuteStateChanged(object? sender, InputMuteStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputCreated(object? sender, InputCreatedEventArgs e)
+        private void InputCreated(object? sender, InputCreatedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputAudioTracksChanged(object? sender, InputAudioTracksChangedEventArgs e)
+        private void InputAudioTracksChanged(object? sender, InputAudioTracksChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputAudioSyncOffsetChanged(object? sender, InputAudioSyncOffsetChangedEventArgs e)
+        private void InputAudioSyncOffsetChanged(object? sender, InputAudioSyncOffsetChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputAudioMonitorTypeChanged(object? sender, InputAudioMonitorTypeChangedEventArgs e)
+        private void InputAudioMonitorTypeChanged(object? sender, InputAudioMonitorTypeChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputAudioBalanceChanged(object? sender, InputAudioBalanceChangedEventArgs e)
+        private void InputAudioBalanceChanged(object? sender, InputAudioBalanceChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task InputActiveStateChanged(object? sender, InputActiveStateChangedEventArgs e)
+        private void InputActiveStateChanged(object? sender, InputActiveStateChangedEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task ExitStarted(object? sender)
+        private void ExitStarted(object? sender, EventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CustomEvent(object? sender, CustomEventEventArgs e)
+        private void CustomEvent(object? sender, CustomEventEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentSceneTransitionDurationChanged(object? sender, TransitionDurationEventArgs e)
+        private void CurrentSceneTransitionDurationChanged(object? sender, TransitionDurationEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentSceneTransitionChanged(object? sender, TransitionNameEventArgs e)
+        private void CurrentSceneTransitionChanged(object? sender, TransitionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentSceneCollectionChanging(object? sender, SceneCollectionNameEventArgs e)
+        private void CurrentSceneCollectionChanging(object? sender, SceneCollectionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentSceneCollectionChanged(object? sender, SceneCollectionNameEventArgs e)
+        private void CurrentSceneCollectionChanged(object? sender, SceneCollectionNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentProgramSceneChanged(object? sender, SceneNameEventArgs e)
+        private void CurrentProgramSceneChanged(object? sender, SceneNameEventArgs e)
         {
-            return Task.CompletedTask;
+            MessageBox.Show(e.SceneName, "CurrentProgramSceneChanged");
         }
 
-        private Task CurrentProfileChanging(object? sender, ProfileNameEventArgs e)
+        private void CurrentProfileChanging(object? sender, ProfileNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentProfileChanged(object? sender, ProfileNameEventArgs e)
+        private void CurrentProfileChanged(object? sender, ProfileNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
-        private Task CurrentPreviewSceneChanged(object? sender, SceneNameEventArgs e)
+        private void CurrentPreviewSceneChanged(object? sender, SceneNameEventArgs e)
         {
-            return Task.CompletedTask;
         }
 
         private void RemoveItemFromListbox(object itemToRemove, ListBox listBox)
@@ -412,8 +361,6 @@ namespace SampleWindowsAppliation
             {
                 this.Text = $"{Title} - {_client.ConnectionState}";
             }
-
-            //Application.DoEvents();
         }
 
         private void RefreshListbox(ListBox listBox)
@@ -457,17 +404,16 @@ namespace SampleWindowsAppliation
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            var result = await _client.ConnectAsync(this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
+            var result = await _client.ConnectAsync(this.cbAutoReconnect.Checked, this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
             if (!result)
             {
                 MessageBox.Show("Could not connect.");
             }
         }
 
-        private Task ObsConnectionClosed(object? sender, ConnectionClosedEventArgs e)
+        private void ObsConnectionClosed(object? sender, ConnectionClosedEventArgs e)
         {
             MessageBox.Show($"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}", "Connection Closed");
-            return Task.CompletedTask;
         }
 
         private async void btnStartVirtualCam_Click(object sender, EventArgs e)
@@ -778,6 +724,11 @@ namespace SampleWindowsAppliation
         private async void button2_Click(object sender, EventArgs e)
         {
             await _client.SetRecordDirectory(this.tbRecordFolder.Text);
+        }
+
+        private void cbAutoReconnect_CheckedChanged(object sender, EventArgs e)
+        {
+            _client.AutoReconnect = this.cbAutoReconnect.Checked;
         }
     }
 }

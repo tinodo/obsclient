@@ -2,7 +2,8 @@
 {
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
-    using OBSStudioClient.Messages;
+    using OBSStudioClient.Responses;
+    using System.Text.Json;
 
     public partial class ObsClient
     {
@@ -28,7 +29,7 @@
         /// Broadcasts a CustomEvent to all WebSocket clients. Receivers are clients which are identified and subscribed.
         /// </summary>
         /// <param name="eventData">Data payload to emit to all receivers</param>
-        public async Task BroadcastCustomEvent(object eventData)
+        public async Task BroadcastCustomEvent(JsonElement eventData)
         {
             await this.SendRequestAsync(new { eventData });
         }
@@ -39,9 +40,9 @@
         /// <param name="vendorName">Name of the vendor to use</param>
         /// <param name="requestType">The request type to call</param>
         /// <param name="requestData">Object containing appropriate request data</param>
-        public async Task<CallVendorRequestResponse> CallVendorRequest(string vendorName, string requestType, object? requestData)
+        public async Task<CallVendorResponse> CallVendorRequest(string vendorName, string requestType, JsonElement? requestData)
         {
-            return await this.SendRequestAsync<CallVendorRequestResponse>(new { vendorName, requestType, requestData });
+            return await this.SendRequestAsync<CallVendorResponse>(new { vendorName, requestType, requestData });
         }
 
         /// <summary>
@@ -80,7 +81,7 @@
         /// <param name="sleepFrames">Number of frames to sleep for (if SERIAL_FRAME mode)</param>
         /// <exception cref="NotSupportedException"></exception>
         /// <remarks>
-        /// This method was only added for your reference. You can use Sleep in <see cref="SendRequestBatch(RequestBatchExecutionType, MessageClasses.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
+        /// This method was only added for your reference. You can use Sleep in <see cref="SendRequestBatchAsync(RequestBatchExecutionType, OBSStudioClient.Messages.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
         /// </remarks>
 #pragma warning disable IDE0060
         public void Sleep(int? sleepMillis, int? sleepFrames)

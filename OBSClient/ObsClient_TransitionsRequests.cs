@@ -1,6 +1,6 @@
 ﻿namespace OBSStudioClient
 {
-    using OBSStudioClient.Messages;
+    using OBSStudioClient.Responses;
 
     public partial class ObsClient
     {
@@ -25,10 +25,10 @@
         /// <summary>
         /// Gets information about the current scene transition.
         /// </summary>
-        /// <returns>A <see cref="ExtendedTransitionResponse"/></returns>
-        public async Task<ExtendedTransitionResponse> GetCurrentSceneTransition()
+        /// <returns>A <see cref="TransitionResponse"/></returns>
+        public async Task<TransitionResponse> GetCurrentSceneTransition()
         {
-            return await this.SendRequestAsync<ExtendedTransitionResponse>();
+            return await this.SendRequestAsync<TransitionResponse>();
         }
 
         /// <summary>
@@ -57,7 +57,7 @@
         /// </summary>
         /// <param name="transitionSettings">Settings object to apply to the transition. Can be {}</param>
         /// <param name="overlay">Whether to overlay over the current settings or replace them</param>
-        public async Task SetCurrentSceneTransitionSettings(ExtendedTransitionResponse? transitionSettings, bool overlay = true)
+        public async Task SetCurrentSceneTransitionSettings(TransitionResponse? transitionSettings, bool overlay = true)
         {
             await this.SendRequestAsync(new { transitionSettings, overlay });
         }
