@@ -2,6 +2,7 @@
 {
     using OBSStudioClient.Events;
 
+#pragma warning disable CS0067 // The event handlers are called through a MulticastDelegate, which is not detected by the compiler.
     public partial class ObsClient
     {
         //
@@ -359,4 +360,6 @@
         /// </remarks>
         public event EventHandler<ScreenshotSavedEventArgs>? ScreenshotSaved;
     }
+#pragma warning restore CS0067 // The event 'ObsClient.ExitStarted' is never used
+
 }
