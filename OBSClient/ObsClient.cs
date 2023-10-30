@@ -622,7 +622,8 @@
 
         private async Task ReceiverAsync(CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested && this._client.State != WebSocketState.CloseReceived)
+            var connectionLost = false;
+            while (!ct.IsCancellationRequested && this._client.State != WebSocketState.CloseReceived && !connectionLost)
             {
                 StringBuilder responseBuilder = new();
                 WebSocketReceiveResult received;
@@ -639,14 +640,19 @@
                     {
                         break;
                     }
-                    
+                    catch (WebSocketException)
+                    {
+                        connectionLost = true;
+                        break;
+                    }
+
                     this._totalBytesReceived += received.Count;
                     this._sessionBytesReceived += received.Count;
                     responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer[..received.Count]));
                 } while (!received.EndOfMessage);
 
                 // Process one message, if one was read... (could be that Disconnect() was called, as we were reading a large message.)
-                if (!ct.IsCancellationRequested && responseBuilder.Length > 0)
+                if (!ct.IsCancellationRequested && !connectionLost && responseBuilder.Length > 0)
                 {
                     this._totalMessagesReceived++;
                     this._sessionMessagesReceived++;
@@ -680,7 +686,7 @@
             {
                 // Closed the connection because OBS Studio closed it.
                 closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
-                closeDescription = this._client.CloseStatusDescription ?? "Unknown";
+                closeDescription = this._client.CloseStatusDescription ?? "Connection lost";
             }
 
             if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
