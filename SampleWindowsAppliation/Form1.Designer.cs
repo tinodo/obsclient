@@ -136,6 +136,16 @@
             label8 = new Label();
             tbRecordFolder = new TextBox();
             cbAutoReconnect = new CheckBox();
+            lblBytesOut = new Label();
+            label10 = new Label();
+            lblBytesIn = new Label();
+            label12 = new Label();
+            lblMessagesIn = new Label();
+            label11 = new Label();
+            lblMessagesOut = new Label();
+            label14 = new Label();
+            label9 = new Label();
+            lblLastEvent = new Label();
             ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
             tabControl1.SuspendLayout();
             tpGeneralRequests.SuspendLayout();
@@ -1277,11 +1287,111 @@
             cbAutoReconnect.UseVisualStyleBackColor = true;
             cbAutoReconnect.CheckedChanged += this.cbAutoReconnect_CheckedChanged;
             // 
+            // lblBytesOut
+            // 
+            lblBytesOut.AutoSize = true;
+            lblBytesOut.Location = new Point(752, 18);
+            lblBytesOut.Name = "lblBytesOut";
+            lblBytesOut.Size = new Size(27, 32);
+            lblBytesOut.TabIndex = 32;
+            lblBytesOut.Text = "0";
+            // 
+            // label10
+            // 
+            label10.AutoSize = true;
+            label10.Location = new Point(594, 18);
+            label10.Name = "label10";
+            label10.Size = new Size(131, 32);
+            label10.TabIndex = 31;
+            label10.Text = "Bytes Sent:";
+            // 
+            // lblBytesIn
+            // 
+            lblBytesIn.AutoSize = true;
+            lblBytesIn.Location = new Point(752, 60);
+            lblBytesIn.Name = "lblBytesIn";
+            lblBytesIn.Size = new Size(27, 32);
+            lblBytesIn.TabIndex = 34;
+            lblBytesIn.Text = "0";
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.Location = new Point(594, 60);
+            label12.Name = "label12";
+            label12.Size = new Size(146, 32);
+            label12.TabIndex = 33;
+            label12.Text = "Bytes Recvd:";
+            // 
+            // lblMessagesIn
+            // 
+            lblMessagesIn.AutoSize = true;
+            lblMessagesIn.Location = new Point(752, 150);
+            lblMessagesIn.Name = "lblMessagesIn";
+            lblMessagesIn.Size = new Size(27, 32);
+            lblMessagesIn.TabIndex = 38;
+            lblMessagesIn.Text = "0";
+            // 
+            // label11
+            // 
+            label11.AutoSize = true;
+            label11.Location = new Point(594, 150);
+            label11.Name = "label11";
+            label11.Size = new Size(145, 32);
+            label11.TabIndex = 37;
+            label11.Text = "Msgs Recvd:";
+            // 
+            // lblMessagesOut
+            // 
+            lblMessagesOut.AutoSize = true;
+            lblMessagesOut.Location = new Point(752, 108);
+            lblMessagesOut.Name = "lblMessagesOut";
+            lblMessagesOut.Size = new Size(27, 32);
+            lblMessagesOut.TabIndex = 36;
+            lblMessagesOut.Text = "0";
+            // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new Point(594, 108);
+            label14.Name = "label14";
+            label14.Size = new Size(130, 32);
+            label14.TabIndex = 35;
+            label14.Text = "Msgs Sent:";
+            // 
+            // label9
+            // 
+            label9.AutoSize = true;
+            label9.Location = new Point(594, 194);
+            label9.Name = "label9";
+            label9.Size = new Size(126, 32);
+            label9.TabIndex = 39;
+            label9.Text = "Last Event:";
+            // 
+            // lblLastEvent
+            // 
+            lblLastEvent.AutoSize = true;
+            lblLastEvent.Location = new Point(752, 194);
+            lblLastEvent.Name = "lblLastEvent";
+            lblLastEvent.Size = new Size(56, 32);
+            lblLastEvent.TabIndex = 40;
+            lblLastEvent.Text = "N/A";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new SizeF(13F, 32F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(1986, 849);
+            this.Controls.Add(lblLastEvent);
+            this.Controls.Add(label9);
+            this.Controls.Add(lblMessagesIn);
+            this.Controls.Add(label11);
+            this.Controls.Add(lblMessagesOut);
+            this.Controls.Add(label14);
+            this.Controls.Add(lblBytesIn);
+            this.Controls.Add(label12);
+            this.Controls.Add(lblBytesOut);
+            this.Controls.Add(label10);
             this.Controls.Add(cbAutoReconnect);
             this.Controls.Add(tbRecordFolder);
             this.Controls.Add(label8);
@@ -1429,5 +1539,15 @@
         private Label label8;
         private TextBox tbRecordFolder;
         private CheckBox cbAutoReconnect;
+        private Label lblBytesOut;
+        private Label label10;
+        private Label lblBytesIn;
+        private Label label12;
+        private Label lblMessagesIn;
+        private Label label11;
+        private Label lblMessagesOut;
+        private Label label14;
+        private Label label9;
+        private Label lblLastEvent;
     }
 }

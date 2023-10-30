@@ -2,6 +2,7 @@ namespace SampleWindowsAppliation
 {
     using System.ComponentModel;
     using System.Diagnostics;
+    using System.Reflection;
     using OBSStudioClient;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Events;
@@ -9,23 +10,26 @@ namespace SampleWindowsAppliation
     public partial class Form1 : Form
     {
         private readonly ObsClient _client = new();
-        
+
         private delegate void SafeListboxRemove(object itemToRemove, ListBox listBox);
-        
+
         private delegate void SafeListboxRefresh(ListBox listBox);
-        
+
         private delegate void SafeUpdateTitle();
-        
-        private delegate void SafeUpdateRecordState(string text);
-        
-        private delegate void SafeUpdateRecordFolder(string text);
-        
+
+        private delegate void SafeLabelUpdate(Label label, string text);
+
+        private delegate void SafeTextBoxUpdate(TextBox label, string text);
+
         private const string Title = "Obs Client";
+
+        private System.Threading.Timer _meticsTimer;
 
         public Form1()
         {
             InitializeComponent();
-            _client.ConnectionClosed += ObsConnectionClosed;
+
+            _client.ConnectionClosed += ConnectionClosed;
             _client.CurrentPreviewSceneChanged += CurrentPreviewSceneChanged;
             _client.CurrentProfileChanged += CurrentProfileChanged;
             _client.CurrentProfileChanging += CurrentProfileChanging;
@@ -83,7 +87,16 @@ namespace SampleWindowsAppliation
 
             _client.PropertyChanged += PropertyChanged;
 
+            _meticsTimer = new System.Threading.Timer(new TimerCallback(MetricsTimerCallback), null, 1000, 1000);
             this.UpdateTitle();
+        }
+
+        private void MetricsTimerCallback(object? state)
+        {
+            LabelUpdate(this.lblBytesIn, $"{_client.SessionBytesReceived}/{_client.TotalBytesReceived}");
+            LabelUpdate(this.lblBytesOut, $"{_client.SessionBytesSent}/{_client.TotalBytesSent}");
+            LabelUpdate(this.lblMessagesIn, $"{_client.SessionMessagesReceived}/{_client.TotalMessagesReceived}");
+            LabelUpdate(this.lblMessagesOut, $"{_client.SessionMessagesSent}/{_client.TotalMessagesSent}");
         }
 
         private void PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -98,58 +111,72 @@ namespace SampleWindowsAppliation
 
         private void VirtualcamStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void VendorEvent(object? sender, VendorEventEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void StudioModeStateChanged(object? sender, StudioModeStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void StreamStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SourceFilterRemoved(object? sender, SourceFilterRemovedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SourceFilterNameChanged(object? sender, SourceFilterNameChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SourceFilterListReindexed(object? sender, SourceFiltersEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SourceFilterEnableStateChanged(object? sender, SourceFilterEnableStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SourceFilterCreated(object? sender, SourceFilterCreatedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void ScreenshotSaved(object? sender, ScreenshotSavedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneTransitionVideoEnded(object? sender, TransitionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneTransitionStarted(object? sender, TransitionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneTransitionEnded(object? sender, TransitionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneRemoved(object? sender, SceneModifiedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
             Scene? scene = null;
             foreach (Scene s in this.lbScenes.Items)
             {
@@ -168,168 +195,208 @@ namespace SampleWindowsAppliation
 
         private void SceneNameChanged(object? sender, SceneNameChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
             MessageBox.Show($"Scene '{e.OldSceneName}' was renamed to '{e.SceneName}'. Refresh the Scenes List using Get Scene List.");
         }
 
         private void SceneListChanged(object? sender, SceneListEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemTransformChanged(object? sender, SceneItemTransformChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemSelected(object? sender, SceneItemSelectedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemRemoved(object? sender, SceneItemRemovedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemLockStateChanged(object? sender, SceneItemLockStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemListReindexed(object? sender, SceneItemListReindexedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemEnableStateChanged(object? sender, SceneItemEnableStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneItemCreated(object? sender, SceneItemCreatedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void SceneCreated(object? sender, SceneModifiedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
             MessageBox.Show($"Scene '{e.SceneName}' created. Refresh the Scenes List using Get Scene List.");
         }
 
         private void SceneCollectionListChanged(object? sender, SceneCollectionListEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void ReplayBufferStateChanged(object? sender, OutputStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void ReplayBufferSaved(object? sender, ReplayBufferSavedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void RecordStateChanged(object? sender, RecordStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
             var active = e.OutputActive ? "Active" : "Inactive";
-            RefreshRecordState($"{e.OutputState} ({active})");
-            RefreshRecordFolder(e.OutputPath);
+            LabelUpdate(this.lblRecordState, $"{e.OutputState} ({active})");
+            TexBoxUpdate(this.tbRecordFolder, e.OutputPath);
         }
 
         private void ProfileListChanged(object? sender, ProfileListEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void MediaInputPlaybackStarted(object? sender, InputNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void MediaInputPlaybackEnded(object? sender, InputNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void MediaInputActionTriggered(object? sender, MediaInputActionTriggeredEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputVolumeMeters(object? sender, InputVolumeMetersEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputVolumeChanged(object? sender, InputVolumeChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputShowStateChanged(object? sender, InputShowStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputRemoved(object? sender, InputNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputNameChanged(object? sender, InputNameChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputMuteStateChanged(object? sender, InputMuteStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputCreated(object? sender, InputCreatedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputAudioTracksChanged(object? sender, InputAudioTracksChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputAudioSyncOffsetChanged(object? sender, InputAudioSyncOffsetChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputAudioMonitorTypeChanged(object? sender, InputAudioMonitorTypeChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputAudioBalanceChanged(object? sender, InputAudioBalanceChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void InputActiveStateChanged(object? sender, InputActiveStateChangedEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void ExitStarted(object? sender, EventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CustomEvent(object? sender, CustomEventEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentSceneTransitionDurationChanged(object? sender, TransitionDurationEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentSceneTransitionChanged(object? sender, TransitionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentSceneCollectionChanging(object? sender, SceneCollectionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentSceneCollectionChanged(object? sender, SceneCollectionNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentProgramSceneChanged(object? sender, SceneNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
             MessageBox.Show(e.SceneName, "CurrentProgramSceneChanged");
         }
 
         private void CurrentProfileChanging(object? sender, ProfileNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentProfileChanged(object? sender, ProfileNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void CurrentPreviewSceneChanged(object? sender, SceneNameEventArgs e)
         {
+            LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
         }
 
         private void RemoveItemFromListbox(object itemToRemove, ListBox listBox)
@@ -376,32 +443,31 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private void RefreshRecordState(string text)
+        private void TexBoxUpdate(TextBox textBox, string text)
         {
-            if (lblRecordState.InvokeRequired)
+            if (textBox.InvokeRequired)
             {
-                var d = new SafeUpdateRecordState(RefreshRecordState);
-                lblRecordState.Invoke(d, new object[] { text });
+                var d = new SafeTextBoxUpdate(TexBoxUpdate);
+                textBox.Invoke(d, new object[] { textBox, text });
             }
             else
             {
-                lblRecordState.Text = text;
+                textBox.Text = text;
             }
         }
 
-        private void RefreshRecordFolder(string text)
+        private void LabelUpdate(Label label, string text)
         {
-            if (tbRecordFolder.InvokeRequired)
+            if (label.InvokeRequired)
             {
-                var d = new SafeUpdateRecordFolder(RefreshRecordFolder);
-                tbRecordFolder.Invoke(d, new object[] { text });
+                var d = new SafeLabelUpdate(LabelUpdate);
+                label.Invoke(d, new object[] { label, text });
             }
             else
             {
-                tbRecordFolder.Text = text;
+                label.Text = text;
             }
         }
-
         private async void button1_Click(object sender, EventArgs e)
         {
             var result = await _client.ConnectAsync(this.cbAutoReconnect.Checked, this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
@@ -411,7 +477,7 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private void ObsConnectionClosed(object? sender, ConnectionClosedEventArgs e)
+        private void ConnectionClosed(object? sender, ConnectionClosedEventArgs e)
         {
             MessageBox.Show($"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}", "Connection Closed");
         }
@@ -523,7 +589,7 @@ namespace SampleWindowsAppliation
         private async void btnGetRecordDirectory_Click(object sender, EventArgs e)
         {
             var recordDirectory = await _client.GetRecordDirectory();
-            RefreshRecordFolder(recordDirectory);
+            TexBoxUpdate(this.tbRecordFolder, recordDirectory);
         }
 
         private async void btnGetSceneList_Click(object sender, EventArgs e)
