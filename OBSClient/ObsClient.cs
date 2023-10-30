@@ -43,7 +43,10 @@
 
         private EventSubscriptions _eventSubscriptions = EventSubscriptions.All;
 
-        private CancellationTokenSource _cancellationTokenSource = new();
+        /// <summary>
+        /// Used to cancel the ReceiverAsync task, e.g. you called the Disconnect() method.
+        /// </summary>
+        private CancellationTokenSource _receiver = new();
         
         private ConnectionState _connectionState = ConnectionState.Disconnected;
         
@@ -382,7 +385,7 @@
             this._uri = uri;
             this._password = password;
             this._eventSubscriptions = eventSubscription;
-            this._cancellationTokenSource = new CancellationTokenSource();
+            this._receiver = new CancellationTokenSource();
             this._authenticationComplete = new();
 
             return await this.StartAsync();
@@ -394,7 +397,7 @@
         public void Disconnect()
         {
             this.AutoReconnect = false;
-            this._cancellationTokenSource.Cancel();
+            this._receiver.Cancel();
         }
 
         /// <summary>
@@ -475,7 +478,7 @@
 
             try
             {
-                await this._client.ConnectAsync(this._uri, this._cancellationTokenSource.Token);
+                await this._client.ConnectAsync(this._uri, this._receiver.Token);
             }
             catch (WebSocketException)
             {
@@ -483,7 +486,7 @@
                 return false;
             }
 
-            _ = Task.Run(() => this.ReceiverAsync(this._cancellationTokenSource.Token));
+            _ = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
             return this._authenticationComplete.Task.Result;
         }
 
@@ -610,54 +613,43 @@
             Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
-            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._cancellationTokenSource.Token);
+            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token);
             this._totalBytesSent += bytes.LongLength;
             this._sessionBytesSent += bytes.LongLength;
             this._totalMessagesSent++;
             this._sessionMessagesSent++;
         }
 
-        private async Task ReceiverAsync(CancellationToken cancellationToken)
+        private async Task ReceiverAsync(CancellationToken ct)
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!ct.IsCancellationRequested && this._client.State != WebSocketState.CloseReceived)
             {
                 StringBuilder responseBuilder = new();
+                WebSocketReceiveResult received;
+                var receiveBuffer = new byte[_receiveBufferSize];
 
-                // Read one message.
-                while (true)
+                // Read one message...
+                do
                 {
                     try
                     {
-                        var bytes = new byte[_receiveBufferSize];
-                        var res = await this._client.ReceiveAsync(bytes, cancellationToken);
-                        this._totalBytesReceived += res.Count;
-                        this._sessionBytesReceived += res.Count;
-
-                        if (res.MessageType == WebSocketMessageType.Close)
-                        {
-                            WebSocketCloseCode closeCode = res.CloseStatus.HasValue ? (WebSocketCloseCode)(int)res.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
-                            await this.CloseConnectionAsync(closeCode, res.CloseStatusDescription ?? "Unknown");
-                            break;
-                        }
-
-                        responseBuilder.Append(Encoding.UTF8.GetString(bytes[..res.Count]));
-
-                        if (res.EndOfMessage)
-                        {
-                            this._totalMessagesReceived++;
-                            this._sessionMessagesReceived++;
-                            break;
-                        }
+                        received = await this._client.ReceiveAsync(receiveBuffer, ct);
                     }
                     catch (TaskCanceledException)
                     {
                         break;
                     }
-                };
+                    
+                    this._totalBytesReceived += received.Count;
+                    this._sessionBytesReceived += received.Count;
+                    responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer[..received.Count]));
+                } while (!received.EndOfMessage);
 
-                // Process message
-                if (!cancellationToken.IsCancellationRequested && responseBuilder.Length > 0)
+                // Process one message, if one was read... (could be that Disconnect() was called, as we were reading a large message.)
+                if (!ct.IsCancellationRequested && responseBuilder.Length > 0)
                 {
+                    this._totalMessagesReceived++;
+                    this._sessionMessagesReceived++;
                     var response = responseBuilder.ToString();
                     Debug.WriteLine($"Received: {response}");
                     if (JsonSerializer.Deserialize<ObsMessage>(response) is ObsMessage responseMessage)
@@ -671,31 +663,43 @@
                 }
             }
 
-            this.ConnectionState = ConnectionState.Disconnected;
-            this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(WebSocketCloseCode.NormalClosure, "Disconnecting due to request."));
-            this._sessionBytesReceived = 0;
-            this._sessionBytesSent = 0;
-            this._sessionMessagesReceived = 0;
-            this._sessionMessagesSent = 0;
+            WebSocketCloseCode closeCode;
+            string closeDescription;
+            if (ct.IsCancellationRequested)
+            {
+                // Closed the connection because you called Disconnect().
+                closeCode = WebSocketCloseCode.NormalClosure;
+                closeDescription = "Disconnecting due to request.";
+            }
+            else
+            {
+                // Closed the connection because OBS Studio closed it.
+                closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
+                closeDescription = this._client.CloseStatusDescription ?? "Unknown";
+            }
+
+            await this.CloseConnectionAsync(closeCode, closeDescription);
         }
 
         private async Task CloseConnectionAsync(WebSocketCloseCode closeCode, string closeDescription)
         {
-            this.ConnectionState = ConnectionState.Disconnecting;
-            await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+            if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
+            {
+                this.ConnectionState = ConnectionState.Disconnecting;
+                await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+            }
+
             this.ConnectionState = ConnectionState.Disconnected;
             _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)));
+            this._sessionBytesReceived = 0;
+            this._sessionBytesSent = 0;
+            this._sessionMessagesReceived = 0;
+            this._sessionMessagesSent = 0;
             if (closeCode == WebSocketCloseCode.AuthenticationFailed && this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
             {
                 this._authenticationComplete.SetResult(false);
             }
-            else
-            {
-                this._sessionBytesReceived = 0;
-                this._sessionBytesSent = 0;
-                this._sessionMessagesReceived = 0;
-                this._sessionMessagesSent = 0;
-            }
+
         }
 
         private async Task<IMessage> SendAndWaitAsync(dynamic request)
