@@ -576,8 +576,22 @@
             }
         }
 
-        private async Task ProcessReceivedMessageAsync(ObsMessage message)
+        private async Task ProcessReceivedMessageAsync(StringBuilder responseBuilder)
         {
+            if (responseBuilder.Length == 0)
+            {
+                return;
+            }
+
+            this._totalMessagesReceived++;
+            this._sessionMessagesReceived++;
+            var response = responseBuilder.ToString();
+            Debug.WriteLine($"Received: {response}");
+            if (JsonSerializer.Deserialize<ObsMessage>(response) is not ObsMessage message)
+            {
+                throw new ObsClientException($"Could not read message from OBS Studio.");
+            }
+
             switch (message.Op)
             {
                 case OpCode.Hello:
@@ -628,7 +642,6 @@
                 WebSocketReceiveResult received;
                 var receiveBuffer = new byte[_receiveBufferSize];
 
-                // Read one message...
                 do
                 {
                     try
@@ -649,24 +662,9 @@
                     responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer[..received.Count]));
                 } while (!received.EndOfMessage);
 
-                // Process one message, if one was read... (could be that Disconnect() was called, as we were reading a large message.)
                 if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted) break;
-
-                if (responseBuilder.Length > 0)
-                {
-                    this._totalMessagesReceived++;
-                    this._sessionMessagesReceived++;
-                    var response = responseBuilder.ToString();
-                    Debug.WriteLine($"Received: {response}");
-                    if (JsonSerializer.Deserialize<ObsMessage>(response) is ObsMessage responseMessage)
-                    {
-                        _ = Task.Run(() => this.ProcessReceivedMessageAsync(responseMessage), CancellationToken.None).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw new ObsClientException($"Could not read message from OBS Studio.");
-                    }
-                }
+                
+                _ = Task.Run(() => this.ProcessReceivedMessageAsync(responseBuilder), CancellationToken.None).ConfigureAwait(false);
             }
 
             await this.CloseConnectionAsync(ct.IsCancellationRequested);
