@@ -5,7 +5,7 @@ Currently implementing: [**obs-websocket 5.3.0 Protocol**](https://github.com/ob
 ## Version 2
 We're working on Version 2 of the client. You can download and use our first preview version.
 Although the changes between v1 and v2 are not huge, they are breaking compatibility with previous versions, so we decided to bump the major version. (See: [SemVer](https://semver.org/))
-
+The main goal for Version 2 is to reduce (cognitive) complexity and improve the overall design of the client.
 For now, the main branch will contain the latest preview version of the code. For future releases (post V2-release), we will use seperate branches.
 
 ## Installation

@@ -622,8 +622,7 @@
 
         private async Task ReceiverAsync(CancellationToken ct)
         {
-            var connectionLost = false;
-            while (!ct.IsCancellationRequested && this._client.State != WebSocketState.CloseReceived && !connectionLost)
+            while (true)
             {
                 StringBuilder responseBuilder = new();
                 WebSocketReceiveResult received;
@@ -642,7 +641,6 @@
                     }
                     catch (WebSocketException)
                     {
-                        connectionLost = true;
                         break;
                     }
 
@@ -652,7 +650,9 @@
                 } while (!received.EndOfMessage);
 
                 // Process one message, if one was read... (could be that Disconnect() was called, as we were reading a large message.)
-                if (!ct.IsCancellationRequested && !connectionLost && responseBuilder.Length > 0)
+                if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted) break;
+
+                if (responseBuilder.Length > 0)
                 {
                     this._totalMessagesReceived++;
                     this._sessionMessagesReceived++;
