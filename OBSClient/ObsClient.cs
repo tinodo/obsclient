@@ -663,9 +663,14 @@
                 }
             }
 
+            await this.CloseConnectionAsync(ct.IsCancellationRequested);
+        }
+
+        private async Task CloseConnectionAsync(bool closeRequested)
+        {
             WebSocketCloseCode closeCode;
             string closeDescription;
-            if (ct.IsCancellationRequested)
+            if (closeRequested)
             {
                 // Closed the connection because you called Disconnect().
                 closeCode = WebSocketCloseCode.NormalClosure;
@@ -678,11 +683,6 @@
                 closeDescription = this._client.CloseStatusDescription ?? "Unknown";
             }
 
-            await this.CloseConnectionAsync(closeCode, closeDescription);
-        }
-
-        private async Task CloseConnectionAsync(WebSocketCloseCode closeCode, string closeDescription)
-        {
             if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
             {
                 this.ConnectionState = ConnectionState.Disconnecting;
@@ -699,7 +699,6 @@
             {
                 this._authenticationComplete.SetResult(false);
             }
-
         }
 
         private async Task<IMessage> SendAndWaitAsync(dynamic request)
