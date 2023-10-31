@@ -105,7 +105,7 @@
             tpOutputsRequests = new TabPage();
             bnGetStreamStatus = new Button();
             tbRecordRequests = new TabPage();
-            button2 = new Button();
+            btnSetRecordDirectory = new Button();
             btnResumeRecord = new Button();
             btnPauseRecord = new Button();
             btnToggleRecordPause = new Button();
@@ -125,6 +125,8 @@
             btnOpenInputInteractDialog = new Button();
             btnOpenInputFiltersDialog = new Button();
             btnOpenInputPropertiesDialog = new Button();
+            tpMisc = new TabPage();
+            btnBatch1 = new Button();
             lbScenes = new ListBox();
             label4 = new Label();
             label5 = new Label();
@@ -156,6 +158,7 @@
             tpOutputsRequests.SuspendLayout();
             tbRecordRequests.SuspendLayout();
             tpUIRequests.SuspendLayout();
+            tpMisc.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
@@ -535,6 +538,7 @@
             tabControl1.Controls.Add(tpStreamRequests);
             tabControl1.Controls.Add(tpTransitionsRequests);
             tabControl1.Controls.Add(tpUIRequests);
+            tabControl1.Controls.Add(tpMisc);
             tabControl1.Location = new Point(23, 261);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -972,7 +976,7 @@
             // 
             // tbRecordRequests
             // 
-            tbRecordRequests.Controls.Add(button2);
+            tbRecordRequests.Controls.Add(btnSetRecordDirectory);
             tbRecordRequests.Controls.Add(btnResumeRecord);
             tbRecordRequests.Controls.Add(btnPauseRecord);
             tbRecordRequests.Controls.Add(btnToggleRecordPause);
@@ -987,15 +991,15 @@
             tbRecordRequests.Text = "Record Requests";
             tbRecordRequests.UseVisualStyleBackColor = true;
             // 
-            // button2
+            // btnSetRecordDirectory
             // 
-            button2.Location = new Point(3, 368);
-            button2.Name = "button2";
-            button2.Size = new Size(340, 46);
-            button2.TabIndex = 16;
-            button2.Text = "Set Record Directory";
-            button2.UseVisualStyleBackColor = true;
-            button2.Click += this.button2_Click;
+            btnSetRecordDirectory.Location = new Point(3, 368);
+            btnSetRecordDirectory.Name = "btnSetRecordDirectory";
+            btnSetRecordDirectory.Size = new Size(340, 46);
+            btnSetRecordDirectory.TabIndex = 16;
+            btnSetRecordDirectory.Text = "Set Record Directory";
+            btnSetRecordDirectory.UseVisualStyleBackColor = true;
+            btnSetRecordDirectory.Click += this.btnSetRecordDirectory_Click;
             // 
             // btnResumeRecord
             // 
@@ -1186,6 +1190,26 @@
             btnOpenInputPropertiesDialog.TabIndex = 13;
             btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
             btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
+            // 
+            // tpMisc
+            // 
+            tpMisc.Controls.Add(btnBatch1);
+            tpMisc.Location = new Point(8, 46);
+            tpMisc.Name = "tpMisc";
+            tpMisc.Size = new Size(1241, 450);
+            tpMisc.TabIndex = 13;
+            tpMisc.Text = "Misc";
+            tpMisc.UseVisualStyleBackColor = true;
+            // 
+            // btnBatch1
+            // 
+            btnBatch1.Location = new Point(24, 18);
+            btnBatch1.Name = "btnBatch1";
+            btnBatch1.Size = new Size(1191, 46);
+            btnBatch1.TabIndex = 23;
+            btnBatch1.Text = "Toggle Cam, Sleep 5 seconds, Toggle Cam";
+            btnBatch1.UseVisualStyleBackColor = true;
+            btnBatch1.Click += this.btnBatch1_Click;
             // 
             // lbScenes
             // 
@@ -1425,6 +1449,7 @@
             tpOutputsRequests.ResumeLayout(false);
             tbRecordRequests.ResumeLayout(false);
             tpUIRequests.ResumeLayout(false);
+            tpMisc.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -1535,7 +1560,7 @@
         private Button btnGetRecordStatus;
         private Label label7;
         private Label lblRecordState;
-        private Button button2;
+        private Button btnSetRecordDirectory;
         private Label label8;
         private TextBox tbRecordFolder;
         private CheckBox cbAutoReconnect;
@@ -1549,5 +1574,7 @@
         private Label label14;
         private Label label9;
         private Label lblLastEvent;
+        private TabPage tpMisc;
+        private Button btnBatch1;
     }
 }

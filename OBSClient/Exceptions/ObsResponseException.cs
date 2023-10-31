@@ -13,7 +13,7 @@
     /// For example, when you call GetCurrentPreviewScene, but Studio Mode is not turned on in OBS Studio.
     /// </remarks>
     [Serializable]
-    public class ObsResponseException : Exception
+    public class ObsResponseException : ObsClientException
     {
         /// <summary>
         /// Gets the <see cref="RequestType"/> for the exception.
@@ -34,7 +34,7 @@
         /// Initializes a new instance of the <see cref="ObsResponseException"/> class.
         /// </summary>
         /// <param name="requestStatus">The <see cref="RequestStatus"/> to get the exception information from.</param>
-        public ObsResponseException(RequestStatus requestStatus)
+        public ObsResponseException(RequestStatus requestStatus) : base(requestStatus.Comment ?? requestStatus.Code.ToString())
         {
             this.ErrorCode = requestStatus.Code;
             this.ErrorMessage = requestStatus.Comment;
@@ -45,7 +45,7 @@
         /// </summary>
         /// <param name="errorCode">The <see cref="RequestType"/> for the exception.</param>
         /// <param name="errorMessage">The error message for the exception.</param>
-        public ObsResponseException(RequestStatusCode errorCode, string? errorMessage)
+        public ObsResponseException(RequestStatusCode errorCode, string? errorMessage) : base(errorMessage ?? errorCode.ToString())
         {
             this.ErrorCode = errorCode;
             this.ErrorMessage = errorMessage;

@@ -400,6 +400,7 @@
             this._receiver.Cancel();
         }
 
+        /*
         /// <summary>
         /// Sends a Batch Request.
         /// </summary>
@@ -416,6 +417,28 @@
             var executionType = (int)requestBatchExecutionType;
             var requestId = Guid.NewGuid().ToString();
             var d = new { requestId, haltOnFailure, executionType, requests };
+            var op = (int)OpCode.RequestBatch;
+
+            var result = await this.SendAndWaitAsync(new { d, op });
+            if (result is RequestBatchResponseMessage requestBatchResponseData)
+            {
+                return requestBatchResponseData.Results;
+            }
+
+            throw new ObsClientException($"Unexpected response type {result?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
+        }
+        */
+
+        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int timeOutInMilliseconds = 500)
+        {
+            TaskCompletionSource<IMessage> tcs = new();
+            CancellationTokenSource cts = new(timeOutInMilliseconds);
+            cts.Token.Register(() => tcs.TrySetCanceled(), false);
+
+            var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
+            var requestId = requestBatchMessage.RequestId;
+            var requests = requestBatchMessage.Requests.ToArray();
+            var d = new { requestId, requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
             var result = await this.SendAndWaitAsync(new { d, op });

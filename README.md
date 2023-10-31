@@ -13,7 +13,7 @@ Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)
 Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 1.4.0`  
 From the command line: `dotnet add package OBSClient --version 1.4.0`  
 
-## Sample usage
+## Sample usages
 ```
 ObsClient client = new();
 bool isConnected = await client.ConnectAsync();
@@ -25,6 +25,19 @@ if (isConnected)
 }
 ```
 
+```
+ObsClient client = new();
+bool isConnected = await client.ConnectAsync(true, "P@ssw0rd", "localhost", 4455, EventSubscriptions.Filters | EventSubscriptions.Scenes);
+if (isConnected)
+{
+    RequestMessage request1 = new(RequestType.ToggleVirtualCam, "1001");
+    RequestMessage request2 = new(RequestType.Sleep, "1002", new { sleepMillis = 5000 });
+    RequestMessage request3 = new(RequestType.ToggleVirtualCam, "1003");
+    RequestMessage[] requests = new RequestMessage[] { request1, request2, request3 };
+    var result = await _client.SendRequestBatchAsync(RequestBatchExecutionType.SerialRealtime, requests, true);
+    client.Disconnect();
+}
+```
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tinodo_obsclient&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tinodo_obsclient)
 ![Build](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)

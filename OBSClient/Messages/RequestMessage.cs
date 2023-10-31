@@ -1,14 +1,18 @@
 ﻿namespace OBSStudioClient.Messages
 {
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Events;
     using OBSStudioClient.Interfaces;
+    using OBSStudioClient.Requests;
+    using OBSStudioClient.Responses;
+    using System.Runtime.CompilerServices;
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
     /// <summary>
     /// Class for Request Messages
     /// </summary>
-    public class RequestMessage : IMessage, IJsonOnSerializing
+    public class RequestMessage : IMessage
     {
         /// <summary>
         /// The type of request.
@@ -27,13 +31,23 @@
         /// The raw JSON request data.
         /// </summary>
         [JsonPropertyName("requestData")]
-        public JsonElement? RawRequestData { get; private set; }
+        public JsonElement? RequestData { get; }
 
         /// <summary>
-        /// The deserialized request data.
+        /// Creates a new instance of a <see cref="RequestMessage"/> object using an <see cref="IRequest"/> object.
         /// </summary>
-        [JsonIgnore]
-        public IRequest? RequestData { get; }
+        /// <param name="callingMethod">The caller of this method.</param>
+        protected internal RequestMessage([CallerMemberName] string callingMethod = "")
+        {
+            if (!Enum.TryParse<RequestType>(callingMethod[3..^7], out var requestType))
+            {
+                throw new ArgumentException("Name has to reflect a request type.", nameof(callingMethod));
+            }
+
+            this.RequestType = requestType;
+            this.RequestId = Guid.NewGuid().ToString();
+            this.RequestData = null;
+        }
 
         /// <summary>
         /// Creates a new instance of a <see cref="RequestMessage"/> object.
@@ -41,51 +55,30 @@
         /// <param name="requestType">The type of request.</param>
         /// <param name="requestId">The identifier of the request.</param>
         /// <param name="requestData">The raw JSON request data.</param>
+        /// <remarks>This constructor should never be called.</remarks>
         [JsonConstructor]
         public RequestMessage(RequestType requestType, string requestId, JsonElement requestData)
         {
             this.RequestType = requestType;
             this.RequestId = requestId;
-            this.RawRequestData = requestData;
-            this.RequestData = null;
+            this.RequestData = requestData;
         }
 
         /// <summary>
         /// Creates a new instance of a <see cref="RequestMessage"/> object.
         /// </summary>
-        /// <param name="requestType">The type of request.</param>
-        /// <param name="requestId">The identifier of the request.</param>
         /// <param name="requestData">Dynamic object to be deserialized into request data.</param>
-        public RequestMessage(RequestType requestType, string requestId, dynamic requestData)
+        /// <param name="callingMethod">The caller of this method.</param>
+        protected internal RequestMessage(dynamic requestData, [CallerMemberName] string callingMethod = "")
         {
-            this.RequestType = requestType;
-            this.RequestId = requestId;
-            this.RawRequestData = JsonSerializer.SerializeToElement(requestData);
-            this.RequestData = null;
-        }
-
-        /// <summary>
-        /// Creates a new instance of a <see cref="RequestMessage"/> object with empty request data.
-        /// </summary>
-        /// <param name="requestType">The type of request.</param>
-        /// <param name="requestId">The identifier of the request.</param>
-        public RequestMessage(RequestType requestType, string requestId)
-        {
-            this.RequestType = requestType;
-            this.RequestId = requestId;
-            this.RawRequestData = null;
-            this.RequestData = null;
-        }
-
-        /// <summary>
-        /// Serializes the Request Data object into JSON.
-        /// </summary>
-        public void OnSerializing()
-        {
-            if (this.RequestData != null)
+            if (!Enum.TryParse<RequestType>(callingMethod[3..^7], out var requestType))
             {
-                this.RawRequestData = JsonSerializer.SerializeToElement(this.RequestData, this.RequestData.GetType());
+                throw new ArgumentException("Name has to reflect a request type.", nameof(callingMethod));
             }
+
+            this.RequestType = requestType;
+            this.RequestId = Guid.NewGuid().ToString();
+            this.RequestData = JsonSerializer.SerializeToElement(requestData);
         }
     }
 }

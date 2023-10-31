@@ -7,7 +7,7 @@
     /// <summary>
     /// Class for a Request Batch Message
     /// </summary>
-    public class RequestBatchMessage : IMessage
+    public partial class RequestBatchMessage : IMessage
     {
         /// <summary>
         /// The identifier of the request.
@@ -19,20 +19,21 @@
         /// Whether to stop processing requests when a failure occurs.
         /// </summary>
         [JsonPropertyName("haltOnFailure")]
-        public bool? HaltOnFailure { get; }
+        public bool HaltOnFailure { get; }
 
         /// <summary>
         /// The indication of how to process multiple requests in the batch.
         /// </summary>
         [JsonPropertyName("executionType")]
-        public RequestBatchExecutionType? RequestBatchExecutionType { get; }
+        public RequestBatchExecutionType RequestBatchExecutionType { get; }
 
         /// <summary>
         /// The requests to execute in the batch.
         /// </summary>
         [JsonPropertyName("requests")]
-        public RequestMessage[] Requests { get; }
+        public List<RequestMessage> Requests { get; } = new();
 
+        /*
         /// <summary>
         /// Creates a new instance of a <see cref="RequestBatchMessage"/> object.
         /// </summary>
@@ -41,12 +42,21 @@
         /// <param name="requestBatchExecutionType">The indication of how to process multiple requests in the batch.</param>
         /// <param name="requests">The requests to execute in the batch.</param>
         [JsonConstructor]
-        public RequestBatchMessage(string requestId, bool? haltOnFailure, RequestBatchExecutionType? requestBatchExecutionType, RequestMessage[] requests)
+        public RequestBatchMessage(string requestId, bool haltOnFailure = false, RequestBatchExecutionType requestBatchExecutionType = RequestBatchExecutionType.SerialRealtime, RequestMessage[] requests)
         {
             this.RequestId = requestId;
             this.HaltOnFailure = haltOnFailure;
             this.RequestBatchExecutionType = requestBatchExecutionType;
-            this.Requests = requests ?? Array.Empty<RequestMessage>();
+            //this.Requests = requests ?? Array.Empty<RequestMessage>();
+        }
+        */
+
+        public RequestBatchMessage(bool haltOnFailure = false, RequestBatchExecutionType requestBatchExecutionType = RequestBatchExecutionType.SerialRealtime)
+        {
+            this.RequestId = Guid.NewGuid().ToString();
+            this.HaltOnFailure = haltOnFailure;
+            this.RequestBatchExecutionType = requestBatchExecutionType;
+            //this.Requests = requests ?? Array.Empty<RequestMessage>();
         }
     }
 }

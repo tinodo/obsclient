@@ -81,11 +81,9 @@
         /// <param name="sleepFrames">Number of frames to sleep for (if SERIAL_FRAME mode)</param>
         /// <exception cref="NotSupportedException"></exception>
         /// <remarks>
-        /// This method was only added for your reference. You can use Sleep in <see cref="SendRequestBatchAsync(RequestBatchExecutionType, OBSStudioClient.Messages.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
+        /// This method was only added for your reference. You can only use Sleep in <see cref="SendRequestBatchAsync(RequestBatchExecutionType, OBSStudioClient.Messages.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
         /// </remarks>
-#pragma warning disable IDE0060
         public void Sleep(int? sleepMillis, int? sleepFrames)
-#pragma warning restore IDE0060
         {
             throw new NotSupportedException("Only available in request batches with types SERIAL_REALTIME or SERIAL_FRAME.");
         }

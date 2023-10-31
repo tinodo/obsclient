@@ -1,5 +1,6 @@
 ﻿namespace OBSStudioClient.Events
 {
+    using System.Text.Json;
     using System.Text.Json.Serialization;
 
     /// <summary>
@@ -11,14 +12,14 @@
         /// Gets the event data.
         /// </summary>
         [JsonPropertyName("eventData")]
-        public object? EventData { get; }
+        public JsonElement? EventData { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CustomEventEventArgs"/> class.
         /// </summary>
         /// <param name="eventData">The event data.</param>
         [JsonConstructor]
-        public CustomEventEventArgs(object? eventData)
+        public CustomEventEventArgs(JsonElement? eventData)
         {
             this.EventData = eventData;
         }

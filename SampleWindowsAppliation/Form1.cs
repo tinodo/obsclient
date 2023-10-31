@@ -5,7 +5,10 @@ namespace SampleWindowsAppliation
     using System.Reflection;
     using OBSStudioClient;
     using OBSStudioClient.Classes;
+    using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
+    using OBSStudioClient.Messages;
+    using OBSStudioClient.Requests;
 
     public partial class Form1 : Form
     {
@@ -23,7 +26,7 @@ namespace SampleWindowsAppliation
 
         private const string Title = "Obs Client";
 
-        private System.Threading.Timer _meticsTimer;
+        private readonly System.Threading.Timer _meticsTimer;
 
         public Form1()
         {
@@ -787,7 +790,7 @@ namespace SampleWindowsAppliation
             await _client.ResumeRecord();
         }
 
-        private async void button2_Click(object sender, EventArgs e)
+        private async void btnSetRecordDirectory_Click(object sender, EventArgs e)
         {
             await _client.SetRecordDirectory(this.tbRecordFolder.Text);
         }
@@ -795,6 +798,14 @@ namespace SampleWindowsAppliation
         private void cbAutoReconnect_CheckedChanged(object sender, EventArgs e)
         {
             _client.AutoReconnect = this.cbAutoReconnect.Checked;
+        }
+
+        private async void btnBatch1_Click(object sender, EventArgs e)
+        {
+            RequestBatchMessage request1 = new();
+            request1.AddGetProfileListRequest();
+            request1.AddGetRecordDirectoryRequest();
+            var result = await _client.SendRequestBatchAsync(request1);
         }
     }
 }
