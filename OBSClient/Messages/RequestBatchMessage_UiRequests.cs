@@ -62,32 +62,13 @@
         /// Adds a request to open a projector for a specific output video mix.
         /// </summary>
         /// <param name="videoMixType">Type of mix to open</param>
-        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void AddOpenVideoMixProjectorOnMonitorRequest(MixType videoMixType, int monitorIndex)
-        {
-            this.Requests.Add(new(new { videoMixType, monitorIndex }));
-        }
-
-        /// <summary>
-        /// Adds a request to open a projector for a specific output video mix.
-        /// </summary>
-        /// <param name="videoMixType">Type of mix to open</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format.  See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void AddOpenVideoMixProjectorWindowRequest(MixType videoMixType, string projectorGeometry)
-        {
-            this.Requests.Add(new(new { videoMixType, projectorGeometry }));
-        }
-
-        /// <summary>
-        /// Adds a request to open a projector for a specific output video mix.
-        /// </summary>
-        /// <param name="videoMixType">Type of mix to open</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        private void AddOpenVideoMixProjectorRequest(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
+        /// <remarks>
+        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
+        /// </remarks>
+        public void AddOpenVideoMixProjectorRequest(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
         {
             this.Requests.Add(new(new { videoMixType, monitorIndex, projectorGeometry }));
         }
@@ -96,32 +77,13 @@
         /// Adds a request to open a projector for a source.
         /// </summary>
         /// <param name="sourceName">Name of the source to open a projector for</param>
-        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode.</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void AddOpenSourceProjectorOnMonitorRequest(string sourceName, int monitorIndex)
-        {
-            this.Requests.Add(new(new { sourceName, monitorIndex }));
-        }
-
-        /// <summary>
-        /// Adds a request to open a projector for a source.
-        /// </summary>
-        /// <param name="sourceName">Name of the source to open a projector for</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        public void AddOpenSourceProjectorWindowRequest(string sourceName, string projectorGeometry)
-        {
-            this.Requests.Add(new(new { sourceName, projectorGeometry }));
-        }
-
-        /// <summary>
-        /// Adds a request to open a projector for a source.
-        /// </summary>
-        /// <param name="sourceName">Name of the source to open a projector for</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
-        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        private void AddOpenSourceProjectorRequest(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
+        /// <remarks>
+        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
+        /// </remarks>
+        public void AddOpenSourceProjectorRequest(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
         {
             this.Requests.Add(new(new { sourceName, monitorIndex, projectorGeometry }));
         }
