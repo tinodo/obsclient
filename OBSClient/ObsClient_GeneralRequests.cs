@@ -73,19 +73,5 @@
             KeyModifiers keyModifiers = new(keyModifier);
             await this.SendRequestAsync(new { keyId, keyModifiers });
         }
-
-        /// <summary>
-        /// Sleeps for a time duration or number of frames. Only available in request batches with types SERIAL_REALTIME or SERIAL_FRAME.
-        /// </summary>
-        /// <param name="sleepMillis">Number of milliseconds to sleep for (if SERIAL_REALTIME mode)</param>
-        /// <param name="sleepFrames">Number of frames to sleep for (if SERIAL_FRAME mode)</param>
-        /// <exception cref="NotSupportedException"></exception>
-        /// <remarks>
-        /// This method was only added for your reference. You can only use Sleep in <see cref="SendRequestBatchAsync(RequestBatchExecutionType, OBSStudioClient.Messages.RequestMessage[], bool)"/> and the method here is just added for parameter reference.
-        /// </remarks>
-        public void Sleep(int? sleepMillis, int? sleepFrames)
-        {
-            throw new NotSupportedException("Only available in request batches with types SERIAL_REALTIME or SERIAL_FRAME.");
-        }
     }
 }
