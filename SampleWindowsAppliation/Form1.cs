@@ -802,10 +802,13 @@ namespace SampleWindowsAppliation
 
         private async void btnBatch1_Click(object sender, EventArgs e)
         {
-            RequestBatchMessage request1 = new();
-            request1.AddGetProfileListRequest();
-            request1.AddGetRecordDirectoryRequest();
-            var result = await _client.SendRequestBatchAsync(request1);
+            RequestBatchMessage batchRequest = new();
+            batchRequest.AddToggleVirtualCamRequest();
+            batchRequest.AddSetStudioModeEnabledRequest(true);
+            batchRequest.AddSleepRequest(5000, null);
+            batchRequest.AddToggleVirtualCamRequest();
+            batchRequest.AddSetStudioModeEnabledRequest(false);
+            var result = await _client.SendRequestBatchAsync(batchRequest, 6000);
         }
     }
 }

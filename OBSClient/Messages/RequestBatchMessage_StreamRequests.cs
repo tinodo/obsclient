@@ -10,7 +10,7 @@
         /// <returns>A <see cref="OutputStatusResponse"/></returns>
         public void AddGetStreamStatusRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -19,7 +19,7 @@
         /// <returns>New state of the stream output</returns>
         public void AddToggleStreamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -27,7 +27,7 @@
         /// </summary>
         public void AddStartStreamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -35,7 +35,7 @@
         /// </summary>
         public void AddStopStreamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -44,7 +44,7 @@
         /// <param name="captionText">Caption text</param>
         public void AddSendStreamCaptionRequest(string captionText)
         {
-            this.Requests.Add(new(new { captionText }));
+            this._requests.Add(new(new { captionText }));
         }
     }
 }

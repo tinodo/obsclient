@@ -18,7 +18,7 @@
         /// <returns>Array of <see cref="Filter"/></returns>
         public void AddGetSourceFilterListRequest(string sourceName)
         {
-            this.Requests.Add(new(new { sourceName }));
+            this._requests.Add(new(new { sourceName }));
         }
 
         /// <summary>
@@ -28,7 +28,7 @@
         /// <returns>Object of default settings for the filter kind</returns>
         public void AddGetSourceFilterDefaultSettingsRequest(string filterKind)
         {
-            this.Requests.Add(new(new { filterKind }));
+            this._requests.Add(new(new { filterKind }));
         }
 
         /// <summary>
@@ -40,7 +40,7 @@
         /// <param name="filterSettings">Settings object to initialize the filter with</param>
         public void AddCreateSourceFilterRequest(string sourceName, string filterName, string filterKind, Dictionary<string, object>? filterSettings)
         {
-            this.Requests.Add(new(new { sourceName, filterName, filterKind, filterSettings }));
+            this._requests.Add(new(new { sourceName, filterName, filterKind, filterSettings }));
         }
 
         /// <summary>
@@ -50,7 +50,7 @@
         /// <param name="filterName">Name of the filter to remove</param>
         public void AddRemoveSourceFilterRequest(string sourceName, string filterName)
         {
-            this.Requests.Add(new(new { sourceName, filterName }));
+            this._requests.Add(new(new { sourceName, filterName }));
         }
 
         /// <summary>
@@ -61,7 +61,7 @@
         /// <param name="newFilterName">New name for the filter</param>
         public void AddSetSourceFilterNameRequest(string sourceName, string filterName, string newFilterName)
         {
-            this.Requests.Add(new(new { sourceName, filterName, newFilterName }));
+            this._requests.Add(new(new { sourceName, filterName, newFilterName }));
         }
 
         /// <summary>
@@ -72,7 +72,7 @@
         /// <returns>A <see cref="SourceFilterResponse"/></returns>
         public void AddGetSourceFilterRequest(string sourceName, string filterName)
         {
-            this.Requests.Add(new(new { sourceName, filterName }));
+            this._requests.Add(new(new { sourceName, filterName }));
         }
 
         /// <summary>
@@ -83,7 +83,7 @@
         /// <param name="filterIndex">New index position of the filter (>= 0)</param>
         public void AddSetSourceFilterIndexRequest(string sourceName, string filterName, int filterIndex)
         {
-            this.Requests.Add(new(new { sourceName, filterName, filterIndex }));
+            this._requests.Add(new(new { sourceName, filterName, filterIndex }));
         }
 
         /// <summary>
@@ -95,7 +95,7 @@
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
         public void AddSetSourceFilterSettingsRequest(string sourceName, string filterName, Dictionary<string, object> filterSettings, bool overlay = true)
         {
-            this.Requests.Add(new(new { sourceName, filterName, filterSettings, overlay }));
+            this._requests.Add(new(new { sourceName, filterName, filterSettings, overlay }));
         }
 
         /// <summary>
@@ -106,7 +106,7 @@
         /// <param name="filterEnabled">New enable state of the filter</param>
         public void AddSetSourceFilterEnabledRequest(string sourceName, string filterName, bool filterEnabled)
         {
-            this.Requests.Add(new(new { sourceName, filterName, filterEnabled }));
+            this._requests.Add(new(new { sourceName, filterName, filterEnabled }));
         }
     }
 }

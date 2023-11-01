@@ -14,7 +14,7 @@
         /// </remarks>
         public void AddGetSourceActiveRequest(string sourceName)
         {
-            this.Requests.Add(new(new { sourceName }));
+            this._requests.Add(new(new { sourceName }));
         }
 
         /// <summary>
@@ -32,7 +32,7 @@
         /// </remarks>
         public void AddGetSourceScreenshotRequest(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            this.Requests.Add(new(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality }));
+            this._requests.Add(new(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality }));
         }
 
         /// <summary>
@@ -51,7 +51,7 @@
         /// </remarks>
         public void AddSaveSourceScreenshotRequest(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            this.Requests.Add(new(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality }));
+            this._requests.Add(new(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality }));
         }
     }
 }

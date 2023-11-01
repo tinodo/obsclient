@@ -13,7 +13,7 @@
         /// <returns>Value associated with the slot. null if not set</returns>
         public void AddGetPersistentDataRequest(Realm realm, string slotName)
         {
-            this.Requests.Add(new(new { realm, slotName }));
+            this._requests.Add(new(new { realm, slotName }));
         }
 
         /// <summary>
@@ -24,7 +24,7 @@
         /// <param name="slotValue">The value to apply to the slot</param>
         public void AddSetPersistentDataRequest(Realm realm, string slotName, object slotValue)
         {
-            this.Requests.Add(new(new { realm, slotName, slotValue }));
+            this._requests.Add(new(new { realm, slotName, slotValue }));
         }
 
         /// <summary>
@@ -33,7 +33,7 @@
         /// <returns>A <see cref="SceneCollectionListResponse"/></returns>
         public void AddGetSceneCollectionListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -45,7 +45,7 @@
         /// </remarks>
         public void AddSetCurrentSceneCollectionRequest(string sceneCollectionName)
         {
-            this.Requests.Add(new(new { sceneCollectionName }));
+            this._requests.Add(new(new { sceneCollectionName }));
         }
 
         /// <summary>
@@ -57,7 +57,7 @@
         /// </remarks>
         public void AddCreateSceneCollectionRequest(string sceneCollectionName)
         {
-            this.Requests.Add(new(new { sceneCollectionName }));
+            this._requests.Add(new(new { sceneCollectionName }));
         }
 
         /// <summary>
@@ -66,7 +66,7 @@
         /// <returns>A <see cref="ProfileListResponse"/></returns>
         public void AddGetProfileListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -75,7 +75,7 @@
         /// <param name="profileName">Name of the profile to switch to</param>
         public void AddSetCurrentProfileRequest(string profileName)
         {
-            this.Requests.Add(new(new { profileName }));
+            this._requests.Add(new(new { profileName }));
         }
 
         /// <summary>
@@ -84,7 +84,7 @@
         /// <param name="profileName">Name for the new profile</param>
         public void AddCreateProfileRequest(string profileName)
         {
-            this.Requests.Add(new(new { profileName }));
+            this._requests.Add(new(new { profileName }));
         }
 
         /// <summary>
@@ -93,7 +93,7 @@
         /// <param name="profileName">Name of the profile to remove</param>
         public void AddRemoveProfileRequest(string profileName)
         {
-            this.Requests.Add(new(new { profileName }));
+            this._requests.Add(new(new { profileName }));
         }
 
         /// <summary>
@@ -104,7 +104,7 @@
         /// <returns>A <see cref="ProfileParameterResponse"/></returns>
         public void AddGetProfileParameterRequest(string parameterCategory, string parameterName)
         {
-            this.Requests.Add(new(new { parameterCategory, parameterName }));
+            this._requests.Add(new(new { parameterCategory, parameterName }));
         }
 
         /// <summary>
@@ -115,7 +115,7 @@
         /// <param name="parameterValue">Value of the parameter to set. Use null to delete</param>
         public void AddSetProfileParameterRequest(string parameterCategory, string parameterName, string? parameterValue)
         {
-            this.Requests.Add(new(new { parameterCategory, parameterName, parameterValue }));
+            this._requests.Add(new(new { parameterCategory, parameterName, parameterValue }));
         }
 
         /// <summary>
@@ -124,7 +124,7 @@
         /// <returns>A <see cref="VideoSettingsResponse"/></returns>
         public void AddGetVideoSettingsRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -138,7 +138,7 @@
         /// <param name="outputHeight">Height of the output resolution in pixels.</param>
         public void AddSetVideoSettingsRequest(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
         {
-            this.Requests.Add(new(new { fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight }));
+            this._requests.Add(new(new { fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight }));
         }
 
         /// <summary>
@@ -147,7 +147,7 @@
         /// <returns>A <see cref="StreamServiceSettingsResponse"/></returns>
         public void AddGetStreamServiceSettingsRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -160,7 +160,7 @@
         /// </remarks>
         public void AddSetStreamServiceSettingsRequest(string streamServiceType, object streamServiceSettings)
         {
-            this.Requests.Add(new(new { streamServiceType, streamServiceSettings }));
+            this._requests.Add(new(new { streamServiceType, streamServiceSettings }));
         }
 
         /// <summary>
@@ -169,7 +169,7 @@
         /// <returns>Output directory</returns>
         public void AddGetRecordDirectoryRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
     }
 }

@@ -10,7 +10,7 @@
         /// <returns>A <see cref="SceneListResponse"/></returns>
         public void AddGetSceneListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -22,7 +22,7 @@
         /// </remarks>
         public void AddGetGroupListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -31,7 +31,7 @@
         /// <returns>Current program scene</returns>
         public void AddGetCurrentProgramSceneRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -40,7 +40,7 @@
         /// <param name="sceneName">Scene to set as the current program scene</param>
         public void AddSetCurrentProgramSceneRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -49,7 +49,7 @@
         /// <returns>Current preview scene</returns>
         public void AddGetCurrentPreviewSceneRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -58,7 +58,7 @@
         /// <param name="sceneName">Scene to set as the current preview scene</param>
         public void AddSetCurrentPreviewSceneRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -67,7 +67,7 @@
         /// <param name="sceneName">Name for the new scene</param>
         public void AddCreateSceneRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -76,7 +76,7 @@
         /// <param name="sceneName">Name of the scene to remove</param>
         public void AddRemoveSceneRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -86,7 +86,7 @@
         /// <param name="newSceneName">New name for the scene</param>
         public void AddSetSceneNameRequest(string sceneName, string newSceneName)
         {
-            this.Requests.Add(new(new { sceneName, newSceneName }));
+            this._requests.Add(new(new { sceneName, newSceneName }));
         }
 
         /// <summary>
@@ -96,7 +96,7 @@
         /// <returns>A <see cref="SceneTransitionResponse"/></returns>
         public void AddGetSceneSceneTransitionOverrideRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -107,7 +107,7 @@
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove.</param>
         public void AddSetSceneSceneTransitionOverrideRequest(string sceneName, string? transitionName, int? transitionDuration)
         {
-            this.Requests.Add(new(new { sceneName, transitionName, transitionDuration }));
+            this._requests.Add(new(new { sceneName, transitionName, transitionDuration }));
         }
     }
 }

@@ -12,7 +12,7 @@
         /// <returns>Array of <see cref="SceneItem"/> in the scene</returns>
         public void AddGetSceneItemListRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -25,7 +25,7 @@
         /// </remarks>
         public void AddGetGroupSceneItemListRequest(string sceneName)
         {
-            this.Requests.Add(new(new { sceneName }));
+            this._requests.Add(new(new { sceneName }));
         }
 
         /// <summary>
@@ -37,7 +37,7 @@
         /// <returns>Numeric ID of the scene item</returns>
         public void AddGetSceneItemIdRequest(string sceneName, string sourceName, int searchOffset = 0)
         {
-            this.Requests.Add(new(new { sceneName, sourceName, searchOffset }));
+            this._requests.Add(new(new { sceneName, sourceName, searchOffset }));
         }
 
         /// <summary>
@@ -49,7 +49,7 @@
         /// <returns>Numeric ID of the scene item</returns>
         public void AddCreateSceneItemRequest(string sceneName, string sourceName, bool sceneItemEnabled = true)
         {
-            this.Requests.Add(new(new { sceneName, sourceName, sceneItemEnabled }));
+            this._requests.Add(new(new { sceneName, sourceName, sceneItemEnabled }));
         }
 
         /// <summary>
@@ -59,7 +59,7 @@
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
         public void AddRemoveSceneItemRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -71,7 +71,7 @@
         /// <returns>Numeric ID of the duplicated scene item</returns>
         public void AddDuplicateSceneItemRequest(string sceneName, int sceneItemId, string? destinationSceneName = null)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, destinationSceneName }));
+            this._requests.Add(new(new { sceneName, sceneItemId, destinationSceneName }));
         }
 
         /// <summary>
@@ -82,7 +82,7 @@
         /// <returns>Object containing scene item transform info</returns>
         public void AddGetSceneItemTransformRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -93,7 +93,7 @@
         /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
         public void AddSetSceneItemTransformRequest(string sceneName, int sceneItemId, SceneItemTransform sceneItemTransform)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, sceneItemTransform }));
+            this._requests.Add(new(new { sceneName, sceneItemId, sceneItemTransform }));
         }
 
         /// <summary>
@@ -104,7 +104,7 @@
         /// <returns>Whether the scene item is enabled. true for enabled, false for disabled</returns>
         public void AddGetSceneItemEnabledRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -115,7 +115,7 @@
         /// <param name="sceneItemEnabled">	New enable state of the scene item</param>
         public void AddSetSceneItemEnabledRequest(string sceneName, int sceneItemId, bool sceneItemEnabled)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, sceneItemEnabled }));
+            this._requests.Add(new(new { sceneName, sceneItemId, sceneItemEnabled }));
         }
 
         /// <summary>
@@ -126,7 +126,7 @@
         /// <returns>Whether the scene item is locked. true for locked, false for unlocked</returns>
         public void AddGetSceneItemLockedRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -137,7 +137,7 @@
         /// <param name="sceneItemLocked">New lock state of the scene item</param>
         public void AddSetSceneItemLockedRequest(string sceneName, int sceneItemId, bool sceneItemLocked)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, sceneItemLocked }));
+            this._requests.Add(new(new { sceneName, sceneItemId, sceneItemLocked }));
         }
 
         /// <summary>
@@ -152,7 +152,7 @@
         /// </remarks>
         public void AddGetSceneItemIndexRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -163,7 +163,7 @@
         /// <param name="sceneItemIndex">New index position of the scene item (>= 0)</param>
         public void AddSetSceneItemIndexRequest(string sceneName, int sceneItemId, int sceneItemIndex)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, sceneItemIndex }));
+            this._requests.Add(new(new { sceneName, sceneItemId, sceneItemIndex }));
         }
 
         /// <summary>
@@ -174,7 +174,7 @@
         /// <returns>Current blend mode</returns>
         public void AddGetSceneItemBlendModeRequest(string sceneName, int sceneItemId)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId }));
+            this._requests.Add(new(new { sceneName, sceneItemId }));
         }
 
         /// <summary>
@@ -185,7 +185,7 @@
         /// <param name="sceneItemBlendMode">New blend mode</param>
         public void AddSetSceneItemBlendModeRequest(string sceneName, int sceneItemId, BlendMode sceneItemBlendMode)
         {
-            this.Requests.Add(new(new { sceneName, sceneItemId, sceneItemBlendMode }));
+            this._requests.Add(new(new { sceneName, sceneItemId, sceneItemBlendMode }));
         }
     }
 }

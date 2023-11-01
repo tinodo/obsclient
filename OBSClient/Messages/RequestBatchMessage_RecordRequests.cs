@@ -10,7 +10,7 @@
         /// <returns>A <see cref="RecordStatusResponse"/></returns>
         public void AddGetRecordStatusRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -18,7 +18,7 @@
         /// </summary>
         public void AddToggleRecordRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -26,7 +26,7 @@
         /// </summary>
         public void AddStartRecordRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -35,7 +35,7 @@
         /// <returns>File name for the saved recording</returns>
         public void AddStopRecordRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -43,7 +43,7 @@
         /// </summary>
         public void AddToggleRecordPauseRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -51,7 +51,7 @@
         /// </summary>
         public void AddPauseRecordRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -59,7 +59,7 @@
         /// </summary>
         public void AddResumeRecordRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -68,7 +68,7 @@
         /// <param name="recordDirectory">The directory that the record output writes to.</param>
         public void AddSetRecordDirectoryRequest(string recordDirectory)
         {
-            this.Requests.Add(new(new { recordDirectory }));
+            this._requests.Add(new(new { recordDirectory }));
         }
     }
 }

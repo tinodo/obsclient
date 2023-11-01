@@ -12,7 +12,7 @@
         /// <returns>A <see cref="MediaInputStatusResponse"/></returns>
         public void AddGetMediaInputStatusRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -25,7 +25,7 @@
         /// </remarks>
         public void AddSetMediaInputCursorRequest(string inputName, int mediaCursor)
         {
-            this.Requests.Add(new(new { inputName, mediaCursor }));
+            this._requests.Add(new(new { inputName, mediaCursor }));
         }
 
         /// <summary>
@@ -38,7 +38,7 @@
         /// </remarks>
         public void AddOffsetMediaInputCursorRequest(string inputName, int mediaCursorOffset)
         {
-            this.Requests.Add(new(new { inputName, mediaCursorOffset }));
+            this._requests.Add(new(new { inputName, mediaCursorOffset }));
         }
 
         /// <summary>
@@ -48,7 +48,7 @@
         /// <param name="mediaAction">Identifier of the ObsMediaInputAction enum</param>
         public void AddTriggerMediaInputActionRequest(string inputName, ObsMediaInputAction mediaAction)
         {
-            this.Requests.Add(new(new { inputName, mediaAction }));
+            this._requests.Add(new(new { inputName, mediaAction }));
         }
     }
 }

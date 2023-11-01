@@ -428,12 +428,17 @@
             throw new ObsClientException($"Unexpected response type {result?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
         }
         */
-
-        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int timeOutInMilliseconds = 500)
+        /// <summary>
+        /// Sends a Batch Request.
+        /// </summary>
+        /// <param name="requestBatchMessage">The <see cref="RequestBatchMessage"/> to send.</param>
+        /// <param name="timeOutInMilliseconds">The timeout for the request. (Defauls to <see cref="RequestTimeout"/>.)</param>
+        /// <returns>The responses for the individual requests.</returns>
+        /// <remarks>Since batch requests typically take more time than individual request, you have the opportunity here to override the default timeout for this specific call.</remarks>
+        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null)
         {
-            TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(timeOutInMilliseconds);
-            cts.Token.Register(() => tcs.TrySetCanceled(), false);
+            timeOutInMilliseconds ??= this._requestTimeout;
+            timeOutInMilliseconds = Math.Max(timeOutInMilliseconds.Value, 150);
 
             var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
             var requestId = requestBatchMessage.RequestId;
@@ -441,7 +446,7 @@
             var d = new { requestId, requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(new { d, op });
+            var result = await this.SendAndWaitAsync(new { d, op }, timeOutInMilliseconds);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData.Results;
@@ -728,7 +733,7 @@
             }
         }
 
-        private async Task<IMessage> SendAndWaitAsync(dynamic request)
+        private async Task<IMessage> SendAndWaitAsync(dynamic request, int? timeout = null)
         {
             if (this._connectionState != ConnectionState.Connected)
             {
@@ -737,7 +742,7 @@
 
             string requestId = request.d.requestId;
             TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(this._requestTimeout);
+            CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
             cts.Token.Register(() => tcs.TrySetCanceled(), false);
             if (this._requests.TryAdd(requestId, tcs))
             {

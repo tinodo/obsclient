@@ -15,7 +15,7 @@
         /// <returns>An array of <see cref="Input"/></returns>
         public void AddGetInputListRequest(string? inputKind = null)
         {
-            this.Requests.Add(new(new { inputKind }));
+            this._requests.Add(new(new { inputKind }));
         }
 
         /// <summary>
@@ -25,7 +25,7 @@
         /// <returns>Array of input kinds</returns>
         public void AddGetInputKindListRequest(bool unversioned = false)
         {
-            this.Requests.Add(new(new { unversioned }));
+            this._requests.Add(new(new { unversioned }));
         }
 
         /// <summary>
@@ -34,7 +34,7 @@
         /// <returns>A <see cref="SpecialInputsResponse"/></returns>
         public void AddGetSpecialInputsRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -48,7 +48,7 @@
         /// <returns>ID of the newly created scene item</returns>
         public void AddCreateInputRequest(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
         {
-            this.Requests.Add(new(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled }));
+            this._requests.Add(new(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled }));
         }
 
         /// <summary>
@@ -60,7 +60,7 @@
         /// </remarks>
         public void AddRemoveInputRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -70,7 +70,7 @@
         /// <param name="newInputName">New name for the input</param>
         public void AddSetInputNameRequest(string inputName, string newInputName)
         {
-            this.Requests.Add(new(new { inputName, newInputName }));
+            this._requests.Add(new(new { inputName, newInputName }));
         }
 
         /// <summary>
@@ -80,7 +80,7 @@
         /// <returns>Default settings for the input kind.</returns>
         public void AddGetInputDefaultSettingsRequest(string inputKind)
         {
-            this.Requests.Add(new(new { inputKind }));
+            this._requests.Add(new(new { inputKind }));
         }
 
         /// <summary>
@@ -93,7 +93,7 @@
         /// </remarks>
         public void AddGetInputSettingsRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -104,7 +104,7 @@
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
         public void AddSetInputSettingsRequest(string inputName, Dictionary<string, object> inputSettings, bool overlay = true)
         {
-            this.Requests.Add(new(new { inputName, inputSettings, overlay }));
+            this._requests.Add(new(new { inputName, inputSettings, overlay }));
         }
 
         /// <summary>
@@ -114,7 +114,7 @@
         /// <returns>Whether the input is muted</returns>
         public void AddGetInputMuteRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -124,7 +124,7 @@
         /// <param name="inputMuted">Whether to mute the input or not</param>
         public void AddSetInputMuteRequest(string inputName, bool inputMuted)
         {
-            this.Requests.Add(new(new { inputName, inputMuted }));
+            this._requests.Add(new(new { inputName, inputMuted }));
         }
 
         /// <summary>
@@ -134,7 +134,7 @@
         /// <returns>Whether the input has been muted or unmuted</returns>
         public void AddToggleInputMuteRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -144,27 +144,7 @@
         /// <returns>A <see cref="InputVolumeResponse"/></returns>
         public void AddGetInputVolumeRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
-        }
-
-        /// <summary>
-        /// Sets the volume setting of an input.
-        /// </summary>
-        /// <param name="inputName">Name of the input to set the volume of</param>
-        /// <param name="inputVolumeMul">Volume setting in mul.</param>
-        public void AddSetInputVolumeMulRequest(string inputName, float inputVolumeMul)
-        {
-            this.Requests.Add(new(new { inputName, inputVolumeMul }));
-        }
-
-        /// <summary>
-        /// Adds a request to set the volume setting of an input.
-        /// </summary>
-        /// <param name="inputName">Name of the input to set the volume of</param>
-        /// <param name="inputVolumeDb">Volume setting in dB.</param>
-        public void AddSetInputVolumeDbRequest(string inputName, float inputVolumeDb)
-        {
-            this.Requests.Add(new(new { inputName, inputVolumeDb }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -173,10 +153,11 @@
         /// <param name="inputName">Name of the input to set the volume of</param>
         /// <param name="inputVolumeMul">Volume setting in mul.</param>
         /// <param name="inputVolumeDb">Volume setting in dB.</param>
+        /// <remarks>Use either inputVolumeMul or inputVolumeDb.</remarks>
         /// <exception cref="ArgumentException"></exception>
-        private void AddSetInputVolumeRequest(string inputName, float? inputVolumeMul, float? inputVolumeDb)
+        public void AddSetInputVolumeRequest(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
-            this.Requests.Add(new(new { inputName, inputVolumeMul, inputVolumeDb }));
+            this._requests.Add(new(new { inputName, inputVolumeMul, inputVolumeDb }));
         }
 
         /// <summary>
@@ -186,7 +167,7 @@
         /// <returns>Audio balance value from 0.0-1.0</returns>
         public void AddGetInputAudioBalanceRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -196,7 +177,7 @@
         /// <param name="inputAudioBalance">New audio balance value.</param>
         public void AddSetInputAudioBalanceRequest(string inputName, float inputAudioBalance)
         {
-            this.Requests.Add(new(new { inputName, inputAudioBalance }));
+            this._requests.Add(new(new { inputName, inputAudioBalance }));
         }
 
         /// <summary>
@@ -209,7 +190,7 @@
         /// </remarks>
         public void AddGetInputAudioSyncOffsetRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -219,7 +200,7 @@
         /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds.</param>
         public void AddSetInputAudioSyncRequestOffset(string inputName, int inputAudioSyncOffset)
         {
-            this.Requests.Add(new(new { inputName, inputAudioSyncOffset }));
+            this._requests.Add(new(new { inputName, inputAudioSyncOffset }));
         }
 
         /// <summary>
@@ -229,7 +210,7 @@
         /// <returns>Audio monitor type</returns>
         public void AddGetInputAudioMonitorTypeRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -239,7 +220,7 @@
         /// <param name="monitorType">Audio monitor type</param>
         public void AddSetInputAudioMonitorTypeRequest(string inputName, MonitorType monitorType)
         {
-            this.Requests.Add(new(new { inputName, monitorType }));
+            this._requests.Add(new(new { inputName, monitorType }));
         }
 
         /// <summary>
@@ -249,7 +230,7 @@
         /// <returns>Object of audio tracks and associated enable states</returns>
         public void AddGetInputAudioTracksRequest(string inputName)
         {
-            this.Requests.Add(new(new { inputName }));
+            this._requests.Add(new(new { inputName }));
         }
 
         /// <summary>
@@ -259,7 +240,7 @@
         /// <param name="inputAudioTracks">Track settings to apply</param>
         public void AddSetInputAudioTracksRequest(string inputName, AudioTracks inputAudioTracks)
         {
-            this.Requests.Add(new(new { inputName, inputAudioTracks }));
+            this._requests.Add(new(new { inputName, inputAudioTracks }));
         }
 
         /// <summary>
@@ -273,7 +254,7 @@
         /// </remarks>
         public void AddGetInputPropertiesListPropertyItemsRequest(string inputName, string propertyName)
         {
-            this.Requests.Add(new(new { inputName, propertyName }));
+            this._requests.Add(new(new { inputName, propertyName }));
         }
 
         /// <summary>
@@ -286,7 +267,7 @@
         /// </remarks>
         public void AddPressInputPropertiesButtonRequest(string inputName, string propertyName)
         {
-            this.Requests.Add(new(new { inputName, propertyName }));
+            this._requests.Add(new(new { inputName, propertyName }));
         }
     }
 }

@@ -14,7 +14,7 @@
         /// <returns>A <see cref="VersionResponse"/> object with OBS Studio Version information.</returns>
         public void AddGetVersionRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -23,7 +23,7 @@
         /// <returns>A <see cref="StatsResponse"/> object with OBS Studio Statistics.</returns>
         public void AddGetStatsRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -32,7 +32,7 @@
         /// <param name="eventData">Data payload to emit to all receivers</param>
         public void AddBroadcastCustomEventRequest(JsonElement eventData)
         {
-            this.Requests.Add(new(new { eventData }));
+            this._requests.Add(new(new { eventData }));
         }
 
         /// <summary>
@@ -43,7 +43,7 @@
         /// <param name="requestData">Object containing appropriate request data</param>
         public void AddCallVendorRequestRequest(string vendorName, string requestType, JsonElement? requestData)
         {
-            this.Requests.Add(new(new { vendorName, requestType, requestData }));
+            this._requests.Add(new(new { vendorName, requestType, requestData }));
         }
 
         /// <summary>
@@ -52,7 +52,7 @@
         /// <returns>Array of hotkey names</returns>
         public void AddGetHotkeyListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -61,7 +61,7 @@
         /// <param name="hotkeyName">Name of the hotkey to trigger</param>
         public void AddTriggerHotkeyByNameRequest(string hotkeyName)
         {
-            this.Requests.Add(new(new { hotkeyName }));
+            this._requests.Add(new(new { hotkeyName }));
         }
 
         /// <summary>
@@ -72,18 +72,39 @@
         public void AddTriggerHotkeyByKeySequenceRequest(ObsKey? keyId, KeyModifier? keyModifier)
         {
             KeyModifiers keyModifiers = new(keyModifier);
-            this.Requests.Add(new(new { keyId, keyModifiers }));
+            this._requests.Add(new(new { keyId, keyModifiers }));
         }
 
         /// <summary>
         /// Adds a request to sleeps for a time duration or number of frames. Only available in request batches with types SERIAL_REALTIME or SERIAL_FRAME.
         /// </summary>
-        /// <param name="sleepMillis">Number of milliseconds to sleep for (if SERIAL_REALTIME mode)</param>
-        /// <param name="sleepFrames">Number of frames to sleep for (if SERIAL_FRAME mode)</param>
+        /// <param name="sleepMillis">Number of milliseconds to sleep for (if SERIAL_REALTIME mode, between 0 and 50000)</param>
+        /// <param name="sleepFrames">Number of frames to sleep for (if SERIAL_FRAME mode, between 0 and 10000)</param>
         /// <exception cref="NotSupportedException"></exception>
         public void AddSleepRequest(int? sleepMillis, int? sleepFrames)
         {
-            this.Requests.Add(new(new { sleepMillis, sleepFrames }));
+            if (sleepFrames == null && sleepMillis == null)
+            {
+                throw new NotSupportedException("Either sleepMillis or sleepFrames must be set.");
+            }
+
+            if (sleepMillis.HasValue)
+            {
+                if (sleepMillis.Value is < 0 or > 50000)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(sleepMillis), "sleepMillis must be between 0 and 50000.");
+                }
+            }
+
+            if (sleepFrames.HasValue)
+            {
+                if (sleepFrames.Value is < 0 or > 10000)
+                { 
+                    throw new ArgumentOutOfRangeException(nameof(sleepFrames), "sleepFrames must be between 0 and 10000.");
+                }
+            }
+
+            this._requests.Add(new(new { sleepMillis, sleepFrames }));
         }
     }
 }

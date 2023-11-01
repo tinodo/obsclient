@@ -12,7 +12,7 @@
         /// <returns>Whether the output is active</returns>
         public void AddGetVirtualCamStatusRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -21,7 +21,7 @@
         /// <returns>Whether the output is active</returns>
         public void AddToggleVirtualCamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -29,7 +29,7 @@
         /// </summary>
         public void AddStartVirtualCamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -37,7 +37,7 @@
         /// </summary>
         public void AddStopVirtualCamRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -46,7 +46,7 @@
         /// <returns>Whether the output is active</returns>
         public void AddGetReplayBufferStatusRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -55,7 +55,7 @@
         /// <returns>Whether the output is active</returns>
         public void AddToggleReplayBufferRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -63,7 +63,7 @@
         /// </summary>
         public void AddStartReplayBufferRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -71,7 +71,7 @@
         /// </summary>
         public void AddStopReplayBufferRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -79,7 +79,7 @@
         /// </summary>
         public void AddSaveReplayBufferRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -88,7 +88,7 @@
         /// <returns>File path</returns>
         public void AddGetLastReplayBufferReplayRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -97,7 +97,7 @@
         /// <returns>Array of <see cref="Output"/></returns>
         public void AddGetOutputListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -107,7 +107,7 @@
         /// <returns>A <see cref="OutputStatusResponse"/></returns>
         public void AddGetOutputStatusRequest(string outputName)
         {
-            this.Requests.Add(new(new { outputName }));
+            this._requests.Add(new(new { outputName }));
         }
 
         /// <summary>
@@ -117,7 +117,7 @@
         /// <returns>Whether the output is active</returns>
         public void AddToggleOutputRequest(string outputName)
         {
-            this.Requests.Add(new(new { outputName }));
+            this._requests.Add(new(new { outputName }));
         }
 
         /// <summary>
@@ -126,7 +126,7 @@
         /// <param name="outputName">Output name</param>
         public void AddStartOutputRequest(string outputName)
         {
-            this.Requests.Add(new(new { outputName }));
+            this._requests.Add(new(new { outputName }));
         }
 
         /// <summary>
@@ -135,7 +135,7 @@
         /// <param name="outputName">Output name</param>
         public void AddStopOutputRequest(string outputName)
         {
-            this.Requests.Add(new(new { outputName }));
+            this._requests.Add(new(new { outputName }));
         }
 
         /// <summary>
@@ -145,7 +145,7 @@
         /// <returns>A <see cref="OutputSettingsResponse"/></returns>
         public void AddGetOutputSettingsRequest(string outputName)
         {
-            this.Requests.Add(new(new { outputName }));
+            this._requests.Add(new(new { outputName }));
         }
 
         /// <summary>
@@ -155,7 +155,7 @@
         /// <param name="outputSettings">Output settings</param>
         public void AddSetOutputSettingsRequest(string outputName, Dictionary<string, object> outputSettings)
         {
-            this.Requests.Add(new(new { outputName, outputSettings }));
+            this._requests.Add(new(new { outputName, outputSettings }));
         }
     }
 }

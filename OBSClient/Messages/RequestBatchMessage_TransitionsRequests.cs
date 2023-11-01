@@ -15,7 +15,7 @@
         /// <returns>Array of transition kinds</returns>
         public void AddGetTransitionKindListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -24,7 +24,7 @@
         /// <returns>A <see cref="SceneTransitionListResponse"/></returns>
         public void AddGetSceneTransitionListRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -33,7 +33,7 @@
         /// <returns>A <see cref="TransitionResponse"/></returns>
         public void AddGetCurrentSceneTransitionRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -45,7 +45,7 @@
         /// </remarks>
         public void AddSetCurrentSceneTransitionRequest(string transitionName)
         {
-            this.Requests.Add(new(new { transitionName }));
+            this._requests.Add(new(new { transitionName }));
         }
 
         /// <summary>
@@ -54,7 +54,7 @@
         /// <param name="transitionDuration">Duration in milliseconds.</param>
         public void AddSetCurrentSceneTransitionDurationRequest(float transitionDuration)
         {
-            this.Requests.Add(new(new { transitionDuration }));
+            this._requests.Add(new(new { transitionDuration }));
         }
 
         /// <summary>
@@ -64,7 +64,7 @@
         /// <param name="overlay">Whether to overlay over the current settings or replace them</param>
         public void AddSetCurrentSceneTransitionSettingsRequest(TransitionResponse? transitionSettings, bool overlay = true)
         {
-            this.Requests.Add(new(new { transitionSettings, overlay }));
+            this._requests.Add(new(new { transitionSettings, overlay }));
         }
 
         /// <summary>
@@ -76,7 +76,7 @@
         /// </remarks>
         public void AddGetCurrentSceneTransitionCursorRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -84,7 +84,7 @@
         /// </summary>
         public void AddTriggerStudioModeTransitionRequest()
         {
-            this.Requests.Add(new());
+            this._requests.Add(new());
         }
 
         /// <summary>
@@ -97,7 +97,7 @@
         /// </remarks>
         public void AddSetTBarPosition(float position, bool release = true)
         {
-            this.Requests.Add(new(new { position, release }));
+            this._requests.Add(new(new { position, release }));
         }
     }
 }

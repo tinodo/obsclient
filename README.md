@@ -30,11 +30,13 @@ ObsClient client = new();
 bool isConnected = await client.ConnectAsync(true, "P@ssw0rd", "localhost", 4455, EventSubscriptions.Filters | EventSubscriptions.Scenes);
 if (isConnected)
 {
-    RequestMessage request1 = new(RequestType.ToggleVirtualCam, "1001");
-    RequestMessage request2 = new(RequestType.Sleep, "1002", new { sleepMillis = 5000 });
-    RequestMessage request3 = new(RequestType.ToggleVirtualCam, "1003");
-    RequestMessage[] requests = new RequestMessage[] { request1, request2, request3 };
-    var result = await _client.SendRequestBatchAsync(RequestBatchExecutionType.SerialRealtime, requests, true);
+    RequestBatchMessage batchRequest = new();
+    batchRequest.AddToggleVirtualCamRequest();
+    batchRequest.AddSetStudioModeEnabledRequest(true);
+    batchRequest.AddSleepRequest(5000, null);
+    batchRequest.AddToggleVirtualCamRequest();
+    batchRequest.AddSetStudioModeEnabledRequest(false);
+    var result = await _client.SendRequestBatchAsync(batchRequest, 6000);
     client.Disconnect();
 }
 ```
