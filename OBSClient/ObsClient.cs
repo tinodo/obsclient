@@ -400,34 +400,6 @@
             this._receiver.Cancel();
         }
 
-        /*
-        /// <summary>
-        /// Sends a Batch Request.
-        /// </summary>
-        /// <param name="requestBatchExecutionType">The <see cref="RequestBatchExecutionType"/> of the batch.</param>
-        /// <param name="requests">The Requests in the batch.</param>
-        /// <param name="haltOnFailure">True, to continue processing requests even though one might have failed, or False to stop when any requests fails.</param>
-        /// <returns>The responses for the individual requests.</returns>
-        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchExecutionType requestBatchExecutionType, RequestMessage[] requests, bool haltOnFailure = false)
-        {
-            TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(this._requestTimeout);
-            cts.Token.Register(() => tcs.TrySetCanceled(), false);
-
-            var executionType = (int)requestBatchExecutionType;
-            var requestId = Guid.NewGuid().ToString();
-            var d = new { requestId, haltOnFailure, executionType, requests };
-            var op = (int)OpCode.RequestBatch;
-
-            var result = await this.SendAndWaitAsync(new { d, op });
-            if (result is RequestBatchResponseMessage requestBatchResponseData)
-            {
-                return requestBatchResponseData.Results;
-            }
-
-            throw new ObsClientException($"Unexpected response type {result?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
-        }
-        */
         /// <summary>
         /// Sends a Batch Request.
         /// </summary>
@@ -437,8 +409,7 @@
         /// <remarks>Since batch requests typically take more time than individual request, you have the opportunity here to override the default timeout for this specific call.</remarks>
         public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null)
         {
-            timeOutInMilliseconds ??= this._requestTimeout;
-            timeOutInMilliseconds = Math.Max(timeOutInMilliseconds.Value, 150);
+            timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
             var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
             var requestId = requestBatchMessage.RequestId;
@@ -574,7 +545,6 @@
 
         private void ProcessEventMessage(ObsMessage responseMessage)
         {
-
             if (responseMessage.Data is EventMessage eventResponseData)
             {
                 if (this._eventsMap.TryGetValue(eventResponseData.EventType.ToString(), out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)

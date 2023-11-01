@@ -1,11 +1,6 @@
 ﻿namespace OBSStudioClient.Messages
 {
     using OBSStudioClient.Responses;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
 
     public partial class RequestBatchMessage
     {
@@ -95,7 +90,7 @@
         /// <remarks>
         /// Very important note: This will be deprecated and replaced in a future version of obs-websocket.
         /// </remarks>
-        public void AddSetTBarPosition(float position, bool release = true)
+        public void AddSetTBarPositionRequest(float position, bool release = true)
         {
             this._requests.Add(new(new { position, release }));
         }

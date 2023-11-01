@@ -70,6 +70,16 @@
         /// </remarks>
         public void AddOpenVideoMixProjectorRequest(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
         {
+            if (monitorIndex is null && projectorGeometry is null)
+            {
+                throw new ArgumentException("Either monitorIndex or projectorGeometry must be set.");
+            }
+
+            if (monitorIndex is not null && projectorGeometry is not null)
+            {
+                throw new ArgumentException("Only one of monitorIndex or projectorGeometry must be set.");
+            }
+
             this._requests.Add(new(new { videoMixType, monitorIndex, projectorGeometry }));
         }
 
@@ -85,6 +95,16 @@
         /// </remarks>
         public void AddOpenSourceProjectorRequest(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
         {
+            if (monitorIndex is null && projectorGeometry is null)
+            {
+                throw new ArgumentException("Either monitorIndex or projectorGeometry must be set.");
+            }
+
+            if (monitorIndex is not null && projectorGeometry is not null)
+            {
+                throw new ArgumentException("Only one of monitorIndex or projectorGeometry must be set.");
+            }
+
             this._requests.Add(new(new { sourceName, monitorIndex, projectorGeometry }));
         }
     }

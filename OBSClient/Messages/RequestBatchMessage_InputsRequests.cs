@@ -157,6 +157,16 @@
         /// <exception cref="ArgumentException"></exception>
         public void AddSetInputVolumeRequest(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
+            if (inputVolumeMul is null && inputVolumeDb is null)
+            {
+                throw new ArgumentException("Either inputVolumeMul or inputVolumeDb must be set.");
+            }
+
+            if (inputVolumeMul is not null && inputVolumeDb is not null)
+            {
+                throw new ArgumentException("Only one of inputVolumeMul or inputVolumeDb can be set.");
+            }
+            
             this._requests.Add(new(new { inputName, inputVolumeMul, inputVolumeDb }));
         }
 
@@ -198,7 +208,7 @@
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio sync offset of</param>
         /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds.</param>
-        public void AddSetInputAudioSyncRequestOffset(string inputName, int inputAudioSyncOffset)
+        public void AddSetInputAudioSyncOffsetRequest(string inputName, int inputAudioSyncOffset)
         {
             this._requests.Add(new(new { inputName, inputAudioSyncOffset }));
         }

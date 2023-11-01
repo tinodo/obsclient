@@ -88,20 +88,19 @@
                 throw new NotSupportedException("Either sleepMillis or sleepFrames must be set.");
             }
 
-            if (sleepMillis.HasValue)
+            if (sleepFrames != null && sleepMillis != null)
             {
-                if (sleepMillis.Value is < 0 or > 50000)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sleepMillis), "sleepMillis must be between 0 and 50000.");
-                }
+                throw new NotSupportedException("Only one of sleepMillis or sleepFrames can be set.");
             }
 
-            if (sleepFrames.HasValue)
+            if (sleepMillis.HasValue && sleepMillis.Value is < 0 or > 50000)
             {
-                if (sleepFrames.Value is < 0 or > 10000)
-                { 
-                    throw new ArgumentOutOfRangeException(nameof(sleepFrames), "sleepFrames must be between 0 and 10000.");
-                }
+                throw new ArgumentOutOfRangeException(nameof(sleepMillis), "sleepMillis must be between 0 and 50000.");
+            }
+
+            if (sleepFrames.HasValue && sleepFrames.Value is < 0 or > 10000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sleepFrames), "sleepFrames must be between 0 and 10000.");
             }
 
             this._requests.Add(new(new { sleepMillis, sleepFrames }));

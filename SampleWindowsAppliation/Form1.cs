@@ -26,7 +26,9 @@ namespace SampleWindowsAppliation
 
         private const string Title = "Obs Client";
 
+#pragma warning disable IDE0052 // Remove unread private members
         private readonly System.Threading.Timer _meticsTimer;
+#pragma warning restore IDE0052 // Remove unread private members
 
         public Form1()
         {
@@ -471,7 +473,7 @@ namespace SampleWindowsAppliation
                 label.Text = text;
             }
         }
-        private async void button1_Click(object sender, EventArgs e)
+        private async void Button1_Click(object sender, EventArgs e)
         {
             var result = await _client.ConnectAsync(this.cbAutoReconnect.Checked, this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
             if (!result)
@@ -485,50 +487,50 @@ namespace SampleWindowsAppliation
             MessageBox.Show($"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}", "Connection Closed");
         }
 
-        private async void btnStartVirtualCam_Click(object sender, EventArgs e)
+        private async void BtnStartVirtualCam_Click(object sender, EventArgs e)
         {
             await _client.StartVirtualCam();
         }
 
-        private async void btnStopVirtualCamera_Click(object sender, EventArgs e)
+        private async void BtnStopVirtualCamera_Click(object sender, EventArgs e)
         {
             await _client.StopVirtualCam();
         }
 
-        private async void btnToggleVirtualCamera_Click(object sender, EventArgs e)
+        private async void BtnToggleVirtualCamera_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleVirtualCam();
             MessageBox.Show(result.ToString(), "ToggleVirtualCam");
         }
 
-        private async void btnGetVirtualCameraState_Click(object sender, EventArgs e)
+        private async void BtnGetVirtualCameraState_Click(object sender, EventArgs e)
         {
             var result = await _client.GetVirtualCamStatus();
             MessageBox.Show(result.ToString(), "GetVirtualCamStatus");
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private void Button3_Click(object sender, EventArgs e)
         {
             _client.Disconnect();
         }
 
-        private async void btnStartStudioMode_Click(object sender, EventArgs e)
+        private async void BtnStartStudioMode_Click(object sender, EventArgs e)
         {
             await _client.SetStudioModeEnabled(true);
         }
 
-        private async void btnStopStudioMode_Click(object sender, EventArgs e)
+        private async void BtnStopStudioMode_Click(object sender, EventArgs e)
         {
             await _client.SetStudioModeEnabled(false);
         }
 
-        private async void btnGetStudioModeEnabled_Click(object sender, EventArgs e)
+        private async void BtnGetStudioModeEnabled_Click(object sender, EventArgs e)
         {
             var result = await _client.GetStudioModeEnabled();
             MessageBox.Show(result.ToString(), "GetStudioModeEnabled");
         }
 
-        private async void btnGetMonitorList_Click(object sender, EventArgs e)
+        private async void BtnGetMonitorList_Click(object sender, EventArgs e)
         {
             var monitors = await _client.GetMonitorList();
             var result = string.Empty;
@@ -540,7 +542,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetMonitorList");
         }
 
-        private async void btnGetVersion_Click(object sender, EventArgs e)
+        private async void BtnGetVersion_Click(object sender, EventArgs e)
         {
             var version = await _client.GetVersion();
             var result = $"OBS Studio {version.ObsVersion} ({version.Platform} - {version.PlatformDescription})" + Environment.NewLine;
@@ -550,7 +552,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetVersion");
         }
 
-        private async void btnGetStats_Click(object sender, EventArgs e)
+        private async void BtnGetStats_Click(object sender, EventArgs e)
         {
             var stats = await _client.GetStats();
             var result = $"ActiveFps: {stats.ActiveFps}" + Environment.NewLine;
@@ -567,13 +569,13 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetStats");
         }
 
-        private async void btnGetHotkeyList_Click(object sender, EventArgs e)
+        private async void BtnGetHotkeyList_Click(object sender, EventArgs e)
         {
             var hotkeyList = await _client.GetHotkeyList();
             MessageBox.Show(string.Join(", ", hotkeyList), "GetHotkeyList");
         }
 
-        private async void btnGetSceneCollectionList_Click(object sender, EventArgs e)
+        private async void BtnGetSceneCollectionList_Click(object sender, EventArgs e)
         {
             var sceneCollectionList = await _client.GetSceneCollectionList();
             var result = $"CurrentSceneCollectionName: {sceneCollectionList.CurrentSceneCollectionName}" + Environment.NewLine;
@@ -581,7 +583,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetSceneCollectionList");
         }
 
-        private async void btnGetProfileList_Click(object sender, EventArgs e)
+        private async void BtnGetProfileList_Click(object sender, EventArgs e)
         {
             var profileList = await _client.GetProfileList();
             var result = $"CurrentProfileName: {profileList.CurrentProfileName}" + Environment.NewLine;
@@ -589,13 +591,13 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetProfileList");
         }
 
-        private async void btnGetRecordDirectory_Click(object sender, EventArgs e)
+        private async void BtnGetRecordDirectory_Click(object sender, EventArgs e)
         {
             var recordDirectory = await _client.GetRecordDirectory();
             TexBoxUpdate(this.tbRecordFolder, recordDirectory);
         }
 
-        private async void btnGetSceneList_Click(object sender, EventArgs e)
+        private async void BtnGetSceneList_Click(object sender, EventArgs e)
         {
             var sceneList = await _client.GetSceneList();
             this.lbScenes.Items.Clear();
@@ -611,26 +613,26 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetSceneList");
         }
 
-        private async void btnGetGroupList_Click(object sender, EventArgs e)
+        private async void BtnGetGroupList_Click(object sender, EventArgs e)
         {
             var groupList = await _client.GetGroupList();
             MessageBox.Show(string.Join(", ", groupList), "GetGroupList");
             this.lbGroups.DataSource = groupList;
         }
 
-        private async void btnGetCurrentProgramScene_Click(object sender, EventArgs e)
+        private async void BtnGetCurrentProgramScene_Click(object sender, EventArgs e)
         {
             var result = await _client.GetCurrentProgramScene();
             MessageBox.Show(result, "GetCurrentProgramScene");
         }
 
-        private async void btnGetCurrentPreviewScene_Click(object sender, EventArgs e)
+        private async void BtnGetCurrentPreviewScene_Click(object sender, EventArgs e)
         {
             var result = await _client.GetCurrentPreviewScene();
             MessageBox.Show(result, "GetCurrentPreviewScene");
         }
 
-        private async void btnGetInputList_Click(object sender, EventArgs e)
+        private async void BtnGetInputList_Click(object sender, EventArgs e)
         {
             var inputs = await _client.GetInputList();
             var result = "Inputs:" + Environment.NewLine;
@@ -642,13 +644,13 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetInputList");
         }
 
-        private async void btnGetInputKindList_Click(object sender, EventArgs e)
+        private async void BtnGetInputKindList_Click(object sender, EventArgs e)
         {
             var inputKindList = await _client.GetInputKindList();
             MessageBox.Show("Input Kinds: " + string.Join(", ", inputKindList), "GetInputKindList");
         }
 
-        private async void btnGetSpecialInputs_Click(object sender, EventArgs e)
+        private async void BtnGetSpecialInputs_Click(object sender, EventArgs e)
         {
             var specialInputs = await _client.GetSpecialInputs();
             var result = $"Mic1: {specialInputs.Mic1}" + Environment.NewLine;
@@ -660,7 +662,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetSpecialInputs");
         }
 
-        private async void btnSetCurrentProgramScene_Click(object sender, EventArgs e)
+        private async void BtnSetCurrentProgramScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -672,7 +674,7 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private async void btnSetCurrentPreviewScene_Click(object sender, EventArgs e)
+        private async void BtnSetCurrentPreviewScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -684,7 +686,7 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private async void btnRemoveScene_Click(object sender, EventArgs e)
+        private async void BtnRemoveScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
@@ -701,7 +703,7 @@ namespace SampleWindowsAppliation
             this.lbScenes.DisplayMember = "SceneName";
         }
 
-        private async void btnCreateScene_Click(object sender, EventArgs e)
+        private async void BtnCreateScene_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
@@ -713,7 +715,7 @@ namespace SampleWindowsAppliation
             }
         }
 
-        private async void btnSetSceneName_Click(object sender, EventArgs e)
+        private async void BtnSetSceneName_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
@@ -730,7 +732,7 @@ namespace SampleWindowsAppliation
             await _client.SetSceneName(scene.SceneName, this.tbNameItem.Text);
         }
 
-        private async void bnGetStreamStatus_Click(object sender, EventArgs e)
+        private async void BtnGetStreamStatus_Click(object sender, EventArgs e)
         {
             var response = await _client.GetStreamStatus();
             var result = string.Empty;
@@ -745,7 +747,7 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetStreamStatus");
         }
 
-        private async void btnGetRecordStatus_Click(object sender, EventArgs e)
+        private async void BtnGetRecordStatus_Click(object sender, EventArgs e)
         {
             var response = await _client.GetRecordStatus();
             var result = string.Empty;
@@ -757,50 +759,50 @@ namespace SampleWindowsAppliation
             MessageBox.Show(result, "GetRecordStatus");
         }
 
-        private async void btnToggleRecord_Click(object sender, EventArgs e)
+        private async void BtnToggleRecord_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleRecord();
             MessageBox.Show(result.ToString(), "ToggleRecord");
         }
 
-        private async void btnStartRecord_Click(object sender, EventArgs e)
+        private async void BtnStartRecord_Click(object sender, EventArgs e)
         {
             await _client.StartRecord();
         }
 
-        private async void btnStopRecord_Click(object sender, EventArgs e)
+        private async void BtnStopRecord_Click(object sender, EventArgs e)
         {
             var result = await _client.StopRecord();
             MessageBox.Show(result, "StopRecord");
         }
 
-        private async void btnToggleRecordPause_Click(object sender, EventArgs e)
+        private async void BtnToggleRecordPause_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleRecordPause();
             MessageBox.Show(result.ToString(), "ToggleRecordPause");
         }
 
-        private async void btnPauseRecord_Click(object sender, EventArgs e)
+        private async void BtnPauseRecord_Click(object sender, EventArgs e)
         {
             await _client.PauseRecord();
         }
 
-        private async void btnResumeRecord_Click(object sender, EventArgs e)
+        private async void BtnResumeRecord_Click(object sender, EventArgs e)
         {
             await _client.ResumeRecord();
         }
 
-        private async void btnSetRecordDirectory_Click(object sender, EventArgs e)
+        private async void BtnSetRecordDirectory_Click(object sender, EventArgs e)
         {
             await _client.SetRecordDirectory(this.tbRecordFolder.Text);
         }
 
-        private void cbAutoReconnect_CheckedChanged(object sender, EventArgs e)
+        private void CbAutoReconnect_CheckedChanged(object sender, EventArgs e)
         {
             _client.AutoReconnect = this.cbAutoReconnect.Checked;
         }
 
-        private async void btnBatch1_Click(object sender, EventArgs e)
+        private async void BtnBatch1_Click(object sender, EventArgs e)
         {
             RequestBatchMessage batchRequest = new();
             batchRequest.AddToggleVirtualCamRequest();
@@ -808,7 +810,7 @@ namespace SampleWindowsAppliation
             batchRequest.AddSleepRequest(5000, null);
             batchRequest.AddToggleVirtualCamRequest();
             batchRequest.AddSetStudioModeEnabledRequest(false);
-            var result = await _client.SendRequestBatchAsync(batchRequest, 6000);
+            _ = await _client.SendRequestBatchAsync(batchRequest, 6000);
         }
     }
 }

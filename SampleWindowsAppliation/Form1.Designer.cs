@@ -169,7 +169,7 @@
             button1.TabIndex = 0;
             button1.Text = "Connect";
             button1.UseVisualStyleBackColor = true;
-            button1.Click += this.button1_Click;
+            button1.Click += this.Button1_Click;
             // 
             // tbHostname
             // 
@@ -204,7 +204,7 @@
             btnStartVirtualCam.TabIndex = 5;
             btnStartVirtualCam.Text = "Start Virtual Camera";
             btnStartVirtualCam.UseVisualStyleBackColor = true;
-            btnStartVirtualCam.Click += this.btnStartVirtualCam_Click;
+            btnStartVirtualCam.Click += this.BtnStartVirtualCam_Click;
             // 
             // btnStopVirtualCamera
             // 
@@ -214,7 +214,7 @@
             btnStopVirtualCamera.TabIndex = 6;
             btnStopVirtualCamera.Text = "Stop Virtual Camera";
             btnStopVirtualCamera.UseVisualStyleBackColor = true;
-            btnStopVirtualCamera.Click += this.btnStopVirtualCamera_Click;
+            btnStopVirtualCamera.Click += this.BtnStopVirtualCamera_Click;
             // 
             // btnToggleVirtualCamera
             // 
@@ -224,7 +224,7 @@
             btnToggleVirtualCamera.TabIndex = 7;
             btnToggleVirtualCamera.Text = "Toggle Virtual Camera";
             btnToggleVirtualCamera.UseVisualStyleBackColor = true;
-            btnToggleVirtualCamera.Click += this.btnToggleVirtualCamera_Click;
+            btnToggleVirtualCamera.Click += this.BtnToggleVirtualCamera_Click;
             // 
             // btnGetVirtualCameraState
             // 
@@ -234,7 +234,7 @@
             btnGetVirtualCameraState.TabIndex = 8;
             btnGetVirtualCameraState.Text = "Get Virtual Camera Status";
             btnGetVirtualCameraState.UseVisualStyleBackColor = true;
-            btnGetVirtualCameraState.Click += this.btnGetVirtualCameraState_Click;
+            btnGetVirtualCameraState.Click += this.BtnGetVirtualCameraState_Click;
             // 
             // button3
             // 
@@ -244,7 +244,7 @@
             button3.TabIndex = 9;
             button3.Text = "Disconnect";
             button3.UseVisualStyleBackColor = true;
-            button3.Click += this.button3_Click;
+            button3.Click += this.Button3_Click;
             // 
             // btnGetMonitorList
             // 
@@ -254,7 +254,7 @@
             btnGetMonitorList.TabIndex = 13;
             btnGetMonitorList.Text = "Get Monitor List";
             btnGetMonitorList.UseVisualStyleBackColor = true;
-            btnGetMonitorList.Click += this.btnGetMonitorList_Click;
+            btnGetMonitorList.Click += this.BtnGetMonitorList_Click;
             // 
             // btnGetStudioModeEnabled
             // 
@@ -264,7 +264,7 @@
             btnGetStudioModeEnabled.TabIndex = 12;
             btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
             btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
-            btnGetStudioModeEnabled.Click += this.btnGetStudioModeEnabled_Click;
+            btnGetStudioModeEnabled.Click += this.BtnGetStudioModeEnabled_Click;
             // 
             // btnStopStudioMode
             // 
@@ -274,7 +274,7 @@
             btnStopStudioMode.TabIndex = 11;
             btnStopStudioMode.Text = "Stop Studio Mode";
             btnStopStudioMode.UseVisualStyleBackColor = true;
-            btnStopStudioMode.Click += this.btnStopStudioMode_Click;
+            btnStopStudioMode.Click += this.BtnStopStudioMode_Click;
             // 
             // btnStartStudioMode
             // 
@@ -284,7 +284,7 @@
             btnStartStudioMode.TabIndex = 10;
             btnStartStudioMode.Text = "Start Studio Mode";
             btnStartStudioMode.UseVisualStyleBackColor = true;
-            btnStartStudioMode.Click += this.btnStartStudioMode_Click;
+            btnStartStudioMode.Click += this.BtnStartStudioMode_Click;
             // 
             // btnSleep
             // 
@@ -324,7 +324,7 @@
             btnGetHotkeyList.TabIndex = 19;
             btnGetHotkeyList.Text = "Get Hotkey List";
             btnGetHotkeyList.UseVisualStyleBackColor = true;
-            btnGetHotkeyList.Click += this.btnGetHotkeyList_Click;
+            btnGetHotkeyList.Click += this.BtnGetHotkeyList_Click;
             // 
             // btnCallVendorRequest
             // 
@@ -354,7 +354,7 @@
             btnGetStats.TabIndex = 16;
             btnGetStats.Text = "Get Stats";
             btnGetStats.UseVisualStyleBackColor = true;
-            btnGetStats.Click += this.btnGetStats_Click;
+            btnGetStats.Click += this.BtnGetStats_Click;
             // 
             // btnGetVersion
             // 
@@ -364,7 +364,7 @@
             btnGetVersion.TabIndex = 15;
             btnGetVersion.Text = "Get Version";
             btnGetVersion.UseVisualStyleBackColor = true;
-            btnGetVersion.Click += this.btnGetVersion_Click;
+            btnGetVersion.Click += this.BtnGetVersion_Click;
             // 
             // btnGetProfileList
             // 
@@ -374,7 +374,7 @@
             btnGetProfileList.TabIndex = 28;
             btnGetProfileList.Text = "Get Profile List";
             btnGetProfileList.UseVisualStyleBackColor = true;
-            btnGetProfileList.Click += this.btnGetProfileList_Click;
+            btnGetProfileList.Click += this.BtnGetProfileList_Click;
             // 
             // btnCreateSceneCollection
             // 
@@ -404,7 +404,7 @@
             btnGetSceneCollectionList.TabIndex = 25;
             btnGetSceneCollectionList.Text = "Get Scene Collection List";
             btnGetSceneCollectionList.UseVisualStyleBackColor = true;
-            btnGetSceneCollectionList.Click += this.btnGetSceneCollectionList_Click;
+            btnGetSceneCollectionList.Click += this.BtnGetSceneCollectionList_Click;
             // 
             // btnSetPersistentData
             // 
@@ -597,7 +597,7 @@
             btnGetRecordDirectory.TabIndex = 38;
             btnGetRecordDirectory.Text = "Get Record Directory";
             btnGetRecordDirectory.UseVisualStyleBackColor = true;
-            btnGetRecordDirectory.Click += this.btnGetRecordDirectory_Click;
+            btnGetRecordDirectory.Click += this.BtnGetRecordDirectory_Click;
             // 
             // btnSetStreamServiceSettings
             // 
@@ -709,7 +709,7 @@
             btnSetSceneName.TabIndex = 28;
             btnSetSceneName.Text = "Set Scene Name";
             btnSetSceneName.UseVisualStyleBackColor = true;
-            btnSetSceneName.Click += this.btnSetSceneName_Click;
+            btnSetSceneName.Click += this.BtnSetSceneName_Click;
             // 
             // btnRemoveScene
             // 
@@ -719,7 +719,7 @@
             btnRemoveScene.TabIndex = 27;
             btnRemoveScene.Text = "Remove Scene";
             btnRemoveScene.UseVisualStyleBackColor = true;
-            btnRemoveScene.Click += this.btnRemoveScene_Click;
+            btnRemoveScene.Click += this.BtnRemoveScene_Click;
             // 
             // btnCreateScene
             // 
@@ -729,7 +729,7 @@
             btnCreateScene.TabIndex = 26;
             btnCreateScene.Text = "Create Scene";
             btnCreateScene.UseVisualStyleBackColor = true;
-            btnCreateScene.Click += this.btnCreateScene_Click;
+            btnCreateScene.Click += this.BtnCreateScene_Click;
             // 
             // btnSetCurrentPreviewScene
             // 
@@ -739,7 +739,7 @@
             btnSetCurrentPreviewScene.TabIndex = 25;
             btnSetCurrentPreviewScene.Text = "Set Current Preview Scene";
             btnSetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            btnSetCurrentPreviewScene.Click += this.btnSetCurrentPreviewScene_Click;
+            btnSetCurrentPreviewScene.Click += this.BtnSetCurrentPreviewScene_Click;
             // 
             // btnGetCurrentPreviewScene
             // 
@@ -749,7 +749,7 @@
             btnGetCurrentPreviewScene.TabIndex = 24;
             btnGetCurrentPreviewScene.Text = "Get Current Preview Scene";
             btnGetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            btnGetCurrentPreviewScene.Click += this.btnGetCurrentPreviewScene_Click;
+            btnGetCurrentPreviewScene.Click += this.BtnGetCurrentPreviewScene_Click;
             // 
             // btnSetCurrentProgramScene
             // 
@@ -759,7 +759,7 @@
             btnSetCurrentProgramScene.TabIndex = 23;
             btnSetCurrentProgramScene.Text = "Set Current Program Scene";
             btnSetCurrentProgramScene.UseVisualStyleBackColor = true;
-            btnSetCurrentProgramScene.Click += this.btnSetCurrentProgramScene_Click;
+            btnSetCurrentProgramScene.Click += this.BtnSetCurrentProgramScene_Click;
             // 
             // btnGetCurrentProgramScene
             // 
@@ -769,7 +769,7 @@
             btnGetCurrentProgramScene.TabIndex = 22;
             btnGetCurrentProgramScene.Text = "Get Current Program Scene";
             btnGetCurrentProgramScene.UseVisualStyleBackColor = true;
-            btnGetCurrentProgramScene.Click += this.btnGetCurrentProgramScene_Click;
+            btnGetCurrentProgramScene.Click += this.BtnGetCurrentProgramScene_Click;
             // 
             // btnGetGroupList
             // 
@@ -779,7 +779,7 @@
             btnGetGroupList.TabIndex = 21;
             btnGetGroupList.Text = "Get Group List";
             btnGetGroupList.UseVisualStyleBackColor = true;
-            btnGetGroupList.Click += this.btnGetGroupList_Click;
+            btnGetGroupList.Click += this.BtnGetGroupList_Click;
             // 
             // btnGetSceneList
             // 
@@ -789,7 +789,7 @@
             btnGetSceneList.TabIndex = 20;
             btnGetSceneList.Text = "Get Scene List";
             btnGetSceneList.UseVisualStyleBackColor = true;
-            btnGetSceneList.Click += this.btnGetSceneList_Click;
+            btnGetSceneList.Click += this.BtnGetSceneList_Click;
             // 
             // tpInputsRequests
             // 
@@ -910,7 +910,7 @@
             btnGetSpecialInputs.TabIndex = 23;
             btnGetSpecialInputs.Text = "Get Special Inputs";
             btnGetSpecialInputs.UseVisualStyleBackColor = true;
-            btnGetSpecialInputs.Click += this.btnGetSpecialInputs_Click;
+            btnGetSpecialInputs.Click += this.BtnGetSpecialInputs_Click;
             // 
             // btnGetInputKindList
             // 
@@ -920,7 +920,7 @@
             btnGetInputKindList.TabIndex = 22;
             btnGetInputKindList.Text = "Get Input Kind List";
             btnGetInputKindList.UseVisualStyleBackColor = true;
-            btnGetInputKindList.Click += this.btnGetInputKindList_Click;
+            btnGetInputKindList.Click += this.BtnGetInputKindList_Click;
             // 
             // btnGetInputList
             // 
@@ -930,7 +930,7 @@
             btnGetInputList.TabIndex = 21;
             btnGetInputList.Text = "Get Input List";
             btnGetInputList.UseVisualStyleBackColor = true;
-            btnGetInputList.Click += this.btnGetInputList_Click;
+            btnGetInputList.Click += this.BtnGetInputList_Click;
             // 
             // tpFiltersRequests
             // 
@@ -972,7 +972,7 @@
             bnGetStreamStatus.TabIndex = 9;
             bnGetStreamStatus.Text = "Get Stream Status";
             bnGetStreamStatus.UseVisualStyleBackColor = true;
-            bnGetStreamStatus.Click += this.bnGetStreamStatus_Click;
+            bnGetStreamStatus.Click += this.BtnGetStreamStatus_Click;
             // 
             // tbRecordRequests
             // 
@@ -999,7 +999,7 @@
             btnSetRecordDirectory.TabIndex = 16;
             btnSetRecordDirectory.Text = "Set Record Directory";
             btnSetRecordDirectory.UseVisualStyleBackColor = true;
-            btnSetRecordDirectory.Click += this.btnSetRecordDirectory_Click;
+            btnSetRecordDirectory.Click += this.BtnSetRecordDirectory_Click;
             // 
             // btnResumeRecord
             // 
@@ -1009,7 +1009,7 @@
             btnResumeRecord.TabIndex = 15;
             btnResumeRecord.Text = "Resume Record";
             btnResumeRecord.UseVisualStyleBackColor = true;
-            btnResumeRecord.Click += this.btnResumeRecord_Click;
+            btnResumeRecord.Click += this.BtnResumeRecord_Click;
             // 
             // btnPauseRecord
             // 
@@ -1019,7 +1019,7 @@
             btnPauseRecord.TabIndex = 14;
             btnPauseRecord.Text = "Pause Record";
             btnPauseRecord.UseVisualStyleBackColor = true;
-            btnPauseRecord.Click += this.btnPauseRecord_Click;
+            btnPauseRecord.Click += this.BtnPauseRecord_Click;
             // 
             // btnToggleRecordPause
             // 
@@ -1029,7 +1029,7 @@
             btnToggleRecordPause.TabIndex = 13;
             btnToggleRecordPause.Text = "Toggle Record Pause";
             btnToggleRecordPause.UseVisualStyleBackColor = true;
-            btnToggleRecordPause.Click += this.btnToggleRecordPause_Click;
+            btnToggleRecordPause.Click += this.BtnToggleRecordPause_Click;
             // 
             // btnStopRecord
             // 
@@ -1039,7 +1039,7 @@
             btnStopRecord.TabIndex = 12;
             btnStopRecord.Text = "Stop Record";
             btnStopRecord.UseVisualStyleBackColor = true;
-            btnStopRecord.Click += this.btnStopRecord_Click;
+            btnStopRecord.Click += this.BtnStopRecord_Click;
             // 
             // btnStartRecord
             // 
@@ -1049,7 +1049,7 @@
             btnStartRecord.TabIndex = 11;
             btnStartRecord.Text = "Start Record";
             btnStartRecord.UseVisualStyleBackColor = true;
-            btnStartRecord.Click += this.btnStartRecord_Click;
+            btnStartRecord.Click += this.BtnStartRecord_Click;
             // 
             // btnToggleRecord
             // 
@@ -1059,7 +1059,7 @@
             btnToggleRecord.TabIndex = 10;
             btnToggleRecord.Text = "Toggle Record";
             btnToggleRecord.UseVisualStyleBackColor = true;
-            btnToggleRecord.Click += this.btnToggleRecord_Click;
+            btnToggleRecord.Click += this.BtnToggleRecord_Click;
             // 
             // btnGetRecordStatus
             // 
@@ -1069,7 +1069,7 @@
             btnGetRecordStatus.TabIndex = 9;
             btnGetRecordStatus.Text = "Get Record Status";
             btnGetRecordStatus.UseVisualStyleBackColor = true;
-            btnGetRecordStatus.Click += this.btnGetRecordStatus_Click;
+            btnGetRecordStatus.Click += this.BtnGetRecordStatus_Click;
             // 
             // tbSceneItemsRequests
             // 
@@ -1205,11 +1205,11 @@
             // 
             btnBatch1.Location = new Point(24, 18);
             btnBatch1.Name = "btnBatch1";
-            btnBatch1.Size = new Size(1191, 46);
+            btnBatch1.Size = new Size(340, 46);
             btnBatch1.TabIndex = 23;
-            btnBatch1.Text = "Toggle Cam, Sleep 5 seconds, Toggle Cam";
+            btnBatch1.Text = "Batch Request Sample 1";
             btnBatch1.UseVisualStyleBackColor = true;
-            btnBatch1.Click += this.btnBatch1_Click;
+            btnBatch1.Click += this.BtnBatch1_Click;
             // 
             // lbScenes
             // 
@@ -1309,7 +1309,7 @@
             cbAutoReconnect.TabIndex = 30;
             cbAutoReconnect.Text = "AutoReconnect";
             cbAutoReconnect.UseVisualStyleBackColor = true;
-            cbAutoReconnect.CheckedChanged += this.cbAutoReconnect_CheckedChanged;
+            cbAutoReconnect.CheckedChanged += this.CbAutoReconnect_CheckedChanged;
             // 
             // lblBytesOut
             // 
