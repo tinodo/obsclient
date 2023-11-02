@@ -4,7 +4,7 @@
     using OBSStudioClient.Responses;
 
     public partial class RequestBatchMessage
-    { 
+    {
         /// <summary>
         /// Adds a request to gets the value of a "slot" from the selected persistent data realm.
         /// </summary>

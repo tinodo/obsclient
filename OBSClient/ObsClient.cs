@@ -9,7 +9,6 @@
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Linq;
-    using System.Linq.Expressions;
     using System.Net.WebSockets;
     using System.Reflection;
     using System.Runtime.CompilerServices;
@@ -29,7 +28,7 @@
         private readonly int _receiveBufferSize = 4096;
 
         private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessage>> _requests = new();
-        
+
         private readonly int _reconnectInterval = 3000;
 
         private readonly Timer _reconnectTimer;
@@ -48,11 +47,11 @@
         /// Used to cancel the ReceiverAsync task, e.g. you called the Disconnect() method.
         /// </summary>
         private CancellationTokenSource _receiver = new();
-        
+
         private ConnectionState _connectionState = ConnectionState.Disconnected;
-        
+
         private ClientWebSocket _client = new();
-        
+
         private TaskCompletionSource<bool> _authenticationComplete = new();
 
         private bool _disposed = false;
@@ -475,19 +474,37 @@
         {
             this._client = new();
             this.ConnectionState = ConnectionState.Connecting;
-
+            TaskCompletionSource<IMessage> tcs = new();
+            using CancellationTokenSource cts = new(500);
+            using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
             try
             {
-                await this._client.ConnectAsync(this._uri, this._receiver.Token);
+                await this._client.ConnectAsync(this._uri, cts.Token);
             }
             catch (WebSocketException)
             {
-                this.ConnectionState = ConnectionState.Disconnected;
-                return false;
+                // Could not connect.
+            }
+            catch (TaskCanceledException)
+            {
+                // Connection timed out.
+            }
+            finally
+            {
+                _ = ctr.Unregister();
             }
 
-            _ = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
-            return this._authenticationComplete.Task.Result;
+            if (this._client?.State == WebSocketState.Open)
+            {
+                _ = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
+                return await this._authenticationComplete.Task;
+            }
+            else
+            {
+                this.ConnectionState = ConnectionState.Disconnected;
+                this._client?.Dispose();
+                return false;
+            }
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -662,7 +679,7 @@
                 } while (!received.EndOfMessage);
 
                 if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted) break;
-                
+
                 _ = Task.Run(() => this.ProcessReceivedMessageAsync(responseBuilder), CancellationToken.None).ConfigureAwait(false);
             }
 
@@ -681,7 +698,7 @@
             }
             else
             {
-                // Closed the connection because OBS Studio closed it.
+                // Closed the connection because OBS Studio closed it or the network connection was interrupted.
                 closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
                 closeDescription = this._client.CloseStatusDescription ?? "Connection lost";
             }
@@ -780,12 +797,12 @@
             throw new ObsClientException($"Unexpected response type {result?.GetType().Name} for request {requestId} in {MethodBase.GetCurrentMethod()?.Name}");
         }
 
-        private async void ReconnectTimerCallback(object? state)
+        private void ReconnectTimerCallback(object? state)
         {
             if (this._autoReconnect && this._connectionState == ConnectionState.Disconnected)
             {
                 this.ConnectionState = ConnectionState.Connecting;
-                _ = await this.StartAsync();
+                _ = Task.Run(async () => await this.StartAsync());
             }
         }
     }

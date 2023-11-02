@@ -8,7 +8,6 @@ namespace SampleWindowsAppliation
     using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
     using OBSStudioClient.Messages;
-    using OBSStudioClient.Requests;
 
     public partial class Form1 : Form
     {
@@ -810,7 +809,7 @@ namespace SampleWindowsAppliation
             batchRequest.AddSleepRequest(5000, null);
             batchRequest.AddToggleVirtualCamRequest();
             batchRequest.AddSetStudioModeEnabledRequest(false);
-            _ = await _client.SendRequestBatchAsync(batchRequest, 6000);
+            _ = await _client.SendRequestBatchAsync(batchRequest, 600);
         }
     }
 }

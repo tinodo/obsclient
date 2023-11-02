@@ -1,6 +1,5 @@
 ﻿namespace OBSStudioClient.Responses
 {
-    using OBSStudioClient.Enums;
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
 

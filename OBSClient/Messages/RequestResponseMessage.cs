@@ -4,7 +4,6 @@
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Interfaces;
-    using OBSStudioClient.Requests;
     using OBSStudioClient.Responses;
     using System;
     using System.Text.Json;
@@ -18,7 +17,7 @@
         /// <summary>
         /// Gets the type of the response based on the request type.
         /// </summary>
-        private static readonly Dictionary<RequestType, Type> _responseTypeMap = new ()
+        private static readonly Dictionary<RequestType, Type> _responseTypeMap = new()
         {
             // General Requests
             {RequestType.GetVersion, typeof(VersionResponse) },

@@ -1,10 +1,7 @@
 ﻿namespace OBSStudioClient.Messages
 {
     using OBSStudioClient.Enums;
-    using OBSStudioClient.Events;
     using OBSStudioClient.Interfaces;
-    using OBSStudioClient.Requests;
-    using OBSStudioClient.Responses;
     using System.Runtime.CompilerServices;
     using System.Text.Json;
     using System.Text.Json.Serialization;
@@ -34,7 +31,7 @@
         public JsonElement? RequestData { get; }
 
         /// <summary>
-        /// Creates a new instance of a <see cref="RequestMessage"/> object using an <see cref="IRequest"/> object.
+        /// Creates a new instance of a <see cref="RequestMessage"/> object.
         /// </summary>
         /// <param name="callingMethod">The caller of this method.</param>
         protected internal RequestMessage([CallerMemberName] string callingMethod = "")

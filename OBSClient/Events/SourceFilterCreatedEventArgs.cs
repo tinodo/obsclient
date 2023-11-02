@@ -1,6 +1,5 @@
 ﻿namespace OBSStudioClient.Events
 {
-    using OBSStudioClient.Classes;
     using System.Text.Json.Serialization;
 
     /// <summary>

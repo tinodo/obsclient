@@ -1,4 +1,4 @@
-﻿namespace OBSStudioClient.Requests
+﻿namespace OBSStudioClient.Responses
 {
     using OBSStudioClient.Interfaces;
     using System.Text.Json.Serialization;
@@ -45,7 +45,7 @@
             this.FilterEnabled = filterEnabled;
             this.FilterIndex = filterIndex;
             this.FilterKind = filterKind;
-            this.FilterSettings = filterSettings;
+            this.FilterSettings = filterSettings ?? new();
         }
     }
 }

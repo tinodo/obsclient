@@ -166,7 +166,7 @@
             {
                 throw new ArgumentException("Only one of inputVolumeMul or inputVolumeDb can be set.");
             }
-            
+
             this._requests.Add(new(new { inputName, inputVolumeMul, inputVolumeDb }));
         }
 
