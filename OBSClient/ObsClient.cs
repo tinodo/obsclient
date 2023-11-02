@@ -9,6 +9,7 @@
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Net.WebSockets;
     using System.Reflection;
     using System.Runtime.CompilerServices;
@@ -712,23 +713,29 @@
 
             string requestId = request.d.requestId;
             TaskCompletionSource<IMessage> tcs = new();
-            CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
-            cts.Token.Register(() => tcs.TrySetCanceled(), false);
+            using CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
+            using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
             if (this._requests.TryAdd(requestId, tcs))
             {
                 try
                 {
                     await SendAsync(request);
-                    var result = tcs.Task.Result;
-                    return result;
+                    return await tcs.Task;
+                }
+                catch (TaskCanceledException)
+                {
+                    throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
                 }
                 finally
                 {
-                    this._requests.TryRemove(requestId, out _);
+                    _ = ctr.Unregister();
+                    _ = this._requests.TryRemove(requestId, out _);
                 }
             }
-
-            throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
+            else
+            {
+                throw new ObsClientException($"Could not add request {requestId} to the request queue.");
+            }
         }
 
         private async Task SendRequestAsync(object? requestData = null, [CallerMemberName] string requestType = "")
