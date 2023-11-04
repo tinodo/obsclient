@@ -3,24 +3,14 @@ A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up
 Currently implementing: [**obs-websocket 5.3.0 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
 Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.
 
-## Version 2
-We're working on Version 2 of the client. You can download and use our second preview version.
-Although the changes between v1 and v2 are not huge, they are breaking compatibility with previous versions, so we decided to bump the major version. (See: [SemVer](https://semver.org/))
-The main goal for Version 2 is to reduce (cognitive) complexity and improve the overall design of the client.
-For now, the main branch will contain the latest preview version of the code. For future releases (post V2-release), we will use seperate branches.
-
-### What's new in V2?
-- Reduced (Cognitive) Complexity
-- Improved support for Request Batches
-- Improved Event handling
-- (Optional) Automatic reconnecting
-
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 1.4.0`  
-From the command line: `dotnet add package OBSClient --version 1.4.0`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 2.0.0`  
+From the command line: `dotnet add package OBSClient --version 2.0.0`  
 
-## Sample usages (Version 1 and Version 2)
+## Sample usage
+
+### Simple
 
 ```
 ObsClient client = new();
@@ -31,9 +21,10 @@ if (isConnected)
     Monitor[] monitors = await client.GetMonitorList();
     client.Disconnect();
 }
+client.Dispose();
 ```
 
-### Request Batches in Version 2:
+### Request Batch
 
 ```
 ObsClient client = new();
@@ -49,6 +40,7 @@ if (isConnected)
     var result = await _client.SendRequestBatchAsync(batchRequest, 6000);
     client.Disconnect();
 }
+client.Dispose();
 ```
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tinodo_obsclient&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tinodo_obsclient)
