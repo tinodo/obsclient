@@ -79,7 +79,7 @@
             {RequestType.GetSceneItemId, typeof(SceneItemIdResponse) },
             {RequestType.CreateSceneItem, typeof(SceneItemIdResponse) },
             {RequestType.DuplicateSceneItem, typeof(SceneItemIdResponse) },
-            {RequestType.GetSceneItemTransform, typeof(SceneItemIdResponse) },
+            {RequestType.GetSceneItemTransform, typeof(SceneItemTransformResponse) },
             {RequestType.GetSceneItemEnabled, typeof(SceneItemEnabledResponse) },
             {RequestType.GetSceneItemLocked, typeof(SceneItemlockedResponse) },
             {RequestType.GetSceneItemIndex, typeof(SceneItemIndexResponse) },
