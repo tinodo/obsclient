@@ -74,6 +74,10 @@
 
         private int _sessionMessagesSent = 0;
 
+        private int _maxRequestRetries = 10;
+
+        private int _requestRetryInterval = 500;
+
         /// <summary>
         /// Gets or sets the maximum amount of time, in milliseconds, the <see cref="ObsClient"/> to wait for an OBS Studio response after making a request.
         /// </summary>
@@ -270,6 +274,47 @@
         }
 
         /// <summary>
+        /// Gets or sets the maximum number of times the <see cref="ObsClient"/> should retry a request when OBS Studio is not ready to perform the request.
+        /// </summary>
+        /// <remarks>
+        /// This typically occurs when OBS Studio is not ready to perform the request, e.g. when it is still starting up. It will authenticate the client, but not yet accept requests.
+        /// </remarks>
+        public int MaxRequestRetries
+        {
+            get
+            {
+                return this._maxRequestRetries;
+            }
+            set
+            {
+                if (this._maxRequestRetries != value && value >= 0)
+                {
+                    this._maxRequestRetries = value;
+                    this.OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the interval, in milliseconds, the <see cref="ObsClient"/> should wait before retrying a request when OBS Studio is not ready to perform the request.
+        /// </summary>
+        public int RequestRetryInterval
+        {
+            get
+            {
+                return this._requestRetryInterval;
+            }
+            set
+            {
+                if (this._requestRetryInterval != value && value >= 0)
+                {
+                    this._requestRetryInterval = value;
+                    this.OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
         /// Asynchronous event, triggered when the connection with OBS Studio is closed.
         /// </summary>
         public event EventHandler<ConnectionClosedEventArgs>? ConnectionClosed;
@@ -462,6 +507,7 @@
                 {
                     this.Disconnect();
                     this._client.Dispose();
+                    this._receiver.Dispose();
                 }
 
                 this._requests.Clear();
@@ -778,23 +824,36 @@
 
         private async Task<RequestResponseMessage> SendRequestAndWaitAsync(string requestType, object? requestData = null)
         {
-            var requestId = Guid.NewGuid().ToString();
-            var d = new { requestType, requestId, requestData };
-            var op = (int)OpCode.Request;
-            var result = await this.SendAndWaitAsync(new { d, op });
-            if (result is RequestResponseMessage requestResponseData)
+            int retryCount = 0;
+            while (true)
             {
-                if (requestResponseData.RequestStatus.Result)
+                var requestId = Guid.NewGuid().ToString();
+                var d = new { requestType, requestId, requestData };
+                var op = (int)OpCode.Request;
+                var result = await this.SendAndWaitAsync(new { d, op });
+                if (result is RequestResponseMessage requestResponseData)
                 {
-                    return requestResponseData;
+                    if (requestResponseData.RequestStatus.Result)
+                    {
+                        return requestResponseData;
+                    }
+                    else
+                    {
+                        if (requestResponseData.RequestStatus.Code == RequestStatusCode.NotReady && retryCount++ < this._maxRequestRetries)
+                        {
+                            Thread.Sleep(this._requestRetryInterval);
+                        }
+                        else
+                        {
+                            throw new ObsResponseException(requestResponseData.RequestStatus);
+                        }
+                    }
                 }
                 else
                 {
-                    throw new ObsResponseException(requestResponseData.RequestStatus);
+                    throw new ObsClientException($"Unexpected response type {result?.GetType().Name} for request {requestId} in {MethodBase.GetCurrentMethod()?.Name}");
                 }
             }
-
-            throw new ObsClientException($"Unexpected response type {result?.GetType().Name} for request {requestId} in {MethodBase.GetCurrentMethod()?.Name}");
         }
 
         private void ReconnectTimerCallback(object? state)
