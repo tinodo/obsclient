@@ -5,8 +5,8 @@ Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client 
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 2.0.3`  
-From the command line: `dotnet add package OBSClient --version 2.0.3`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 2.1.0`  
+From the command line: `dotnet add package OBSClient --version 2.1.0`  
 
 ## Sample usage
 
