@@ -90,7 +90,7 @@ namespace SampleWindowsAppliation
             _client.VirtualcamStateChanged += VirtualcamStateChanged;
 
             _client.PropertyChanged += PropertyChanged;
-
+            _client.RequestTimeout = 5000;
             _meticsTimer = new System.Threading.Timer(new TimerCallback(MetricsTimerCallback), null, 1000, 1000);
             this.UpdateTitle();
         }
@@ -515,7 +515,8 @@ namespace SampleWindowsAppliation
 
         private async void BtnStartStudioMode_Click(object sender, EventArgs e)
         {
-            await _client.SetStudioModeEnabled(true);
+            await _client.SaveSourceScreenshot("TEST", "png", "C:\\Temp\\Screenshots\\{DateTime.Now.Ticks}}.png");
+            //await _client.SetStudioModeEnabled(true);
         }
 
         private async void BtnStopStudioMode_Click(object sender, EventArgs e)

@@ -44,7 +44,6 @@
         /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
         /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
-        /// <returns>Base64-encoded screenshot</returns>
         /// <remarks>
         /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
         /// Compatible with inputs and scenes.

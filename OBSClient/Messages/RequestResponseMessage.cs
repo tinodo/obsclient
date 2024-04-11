@@ -37,7 +37,6 @@
             // Sources Requests
             {RequestType.GetSourceActive, typeof(SourceActiveResponse) },
             {RequestType.GetSourceScreenshot, typeof(ImageDataResponse) },
-            {RequestType.SaveSourceScreenshot, typeof(ImageDataResponse) },
 
             // Scenes Requests
             {RequestType.GetSceneList, typeof(SceneListResponse) },
