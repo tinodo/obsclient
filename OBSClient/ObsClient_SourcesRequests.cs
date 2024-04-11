@@ -49,9 +49,9 @@
         /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
         /// Compatible with inputs and scenes.
         /// </remarks>
-        public async Task<string> SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        public async Task SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
+            await this.SendRequestAsync(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality });
         }
     }
 }
