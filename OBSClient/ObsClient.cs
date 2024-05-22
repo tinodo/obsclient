@@ -588,8 +588,8 @@
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
             }
 
-            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
             this.ConnectionState = ConnectionState.Connected;
+            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
         }
 
         private void ProcessRequestResponseMessage(ObsMessage responseMessage)
