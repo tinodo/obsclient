@@ -5,38 +5,34 @@
     /// <summary>
     /// Provides a class for PropertyItem
     /// </summary>
-    public class PropertyItem
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="PropertyItem"/> class.
+    /// </remarks>
+    /// <param name="itemEnabled">A value indicating whether the items is enabled.</param>
+    /// <param name="itemName">The item name.</param>
+    /// <param name="itemValue">The item value.</param>
+    /// <summary>
+    /// Provides a class for PropertyItem
+    /// </summary>
+    [method: JsonConstructor]
+    public class PropertyItem(bool itemEnabled, string itemName, string itemValue)
     {
         /// <summary>
         /// Gets a value indicating whether the items is enabled.
         /// </summary>
         [JsonPropertyName("itemEnabled")]
-        public bool ItemEnabled { get; }
+        public bool ItemEnabled { get; } = itemEnabled;
 
         /// <summary>
         /// Gets the item name.
         /// </summary>
         [JsonPropertyName("itemName")]
-        public string ItemName { get; }
+        public string ItemName { get; } = itemName;
 
         /// <summary>
         /// Gets the item value.
         /// </summary>
         [JsonPropertyName("itemValue")]
-        public string ItemValue { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PropertyItem"/> class.
-        /// </summary>
-        /// <param name="itemEnabled">A value indicating whether the items is enabled.</param>
-        /// <param name="itemName">The item name.</param>
-        /// <param name="itemValue">The item value.</param>
-        [JsonConstructor]
-        public PropertyItem(bool itemEnabled, string itemName, string itemValue)
-        {
-            this.ItemEnabled = itemEnabled;
-            this.ItemName = itemName;
-            this.ItemValue = itemValue;
-        }
+        public string ItemValue { get; } = itemValue;
     }
 }

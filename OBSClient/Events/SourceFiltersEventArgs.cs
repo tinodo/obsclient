@@ -6,30 +6,24 @@
     /// <summary>
     /// Provides arguments for the SourceFilterListReindexed event.
     /// </summary>
-    public class SourceFiltersEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SourceFiltersEventArgs"/> class.
+    /// </remarks>
+    /// <param name="sourceName">The source name.</param>
+    /// <param name="filters">The list of <see cref="Filter"/>.</param>
+    [method: JsonConstructor]
+    public class SourceFiltersEventArgs(string sourceName, Filter[] filters) : EventArgs
     {
         /// <summary>
         /// Gets the name of the source.
         /// </summary>
         [JsonPropertyName("sourceName")]
-        public string SourceName { get; }
+        public string SourceName { get; } = sourceName;
 
         /// <summary>
         /// Gets the list of <see cref="Filter"/>.
         /// </summary>
         [JsonPropertyName("filters")]
-        public Filter[] Filters { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SourceFiltersEventArgs"/> class.
-        /// </summary>
-        /// <param name="sourceName">The source name.</param>
-        /// <param name="filters">The list of <see cref="Filter"/>.</param>
-        [JsonConstructor]
-        public SourceFiltersEventArgs(string sourceName, Filter[] filters)
-        {
-            this.SourceName = sourceName;
-            this.Filters = filters ?? Array.Empty<Filter>();
-        }
+        public Filter[] Filters { get; } = filters ?? [];
     }
 }

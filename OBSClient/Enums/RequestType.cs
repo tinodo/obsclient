@@ -319,6 +319,26 @@
         GetInputAudioTracks,
 
         /// <summary>
+        /// Gets the deinterlace mode of an input.
+        /// </summary>
+        GetInputDeinterlaceMode,
+
+        /// <summary>
+        /// Sets the deinterlace mode of an input.
+        /// </summary>
+        SetInputDeinterlaceMode,
+
+        /// <summary>
+        /// Gets the deinterlace field order of an input.
+        /// </summary>
+        GetInputDeinterlaceFieldOrder,
+
+        /// <summary>
+        /// Sets the deinterlace field order of an input.
+        /// </summary>
+        SetInputDeinterlaceFieldOrder,
+
+        /// <summary>
         /// SetInputAudioTracks Request
         /// </summary>
         SetInputAudioTracks,
@@ -383,6 +403,11 @@
         //Filters Requests
 
         /// <summary>
+        /// Gets an array of all available source filter kinds.
+        /// </summary>
+        GetSourceFilterKindList,
+
+        /// <summary>
         /// GetSourceFilterList Request
         /// </summary>
         GetSourceFilterList,
@@ -443,6 +468,11 @@
         /// GetSceneItemId Request
         /// </summary>
         GetSceneItemId,
+
+        /// <summary>
+        /// Gets the source associated with a scene item.
+        /// </summary>
+        GetSceneItemSource,
 
         /// <summary>
         /// CreateSceneItem Request
@@ -659,6 +689,16 @@
         /// ResumeRecord Request
         /// </summary>
         ResumeRecord,
+
+        /// <summary>
+        /// Splits the current file being recorded into a new file.
+        /// </summary>
+        SplitRecordFile,
+
+        /// <summary>
+        /// Adds a new chapter marker to the file currently being recorded.
+        /// </summary>
+        CreateRecordChapter,
 
         //Media Inputs Requests
 

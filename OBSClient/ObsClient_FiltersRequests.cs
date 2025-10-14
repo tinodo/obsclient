@@ -6,13 +6,37 @@
     public partial class ObsClient
     {
         /// <summary>
+        /// Gets an array of all available source filter kinds.
+        /// </summary>
+        /// <returns>Array of source filter kinds</returns>
+        public async Task<string[]> GetSourceFilterKindList()
+        {
+            return (await this.SendRequestAsync<FilterKindListResponse>()).SourceFilterKinds;
+        }
+
+        /// <summary>
         /// Gets an array of all of a source's filters.
         /// </summary>
         /// <param name="sourceName">Name of the source</param>
         /// <returns>Array of <see cref="Filter"/></returns>
         public async Task<Filter[]> GetSourceFilterList(string sourceName)
         {
-            return (await this.SendRequestAsync<FiltersResponse>(new { sourceName })).Filters;
+            return await this.GetSourceFilterList(sourceName, null);
+        }
+
+        /// <summary>
+        /// Gets an array of all of a source's filters.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source</param>
+        /// <returns>Array of <see cref="Filter"/></returns>
+        public async Task<Filter[]> GetSourceFilterList(Guid sourceUuid)
+        {
+            return await this.GetSourceFilterList(null, sourceUuid);
+        }
+
+        private async Task<Filter[]> GetSourceFilterList(string? sourceName, Guid? sourceUuid)
+        {
+            return (await this.SendRequestAsync<FiltersResponse>(new { sourceName, sourceUuid })).Filters;
         }
 
         /// <summary>
@@ -34,7 +58,24 @@
         /// <param name="filterSettings">Settings object to initialize the filter with</param>
         public async Task CreateSourceFilter(string sourceName, string filterName, string filterKind, Dictionary<string, object>? filterSettings)
         {
-            await this.SendRequestAsync(new { sourceName, filterName, filterKind, filterSettings });
+            await this.CreateSourceFilter(sourceName, null, filterName, filterKind, filterSettings);
+        }
+
+        /// <summary>
+        /// Creates a new filter, adding it to the specified source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to add the filter to</param>
+        /// <param name="filterName">Name of the new filter to be created</param>
+        /// <param name="filterKind">The kind of filter to be created</param>
+        /// <param name="filterSettings">Settings object to initialize the filter with</param>
+        public async Task CreateSourceFilter(Guid sourceUuid, string filterName, string filterKind, Dictionary<string, object>? filterSettings)
+        {
+            await this.CreateSourceFilter(null, sourceUuid, filterName, filterKind, filterSettings);
+        }
+
+        private async Task CreateSourceFilter(string? sourceName, Guid? sourceUuid, string filterName, string filterKind, Dictionary<string, object>? filterSettings)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName, filterKind, filterSettings });
         }
 
         /// <summary>
@@ -44,7 +85,22 @@
         /// <param name="filterName">Name of the filter to remove</param>
         public async Task RemoveSourceFilter(string sourceName, string filterName)
         {
-            await this.SendRequestAsync(new { sourceName, filterName });
+            await this.RemoveSourceFilter(sourceName, null, filterName);
+        }
+
+        /// <summary>
+        /// Removes a filter from a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source the filter is on</param>
+        /// <param name="filterName">Name of the filter to remove</param>
+        public async Task RemoveSourceFilter(Guid sourceUuid, string filterName)
+        {
+            await this.RemoveSourceFilter(null, sourceUuid, filterName);
+        }
+
+        private async Task RemoveSourceFilter(string? sourceName, Guid? sourceUuid, string filterName)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName });
         }
 
         /// <summary>
@@ -55,7 +111,23 @@
         /// <param name="newFilterName">New name for the filter</param>
         public async Task SetSourceFilterName(string sourceName, string filterName, string newFilterName)
         {
-            await this.SendRequestAsync(new { sourceName, filterName, newFilterName });
+            await this.SetSourceFilterName(sourceName, null, filterName, newFilterName);
+        }
+
+        /// <summary>
+        /// Sets the name of a source filter (rename).
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source the filter is on</param>
+        /// <param name="filterName">Current name of the filter</param>
+        /// <param name="newFilterName">New name for the filter</param>
+        public async Task SetSourceFilterName(Guid sourceUuid, string filterName, string newFilterName)
+        {
+            await this.SetSourceFilterName(null, sourceUuid, filterName, newFilterName);
+        }
+
+        private async Task SetSourceFilterName(string? sourceName, Guid? sourceUuid, string filterName, string newFilterName)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName, newFilterName });
         }
 
         /// <summary>
@@ -66,7 +138,23 @@
         /// <returns>A <see cref="SourceFilterResponse"/></returns>
         public async Task<SourceFilterResponse> GetSourceFilter(string sourceName, string filterName)
         {
-            return await this.SendRequestAsync<SourceFilterResponse>(new { sourceName, filterName });
+            return await this.GetSourceFilter(sourceName, null, filterName);
+        }
+
+        /// <summary>
+        /// Gets the info for a specific source filter.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source</param>
+        /// <param name="filterName">Name of the filter</param>
+        /// <returns>A <see cref="SourceFilterResponse"/></returns>
+        public async Task<SourceFilterResponse> GetSourceFilter(Guid sourceUuid, string filterName)
+        {
+            return await this.GetSourceFilter(null, sourceUuid, filterName);
+        }
+
+        private async Task<SourceFilterResponse> GetSourceFilter(string? sourceName, Guid? sourceUuid, string filterName)
+        {
+            return await this.SendRequestAsync<SourceFilterResponse>(new { sourceName, sourceUuid, filterName });
         }
 
         /// <summary>
@@ -77,7 +165,23 @@
         /// <param name="filterIndex">New index position of the filter (>= 0)</param>
         public async Task SetSourceFilterIndex(string sourceName, string filterName, int filterIndex)
         {
-            await this.SendRequestAsync(new { sourceName, filterName, filterIndex });
+            await this.SetSourceFilterIndex(sourceName, null, filterName, filterIndex);
+        }
+
+        /// <summary>
+        /// Sets the index position of a filter on a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source the filter is on</param>
+        /// <param name="filterName">Name of the filter</param>
+        /// <param name="filterIndex">New index position of the filter (>= 0)</param>
+        public async Task SetSourceFilterIndex(Guid sourceUuid, string filterName, int filterIndex)
+        {
+            await this.SetSourceFilterIndex(null, sourceUuid, filterName, filterIndex);
+        }
+
+        private async Task SetSourceFilterIndex(string? sourceName, Guid? sourceUuid, string filterName, int filterIndex)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName, filterIndex });
         }
 
         /// <summary>
@@ -89,7 +193,24 @@
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
         public async Task SetSourceFilterSettings(string sourceName, string filterName, Dictionary<string, object> filterSettings, bool overlay = true)
         {
-            await this.SendRequestAsync(new { sourceName, filterName, filterSettings, overlay });
+            await this.SetSourceFilterSettings(sourceName, null, filterName, filterSettings, overlay);
+        }
+
+        /// <summary>
+        /// Sets the settings of a source filter.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source the filter is on</param>
+        /// <param name="filterName">Name of the filter to set the settings of</param>
+        /// <param name="filterSettings">Object of settings to apply</param>
+        /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
+        public async Task SetSourceFilterSettings(Guid sourceUuid, string filterName, Dictionary<string, object> filterSettings, bool overlay = true)
+        {
+            await this.SetSourceFilterSettings(null, sourceUuid, filterName, filterSettings, overlay);
+        }
+
+        private async Task SetSourceFilterSettings(string? sourceName, Guid? sourceUuid, string filterName, Dictionary<string, object> filterSettings, bool overlay = true)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName, filterSettings, overlay });
         }
 
         /// <summary>
@@ -100,7 +221,23 @@
         /// <param name="filterEnabled">New enable state of the filter</param>
         public async Task SetSourceFilterEnabled(string sourceName, string filterName, bool filterEnabled)
         {
-            await this.SendRequestAsync(new { sourceName, filterName, filterEnabled });
+            await this.SetSourceFilterEnabled(sourceName, null, filterName, filterEnabled);
+        }
+
+        /// <summary>
+        /// Sets the enable state of a source filter.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source the filter is on</param>
+        /// <param name="filterName">Name of the filter</param>
+        /// <param name="filterEnabled">New enable state of the filter</param>
+        public async Task SetSourceFilterEnabled(Guid sourceUuid, string filterName, bool filterEnabled)
+        {
+            await this.SetSourceFilterEnabled(null, sourceUuid, filterName, filterEnabled);
+        }
+
+        private async Task SetSourceFilterEnabled(string? sourceName, Guid? sourceUuid, string filterName, bool filterEnabled)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, filterName, filterEnabled });
         }
     }
 }

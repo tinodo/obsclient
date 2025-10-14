@@ -7,22 +7,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetInputPropertiesListPropertyItems request.
     /// </summary>
-    public class PropertyItemsResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="PropertyItemsResponse"/> class.
+    /// </remarks>
+    /// <param name="propertyItems">The list of <see cref="PropertyItem"/>.</param>
+    [method: JsonConstructor]
+    public class PropertyItemsResponse(PropertyItem[] propertyItems) : IResponse
     {
         /// <summary>
         /// Gets the list of <see cref="PropertyItem"/>.
         /// </summary>
         [JsonPropertyName("propertyItems")]
-        public PropertyItem[] PropertyItems { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PropertyItemsResponse"/> class.
-        /// </summary>
-        /// <param name="propertyItems">The list of <see cref="PropertyItem"/>.</param>
-        [JsonConstructor]
-        public PropertyItemsResponse(PropertyItem[] propertyItems)
-        {
-            this.PropertyItems = propertyItems ?? Array.Empty<PropertyItem>();
-        }
+        public PropertyItem[] PropertyItems { get; } = propertyItems ?? [];
     }
 }

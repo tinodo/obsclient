@@ -30,7 +30,21 @@
         /// <param name="inputName">Name of the input to open the dialog of</param>
         public async Task OpenInputPropertiesDialog(string inputName)
         {
-            await this.SendRequestAsync(new { inputName });
+            await this.OpenInputPropertiesDialog(inputName, null);
+        }
+
+        /// <summary>
+        /// Opens the properties dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public async Task OpenInputPropertiesDialog(Guid inputUuid)
+        {
+            await this.OpenInputPropertiesDialog(null, inputUuid);
+        }
+
+        private async Task OpenInputPropertiesDialog(string? inputName, Guid? inputUuid)
+        {
+            await this.SendRequestAsync(new { inputName, inputUuid });
         }
 
         /// <summary>
@@ -39,7 +53,21 @@
         /// <param name="inputName">Name of the input to open the dialog of</param>
         public async Task OpenInputFiltersDialog(string inputName)
         {
-            await this.SendRequestAsync(new { inputName });
+            await this.OpenInputFiltersDialog(inputName, null);
+        }
+
+        /// <summary>
+        /// Opens the filters dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public async Task OpenInputFiltersDialog(Guid inputUuid)
+        {
+            await this.OpenInputFiltersDialog(null, inputUuid);
+        }
+
+        private async Task OpenInputFiltersDialog(string? inputName, Guid? inputUuid)
+        {
+            await this.SendRequestAsync(new { inputName, inputUuid });
         }
 
         /// <summary>
@@ -48,7 +76,21 @@
         /// <param name="inputName">Name of the input to open the dialog of</param>
         public async Task OpenInputInteractDialog(string inputName)
         {
-            await this.SendRequestAsync(new { inputName });
+            await this.OpenInputInteractDialog(inputName, null);
+        }
+
+        /// <summary>
+        /// Opens the interact dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public async Task OpenInputInteractDialog(Guid inputUuid)
+        {
+            await this.OpenInputInteractDialog(null, inputUuid);
+        }
+
+        private async Task OpenInputInteractDialog(string? inputName, Guid? inputUuid)
+        {
+            await this.SendRequestAsync(new { inputName, inputUuid });
         }
 
         /// <summary>
@@ -102,8 +144,20 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorOnMonitor(string sourceName, int monitorIndex)
         {
-            await this.OpenSourceProjector(sourceName, monitorIndex, null);
+            await this.OpenSourceProjector(sourceName, null, monitorIndex, null);
         }
+
+        /// <summary>
+        /// Opens a projector for a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to open a projector for</param>
+        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode.</param>
+        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
+        public async Task OpenSourceProjectorOnMonitor(Guid sourceUuid, int monitorIndex)
+        {
+            await this.OpenSourceProjector(null, sourceUuid, monitorIndex, null);
+        }
+
 
         /// <summary>
         /// Opens a projector for a source.
@@ -113,19 +167,24 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorWindow(string sourceName, string projectorGeometry)
         {
-            await this.OpenSourceProjector(sourceName, null, projectorGeometry);
+            await this.OpenSourceProjector(sourceName, null, null, projectorGeometry);
         }
 
         /// <summary>
         /// Opens a projector for a source.
         /// </summary>
-        /// <param name="sourceName">Name of the source to open a projector for</param>
-        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <param name="sourceUuid">Uuid of the source to open a projector for</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
-        private async Task OpenSourceProjector(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
+        public async Task OpenSourceProjectorWindow(Guid sourceUuid, string projectorGeometry)
         {
-            await this.SendRequestAsync(new { sourceName, monitorIndex, projectorGeometry });
+            await this.OpenSourceProjector(null, sourceUuid, null, projectorGeometry);
+        }
+
+
+        private async Task OpenSourceProjector(string? sourceName, Guid? sourceUuid, int? monitorIndex = -1, string? projectorGeometry = null)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, monitorIndex, projectorGeometry });
         }
     }
 }

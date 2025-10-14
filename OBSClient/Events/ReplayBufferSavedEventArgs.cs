@@ -5,22 +5,17 @@
     /// <summary>
     /// Provides arguments for the ReplayBufferSaved event.
     /// </summary>
-    public class ReplayBufferSavedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="ReplayBufferSavedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="savedReplayPath">The path for the saved replay.</param>
+    [method: JsonConstructor]
+    public class ReplayBufferSavedEventArgs(string savedReplayPath) : EventArgs
     {
         /// <summary>
         /// Gets the path for the saved replay.
         /// </summary>
         [JsonPropertyName("savedReplayPath")]
-        public string SavedReplayPath { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ReplayBufferSavedEventArgs"/> class.
-        /// </summary>
-        /// <param name="savedReplayPath">The path for the saved replay.</param>
-        [JsonConstructor]
-        public ReplayBufferSavedEventArgs(string savedReplayPath)
-        {
-            this.SavedReplayPath = savedReplayPath;
-        }
+        public string SavedReplayPath { get; } = savedReplayPath;
     }
 }

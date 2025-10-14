@@ -6,21 +6,37 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetCurrentPreviewScene request.
     /// </summary>
-    public class CurrentPreviewSceneNameResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="CurrentPreviewSceneNameResponse"/> class.
+    /// </remarks>
+    /// <param name="sceneName">The name of the preview scene.</param>
+    /// <param name="sceneUuid">The Uuid of the preview scene.</param>
+    public class CurrentPreviewSceneNameResponse(string sceneName, Guid sceneUuid) : IResponse
     {
         /// <summary>
-        /// Gets the name of the current preview scene in Studio Mode.
+        /// Gets the name of the current active scene.
         /// </summary>
-        [JsonPropertyName("currentPreviewSceneName")]
-        public string CurrentPreviewSceneName { get; }
+        [JsonPropertyName("sceneName")]
+        public string SceneName { get; } = sceneName;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="CurrentPreviewSceneNameResponse"/> class.
+        /// Gets the uuid of the current active scene.
         /// </summary>
-        /// <param name="currentPreviewSceneName">The name of the preview scene in Studio Mode.</param>
-        public CurrentPreviewSceneNameResponse(string currentPreviewSceneName)
-        {
-            this.CurrentPreviewSceneName = currentPreviewSceneName;
-        }
+        [JsonPropertyName("sceneUuid")]
+        public Guid SceneUuid { get; } = sceneUuid;
+
+        /// <summary>
+        /// Gets the name of the current active scene.
+        /// </summary>
+        [Obsolete("Use SceneName instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public string CurrentPreviewSceneName { get { return SceneName; } }
+
+        /// <summary>
+        /// Gets the uuid of the current active scene.
+        /// </summary>
+        [Obsolete("Use SceneUuid instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public Guid CurrentPreviewSceneUuid { get { return SceneUuid; } }
     }
 }

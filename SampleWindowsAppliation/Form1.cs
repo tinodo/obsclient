@@ -3,9 +3,9 @@ namespace SampleWindowsAppliation
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Reflection;
+    using System.Threading.Tasks;
     using OBSStudioClient;
     using OBSStudioClient.Classes;
-    using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
     using OBSStudioClient.Messages;
 
@@ -24,10 +24,6 @@ namespace SampleWindowsAppliation
         private delegate void SafeTextBoxUpdate(TextBox label, string text);
 
         private const string Title = "Obs Client";
-
-#pragma warning disable IDE0052 // Remove unread private members
-        private readonly System.Threading.Timer _meticsTimer;
-#pragma warning restore IDE0052 // Remove unread private members
 
         public Form1()
         {
@@ -91,14 +87,25 @@ namespace SampleWindowsAppliation
 
             _client.PropertyChanged += PropertyChanged;
             _client.RequestTimeout = 5000;
-            _meticsTimer = new System.Threading.Timer(new TimerCallback(MetricsTimerCallback), null, 1000, 1000);
+            _client.TotalMessagesReceivedChanged += MessagesChanged;
+            _client.TotalMessagesSentChanged += MessagesChanged;
+            _client.TotalBytesReceivedChanged += BytesChanged;
+            _client.TotalBytesSentChanged += BytesChanged;
+            _client.SessionMessagesReceivedChanged += MessagesChanged;
+            _client.SessionMessagesSentChanged += MessagesChanged;
+            _client.SessionBytesReceivedChanged += BytesChanged;
+            _client.SessionBytesSentChanged += BytesChanged;
             this.UpdateTitle();
         }
 
-        private void MetricsTimerCallback(object? state)
+        private void BytesChanged(object? sender, long e)
         {
             LabelUpdate(this.lblBytesIn, $"{_client.SessionBytesReceived}/{_client.TotalBytesReceived}");
             LabelUpdate(this.lblBytesOut, $"{_client.SessionBytesSent}/{_client.TotalBytesSent}");
+        }
+
+        private void MessagesChanged(object? sender, int e)
+        {
             LabelUpdate(this.lblMessagesIn, $"{_client.SessionMessagesReceived}/{_client.TotalMessagesReceived}");
             LabelUpdate(this.lblMessagesOut, $"{_client.SessionMessagesSent}/{_client.TotalMessagesSent}");
         }
@@ -200,7 +207,9 @@ namespace SampleWindowsAppliation
         private void SceneNameChanged(object? sender, SceneNameChangedEventArgs e)
         {
             LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
-            MessageBox.Show($"Scene '{e.OldSceneName}' was renamed to '{e.SceneName}'. Refresh the Scenes List using Get Scene List.");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show($"Scene '{e.OldSceneName}' was renamed to '{e.SceneName}'. Refresh the Scenes List using Get Scene List.")
+            ));
         }
 
         private void SceneListChanged(object? sender, SceneListEventArgs e)
@@ -246,7 +255,9 @@ namespace SampleWindowsAppliation
         private void SceneCreated(object? sender, SceneModifiedEventArgs e)
         {
             LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
-            MessageBox.Show($"Scene '{e.SceneName}' created. Refresh the Scenes List using Get Scene List.");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show($"Scene '{e.SceneName}' created. Refresh the Scenes List using Get Scene List.")
+            ));
         }
 
         private void SceneCollectionListChanged(object? sender, SceneCollectionListEventArgs e)
@@ -385,7 +396,9 @@ namespace SampleWindowsAppliation
         private void CurrentProgramSceneChanged(object? sender, SceneNameEventArgs e)
         {
             LabelUpdate(this.lblLastEvent, MethodBase.GetCurrentMethod()?.Name ?? "N/A");
-            MessageBox.Show(e.SceneName, "CurrentProgramSceneChanged");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(e.SceneName, "CurrentProgramSceneChanged")
+            ));
         }
 
         private void CurrentProfileChanging(object? sender, ProfileNameEventArgs e)
@@ -413,7 +426,7 @@ namespace SampleWindowsAppliation
             if (listBox.InvokeRequired)
             {
                 var d = new SafeListboxRemove(RemoveItemFromListbox);
-                listBox.Invoke(d, new object[] { itemToRemove, listBox });
+                listBox.Invoke(d, [itemToRemove, listBox]);
             }
             else
             {
@@ -439,7 +452,7 @@ namespace SampleWindowsAppliation
             if (listBox.InvokeRequired)
             {
                 var d = new SafeListboxRefresh(RefreshListbox);
-                listBox.Invoke(d, new object[] { listBox });
+                listBox.Invoke(d, [listBox]);
             }
             else
             {
@@ -452,7 +465,7 @@ namespace SampleWindowsAppliation
             if (textBox.InvokeRequired)
             {
                 var d = new SafeTextBoxUpdate(TexBoxUpdate);
-                textBox.Invoke(d, new object[] { textBox, text });
+                textBox.Invoke(d, [textBox, text]);
             }
             else
             {
@@ -465,7 +478,7 @@ namespace SampleWindowsAppliation
             if (label.InvokeRequired)
             {
                 var d = new SafeLabelUpdate(LabelUpdate);
-                label.Invoke(d, new object[] { label, text });
+                label.Invoke(d, [label, text]);
             }
             else
             {
@@ -477,13 +490,17 @@ namespace SampleWindowsAppliation
             var result = await _client.ConnectAsync(this.cbAutoReconnect.Checked, this.tbPassword.Text, this.tbHostname.Text, Convert.ToInt32(this.nudPort.Value));
             if (!result)
             {
-                MessageBox.Show("Could not connect.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Could not connect.")
+                ));
             }
         }
 
         private void ConnectionClosed(object? sender, ConnectionClosedEventArgs e)
         {
-            MessageBox.Show($"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}", "Connection Closed");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show($"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}", "Connection Closed")
+            ));
         }
 
         private async void BtnStartVirtualCam_Click(object sender, EventArgs e)
@@ -499,13 +516,17 @@ namespace SampleWindowsAppliation
         private async void BtnToggleVirtualCamera_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleVirtualCam();
-            MessageBox.Show(result.ToString(), "ToggleVirtualCam");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.ToString(), "ToggleVirtualCam")
+            ));
         }
 
         private async void BtnGetVirtualCameraState_Click(object sender, EventArgs e)
         {
             var result = await _client.GetVirtualCamStatus();
-            MessageBox.Show(result.ToString(), "GetVirtualCamStatus");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.ToString(), "GetVirtualCamStatus")
+            ));
         }
 
         private void Button3_Click(object sender, EventArgs e)
@@ -515,8 +536,7 @@ namespace SampleWindowsAppliation
 
         private async void BtnStartStudioMode_Click(object sender, EventArgs e)
         {
-            await _client.SaveSourceScreenshot("TEST", "png", "C:\\Temp\\Screenshots\\{DateTime.Now.Ticks}}.png");
-            //await _client.SetStudioModeEnabled(true);
+            await _client.SetStudioModeEnabled(true);
         }
 
         private async void BtnStopStudioMode_Click(object sender, EventArgs e)
@@ -527,7 +547,9 @@ namespace SampleWindowsAppliation
         private async void BtnGetStudioModeEnabled_Click(object sender, EventArgs e)
         {
             var result = await _client.GetStudioModeEnabled();
-            MessageBox.Show(result.ToString(), "GetStudioModeEnabled");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.ToString(), "GetStudioModeEnabled")
+            ));
         }
 
         private async void BtnGetMonitorList_Click(object sender, EventArgs e)
@@ -539,7 +561,9 @@ namespace SampleWindowsAppliation
                 result += $"{monitor.MonitorIndex}: {monitor.MonitorName} ({monitor.MonitorWidth}x{monitor.MonitorHeight}) at {monitor.MonitorPositionX},{monitor.MonitorPositionY}" + Environment.NewLine;
             }
 
-            MessageBox.Show(result, "GetMonitorList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetMonitorList")
+            ));
         }
 
         private async void BtnGetVersion_Click(object sender, EventArgs e)
@@ -549,7 +573,9 @@ namespace SampleWindowsAppliation
             result += $"WebSockets {version.ObsWebSocketVersion} - RPC Version {version.RpcVersion}" + Environment.NewLine;
             result += $"Requests: {string.Join(", ", version.AvailableRequests)}" + Environment.NewLine;
             result += $"Image Formats: {string.Join(", ", version.SupportedImageFormats)}" + Environment.NewLine;
-            MessageBox.Show(result, "GetVersion");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetVersion")
+            ));
         }
 
         private async void BtnGetStats_Click(object sender, EventArgs e)
@@ -566,13 +592,17 @@ namespace SampleWindowsAppliation
             result += $"RenderTotalFrames: {stats.RenderTotalFrames}" + Environment.NewLine;
             result += $"WebSocketSessionIncomingMessages: {stats.WebSocketSessionIncomingMessages}" + Environment.NewLine;
             result += $"WebSocketSessionOutgoingMessages: {stats.WebSocketSessionOutgoingMessages}" + Environment.NewLine;
-            MessageBox.Show(result, "GetStats");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetStats")
+            ));
         }
 
         private async void BtnGetHotkeyList_Click(object sender, EventArgs e)
         {
             var hotkeyList = await _client.GetHotkeyList();
-            MessageBox.Show(string.Join(", ", hotkeyList), "GetHotkeyList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(string.Join(", ", hotkeyList), "GetHotkeyList")
+            ));
         }
 
         private async void BtnGetSceneCollectionList_Click(object sender, EventArgs e)
@@ -580,15 +610,20 @@ namespace SampleWindowsAppliation
             var sceneCollectionList = await _client.GetSceneCollectionList();
             var result = $"CurrentSceneCollectionName: {sceneCollectionList.CurrentSceneCollectionName}" + Environment.NewLine;
             result += $"SceneCollections: {string.Join(", ", sceneCollectionList.SceneCollections)}";
-            MessageBox.Show(result, "GetSceneCollectionList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetSceneCollectionList")
+            ));
         }
 
         private async void BtnGetProfileList_Click(object sender, EventArgs e)
         {
             var profileList = await _client.GetProfileList();
             var result = $"CurrentProfileName: {profileList.CurrentProfileName}" + Environment.NewLine;
-            result += $"Profiles: {string.Join(", ", profileList.Profiles)}";
-            MessageBox.Show(result, "GetProfileList");
+            result += $"Profiles: {string.Join(", ", profileList.Profiles)}"; 
+            
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetProfileList")
+            ));
         }
 
         private async void BtnGetRecordDirectory_Click(object sender, EventArgs e)
@@ -610,26 +645,34 @@ namespace SampleWindowsAppliation
                 result += $"{scene.SceneIndex}: {scene.SceneName}" + Environment.NewLine;
             }
 
-            MessageBox.Show(result, "GetSceneList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetSceneList")
+            ));
         }
 
         private async void BtnGetGroupList_Click(object sender, EventArgs e)
         {
             var groupList = await _client.GetGroupList();
-            MessageBox.Show(string.Join(", ", groupList), "GetGroupList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(string.Join(", ", groupList), "GetGroupList")
+            ));
             this.lbGroups.DataSource = groupList;
         }
 
         private async void BtnGetCurrentProgramScene_Click(object sender, EventArgs e)
         {
             var result = await _client.GetCurrentProgramScene();
-            MessageBox.Show(result, "GetCurrentProgramScene");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.SceneName, "GetCurrentProgramScene")
+            ));
         }
 
         private async void BtnGetCurrentPreviewScene_Click(object sender, EventArgs e)
         {
             var result = await _client.GetCurrentPreviewScene();
-            MessageBox.Show(result, "GetCurrentPreviewScene");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.SceneName, "GetCurrentPreviewScene")
+            ));
         }
 
         private async void BtnGetInputList_Click(object sender, EventArgs e)
@@ -641,13 +684,17 @@ namespace SampleWindowsAppliation
                 result += $"Input name: {input.InputName}, Input Kind: {input.InputKind}, Unversioned Input Kind: {input.UnversionedInputKind}" + Environment.NewLine;
             }
 
-            MessageBox.Show(result, "GetInputList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetInputList")
+            ));
         }
 
         private async void BtnGetInputKindList_Click(object sender, EventArgs e)
         {
             var inputKindList = await _client.GetInputKindList();
-            MessageBox.Show("Input Kinds: " + string.Join(", ", inputKindList), "GetInputKindList");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show("Input Kinds: " + string.Join(", ", inputKindList), "GetInputKindList")
+            ));
         }
 
         private async void BtnGetSpecialInputs_Click(object sender, EventArgs e)
@@ -659,14 +706,18 @@ namespace SampleWindowsAppliation
             result += $"Mic4: {specialInputs.Mic4}" + Environment.NewLine;
             result += $"Desktop1: {specialInputs.Desktop1}" + Environment.NewLine;
             result += $"Desktop2: {specialInputs.Desktop2}" + Environment.NewLine;
-            MessageBox.Show(result, "GetSpecialInputs");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetSpecialInputs")
+            ));
         }
 
         private async void BtnSetCurrentProgramScene_Click(object sender, EventArgs e)
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
-                MessageBox.Show("Select a Scene first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Select a Scene first.")
+                ));
             }
             else
             {
@@ -678,7 +729,9 @@ namespace SampleWindowsAppliation
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
-                MessageBox.Show("Select a Scene first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Select a Scene first.")
+                ));
             }
             else
             {
@@ -690,7 +743,9 @@ namespace SampleWindowsAppliation
         {
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
-                MessageBox.Show("Select a Scene first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Select a Scene first.")
+                ));
             }
             else
             {
@@ -707,7 +762,9 @@ namespace SampleWindowsAppliation
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
-                MessageBox.Show("Enter an item name first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Enter an item name first.")
+                ));
             }
             else
             {
@@ -719,13 +776,17 @@ namespace SampleWindowsAppliation
         {
             if (string.IsNullOrEmpty(this.tbNameItem.Text))
             {
-                MessageBox.Show("Enter an item name first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Enter an item name first.")
+                ));
                 return;
             }
 
             if (this.lbScenes.SelectedItem is not Scene scene)
             {
-                MessageBox.Show("Select a Scene first.");
+                this.BeginInvoke((Action)(() =>
+                    MessageBox.Show("Select a Scene first.")
+                ));
                 return;
             }
 
@@ -744,7 +805,9 @@ namespace SampleWindowsAppliation
             result += $"OutputSkippedFrames: {response.OutputSkippedFrames}" + Environment.NewLine;
             result += $"OutputTimecode: {response.OutputTimecode}" + Environment.NewLine;
             result += $"OutputTotalFrames: {response.OutputTotalFrames}" + Environment.NewLine;
-            MessageBox.Show(result, "GetStreamStatus");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetStreamStatus")
+            ));
         }
 
         private async void BtnGetRecordStatus_Click(object sender, EventArgs e)
@@ -756,13 +819,17 @@ namespace SampleWindowsAppliation
             result += $"OutputDuration: {response.OutputDuration}" + Environment.NewLine;
             result += $"OutputPaused: {response.OutputPaused}" + Environment.NewLine;
             result += $"OutputTimecode: {response.OutputTimecode}" + Environment.NewLine;
-            MessageBox.Show(result, "GetRecordStatus");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "GetRecordStatus")
+            ));
         }
 
         private async void BtnToggleRecord_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleRecord();
-            MessageBox.Show(result.ToString(), "ToggleRecord");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.ToString(), "ToggleRecord")
+            ));
         }
 
         private async void BtnStartRecord_Click(object sender, EventArgs e)
@@ -773,13 +840,17 @@ namespace SampleWindowsAppliation
         private async void BtnStopRecord_Click(object sender, EventArgs e)
         {
             var result = await _client.StopRecord();
-            MessageBox.Show(result, "StopRecord");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result, "StopRecord")
+            ));
         }
 
         private async void BtnToggleRecordPause_Click(object sender, EventArgs e)
         {
             var result = await _client.ToggleRecordPause();
-            MessageBox.Show(result.ToString(), "ToggleRecordPause");
+            this.BeginInvoke((Action)(() =>
+                MessageBox.Show(result.ToString(), "ToggleRecordPause")
+            ));
         }
 
         private async void BtnPauseRecord_Click(object sender, EventArgs e)

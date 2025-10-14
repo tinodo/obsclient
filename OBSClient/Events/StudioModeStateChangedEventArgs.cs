@@ -5,22 +5,17 @@
     /// <summary>
     /// Provides arguments for the StudioModeStateChanged event.
     /// </summary>
-    public class StudioModeStateChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="StudioModeStateChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="studioModeEnabled">A value indicating whether Studio Mode is enabled.</param>
+    [method: JsonConstructor]
+    public class StudioModeStateChangedEventArgs(bool studioModeEnabled) : EventArgs
     {
         /// <summary>
         /// Gets a value indicating whether Studio Mode is enabled.
         /// </summary>
         [JsonPropertyName("studioModeEnabled")]
-        public bool StudioModeEnabled { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="StudioModeStateChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="studioModeEnabled">A value indicating whether Studio Mode is enabled.</param>
-        [JsonConstructor]
-        public StudioModeStateChangedEventArgs(bool studioModeEnabled)
-        {
-            this.StudioModeEnabled = studioModeEnabled;
-        }
+        public bool StudioModeEnabled { get; } = studioModeEnabled;
     }
 }

@@ -6,22 +6,17 @@
     /// <summary>
     /// Class for Identified Messages
     /// </summary>
-    public class IdentifiedMessage : IMessage
+    /// <remarks>
+    /// Creates a new instance of a <see cref="IdentifiedMessage"/> object.
+    /// </remarks>
+    /// <param name="negotiatedRpcVersion">The negotiated RPC Version of OBS Studio WebSockets.</param>
+    [method: JsonConstructor]
+    public class IdentifiedMessage(int negotiatedRpcVersion) : IMessage
     {
         /// <summary>
         /// The negotiation OBS Studio WebSocket RPC Version.
         /// </summary>
         [JsonPropertyName("negotiatedRpcVersion")]
-        public int NegotiatedRpcVersion { get; }
-
-        /// <summary>
-        /// Creates a new instance of a <see cref="IdentifiedMessage"/> object.
-        /// </summary>
-        /// <param name="negotiatedRpcVersion">The negotiated RPC Version of OBS Studio WebSockets.</param>
-        [JsonConstructor]
-        public IdentifiedMessage(int negotiatedRpcVersion)
-        {
-            this.NegotiatedRpcVersion = negotiatedRpcVersion;
-        }
+        public int NegotiatedRpcVersion { get; } = negotiatedRpcVersion;
     }
 }

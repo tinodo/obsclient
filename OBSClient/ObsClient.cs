@@ -1,10 +1,13 @@
 ﻿namespace OBSStudioClient
 {
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Interfaces;
     using OBSStudioClient.Messages;
     using System;
+    using System.Buffers;
     using System.Collections.Concurrent;
     using System.ComponentModel;
     using System.Diagnostics;
@@ -33,7 +36,7 @@
 
         private readonly Timer _reconnectTimer;
 
-        private readonly Dictionary<string, FieldInfo> _eventsMap = new();
+        private readonly ConcurrentDictionary<string, FieldInfo> _eventsMap = new();
 
         private Uri _uri = new("ws://localhost:4455");
 
@@ -43,9 +46,6 @@
 
         private EventSubscriptions _eventSubscriptions = EventSubscriptions.All;
 
-        /// <summary>
-        /// Used to cancel the ReceiverAsync task, e.g. you called the Disconnect() method.
-        /// </summary>
         private CancellationTokenSource _receiver = new();
 
         private ConnectionState _connectionState = ConnectionState.Disconnected;
@@ -77,6 +77,16 @@
         private int _maxRequestRetries = 10;
 
         private int _requestRetryInterval = 500;
+
+        private readonly ILogger<ObsClient> _logger;
+
+        private readonly object _syncRoot = new();
+
+        private readonly ConcurrentDictionary<string, DateTime> _eventThrottleMap = new();
+
+        private readonly TimeSpan _highVolumeEventThrottleInterval = TimeSpan.FromMilliseconds(100);
+
+        private Task? _receiverTask;
 
         /// <summary>
         /// Gets or sets the maximum amount of time, in milliseconds, the <see cref="ObsClient"/> to wait for an OBS Studio response after making a request.
@@ -112,14 +122,20 @@
         {
             get
             {
-                return this._connectionState;
+                lock (_syncRoot)
+                {
+                    return this._connectionState;
+                }
             }
             private set
             {
-                if (this._connectionState != value)
+                lock (_syncRoot)
                 {
-                    this._connectionState = value;
-                    this.OnPropertyChanged();
+                    if (this._connectionState != value)
+                    {
+                        this._connectionState = value;
+                        this.OnPropertyChanged();
+                    }
                 }
             }
         }
@@ -140,11 +156,14 @@
         {
             get
             {
-                return this._autoReconnect;
+                lock (_syncRoot)
+                {
+                    return this._autoReconnect;
+                }
             }
             set
             {
-                if (this._autoReconnect != value)
+                lock (_syncRoot)
                 {
                     if (value)
                     {
@@ -167,13 +186,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public long TotalBytesSent
-        {
-            get
-            {
-                return this._totalBytesSent;
-            }
-        }
+        public long TotalBytesSent => this._totalBytesSent;
 
         /// <summary>
         /// Gets the total number of bytes received from OBS Studio throughout the lifetime of the <see cref="ObsClient"/>.
@@ -181,13 +194,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public long TotalBytesReceived
-        {
-            get
-            {
-                return this._totalBytesReceived;
-            }
-        }
+        public long TotalBytesReceived => this._totalBytesReceived;
 
         /// <summary>
         /// Gets the total number of messages sent to OBS Studio throughout the lifetime of the <see cref="ObsClient"/>.
@@ -195,13 +202,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public int TotalMessagesSent
-        {
-            get
-            {
-                return this._totalMessagesSent;
-            }
-        }
+        public int TotalMessagesSent => this._totalMessagesSent;
 
         /// <summary>
         /// Gets the total number of messages received from OBS Studio throughout the lifetime of the <see cref="ObsClient"/>.
@@ -209,13 +210,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public int TotalMessagesReceived
-        {
-            get
-            {
-                return this._totalMessagesReceived;
-            }
-        }
+        public int TotalMessagesReceived => this._totalMessagesReceived;            
 
         /// <summary>
         /// Gets the number of bytes sent to OBS Studio.
@@ -223,13 +218,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public long SessionBytesSent
-        {
-            get
-            {
-                return this._sessionBytesSent;
-            }
-        }
+        public long SessionBytesSent => this._sessionBytesSent; 
 
         /// <summary>
         /// Gets the number of bytes received from OBS Studio in the current session.
@@ -237,13 +226,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public long SessionBytesReceived
-        {
-            get
-            {
-                return this._sessionBytesReceived;
-            }
-        }
+        public long SessionBytesReceived => this._sessionBytesReceived;
 
         /// <summary>
         /// Gets the number of messages sent to OBS Studio in the current session.
@@ -251,13 +234,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public int SessionMessagesSent
-        {
-            get
-            {
-                return this._sessionMessagesSent;
-            }
-        }
+        public int SessionMessagesSent => this._sessionMessagesSent;
 
         /// <summary>
         /// Gets the number of messages received from OBS Studio in the current session.
@@ -265,13 +242,7 @@
         /// <remarks>
         /// You will not be notified through the PropertyChanged event when this value changes.
         /// </remarks>
-        public int SessionMessagesReceived
-        {
-            get
-            {
-                return this._sessionMessagesReceived;
-            }
-        }
+        public int SessionMessagesReceived => this._sessionMessagesReceived;
 
         /// <summary>
         /// Gets or sets the maximum number of times the <see cref="ObsClient"/> should retry a request when OBS Studio is not ready to perform the request.
@@ -325,16 +296,65 @@
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
+        /// Occurs when the number of bytes sent changes.
+        /// </summary>
+        public event EventHandler<long>? TotalBytesSentChanged;
+        
+        /// <summary>
+        /// Occurs when the number of bytes received changes.
+        /// </summary>
+        /// <remarks>This event is triggered whenever there is an update to the total number of bytes
+        /// received. Subscribers can use this event to monitor data transfer progress or handle updates in real
+        /// time.</remarks>
+        public event EventHandler<long>? TotalBytesReceivedChanged;
+
+        /// <summary>
+        /// Occurs when the number of messages sent changes.
+        /// </summary>
+        public event EventHandler<int>? TotalMessagesSentChanged;
+
+        /// <summary>
+        /// Occurs when the number of messages received changes.
+        /// </summary>
+        public event EventHandler<int>? TotalMessagesReceivedChanged;
+
+        /// <summary>
+        /// Occurs when the number of bytes sent changes in the current session.
+        /// </summary>
+        public event EventHandler<long>? SessionBytesSentChanged;
+
+        /// <summary>
+        /// Occurs when the number of bytes received changes in the current session.
+        /// </summary>
+        /// <remarks>This event is triggered whenever there is an update to the total number of bytes
+        /// received in the current session. Subscribers can use this event to monitor data transfer progress
+        /// or handle updates in real time.</remarks>
+        public event EventHandler<long>? SessionBytesReceivedChanged;
+
+        /// <summary>
+        /// Occurs when the number of messages sent changes in the current session.
+        /// </summary>
+        public event EventHandler<int>? SessionMessagesSentChanged;
+
+        /// <summary>
+        /// Occurs when the number of messages received changes in the current session.
+        /// </summary>
+        public event EventHandler<int>? SessionMessagesReceivedChanged;
+
+        /// <summary>
         /// Creates a new instance of the <see cref="ObsClient"/> class.
         /// </summary>
-        public ObsClient()
+        /// <param name="logger">The logger to use.</param>
+        public ObsClient(ILogger<ObsClient>? logger = null)
         {
+            this._logger = logger ?? new NullLogger<ObsClient>();
             this._reconnectTimer = new(this.ReconnectTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 
-            // The _eventsMap is merely a helper, such that we don't have to invoke these reflection calls for every event.
-            foreach (var field in this.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(f => f.FieldType != typeof(PropertyChangedEventHandler) && f.FieldType.BaseType == typeof(MulticastDelegate)))
+            // Use TryAdd for ConcurrentDictionary
+            foreach (var field in this.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Where(f => f.FieldType != typeof(PropertyChangedEventHandler) && f.FieldType.BaseType == typeof(MulticastDelegate)))
             {
-                this._eventsMap.Add(field.Name, field);
+                this._eventsMap.TryAdd(field.Name, field);
             }
         }
 
@@ -389,9 +409,8 @@
 
         private static string HashEncode(string input)
         {
-            using var sha256 = SHA256.Create();
             var textBytes = Encoding.ASCII.GetBytes(input);
-            var hash = sha256.ComputeHash(textBytes);
+            var hash = SHA256.HashData(textBytes);
             return Convert.ToBase64String(hash);
         }
 
@@ -430,10 +449,15 @@
             this._uri = uri;
             this._password = password;
             this._eventSubscriptions = eventSubscription;
+
+            // Dispose previous token before creating a new one
+            this._receiver?.Dispose();
             this._receiver = new CancellationTokenSource();
             this._authenticationComplete = new();
 
-            return await this.StartAsync();
+            _logger.LogInformation("Connected to {Hostname}:{Port}", hostname, port);
+
+            return await this.StartAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -441,6 +465,7 @@
         /// </summary>
         public void Disconnect()
         {
+            _logger.LogInformation("Disconnecting from OBS Studio");
             this.AutoReconnect = false;
             this._receiver.Cancel();
         }
@@ -462,7 +487,7 @@
             var d = new { requestId, requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(new { d, op }, timeOutInMilliseconds);
+            var result = await this.SendAndWaitAsync(new { d, op }, timeOutInMilliseconds).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData.Results;
@@ -481,7 +506,7 @@
             this._eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
-            await this.SendAsync(message);
+            await this.SendAsync(message).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -489,6 +514,7 @@
         /// </summary>
         public void Dispose()
         {
+            if (_disposed) return;
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
@@ -499,33 +525,46 @@
         /// <param name="disposing">A value indicating whether we already called the method.</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            lock (_syncRoot)
             {
-                this._reconnectTimer.Dispose();
-
-                if (disposing)
+                if (!_disposed)
                 {
-                    this.Disconnect();
-                    this._client.Dispose();
-                    this._receiver.Dispose();
-                }
+                    this._reconnectTimer.Dispose();
 
-                this._requests.Clear();
-                this._eventsMap.Clear();
-                _disposed = true;
+                    if (disposing)
+                    {
+                        this.Disconnect();
+                        if (_client.State != WebSocketState.None)
+                        {
+                            _client.Dispose();
+                            _client = new ClientWebSocket();
+                        }
+                        this._receiver?.Dispose();
+                        this._receiver = new CancellationTokenSource();
+                    }
+
+                    this._requests.Clear();
+                    this._eventsMap.Clear();
+                    _disposed = true;
+                }
             }
         }
 
         private async Task<bool> StartAsync()
         {
-            this._client = new();
             this.ConnectionState = ConnectionState.Connecting;
+            // Ensure _client is fresh before connecting
+            if (_client.State != WebSocketState.None)
+            {
+                _client.Dispose();
+                _client = new ClientWebSocket();
+            }
             TaskCompletionSource<IMessage> tcs = new();
-            using CancellationTokenSource cts = new(500);
+            using CancellationTokenSource cts = new(2000);
             using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
             try
             {
-                await this._client.ConnectAsync(this._uri, cts.Token);
+                await this._client.ConnectAsync(this._uri, cts.Token).ConfigureAwait(false);
             }
             catch (WebSocketException)
             {
@@ -541,9 +580,15 @@
             }
 
             if (this._client?.State == WebSocketState.Open)
-            {
-                _ = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
-                return await this._authenticationComplete.Task;
+            {    
+                // Ensure previous receiver is completed
+                if (_receiverTask != null && !_receiverTask.IsCompleted)
+                {
+                    try { await _receiverTask; } catch { /* ignore exceptions */ }
+                }
+
+                _receiverTask = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
+                return await this._authenticationComplete.Task.ConfigureAwait(false);
             }
             else
             {
@@ -572,7 +617,7 @@
 
                 IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, this._eventSubscriptions);
                 ObsMessage message = new(identify);
-                await this.SendAsync(message);
+                await this.SendAsync(message).ConfigureAwait(false);
             }
             else
             {
@@ -611,14 +656,52 @@
         {
             if (responseMessage.Data is EventMessage eventResponseData)
             {
-                if (this._eventsMap.TryGetValue(eventResponseData.EventType.ToString(), out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)
+                var eventType = eventResponseData.EventType.ToString();
+
+                // Throttle high-frequency events
+                if (IsHighFrequencyEvent(eventResponseData.EventType))
                 {
-                    object[] args = eventResponseData.EventData == null ? new object[] { this } : new object[] { this, eventResponseData.EventData };
-                    _ = Task.WhenAll(eventDelegate.GetInvocationList().Select(handler => Task.Run(() => handler.Method.Invoke(handler.Target, args))));
+                    var now = DateTime.UtcNow;
+                    _eventThrottleMap.AddOrUpdate(
+                        eventType,
+                        now,
+                        (key, lastTime) => (now - lastTime) < _highVolumeEventThrottleInterval ? lastTime : now
+                    );
+                    if ((_eventThrottleMap[eventType] != now))
+                        return; // Skip invocation
+                }
+
+                if (this._eventsMap.TryGetValue(eventType, out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)
+                {
+                    foreach (var handler in eventDelegate.GetInvocationList())
+                    {
+                        try
+                        {
+                            if (eventResponseData.EventData == null)
+                            {
+                                if (handler is EventHandler eh)
+                                    eh(this, EventArgs.Empty);
+                                else
+                                    handler.DynamicInvoke(this);
+                            }
+                            else
+                            {
+                                if (handler is EventHandler<object> ehObj)
+                                    ehObj(this, eventResponseData.EventData);
+                                else
+                                    handler.DynamicInvoke(this, eventResponseData.EventData);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Exception in event handler for {EventType}", eventResponseData.EventType);
+                        }
+                    }
                 }
             }
             else
             {
+                _logger.LogError("Unexpected response type in ProcessEventMessage");
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
             }
         }
@@ -645,9 +728,8 @@
                 return;
             }
 
-            this._totalMessagesReceived++;
-            this._sessionMessagesReceived++;
             var response = responseBuilder.ToString();
+            _logger.LogDebug("Received: {Response}", response);
             Debug.WriteLine($"Received: {response}");
             if (JsonSerializer.Deserialize<ObsMessage>(response) is not ObsMessage message)
             {
@@ -657,7 +739,7 @@
             switch (message.Op)
             {
                 case OpCode.Hello:
-                    await this.ProcessHelloMessageAsync(message);
+                    await this.ProcessHelloMessageAsync(message).ConfigureAwait(false);
                     break;
                 case OpCode.Identified:
                     this.ProcessIdentifiedMessage(message);
@@ -676,6 +758,9 @@
                 case OpCode.Request:
                 case OpCode.RequestBatch:
                     break;
+                default:
+                    _logger.LogWarning("Received unknown OpCode: {OpCode} in ProcessReceivedMessageAsync. Raw message: {RawMessage}", message.Op, response);
+                    break;
             }
         }
 
@@ -689,54 +774,101 @@
             Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
-            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token);
-            this._totalBytesSent += bytes.LongLength;
-            this._sessionBytesSent += bytes.LongLength;
-            this._totalMessagesSent++;
-            this._sessionMessagesSent++;
+            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token).ConfigureAwait(false);
+            Interlocked.Add(ref this._totalBytesSent, bytes.LongLength);
+            Interlocked.Increment(ref this._totalMessagesSent);
+            Interlocked.Add(ref this._sessionBytesSent, bytes.LongLength);
+            Interlocked.Increment(ref this._sessionMessagesSent);
+
+            TotalBytesSentChanged?.Invoke(this, this._totalBytesSent);
+            TotalMessagesSentChanged?.Invoke(this, this._totalMessagesSent);
+            SessionBytesSentChanged?.Invoke(this, this._sessionBytesSent);
+            SessionMessagesSentChanged?.Invoke(this, this._sessionMessagesSent);
         }
 
         private async Task ReceiverAsync(CancellationToken ct)
         {
-            while (true)
-            {
-                StringBuilder responseBuilder = new();
-                WebSocketReceiveResult received;
-                var receiveBuffer = new byte[_receiveBufferSize];
+            var bufferPool = ArrayPool<byte>.Shared;
+            byte[] receiveBuffer = bufferPool.Rent(_receiveBufferSize);
 
-                do
+            try
+            {
+                while (true)
                 {
+                    ct.ThrowIfCancellationRequested();
+
+                    StringBuilder responseBuilder = StringBuilderCache.Acquire();
                     try
                     {
-                        received = await this._client.ReceiveAsync(receiveBuffer, ct);
+                        await ReceiveWebSocketMessageAsync(receiveBuffer, responseBuilder, ct).ConfigureAwait(false);
+
+                        if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted)
+                            break;
+
+                        await this.ProcessReceivedMessageAsync(responseBuilder).ConfigureAwait(false);
                     }
-                    catch (TaskCanceledException)
+                    finally
                     {
-                        break;
+                        StringBuilderCache.Release(responseBuilder);
                     }
-                    catch (WebSocketException)
-                    {
-                        break;
-                    }
+                }
 
-                    this._totalBytesReceived += received.Count;
-                    this._sessionBytesReceived += received.Count;
-                    responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer[..received.Count]));
-                } while (!received.EndOfMessage);
-
-                if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted) break;
-
-                _ = Task.Run(() => this.ProcessReceivedMessageAsync(responseBuilder), CancellationToken.None).ConfigureAwait(false);
+                await this.CloseConnectionAsync(ct).ConfigureAwait(false);
             }
+            finally
+            {
+                if (_client.State != WebSocketState.None)
+                {
+                    _client.Dispose();
+                    _client = new ClientWebSocket();
+                }
 
-            await this.CloseConnectionAsync(ct.IsCancellationRequested);
+                bufferPool.Return(receiveBuffer);
+
+                _logger.LogDebug("Receiver ended");
+            }
         }
 
-        private async Task CloseConnectionAsync(bool closeRequested)
+        private async Task ReceiveWebSocketMessageAsync(byte[] receiveBuffer, StringBuilder responseBuilder, CancellationToken ct)
+        {
+            WebSocketReceiveResult received;
+            do
+            {
+                ct.ThrowIfCancellationRequested();
+
+                try
+                {
+                    received = await this._client.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, 0, _receiveBufferSize), ct).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException e)
+                {
+                    _logger.LogError(e, "Handled Exception in ReceiverAsync");
+                    break;
+                }
+                catch (WebSocketException e)
+                {
+                    _logger.LogError(e, "Handled Exception in ReceiverAsync");
+                    break;
+                }
+
+                Interlocked.Add(ref this._totalBytesReceived, received.Count);
+                Interlocked.Increment(ref this._totalMessagesReceived);
+                Interlocked.Add(ref this._sessionBytesReceived, received.Count);
+                Interlocked.Increment(ref this._sessionMessagesReceived);
+                responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer, 0, received.Count));
+
+                TotalBytesReceivedChanged?.Invoke(this, this._totalBytesReceived);
+                TotalMessagesReceivedChanged?.Invoke(this, this._totalMessagesReceived);
+                SessionBytesReceivedChanged?.Invoke(this, this._sessionBytesReceived);
+                SessionMessagesReceivedChanged?.Invoke(this, this._sessionMessagesReceived);
+            } while (!received.EndOfMessage);
+        }
+
+        private async Task CloseConnectionAsync(CancellationToken ct)
         {
             WebSocketCloseCode closeCode;
             string closeDescription;
-            if (closeRequested)
+            if (ct.IsCancellationRequested)
             {
                 // Closed the connection because you called Disconnect().
                 closeCode = WebSocketCloseCode.NormalClosure;
@@ -752,15 +884,15 @@
             if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
             {
                 this.ConnectionState = ConnectionState.Disconnecting;
-                await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+                await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
             }
 
             this.ConnectionState = ConnectionState.Disconnected;
-            _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)));
-            this._sessionBytesReceived = 0;
-            this._sessionBytesSent = 0;
-            this._sessionMessagesReceived = 0;
-            this._sessionMessagesSent = 0;
+            _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)), ct);
+            Interlocked.Exchange(ref this._sessionBytesReceived, 0);
+            Interlocked.Exchange(ref this._sessionBytesSent, 0);
+            Interlocked.Exchange(ref this._sessionMessagesReceived, 0);
+            Interlocked.Exchange(ref this._sessionMessagesSent, 0);
             if (closeCode == WebSocketCloseCode.AuthenticationFailed && this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
             {
                 this._authenticationComplete.SetResult(false);
@@ -782,8 +914,8 @@
             {
                 try
                 {
-                    await SendAsync(request);
-                    return await tcs.Task;
+                    await SendAsync(request).ConfigureAwait(false);
+                    return await tcs.Task.ConfigureAwait(false);
                 }
                 catch (TaskCanceledException)
                 {
@@ -808,7 +940,7 @@
                 requestType = requestType[..^5];
             }
 
-            await this.SendRequestAndWaitAsync(requestType, requestData);
+            await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
         }
 
         private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponse
@@ -818,7 +950,7 @@
                 requestType = requestType[..^5];
             }
 
-            var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData);
+            var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
             return (T)requestResponseData.ResponseData!;
         }
 
@@ -830,7 +962,7 @@
                 var requestId = Guid.NewGuid().ToString();
                 var d = new { requestType, requestId, requestData };
                 var op = (int)OpCode.Request;
-                var result = await this.SendAndWaitAsync(new { d, op });
+                var result = await this.SendAndWaitAsync(new { d, op }).ConfigureAwait(false);
                 if (result is RequestResponseMessage requestResponseData)
                 {
                     if (requestResponseData.RequestStatus.Result)
@@ -841,7 +973,7 @@
                     {
                         if (requestResponseData.RequestStatus.Code == RequestStatusCode.NotReady && retryCount++ < this._maxRequestRetries)
                         {
-                            Thread.Sleep(this._requestRetryInterval);
+                            await Task.Delay(this._requestRetryInterval).ConfigureAwait(false);
                         }
                         else
                         {
@@ -861,8 +993,26 @@
             if (this._autoReconnect && this._connectionState == ConnectionState.Disconnected)
             {
                 this.ConnectionState = ConnectionState.Connecting;
-                _ = Task.Run(async () => await this.StartAsync());
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.StartAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Reconnect failed");
+                    }
+                });
             }
+        }
+
+        private static bool IsHighFrequencyEvent(EventType eventType)
+        {
+            return eventType == EventType.InputVolumeMeters
+                || eventType == EventType.InputActiveStateChanged
+                || eventType == EventType.InputShowStateChanged
+                || eventType == EventType.SceneItemTransformChanged;
         }
     }
 }

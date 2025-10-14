@@ -107,6 +107,11 @@
         InputNameChanged,
 
         /// <summary>
+        /// An input's settings have changed (been updated).
+        /// </summary>
+        InputSettingsChanged,
+
+        /// <summary>
         /// An input's active state has changed.
         /// </summary>
         InputActiveStateChanged,
@@ -201,6 +206,11 @@
         SourceFilterNameChanged,
 
         /// <summary>
+        /// An source filter's settings have changed (been updated).
+        /// </summary>
+        SourceFilterSettingsChanged,
+
+        /// <summary>
         /// A source filter's enable state has changed.
         /// </summary>
         SourceFilterEnableStateChanged,
@@ -248,6 +258,11 @@
         /// The state of the stream output has changed.
         /// </summary>
         StreamStateChanged,
+
+        /// <summary>
+        /// The record output has started writing to a new file. For example, when a file split happens.
+        /// </summary>
+        RecordFileChanged,
 
         /// <summary>
         /// The state of the record output has changed.

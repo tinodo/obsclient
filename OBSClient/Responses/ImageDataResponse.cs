@@ -6,22 +6,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetSourceScreenshot or SaveSoruceScreenshot request.
     /// </summary>
-    public class ImageDataResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="ImageDataResponse"/> class.
+    /// </remarks>
+    /// <param name="imageData">Base64 string with image data.</param>
+    [method: JsonConstructor]
+    public class ImageDataResponse(string imageData) : IResponse
     {
         /// <summary>
         /// Gets the image data as a Base64 string.
         /// </summary>
         [JsonPropertyName("imageData")]
-        public string ImageData { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ImageDataResponse"/> class.
-        /// </summary>
-        /// <param name="imageData">Base64 string with image data.</param>
-        [JsonConstructor]
-        public ImageDataResponse(string imageData)
-        {
-            this.ImageData = imageData;
-        }
+        public string ImageData { get; } = imageData;
     }
 }

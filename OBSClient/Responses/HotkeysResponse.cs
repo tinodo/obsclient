@@ -6,22 +6,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetHotkeyList request.
     /// </summary>
-    public class HotkeysResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="HotkeysResponse"/> class.
+    /// </remarks>
+    /// <param name="hotkeys">List of hotkey names.</param>
+    [method: JsonConstructor]
+    public class HotkeysResponse(string[] hotkeys) : IResponse
     {
         /// <summary>
         /// Gets the list of hotkey names.
         /// </summary>
         [JsonPropertyName("hotkeys")]
-        public string[] Hotkeys { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HotkeysResponse"/> class.
-        /// </summary>
-        /// <param name="hotkeys">List of hotkey names.</param>
-        [JsonConstructor]
-        public HotkeysResponse(string[] hotkeys)
-        {
-            this.Hotkeys = hotkeys ?? Array.Empty<string>();
-        }
+        public string[] Hotkeys { get; } = hotkeys ?? [];
     }
 }

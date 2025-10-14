@@ -5,38 +5,31 @@
     /// <summary>
     /// Provides arguments for the VendorEvent event.
     /// </summary>
-    public class VendorEventEventArgs : EventArgs
+    /// <remarks>
+    /// VendorEventEventArgs a new instance of the <see cref="TransitionDurationEventArgs"/> class.
+    /// </remarks>
+    /// <param name="vendorName">The vendor name.</param>
+    /// <param name="eventType">The event type.</param>
+    /// <param name="eventData">The event data.</param>
+    [method: JsonConstructor]
+    public class VendorEventEventArgs(string vendorName, string eventType, object? eventData) : EventArgs
     {
         /// <summary>
         /// Gets the name of the vendor.
         /// </summary>
         [JsonPropertyName("vendorName")]
-        public string VendorName { get; }
+        public string VendorName { get; } = vendorName;
 
         /// <summary>
         /// Gets the type of the event.
         /// </summary>
         [JsonPropertyName("eventType")]
-        public string EventType { get; }
+        public string EventType { get; } = eventType;
 
         /// <summary>
         /// Gets the event data.
         /// </summary>
         [JsonPropertyName("eventData")]
-        public object? EventData { get; }
-
-        /// <summary>
-        /// VendorEventEventArgs a new instance of the <see cref="TransitionDurationEventArgs"/> class.
-        /// </summary>
-        /// <param name="vendorName">The vendor name.</param>
-        /// <param name="eventType">The event type.</param>
-        /// <param name="eventData">The event data.</param>
-        [JsonConstructor]
-        public VendorEventEventArgs(string vendorName, string eventType, object? eventData)
-        {
-            this.VendorName = vendorName;
-            this.EventType = eventType;
-            this.EventData = eventData;
-        }
+        public object? EventData { get; } = eventData;
     }
 }

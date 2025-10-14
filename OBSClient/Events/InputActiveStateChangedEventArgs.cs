@@ -5,30 +5,31 @@
     /// <summary>
     /// Provides arguments for the InputActiveStateChanged event.
     /// </summary>
-    public class InputActiveStateChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="InputActiveStateChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="inputName">The name of the input.</param>
+    /// <param name="inputUuid">The uuid of the input.</param>
+    /// <param name="videoActive">A value indicating whether the video is active or not.</param>
+    [method: JsonConstructor]
+    public class InputActiveStateChangedEventArgs(string inputName, Guid inputUuid, bool videoActive) : EventArgs
     {
         /// <summary>
         /// Gets the name of the input.
         /// </summary>
         [JsonPropertyName("inputName")]
-        public string InputName { get; }
+        public string InputName { get; } = inputName;
+
+        /// <summary>
+        /// Gets the input uuid.
+        /// </summary>
+        [JsonPropertyName("inputUuid")]
+        public Guid InputUuid { get; } = inputUuid;
 
         /// <summary>
         /// Gets a value indicating whether the video is active or not.
         /// </summary>
         [JsonPropertyName("videoActive")]
-        public bool VideoActive { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="InputActiveStateChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="inputName">The name of the input.</param>
-        /// <param name="videoActive">A value indicating whether the video is active or not.</param>
-        [JsonConstructor]
-        public InputActiveStateChangedEventArgs(string inputName, bool videoActive)
-        {
-            this.InputName = inputName;
-            this.VideoActive = videoActive;
-        }
+        public bool VideoActive { get; } = videoActive;
     }
 }

@@ -5,22 +5,17 @@
     /// <summary>
     /// Provides arguments for the CurrentProfileChanging and CurrentProfileChanged events.
     /// </summary>
-    public class ProfileNameEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="ProfileNameEventArgs"/> class.
+    /// </remarks>
+    /// <param name="profileName">The profile name.</param>
+    [method: JsonConstructor]
+    public class ProfileNameEventArgs(string profileName) : EventArgs
     {
         /// <summary>
         /// Gets the profile name.
         /// </summary>
         [JsonPropertyName("profileName")]
-        public string ProfileName { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ProfileNameEventArgs"/> class.
-        /// </summary>
-        /// <param name="profileName">The profile name.</param>
-        [JsonConstructor]
-        public ProfileNameEventArgs(string profileName)
-        {
-            this.ProfileName = profileName;
-        }
+        public string ProfileName { get; } = profileName;
     }
 }

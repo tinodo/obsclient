@@ -40,7 +40,21 @@
         /// <param name="sceneName">Scene to set as the current program scene</param>
         public void AddSetCurrentProgramSceneRequest(string sceneName)
         {
-            this._requests.Add(new(new { sceneName }));
+            this.AddSetCurrentProgramSceneRequest(sceneName, null);
+        }
+
+        /// <summary>
+        /// Adds a request to set the current program scene.
+        /// </summary>
+        /// <param name="sceneUuid">Scene to set as the current program scene</param>
+        public void AddSetCurrentProgramSceneRequest(Guid sceneUuid)
+        {
+            this.AddSetCurrentProgramSceneRequest(null, sceneUuid);
+        }
+
+        private void AddSetCurrentProgramSceneRequest(string? sceneName, Guid? sceneUuid)
+        {
+            this._requests.Add(new(new { sceneName, sceneUuid }));
         }
 
         /// <summary>

@@ -28,1428 +28,1549 @@
         /// </summary>
         private void InitializeComponent()
         {
-            button1 = new Button();
-            tbHostname = new TextBox();
-            nudPort = new NumericUpDown();
-            tbPassword = new TextBox();
-            btnStartVirtualCam = new Button();
-            btnStopVirtualCamera = new Button();
-            btnToggleVirtualCamera = new Button();
-            btnGetVirtualCameraState = new Button();
-            button3 = new Button();
-            btnGetMonitorList = new Button();
-            btnGetStudioModeEnabled = new Button();
-            btnStopStudioMode = new Button();
-            btnStartStudioMode = new Button();
-            btnSleep = new Button();
-            btnTriggerHotkeyByKeySequence = new Button();
-            btnTriggerHotkeyByName = new Button();
-            btnGetHotkeyList = new Button();
-            btnCallVendorRequest = new Button();
-            btnBroadcastCustomEvent = new Button();
-            btnGetStats = new Button();
-            btnGetVersion = new Button();
-            btnGetProfileList = new Button();
-            btnCreateSceneCollection = new Button();
-            btnSetCurrentSceneCollection = new Button();
-            btnGetSceneCollectionList = new Button();
-            btnSetPersistentData = new Button();
-            btnGetPersistentData = new Button();
-            btnSetCurrentProfile = new Button();
-            btnCreateProfile = new Button();
-            btnRemoveProfile = new Button();
-            btnGetProfileParameter = new Button();
-            btnSetProfileParameter = new Button();
-            btnGetVideoSettings = new Button();
-            btnSetVideoSettings = new Button();
-            label1 = new Label();
-            label2 = new Label();
-            label3 = new Label();
-            tabControl1 = new TabControl();
-            tpGeneralRequests = new TabPage();
-            tpConfigRequests = new TabPage();
-            btnGetRecordDirectory = new Button();
-            btnSetStreamServiceSettings = new Button();
-            btnGetStreamServiceSettings = new Button();
-            tpSourcesRequests = new TabPage();
-            btnSaveSourceScreenshot = new Button();
-            btnSetSourceActive = new Button();
-            btnGetSourceActive = new Button();
-            tpScenesRequests = new TabPage();
-            btnSetSceneSceneTransitionOverride = new Button();
-            btnGetSceneSceneTransitionOverride = new Button();
-            btnSetSceneName = new Button();
-            btnRemoveScene = new Button();
-            btnCreateScene = new Button();
-            btnSetCurrentPreviewScene = new Button();
-            btnGetCurrentPreviewScene = new Button();
-            btnSetCurrentProgramScene = new Button();
-            btnGetCurrentProgramScene = new Button();
-            btnGetGroupList = new Button();
-            btnGetSceneList = new Button();
-            tpInputsRequests = new TabPage();
-            btnToggleInputMute = new Button();
-            btnSetInputMute = new Button();
-            btnGetInputMute = new Button();
-            btnSetInputSettings = new Button();
-            btnGetInputSettings = new Button();
-            btnGetInputDefaultSettings = new Button();
-            btnSetInputName = new Button();
-            btnRemoveInput = new Button();
-            btnCreateInput = new Button();
-            btnGetSpecialInputs = new Button();
-            btnGetInputKindList = new Button();
-            btnGetInputList = new Button();
-            tpFiltersRequests = new TabPage();
-            tbMediaInputsRequests = new TabPage();
-            tpOutputsRequests = new TabPage();
-            bnGetStreamStatus = new Button();
-            tbRecordRequests = new TabPage();
-            btnSetRecordDirectory = new Button();
-            btnResumeRecord = new Button();
-            btnPauseRecord = new Button();
-            btnToggleRecordPause = new Button();
-            btnStopRecord = new Button();
-            btnStartRecord = new Button();
-            btnToggleRecord = new Button();
-            btnGetRecordStatus = new Button();
-            tbSceneItemsRequests = new TabPage();
-            tpStreamRequests = new TabPage();
-            tpTransitionsRequests = new TabPage();
-            tpUIRequests = new TabPage();
-            btnOpenSourceProjectorWindow = new Button();
-            button5 = new Button();
-            btnOpenSourceProjectorOnMonitor = new Button();
-            btnOpenVideoMixProjectorWindow = new Button();
-            btnOpenVideoMixProjectorOnMonitor = new Button();
-            btnOpenInputInteractDialog = new Button();
-            btnOpenInputFiltersDialog = new Button();
-            btnOpenInputPropertiesDialog = new Button();
-            tpMisc = new TabPage();
-            btnBatch1 = new Button();
-            lbScenes = new ListBox();
-            label4 = new Label();
-            label5 = new Label();
-            lbGroups = new ListBox();
-            tbNameItem = new TextBox();
-            label6 = new Label();
-            label7 = new Label();
-            lblRecordState = new Label();
-            label8 = new Label();
-            tbRecordFolder = new TextBox();
-            cbAutoReconnect = new CheckBox();
-            lblBytesOut = new Label();
-            label10 = new Label();
-            lblBytesIn = new Label();
-            label12 = new Label();
-            lblMessagesIn = new Label();
-            label11 = new Label();
-            lblMessagesOut = new Label();
-            label14 = new Label();
-            label9 = new Label();
-            lblLastEvent = new Label();
-            ((System.ComponentModel.ISupportInitialize)nudPort).BeginInit();
-            tabControl1.SuspendLayout();
-            tpGeneralRequests.SuspendLayout();
-            tpConfigRequests.SuspendLayout();
-            tpSourcesRequests.SuspendLayout();
-            tpScenesRequests.SuspendLayout();
-            tpInputsRequests.SuspendLayout();
-            tpOutputsRequests.SuspendLayout();
-            tbRecordRequests.SuspendLayout();
-            tpUIRequests.SuspendLayout();
-            tpMisc.SuspendLayout();
+            this.button1 = new Button();
+            this.tbHostname = new TextBox();
+            this.nudPort = new NumericUpDown();
+            this.tbPassword = new TextBox();
+            this.btnStartVirtualCam = new Button();
+            this.btnStopVirtualCamera = new Button();
+            this.btnToggleVirtualCamera = new Button();
+            this.btnGetVirtualCameraState = new Button();
+            this.button3 = new Button();
+            this.btnGetMonitorList = new Button();
+            this.btnGetStudioModeEnabled = new Button();
+            this.btnStopStudioMode = new Button();
+            this.btnStartStudioMode = new Button();
+            this.btnSleep = new Button();
+            this.btnTriggerHotkeyByKeySequence = new Button();
+            this.btnTriggerHotkeyByName = new Button();
+            this.btnGetHotkeyList = new Button();
+            this.btnCallVendorRequest = new Button();
+            this.btnBroadcastCustomEvent = new Button();
+            this.btnGetStats = new Button();
+            this.btnGetVersion = new Button();
+            this.btnGetProfileList = new Button();
+            this.btnCreateSceneCollection = new Button();
+            this.btnSetCurrentSceneCollection = new Button();
+            this.btnGetSceneCollectionList = new Button();
+            this.btnSetPersistentData = new Button();
+            this.btnGetPersistentData = new Button();
+            this.btnSetCurrentProfile = new Button();
+            this.btnCreateProfile = new Button();
+            this.btnRemoveProfile = new Button();
+            this.btnGetProfileParameter = new Button();
+            this.btnSetProfileParameter = new Button();
+            this.btnGetVideoSettings = new Button();
+            this.btnSetVideoSettings = new Button();
+            this.label1 = new Label();
+            this.label2 = new Label();
+            this.label3 = new Label();
+            this.tabControl1 = new TabControl();
+            this.tpGeneralRequests = new TabPage();
+            this.tpConfigRequests = new TabPage();
+            this.btnGetRecordDirectory = new Button();
+            this.btnSetStreamServiceSettings = new Button();
+            this.btnGetStreamServiceSettings = new Button();
+            this.tpSourcesRequests = new TabPage();
+            this.btnSaveSourceScreenshot = new Button();
+            this.btnSetSourceActive = new Button();
+            this.btnGetSourceActive = new Button();
+            this.tpScenesRequests = new TabPage();
+            this.btnSetSceneSceneTransitionOverride = new Button();
+            this.btnGetSceneSceneTransitionOverride = new Button();
+            this.btnSetSceneName = new Button();
+            this.btnRemoveScene = new Button();
+            this.btnCreateScene = new Button();
+            this.btnSetCurrentPreviewScene = new Button();
+            this.btnGetCurrentPreviewScene = new Button();
+            this.btnSetCurrentProgramScene = new Button();
+            this.btnGetCurrentProgramScene = new Button();
+            this.btnGetGroupList = new Button();
+            this.btnGetSceneList = new Button();
+            this.tpInputsRequests = new TabPage();
+            this.btnToggleInputMute = new Button();
+            this.btnSetInputMute = new Button();
+            this.btnGetInputMute = new Button();
+            this.btnSetInputSettings = new Button();
+            this.btnGetInputSettings = new Button();
+            this.btnGetInputDefaultSettings = new Button();
+            this.btnSetInputName = new Button();
+            this.btnRemoveInput = new Button();
+            this.btnCreateInput = new Button();
+            this.btnGetSpecialInputs = new Button();
+            this.btnGetInputKindList = new Button();
+            this.btnGetInputList = new Button();
+            this.tpFiltersRequests = new TabPage();
+            this.tbMediaInputsRequests = new TabPage();
+            this.tpOutputsRequests = new TabPage();
+            this.bnGetStreamStatus = new Button();
+            this.tbRecordRequests = new TabPage();
+            this.btnSetRecordDirectory = new Button();
+            this.btnResumeRecord = new Button();
+            this.btnPauseRecord = new Button();
+            this.btnToggleRecordPause = new Button();
+            this.btnStopRecord = new Button();
+            this.btnStartRecord = new Button();
+            this.btnToggleRecord = new Button();
+            this.btnGetRecordStatus = new Button();
+            this.tbSceneItemsRequests = new TabPage();
+            this.tpStreamRequests = new TabPage();
+            this.tpTransitionsRequests = new TabPage();
+            this.tpUIRequests = new TabPage();
+            this.btnOpenSourceProjectorWindow = new Button();
+            this.button5 = new Button();
+            this.btnOpenSourceProjectorOnMonitor = new Button();
+            this.btnOpenVideoMixProjectorWindow = new Button();
+            this.btnOpenVideoMixProjectorOnMonitor = new Button();
+            this.btnOpenInputInteractDialog = new Button();
+            this.btnOpenInputFiltersDialog = new Button();
+            this.btnOpenInputPropertiesDialog = new Button();
+            this.tpMisc = new TabPage();
+            this.btnBatch1 = new Button();
+            this.lbScenes = new ListBox();
+            this.label4 = new Label();
+            this.label5 = new Label();
+            this.lbGroups = new ListBox();
+            this.tbNameItem = new TextBox();
+            this.label6 = new Label();
+            this.label7 = new Label();
+            this.lblRecordState = new Label();
+            this.label8 = new Label();
+            this.tbRecordFolder = new TextBox();
+            this.cbAutoReconnect = new CheckBox();
+            this.lblBytesOut = new Label();
+            this.label10 = new Label();
+            this.lblBytesIn = new Label();
+            this.label12 = new Label();
+            this.lblMessagesIn = new Label();
+            this.label11 = new Label();
+            this.lblMessagesOut = new Label();
+            this.label14 = new Label();
+            this.label9 = new Label();
+            this.lblLastEvent = new Label();
+            ((System.ComponentModel.ISupportInitialize)this.nudPort).BeginInit();
+            this.tabControl1.SuspendLayout();
+            this.tpGeneralRequests.SuspendLayout();
+            this.tpConfigRequests.SuspendLayout();
+            this.tpSourcesRequests.SuspendLayout();
+            this.tpScenesRequests.SuspendLayout();
+            this.tpInputsRequests.SuspendLayout();
+            this.tpOutputsRequests.SuspendLayout();
+            this.tbRecordRequests.SuspendLayout();
+            this.tpUIRequests.SuspendLayout();
+            this.tpMisc.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
             // 
-            button1.Location = new Point(382, 8);
-            button1.Name = "button1";
-            button1.Size = new Size(150, 46);
-            button1.TabIndex = 0;
-            button1.Text = "Connect";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += this.Button1_Click;
+            this.button1.Location = new Point(294, 6);
+            this.button1.Margin = new Padding(2);
+            this.button1.Name = "button1";
+            this.button1.Size = new Size(115, 36);
+            this.button1.TabIndex = 0;
+            this.button1.Text = "Connect";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += this.Button1_Click;
             // 
             // tbHostname
             // 
-            tbHostname.Location = new Point(146, 15);
-            tbHostname.Name = "tbHostname";
-            tbHostname.Size = new Size(200, 39);
-            tbHostname.TabIndex = 2;
-            tbHostname.Text = "localhost";
+            this.tbHostname.Location = new Point(112, 12);
+            this.tbHostname.Margin = new Padding(2);
+            this.tbHostname.Name = "tbHostname";
+            this.tbHostname.Size = new Size(155, 31);
+            this.tbHostname.TabIndex = 2;
+            this.tbHostname.Text = "localhost";
             // 
             // nudPort
             // 
-            nudPort.Location = new Point(146, 60);
-            nudPort.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
-            nudPort.Name = "nudPort";
-            nudPort.Size = new Size(200, 39);
-            nudPort.TabIndex = 3;
-            nudPort.Value = new decimal(new int[] { 4455, 0, 0, 0 });
+            this.nudPort.Location = new Point(112, 47);
+            this.nudPort.Margin = new Padding(2);
+            this.nudPort.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
+            this.nudPort.Name = "nudPort";
+            this.nudPort.Size = new Size(154, 31);
+            this.nudPort.TabIndex = 3;
+            this.nudPort.Value = new decimal(new int[] { 4455, 0, 0, 0 });
             // 
             // tbPassword
             // 
-            tbPassword.Location = new Point(146, 105);
-            tbPassword.Name = "tbPassword";
-            tbPassword.Size = new Size(200, 39);
-            tbPassword.TabIndex = 4;
-            tbPassword.UseSystemPasswordChar = true;
+            this.tbPassword.Location = new Point(112, 82);
+            this.tbPassword.Margin = new Padding(2);
+            this.tbPassword.Name = "tbPassword";
+            this.tbPassword.Size = new Size(155, 31);
+            this.tbPassword.TabIndex = 4;
+            this.tbPassword.UseSystemPasswordChar = true;
             // 
             // btnStartVirtualCam
             // 
-            btnStartVirtualCam.Location = new Point(3, 108);
-            btnStartVirtualCam.Name = "btnStartVirtualCam";
-            btnStartVirtualCam.Size = new Size(340, 46);
-            btnStartVirtualCam.TabIndex = 5;
-            btnStartVirtualCam.Text = "Start Virtual Camera";
-            btnStartVirtualCam.UseVisualStyleBackColor = true;
-            btnStartVirtualCam.Click += this.BtnStartVirtualCam_Click;
+            this.btnStartVirtualCam.Location = new Point(2, 84);
+            this.btnStartVirtualCam.Margin = new Padding(2);
+            this.btnStartVirtualCam.Name = "btnStartVirtualCam";
+            this.btnStartVirtualCam.Size = new Size(262, 36);
+            this.btnStartVirtualCam.TabIndex = 5;
+            this.btnStartVirtualCam.Text = "Start Virtual Camera";
+            this.btnStartVirtualCam.UseVisualStyleBackColor = true;
+            this.btnStartVirtualCam.Click += this.BtnStartVirtualCam_Click;
             // 
             // btnStopVirtualCamera
             // 
-            btnStopVirtualCamera.Location = new Point(0, 160);
-            btnStopVirtualCamera.Name = "btnStopVirtualCamera";
-            btnStopVirtualCamera.Size = new Size(340, 46);
-            btnStopVirtualCamera.TabIndex = 6;
-            btnStopVirtualCamera.Text = "Stop Virtual Camera";
-            btnStopVirtualCamera.UseVisualStyleBackColor = true;
-            btnStopVirtualCamera.Click += this.BtnStopVirtualCamera_Click;
+            this.btnStopVirtualCamera.Location = new Point(0, 125);
+            this.btnStopVirtualCamera.Margin = new Padding(2);
+            this.btnStopVirtualCamera.Name = "btnStopVirtualCamera";
+            this.btnStopVirtualCamera.Size = new Size(262, 36);
+            this.btnStopVirtualCamera.TabIndex = 6;
+            this.btnStopVirtualCamera.Text = "Stop Virtual Camera";
+            this.btnStopVirtualCamera.UseVisualStyleBackColor = true;
+            this.btnStopVirtualCamera.Click += this.BtnStopVirtualCamera_Click;
             // 
             // btnToggleVirtualCamera
             // 
-            btnToggleVirtualCamera.Location = new Point(3, 56);
-            btnToggleVirtualCamera.Name = "btnToggleVirtualCamera";
-            btnToggleVirtualCamera.Size = new Size(340, 46);
-            btnToggleVirtualCamera.TabIndex = 7;
-            btnToggleVirtualCamera.Text = "Toggle Virtual Camera";
-            btnToggleVirtualCamera.UseVisualStyleBackColor = true;
-            btnToggleVirtualCamera.Click += this.BtnToggleVirtualCamera_Click;
+            this.btnToggleVirtualCamera.Location = new Point(2, 44);
+            this.btnToggleVirtualCamera.Margin = new Padding(2);
+            this.btnToggleVirtualCamera.Name = "btnToggleVirtualCamera";
+            this.btnToggleVirtualCamera.Size = new Size(262, 36);
+            this.btnToggleVirtualCamera.TabIndex = 7;
+            this.btnToggleVirtualCamera.Text = "Toggle Virtual Camera";
+            this.btnToggleVirtualCamera.UseVisualStyleBackColor = true;
+            this.btnToggleVirtualCamera.Click += this.BtnToggleVirtualCamera_Click;
             // 
             // btnGetVirtualCameraState
             // 
-            btnGetVirtualCameraState.Location = new Point(3, 4);
-            btnGetVirtualCameraState.Name = "btnGetVirtualCameraState";
-            btnGetVirtualCameraState.Size = new Size(340, 46);
-            btnGetVirtualCameraState.TabIndex = 8;
-            btnGetVirtualCameraState.Text = "Get Virtual Camera Status";
-            btnGetVirtualCameraState.UseVisualStyleBackColor = true;
-            btnGetVirtualCameraState.Click += this.BtnGetVirtualCameraState_Click;
+            this.btnGetVirtualCameraState.Location = new Point(2, 3);
+            this.btnGetVirtualCameraState.Margin = new Padding(2);
+            this.btnGetVirtualCameraState.Name = "btnGetVirtualCameraState";
+            this.btnGetVirtualCameraState.Size = new Size(262, 36);
+            this.btnGetVirtualCameraState.TabIndex = 8;
+            this.btnGetVirtualCameraState.Text = "Get Virtual Camera Status";
+            this.btnGetVirtualCameraState.UseVisualStyleBackColor = true;
+            this.btnGetVirtualCameraState.Click += this.BtnGetVirtualCameraState_Click;
             // 
             // button3
             // 
-            button3.Location = new Point(382, 55);
-            button3.Name = "button3";
-            button3.Size = new Size(150, 46);
-            button3.TabIndex = 9;
-            button3.Text = "Disconnect";
-            button3.UseVisualStyleBackColor = true;
-            button3.Click += this.Button3_Click;
+            this.button3.Location = new Point(294, 43);
+            this.button3.Margin = new Padding(2);
+            this.button3.Name = "button3";
+            this.button3.Size = new Size(115, 36);
+            this.button3.TabIndex = 9;
+            this.button3.Text = "Disconnect";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += this.Button3_Click;
             // 
             // btnGetMonitorList
             // 
-            btnGetMonitorList.Location = new Point(3, 316);
-            btnGetMonitorList.Name = "btnGetMonitorList";
-            btnGetMonitorList.Size = new Size(340, 46);
-            btnGetMonitorList.TabIndex = 13;
-            btnGetMonitorList.Text = "Get Monitor List";
-            btnGetMonitorList.UseVisualStyleBackColor = true;
-            btnGetMonitorList.Click += this.BtnGetMonitorList_Click;
+            this.btnGetMonitorList.Location = new Point(2, 247);
+            this.btnGetMonitorList.Margin = new Padding(2);
+            this.btnGetMonitorList.Name = "btnGetMonitorList";
+            this.btnGetMonitorList.Size = new Size(262, 36);
+            this.btnGetMonitorList.TabIndex = 13;
+            this.btnGetMonitorList.Text = "Get Monitor List";
+            this.btnGetMonitorList.UseVisualStyleBackColor = true;
+            this.btnGetMonitorList.Click += this.BtnGetMonitorList_Click;
             // 
             // btnGetStudioModeEnabled
             // 
-            btnGetStudioModeEnabled.Location = new Point(3, 4);
-            btnGetStudioModeEnabled.Name = "btnGetStudioModeEnabled";
-            btnGetStudioModeEnabled.Size = new Size(340, 46);
-            btnGetStudioModeEnabled.TabIndex = 12;
-            btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
-            btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
-            btnGetStudioModeEnabled.Click += this.BtnGetStudioModeEnabled_Click;
+            this.btnGetStudioModeEnabled.Location = new Point(2, 3);
+            this.btnGetStudioModeEnabled.Margin = new Padding(2);
+            this.btnGetStudioModeEnabled.Name = "btnGetStudioModeEnabled";
+            this.btnGetStudioModeEnabled.Size = new Size(262, 36);
+            this.btnGetStudioModeEnabled.TabIndex = 12;
+            this.btnGetStudioModeEnabled.Text = "Get Studio Mode Enabled";
+            this.btnGetStudioModeEnabled.UseVisualStyleBackColor = true;
+            this.btnGetStudioModeEnabled.Click += this.BtnGetStudioModeEnabled_Click;
             // 
             // btnStopStudioMode
             // 
-            btnStopStudioMode.Location = new Point(3, 108);
-            btnStopStudioMode.Name = "btnStopStudioMode";
-            btnStopStudioMode.Size = new Size(340, 46);
-            btnStopStudioMode.TabIndex = 11;
-            btnStopStudioMode.Text = "Stop Studio Mode";
-            btnStopStudioMode.UseVisualStyleBackColor = true;
-            btnStopStudioMode.Click += this.BtnStopStudioMode_Click;
+            this.btnStopStudioMode.Location = new Point(2, 84);
+            this.btnStopStudioMode.Margin = new Padding(2);
+            this.btnStopStudioMode.Name = "btnStopStudioMode";
+            this.btnStopStudioMode.Size = new Size(262, 36);
+            this.btnStopStudioMode.TabIndex = 11;
+            this.btnStopStudioMode.Text = "Stop Studio Mode";
+            this.btnStopStudioMode.UseVisualStyleBackColor = true;
+            this.btnStopStudioMode.Click += this.BtnStopStudioMode_Click;
             // 
             // btnStartStudioMode
             // 
-            btnStartStudioMode.Location = new Point(3, 56);
-            btnStartStudioMode.Name = "btnStartStudioMode";
-            btnStartStudioMode.Size = new Size(340, 46);
-            btnStartStudioMode.TabIndex = 10;
-            btnStartStudioMode.Text = "Start Studio Mode";
-            btnStartStudioMode.UseVisualStyleBackColor = true;
-            btnStartStudioMode.Click += this.BtnStartStudioMode_Click;
+            this.btnStartStudioMode.Location = new Point(2, 44);
+            this.btnStartStudioMode.Margin = new Padding(2);
+            this.btnStartStudioMode.Name = "btnStartStudioMode";
+            this.btnStartStudioMode.Size = new Size(262, 36);
+            this.btnStartStudioMode.TabIndex = 10;
+            this.btnStartStudioMode.Text = "Start Studio Mode";
+            this.btnStartStudioMode.UseVisualStyleBackColor = true;
+            this.btnStartStudioMode.Click += this.BtnStartStudioMode_Click;
             // 
             // btnSleep
             // 
-            btnSleep.Enabled = false;
-            btnSleep.Location = new Point(17, 330);
-            btnSleep.Name = "btnSleep";
-            btnSleep.Size = new Size(340, 46);
-            btnSleep.TabIndex = 22;
-            btnSleep.Text = "Sleep";
-            btnSleep.UseVisualStyleBackColor = true;
+            this.btnSleep.Enabled = false;
+            this.btnSleep.Location = new Point(13, 258);
+            this.btnSleep.Margin = new Padding(2);
+            this.btnSleep.Name = "btnSleep";
+            this.btnSleep.Size = new Size(262, 36);
+            this.btnSleep.TabIndex = 22;
+            this.btnSleep.Text = "Sleep";
+            this.btnSleep.UseVisualStyleBackColor = true;
             // 
             // btnTriggerHotkeyByKeySequence
             // 
-            btnTriggerHotkeyByKeySequence.Enabled = false;
-            btnTriggerHotkeyByKeySequence.Location = new Point(17, 278);
-            btnTriggerHotkeyByKeySequence.Name = "btnTriggerHotkeyByKeySequence";
-            btnTriggerHotkeyByKeySequence.Size = new Size(381, 46);
-            btnTriggerHotkeyByKeySequence.TabIndex = 21;
-            btnTriggerHotkeyByKeySequence.Text = "Trigger Hotkey By Key Sequence";
-            btnTriggerHotkeyByKeySequence.UseVisualStyleBackColor = true;
+            this.btnTriggerHotkeyByKeySequence.Enabled = false;
+            this.btnTriggerHotkeyByKeySequence.Location = new Point(13, 217);
+            this.btnTriggerHotkeyByKeySequence.Margin = new Padding(2);
+            this.btnTriggerHotkeyByKeySequence.Name = "btnTriggerHotkeyByKeySequence";
+            this.btnTriggerHotkeyByKeySequence.Size = new Size(293, 36);
+            this.btnTriggerHotkeyByKeySequence.TabIndex = 21;
+            this.btnTriggerHotkeyByKeySequence.Text = "Trigger Hotkey By Key Sequence";
+            this.btnTriggerHotkeyByKeySequence.UseVisualStyleBackColor = true;
             // 
             // btnTriggerHotkeyByName
             // 
-            btnTriggerHotkeyByName.Enabled = false;
-            btnTriggerHotkeyByName.Location = new Point(17, 226);
-            btnTriggerHotkeyByName.Name = "btnTriggerHotkeyByName";
-            btnTriggerHotkeyByName.Size = new Size(340, 46);
-            btnTriggerHotkeyByName.TabIndex = 20;
-            btnTriggerHotkeyByName.Text = "Trigger Hotkey By Name";
-            btnTriggerHotkeyByName.UseVisualStyleBackColor = true;
+            this.btnTriggerHotkeyByName.Enabled = false;
+            this.btnTriggerHotkeyByName.Location = new Point(13, 177);
+            this.btnTriggerHotkeyByName.Margin = new Padding(2);
+            this.btnTriggerHotkeyByName.Name = "btnTriggerHotkeyByName";
+            this.btnTriggerHotkeyByName.Size = new Size(262, 36);
+            this.btnTriggerHotkeyByName.TabIndex = 20;
+            this.btnTriggerHotkeyByName.Text = "Trigger Hotkey By Name";
+            this.btnTriggerHotkeyByName.UseVisualStyleBackColor = true;
             // 
             // btnGetHotkeyList
             // 
-            btnGetHotkeyList.Location = new Point(17, 174);
-            btnGetHotkeyList.Name = "btnGetHotkeyList";
-            btnGetHotkeyList.Size = new Size(340, 46);
-            btnGetHotkeyList.TabIndex = 19;
-            btnGetHotkeyList.Text = "Get Hotkey List";
-            btnGetHotkeyList.UseVisualStyleBackColor = true;
-            btnGetHotkeyList.Click += this.BtnGetHotkeyList_Click;
+            this.btnGetHotkeyList.Location = new Point(13, 136);
+            this.btnGetHotkeyList.Margin = new Padding(2);
+            this.btnGetHotkeyList.Name = "btnGetHotkeyList";
+            this.btnGetHotkeyList.Size = new Size(262, 36);
+            this.btnGetHotkeyList.TabIndex = 19;
+            this.btnGetHotkeyList.Text = "Get Hotkey List";
+            this.btnGetHotkeyList.UseVisualStyleBackColor = true;
+            this.btnGetHotkeyList.Click += this.BtnGetHotkeyList_Click;
             // 
             // btnCallVendorRequest
             // 
-            btnCallVendorRequest.Enabled = false;
-            btnCallVendorRequest.Location = new Point(17, 122);
-            btnCallVendorRequest.Name = "btnCallVendorRequest";
-            btnCallVendorRequest.Size = new Size(340, 46);
-            btnCallVendorRequest.TabIndex = 18;
-            btnCallVendorRequest.Text = "Call Vendor Request";
-            btnCallVendorRequest.UseVisualStyleBackColor = true;
+            this.btnCallVendorRequest.Enabled = false;
+            this.btnCallVendorRequest.Location = new Point(13, 95);
+            this.btnCallVendorRequest.Margin = new Padding(2);
+            this.btnCallVendorRequest.Name = "btnCallVendorRequest";
+            this.btnCallVendorRequest.Size = new Size(262, 36);
+            this.btnCallVendorRequest.TabIndex = 18;
+            this.btnCallVendorRequest.Text = "Call Vendor Request";
+            this.btnCallVendorRequest.UseVisualStyleBackColor = true;
             // 
             // btnBroadcastCustomEvent
             // 
-            btnBroadcastCustomEvent.Enabled = false;
-            btnBroadcastCustomEvent.Location = new Point(17, 70);
-            btnBroadcastCustomEvent.Name = "btnBroadcastCustomEvent";
-            btnBroadcastCustomEvent.Size = new Size(340, 46);
-            btnBroadcastCustomEvent.TabIndex = 17;
-            btnBroadcastCustomEvent.Text = "Broadcast Custom Event";
-            btnBroadcastCustomEvent.UseVisualStyleBackColor = true;
+            this.btnBroadcastCustomEvent.Enabled = false;
+            this.btnBroadcastCustomEvent.Location = new Point(13, 55);
+            this.btnBroadcastCustomEvent.Margin = new Padding(2);
+            this.btnBroadcastCustomEvent.Name = "btnBroadcastCustomEvent";
+            this.btnBroadcastCustomEvent.Size = new Size(262, 36);
+            this.btnBroadcastCustomEvent.TabIndex = 17;
+            this.btnBroadcastCustomEvent.Text = "Broadcast Custom Event";
+            this.btnBroadcastCustomEvent.UseVisualStyleBackColor = true;
             // 
             // btnGetStats
             // 
-            btnGetStats.Location = new Point(194, 18);
-            btnGetStats.Name = "btnGetStats";
-            btnGetStats.Size = new Size(163, 46);
-            btnGetStats.TabIndex = 16;
-            btnGetStats.Text = "Get Stats";
-            btnGetStats.UseVisualStyleBackColor = true;
-            btnGetStats.Click += this.BtnGetStats_Click;
+            this.btnGetStats.Location = new Point(149, 14);
+            this.btnGetStats.Margin = new Padding(2);
+            this.btnGetStats.Name = "btnGetStats";
+            this.btnGetStats.Size = new Size(125, 36);
+            this.btnGetStats.TabIndex = 16;
+            this.btnGetStats.Text = "Get Stats";
+            this.btnGetStats.UseVisualStyleBackColor = true;
+            this.btnGetStats.Click += this.BtnGetStats_Click;
             // 
             // btnGetVersion
             // 
-            btnGetVersion.Location = new Point(17, 18);
-            btnGetVersion.Name = "btnGetVersion";
-            btnGetVersion.Size = new Size(163, 46);
-            btnGetVersion.TabIndex = 15;
-            btnGetVersion.Text = "Get Version";
-            btnGetVersion.UseVisualStyleBackColor = true;
-            btnGetVersion.Click += this.BtnGetVersion_Click;
+            this.btnGetVersion.Location = new Point(13, 14);
+            this.btnGetVersion.Margin = new Padding(2);
+            this.btnGetVersion.Name = "btnGetVersion";
+            this.btnGetVersion.Size = new Size(125, 36);
+            this.btnGetVersion.TabIndex = 15;
+            this.btnGetVersion.Text = "Get Version";
+            this.btnGetVersion.UseVisualStyleBackColor = true;
+            this.btnGetVersion.Click += this.BtnGetVersion_Click;
             // 
             // btnGetProfileList
             // 
-            btnGetProfileList.Location = new Point(18, 278);
-            btnGetProfileList.Name = "btnGetProfileList";
-            btnGetProfileList.Size = new Size(340, 46);
-            btnGetProfileList.TabIndex = 28;
-            btnGetProfileList.Text = "Get Profile List";
-            btnGetProfileList.UseVisualStyleBackColor = true;
-            btnGetProfileList.Click += this.BtnGetProfileList_Click;
+            this.btnGetProfileList.Location = new Point(14, 217);
+            this.btnGetProfileList.Margin = new Padding(2);
+            this.btnGetProfileList.Name = "btnGetProfileList";
+            this.btnGetProfileList.Size = new Size(262, 36);
+            this.btnGetProfileList.TabIndex = 28;
+            this.btnGetProfileList.Text = "Get Profile List";
+            this.btnGetProfileList.UseVisualStyleBackColor = true;
+            this.btnGetProfileList.Click += this.BtnGetProfileList_Click;
             // 
             // btnCreateSceneCollection
             // 
-            btnCreateSceneCollection.Enabled = false;
-            btnCreateSceneCollection.Location = new Point(18, 226);
-            btnCreateSceneCollection.Name = "btnCreateSceneCollection";
-            btnCreateSceneCollection.Size = new Size(340, 46);
-            btnCreateSceneCollection.TabIndex = 27;
-            btnCreateSceneCollection.Text = "Create Scene Collection";
-            btnCreateSceneCollection.UseVisualStyleBackColor = true;
+            this.btnCreateSceneCollection.Enabled = false;
+            this.btnCreateSceneCollection.Location = new Point(14, 177);
+            this.btnCreateSceneCollection.Margin = new Padding(2);
+            this.btnCreateSceneCollection.Name = "btnCreateSceneCollection";
+            this.btnCreateSceneCollection.Size = new Size(262, 36);
+            this.btnCreateSceneCollection.TabIndex = 27;
+            this.btnCreateSceneCollection.Text = "Create Scene Collection";
+            this.btnCreateSceneCollection.UseVisualStyleBackColor = true;
             // 
             // btnSetCurrentSceneCollection
             // 
-            btnSetCurrentSceneCollection.Enabled = false;
-            btnSetCurrentSceneCollection.Location = new Point(18, 174);
-            btnSetCurrentSceneCollection.Name = "btnSetCurrentSceneCollection";
-            btnSetCurrentSceneCollection.Size = new Size(340, 46);
-            btnSetCurrentSceneCollection.TabIndex = 26;
-            btnSetCurrentSceneCollection.Text = "Set Current Scene Collection";
-            btnSetCurrentSceneCollection.UseVisualStyleBackColor = true;
+            this.btnSetCurrentSceneCollection.Enabled = false;
+            this.btnSetCurrentSceneCollection.Location = new Point(14, 136);
+            this.btnSetCurrentSceneCollection.Margin = new Padding(2);
+            this.btnSetCurrentSceneCollection.Name = "btnSetCurrentSceneCollection";
+            this.btnSetCurrentSceneCollection.Size = new Size(262, 36);
+            this.btnSetCurrentSceneCollection.TabIndex = 26;
+            this.btnSetCurrentSceneCollection.Text = "Set Current Scene Collection";
+            this.btnSetCurrentSceneCollection.UseVisualStyleBackColor = true;
             // 
             // btnGetSceneCollectionList
             // 
-            btnGetSceneCollectionList.Location = new Point(18, 122);
-            btnGetSceneCollectionList.Name = "btnGetSceneCollectionList";
-            btnGetSceneCollectionList.Size = new Size(340, 46);
-            btnGetSceneCollectionList.TabIndex = 25;
-            btnGetSceneCollectionList.Text = "Get Scene Collection List";
-            btnGetSceneCollectionList.UseVisualStyleBackColor = true;
-            btnGetSceneCollectionList.Click += this.BtnGetSceneCollectionList_Click;
+            this.btnGetSceneCollectionList.Location = new Point(14, 95);
+            this.btnGetSceneCollectionList.Margin = new Padding(2);
+            this.btnGetSceneCollectionList.Name = "btnGetSceneCollectionList";
+            this.btnGetSceneCollectionList.Size = new Size(262, 36);
+            this.btnGetSceneCollectionList.TabIndex = 25;
+            this.btnGetSceneCollectionList.Text = "Get Scene Collection List";
+            this.btnGetSceneCollectionList.UseVisualStyleBackColor = true;
+            this.btnGetSceneCollectionList.Click += this.BtnGetSceneCollectionList_Click;
             // 
             // btnSetPersistentData
             // 
-            btnSetPersistentData.Enabled = false;
-            btnSetPersistentData.Location = new Point(18, 70);
-            btnSetPersistentData.Name = "btnSetPersistentData";
-            btnSetPersistentData.Size = new Size(340, 46);
-            btnSetPersistentData.TabIndex = 24;
-            btnSetPersistentData.Text = "Set Persistent Data";
-            btnSetPersistentData.UseVisualStyleBackColor = true;
+            this.btnSetPersistentData.Enabled = false;
+            this.btnSetPersistentData.Location = new Point(14, 55);
+            this.btnSetPersistentData.Margin = new Padding(2);
+            this.btnSetPersistentData.Name = "btnSetPersistentData";
+            this.btnSetPersistentData.Size = new Size(262, 36);
+            this.btnSetPersistentData.TabIndex = 24;
+            this.btnSetPersistentData.Text = "Set Persistent Data";
+            this.btnSetPersistentData.UseVisualStyleBackColor = true;
             // 
             // btnGetPersistentData
             // 
-            btnGetPersistentData.Enabled = false;
-            btnGetPersistentData.Location = new Point(18, 18);
-            btnGetPersistentData.Name = "btnGetPersistentData";
-            btnGetPersistentData.Size = new Size(340, 46);
-            btnGetPersistentData.TabIndex = 23;
-            btnGetPersistentData.Text = "Get Persistent Data";
-            btnGetPersistentData.UseVisualStyleBackColor = true;
+            this.btnGetPersistentData.Enabled = false;
+            this.btnGetPersistentData.Location = new Point(14, 14);
+            this.btnGetPersistentData.Margin = new Padding(2);
+            this.btnGetPersistentData.Name = "btnGetPersistentData";
+            this.btnGetPersistentData.Size = new Size(262, 36);
+            this.btnGetPersistentData.TabIndex = 23;
+            this.btnGetPersistentData.Text = "Get Persistent Data";
+            this.btnGetPersistentData.UseVisualStyleBackColor = true;
             // 
             // btnSetCurrentProfile
             // 
-            btnSetCurrentProfile.Enabled = false;
-            btnSetCurrentProfile.Location = new Point(18, 330);
-            btnSetCurrentProfile.Name = "btnSetCurrentProfile";
-            btnSetCurrentProfile.Size = new Size(340, 46);
-            btnSetCurrentProfile.TabIndex = 29;
-            btnSetCurrentProfile.Text = "Set Current Profile";
-            btnSetCurrentProfile.UseVisualStyleBackColor = true;
+            this.btnSetCurrentProfile.Enabled = false;
+            this.btnSetCurrentProfile.Location = new Point(14, 258);
+            this.btnSetCurrentProfile.Margin = new Padding(2);
+            this.btnSetCurrentProfile.Name = "btnSetCurrentProfile";
+            this.btnSetCurrentProfile.Size = new Size(262, 36);
+            this.btnSetCurrentProfile.TabIndex = 29;
+            this.btnSetCurrentProfile.Text = "Set Current Profile";
+            this.btnSetCurrentProfile.UseVisualStyleBackColor = true;
             // 
             // btnCreateProfile
             // 
-            btnCreateProfile.Enabled = false;
-            btnCreateProfile.Location = new Point(18, 382);
-            btnCreateProfile.Name = "btnCreateProfile";
-            btnCreateProfile.Size = new Size(340, 46);
-            btnCreateProfile.TabIndex = 30;
-            btnCreateProfile.Text = "Create Profile";
-            btnCreateProfile.UseVisualStyleBackColor = true;
+            this.btnCreateProfile.Enabled = false;
+            this.btnCreateProfile.Location = new Point(14, 298);
+            this.btnCreateProfile.Margin = new Padding(2);
+            this.btnCreateProfile.Name = "btnCreateProfile";
+            this.btnCreateProfile.Size = new Size(262, 36);
+            this.btnCreateProfile.TabIndex = 30;
+            this.btnCreateProfile.Text = "Create Profile";
+            this.btnCreateProfile.UseVisualStyleBackColor = true;
             // 
             // btnRemoveProfile
             // 
-            btnRemoveProfile.Enabled = false;
-            btnRemoveProfile.Location = new Point(364, 18);
-            btnRemoveProfile.Name = "btnRemoveProfile";
-            btnRemoveProfile.Size = new Size(340, 46);
-            btnRemoveProfile.TabIndex = 31;
-            btnRemoveProfile.Text = "Remove Profile";
-            btnRemoveProfile.UseVisualStyleBackColor = true;
+            this.btnRemoveProfile.Enabled = false;
+            this.btnRemoveProfile.Location = new Point(280, 14);
+            this.btnRemoveProfile.Margin = new Padding(2);
+            this.btnRemoveProfile.Name = "btnRemoveProfile";
+            this.btnRemoveProfile.Size = new Size(262, 36);
+            this.btnRemoveProfile.TabIndex = 31;
+            this.btnRemoveProfile.Text = "Remove Profile";
+            this.btnRemoveProfile.UseVisualStyleBackColor = true;
             // 
             // btnGetProfileParameter
             // 
-            btnGetProfileParameter.Enabled = false;
-            btnGetProfileParameter.Location = new Point(364, 70);
-            btnGetProfileParameter.Name = "btnGetProfileParameter";
-            btnGetProfileParameter.Size = new Size(340, 46);
-            btnGetProfileParameter.TabIndex = 32;
-            btnGetProfileParameter.Text = "Get Profile Parameter";
-            btnGetProfileParameter.UseVisualStyleBackColor = true;
+            this.btnGetProfileParameter.Enabled = false;
+            this.btnGetProfileParameter.Location = new Point(280, 55);
+            this.btnGetProfileParameter.Margin = new Padding(2);
+            this.btnGetProfileParameter.Name = "btnGetProfileParameter";
+            this.btnGetProfileParameter.Size = new Size(262, 36);
+            this.btnGetProfileParameter.TabIndex = 32;
+            this.btnGetProfileParameter.Text = "Get Profile Parameter";
+            this.btnGetProfileParameter.UseVisualStyleBackColor = true;
             // 
             // btnSetProfileParameter
             // 
-            btnSetProfileParameter.Enabled = false;
-            btnSetProfileParameter.Location = new Point(364, 122);
-            btnSetProfileParameter.Name = "btnSetProfileParameter";
-            btnSetProfileParameter.Size = new Size(340, 46);
-            btnSetProfileParameter.TabIndex = 33;
-            btnSetProfileParameter.Text = "Set Profile Parameter";
-            btnSetProfileParameter.UseVisualStyleBackColor = true;
+            this.btnSetProfileParameter.Enabled = false;
+            this.btnSetProfileParameter.Location = new Point(280, 95);
+            this.btnSetProfileParameter.Margin = new Padding(2);
+            this.btnSetProfileParameter.Name = "btnSetProfileParameter";
+            this.btnSetProfileParameter.Size = new Size(262, 36);
+            this.btnSetProfileParameter.TabIndex = 33;
+            this.btnSetProfileParameter.Text = "Set Profile Parameter";
+            this.btnSetProfileParameter.UseVisualStyleBackColor = true;
             // 
             // btnGetVideoSettings
             // 
-            btnGetVideoSettings.Enabled = false;
-            btnGetVideoSettings.Location = new Point(364, 174);
-            btnGetVideoSettings.Name = "btnGetVideoSettings";
-            btnGetVideoSettings.Size = new Size(340, 46);
-            btnGetVideoSettings.TabIndex = 34;
-            btnGetVideoSettings.Text = "Get Video Settings";
-            btnGetVideoSettings.UseVisualStyleBackColor = true;
+            this.btnGetVideoSettings.Enabled = false;
+            this.btnGetVideoSettings.Location = new Point(280, 136);
+            this.btnGetVideoSettings.Margin = new Padding(2);
+            this.btnGetVideoSettings.Name = "btnGetVideoSettings";
+            this.btnGetVideoSettings.Size = new Size(262, 36);
+            this.btnGetVideoSettings.TabIndex = 34;
+            this.btnGetVideoSettings.Text = "Get Video Settings";
+            this.btnGetVideoSettings.UseVisualStyleBackColor = true;
             // 
             // btnSetVideoSettings
             // 
-            btnSetVideoSettings.Enabled = false;
-            btnSetVideoSettings.Location = new Point(364, 226);
-            btnSetVideoSettings.Name = "btnSetVideoSettings";
-            btnSetVideoSettings.Size = new Size(340, 46);
-            btnSetVideoSettings.TabIndex = 35;
-            btnSetVideoSettings.Text = "Set Video Settings";
-            btnSetVideoSettings.UseVisualStyleBackColor = true;
+            this.btnSetVideoSettings.Enabled = false;
+            this.btnSetVideoSettings.Location = new Point(280, 177);
+            this.btnSetVideoSettings.Margin = new Padding(2);
+            this.btnSetVideoSettings.Name = "btnSetVideoSettings";
+            this.btnSetVideoSettings.Size = new Size(262, 36);
+            this.btnSetVideoSettings.TabIndex = 35;
+            this.btnSetVideoSettings.Text = "Set Video Settings";
+            this.btnSetVideoSettings.UseVisualStyleBackColor = true;
             // 
             // label1
             // 
-            label1.AutoSize = true;
-            label1.Location = new Point(12, 15);
-            label1.Name = "label1";
-            label1.Size = new Size(128, 32);
-            label1.TabIndex = 16;
-            label1.Text = "Hostname:";
+            this.label1.AutoSize = true;
+            this.label1.Location = new Point(9, 12);
+            this.label1.Margin = new Padding(2, 0, 2, 0);
+            this.label1.Name = "label1";
+            this.label1.Size = new Size(98, 25);
+            this.label1.TabIndex = 16;
+            this.label1.Text = "Hostname:";
             // 
             // label2
             // 
-            label2.AutoSize = true;
-            label2.Location = new Point(12, 62);
-            label2.Name = "label2";
-            label2.Size = new Size(61, 32);
-            label2.TabIndex = 17;
-            label2.Text = "Port:";
+            this.label2.AutoSize = true;
+            this.label2.Location = new Point(9, 48);
+            this.label2.Margin = new Padding(2, 0, 2, 0);
+            this.label2.Name = "label2";
+            this.label2.Size = new Size(48, 25);
+            this.label2.TabIndex = 17;
+            this.label2.Text = "Port:";
             // 
             // label3
             // 
-            label3.AutoSize = true;
-            label3.Location = new Point(12, 105);
-            label3.Name = "label3";
-            label3.Size = new Size(116, 32);
-            label3.TabIndex = 18;
-            label3.Text = "Password:";
+            this.label3.AutoSize = true;
+            this.label3.Location = new Point(9, 82);
+            this.label3.Margin = new Padding(2, 0, 2, 0);
+            this.label3.Name = "label3";
+            this.label3.Size = new Size(91, 25);
+            this.label3.TabIndex = 18;
+            this.label3.Text = "Password:";
             // 
             // tabControl1
             // 
-            tabControl1.Controls.Add(tpGeneralRequests);
-            tabControl1.Controls.Add(tpConfigRequests);
-            tabControl1.Controls.Add(tpSourcesRequests);
-            tabControl1.Controls.Add(tpScenesRequests);
-            tabControl1.Controls.Add(tpInputsRequests);
-            tabControl1.Controls.Add(tpFiltersRequests);
-            tabControl1.Controls.Add(tbMediaInputsRequests);
-            tabControl1.Controls.Add(tpOutputsRequests);
-            tabControl1.Controls.Add(tbRecordRequests);
-            tabControl1.Controls.Add(tbSceneItemsRequests);
-            tabControl1.Controls.Add(tpStreamRequests);
-            tabControl1.Controls.Add(tpTransitionsRequests);
-            tabControl1.Controls.Add(tpUIRequests);
-            tabControl1.Controls.Add(tpMisc);
-            tabControl1.Location = new Point(23, 261);
-            tabControl1.Name = "tabControl1";
-            tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new Size(1257, 504);
-            tabControl1.TabIndex = 19;
+            this.tabControl1.Controls.Add(this.tpGeneralRequests);
+            this.tabControl1.Controls.Add(this.tpConfigRequests);
+            this.tabControl1.Controls.Add(this.tpSourcesRequests);
+            this.tabControl1.Controls.Add(this.tpScenesRequests);
+            this.tabControl1.Controls.Add(this.tpInputsRequests);
+            this.tabControl1.Controls.Add(this.tpFiltersRequests);
+            this.tabControl1.Controls.Add(this.tbMediaInputsRequests);
+            this.tabControl1.Controls.Add(this.tpOutputsRequests);
+            this.tabControl1.Controls.Add(this.tbRecordRequests);
+            this.tabControl1.Controls.Add(this.tbSceneItemsRequests);
+            this.tabControl1.Controls.Add(this.tpStreamRequests);
+            this.tabControl1.Controls.Add(this.tpTransitionsRequests);
+            this.tabControl1.Controls.Add(this.tpUIRequests);
+            this.tabControl1.Controls.Add(this.tpMisc);
+            this.tabControl1.Location = new Point(18, 204);
+            this.tabControl1.Margin = new Padding(2);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new Size(967, 394);
+            this.tabControl1.TabIndex = 19;
             // 
             // tpGeneralRequests
             // 
-            tpGeneralRequests.Controls.Add(btnSleep);
-            tpGeneralRequests.Controls.Add(btnGetVersion);
-            tpGeneralRequests.Controls.Add(btnTriggerHotkeyByKeySequence);
-            tpGeneralRequests.Controls.Add(btnGetStats);
-            tpGeneralRequests.Controls.Add(btnTriggerHotkeyByName);
-            tpGeneralRequests.Controls.Add(btnBroadcastCustomEvent);
-            tpGeneralRequests.Controls.Add(btnGetHotkeyList);
-            tpGeneralRequests.Controls.Add(btnCallVendorRequest);
-            tpGeneralRequests.Location = new Point(8, 46);
-            tpGeneralRequests.Name = "tpGeneralRequests";
-            tpGeneralRequests.Padding = new Padding(3);
-            tpGeneralRequests.Size = new Size(1241, 450);
-            tpGeneralRequests.TabIndex = 0;
-            tpGeneralRequests.Text = "General Requests";
-            tpGeneralRequests.UseVisualStyleBackColor = true;
+            this.tpGeneralRequests.Controls.Add(this.btnSleep);
+            this.tpGeneralRequests.Controls.Add(this.btnGetVersion);
+            this.tpGeneralRequests.Controls.Add(this.btnTriggerHotkeyByKeySequence);
+            this.tpGeneralRequests.Controls.Add(this.btnGetStats);
+            this.tpGeneralRequests.Controls.Add(this.btnTriggerHotkeyByName);
+            this.tpGeneralRequests.Controls.Add(this.btnBroadcastCustomEvent);
+            this.tpGeneralRequests.Controls.Add(this.btnGetHotkeyList);
+            this.tpGeneralRequests.Controls.Add(this.btnCallVendorRequest);
+            this.tpGeneralRequests.Location = new Point(4, 34);
+            this.tpGeneralRequests.Margin = new Padding(2);
+            this.tpGeneralRequests.Name = "tpGeneralRequests";
+            this.tpGeneralRequests.Padding = new Padding(2);
+            this.tpGeneralRequests.Size = new Size(959, 356);
+            this.tpGeneralRequests.TabIndex = 0;
+            this.tpGeneralRequests.Text = "General Requests";
+            this.tpGeneralRequests.UseVisualStyleBackColor = true;
             // 
             // tpConfigRequests
             // 
-            tpConfigRequests.Controls.Add(btnGetRecordDirectory);
-            tpConfigRequests.Controls.Add(btnSetStreamServiceSettings);
-            tpConfigRequests.Controls.Add(btnGetStreamServiceSettings);
-            tpConfigRequests.Controls.Add(btnSetVideoSettings);
-            tpConfigRequests.Controls.Add(btnGetPersistentData);
-            tpConfigRequests.Controls.Add(btnGetVideoSettings);
-            tpConfigRequests.Controls.Add(btnSetPersistentData);
-            tpConfigRequests.Controls.Add(btnSetProfileParameter);
-            tpConfigRequests.Controls.Add(btnGetSceneCollectionList);
-            tpConfigRequests.Controls.Add(btnGetProfileParameter);
-            tpConfigRequests.Controls.Add(btnSetCurrentSceneCollection);
-            tpConfigRequests.Controls.Add(btnRemoveProfile);
-            tpConfigRequests.Controls.Add(btnCreateSceneCollection);
-            tpConfigRequests.Controls.Add(btnCreateProfile);
-            tpConfigRequests.Controls.Add(btnGetProfileList);
-            tpConfigRequests.Controls.Add(btnSetCurrentProfile);
-            tpConfigRequests.Location = new Point(8, 46);
-            tpConfigRequests.Name = "tpConfigRequests";
-            tpConfigRequests.Padding = new Padding(3);
-            tpConfigRequests.Size = new Size(1241, 450);
-            tpConfigRequests.TabIndex = 1;
-            tpConfigRequests.Text = "Config Requests";
-            tpConfigRequests.UseVisualStyleBackColor = true;
+            this.tpConfigRequests.Controls.Add(this.btnGetRecordDirectory);
+            this.tpConfigRequests.Controls.Add(this.btnSetStreamServiceSettings);
+            this.tpConfigRequests.Controls.Add(this.btnGetStreamServiceSettings);
+            this.tpConfigRequests.Controls.Add(this.btnSetVideoSettings);
+            this.tpConfigRequests.Controls.Add(this.btnGetPersistentData);
+            this.tpConfigRequests.Controls.Add(this.btnGetVideoSettings);
+            this.tpConfigRequests.Controls.Add(this.btnSetPersistentData);
+            this.tpConfigRequests.Controls.Add(this.btnSetProfileParameter);
+            this.tpConfigRequests.Controls.Add(this.btnGetSceneCollectionList);
+            this.tpConfigRequests.Controls.Add(this.btnGetProfileParameter);
+            this.tpConfigRequests.Controls.Add(this.btnSetCurrentSceneCollection);
+            this.tpConfigRequests.Controls.Add(this.btnRemoveProfile);
+            this.tpConfigRequests.Controls.Add(this.btnCreateSceneCollection);
+            this.tpConfigRequests.Controls.Add(this.btnCreateProfile);
+            this.tpConfigRequests.Controls.Add(this.btnGetProfileList);
+            this.tpConfigRequests.Controls.Add(this.btnSetCurrentProfile);
+            this.tpConfigRequests.Location = new Point(4, 34);
+            this.tpConfigRequests.Margin = new Padding(2);
+            this.tpConfigRequests.Name = "tpConfigRequests";
+            this.tpConfigRequests.Padding = new Padding(2);
+            this.tpConfigRequests.Size = new Size(959, 356);
+            this.tpConfigRequests.TabIndex = 1;
+            this.tpConfigRequests.Text = "Config Requests";
+            this.tpConfigRequests.UseVisualStyleBackColor = true;
             // 
             // btnGetRecordDirectory
             // 
-            btnGetRecordDirectory.Location = new Point(364, 382);
-            btnGetRecordDirectory.Name = "btnGetRecordDirectory";
-            btnGetRecordDirectory.Size = new Size(340, 46);
-            btnGetRecordDirectory.TabIndex = 38;
-            btnGetRecordDirectory.Text = "Get Record Directory";
-            btnGetRecordDirectory.UseVisualStyleBackColor = true;
-            btnGetRecordDirectory.Click += this.BtnGetRecordDirectory_Click;
+            this.btnGetRecordDirectory.Location = new Point(280, 298);
+            this.btnGetRecordDirectory.Margin = new Padding(2);
+            this.btnGetRecordDirectory.Name = "btnGetRecordDirectory";
+            this.btnGetRecordDirectory.Size = new Size(262, 36);
+            this.btnGetRecordDirectory.TabIndex = 38;
+            this.btnGetRecordDirectory.Text = "Get Record Directory";
+            this.btnGetRecordDirectory.UseVisualStyleBackColor = true;
+            this.btnGetRecordDirectory.Click += this.BtnGetRecordDirectory_Click;
             // 
             // btnSetStreamServiceSettings
             // 
-            btnSetStreamServiceSettings.Enabled = false;
-            btnSetStreamServiceSettings.Location = new Point(364, 330);
-            btnSetStreamServiceSettings.Name = "btnSetStreamServiceSettings";
-            btnSetStreamServiceSettings.Size = new Size(340, 46);
-            btnSetStreamServiceSettings.TabIndex = 37;
-            btnSetStreamServiceSettings.Text = "Set Stream Service Settings";
-            btnSetStreamServiceSettings.UseVisualStyleBackColor = true;
+            this.btnSetStreamServiceSettings.Enabled = false;
+            this.btnSetStreamServiceSettings.Location = new Point(280, 258);
+            this.btnSetStreamServiceSettings.Margin = new Padding(2);
+            this.btnSetStreamServiceSettings.Name = "btnSetStreamServiceSettings";
+            this.btnSetStreamServiceSettings.Size = new Size(262, 36);
+            this.btnSetStreamServiceSettings.TabIndex = 37;
+            this.btnSetStreamServiceSettings.Text = "Set Stream Service Settings";
+            this.btnSetStreamServiceSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetStreamServiceSettings
             // 
-            btnGetStreamServiceSettings.Enabled = false;
-            btnGetStreamServiceSettings.Location = new Point(364, 278);
-            btnGetStreamServiceSettings.Name = "btnGetStreamServiceSettings";
-            btnGetStreamServiceSettings.Size = new Size(340, 46);
-            btnGetStreamServiceSettings.TabIndex = 36;
-            btnGetStreamServiceSettings.Text = "Get Stream Service Settings";
-            btnGetStreamServiceSettings.UseVisualStyleBackColor = true;
+            this.btnGetStreamServiceSettings.Enabled = false;
+            this.btnGetStreamServiceSettings.Location = new Point(280, 217);
+            this.btnGetStreamServiceSettings.Margin = new Padding(2);
+            this.btnGetStreamServiceSettings.Name = "btnGetStreamServiceSettings";
+            this.btnGetStreamServiceSettings.Size = new Size(262, 36);
+            this.btnGetStreamServiceSettings.TabIndex = 36;
+            this.btnGetStreamServiceSettings.Text = "Get Stream Service Settings";
+            this.btnGetStreamServiceSettings.UseVisualStyleBackColor = true;
             // 
             // tpSourcesRequests
             // 
-            tpSourcesRequests.Controls.Add(btnSaveSourceScreenshot);
-            tpSourcesRequests.Controls.Add(btnSetSourceActive);
-            tpSourcesRequests.Controls.Add(btnGetSourceActive);
-            tpSourcesRequests.Location = new Point(8, 46);
-            tpSourcesRequests.Name = "tpSourcesRequests";
-            tpSourcesRequests.Size = new Size(1241, 450);
-            tpSourcesRequests.TabIndex = 2;
-            tpSourcesRequests.Text = "Sources Requests";
-            tpSourcesRequests.UseVisualStyleBackColor = true;
+            this.tpSourcesRequests.Controls.Add(this.btnSaveSourceScreenshot);
+            this.tpSourcesRequests.Controls.Add(this.btnSetSourceActive);
+            this.tpSourcesRequests.Controls.Add(this.btnGetSourceActive);
+            this.tpSourcesRequests.Location = new Point(4, 34);
+            this.tpSourcesRequests.Margin = new Padding(2);
+            this.tpSourcesRequests.Name = "tpSourcesRequests";
+            this.tpSourcesRequests.Size = new Size(959, 356);
+            this.tpSourcesRequests.TabIndex = 2;
+            this.tpSourcesRequests.Text = "Sources Requests";
+            this.tpSourcesRequests.UseVisualStyleBackColor = true;
             // 
             // btnSaveSourceScreenshot
             // 
-            btnSaveSourceScreenshot.Enabled = false;
-            btnSaveSourceScreenshot.Location = new Point(3, 107);
-            btnSaveSourceScreenshot.Name = "btnSaveSourceScreenshot";
-            btnSaveSourceScreenshot.Size = new Size(340, 46);
-            btnSaveSourceScreenshot.TabIndex = 22;
-            btnSaveSourceScreenshot.Text = "Save Source Screenshot";
-            btnSaveSourceScreenshot.UseVisualStyleBackColor = true;
+            this.btnSaveSourceScreenshot.Enabled = false;
+            this.btnSaveSourceScreenshot.Location = new Point(2, 84);
+            this.btnSaveSourceScreenshot.Margin = new Padding(2);
+            this.btnSaveSourceScreenshot.Name = "btnSaveSourceScreenshot";
+            this.btnSaveSourceScreenshot.Size = new Size(262, 36);
+            this.btnSaveSourceScreenshot.TabIndex = 22;
+            this.btnSaveSourceScreenshot.Text = "Save Source Screenshot";
+            this.btnSaveSourceScreenshot.UseVisualStyleBackColor = true;
             // 
             // btnSetSourceActive
             // 
-            btnSetSourceActive.Enabled = false;
-            btnSetSourceActive.Location = new Point(3, 55);
-            btnSetSourceActive.Name = "btnSetSourceActive";
-            btnSetSourceActive.Size = new Size(340, 46);
-            btnSetSourceActive.TabIndex = 21;
-            btnSetSourceActive.Text = "Set Source Active";
-            btnSetSourceActive.UseVisualStyleBackColor = true;
+            this.btnSetSourceActive.Enabled = false;
+            this.btnSetSourceActive.Location = new Point(2, 43);
+            this.btnSetSourceActive.Margin = new Padding(2);
+            this.btnSetSourceActive.Name = "btnSetSourceActive";
+            this.btnSetSourceActive.Size = new Size(262, 36);
+            this.btnSetSourceActive.TabIndex = 21;
+            this.btnSetSourceActive.Text = "Set Source Active";
+            this.btnSetSourceActive.UseVisualStyleBackColor = true;
             // 
             // btnGetSourceActive
             // 
-            btnGetSourceActive.Enabled = false;
-            btnGetSourceActive.Location = new Point(3, 3);
-            btnGetSourceActive.Name = "btnGetSourceActive";
-            btnGetSourceActive.Size = new Size(340, 46);
-            btnGetSourceActive.TabIndex = 20;
-            btnGetSourceActive.Text = "Get Source Active";
-            btnGetSourceActive.UseVisualStyleBackColor = true;
+            this.btnGetSourceActive.Enabled = false;
+            this.btnGetSourceActive.Location = new Point(2, 2);
+            this.btnGetSourceActive.Margin = new Padding(2);
+            this.btnGetSourceActive.Name = "btnGetSourceActive";
+            this.btnGetSourceActive.Size = new Size(262, 36);
+            this.btnGetSourceActive.TabIndex = 20;
+            this.btnGetSourceActive.Text = "Get Source Active";
+            this.btnGetSourceActive.UseVisualStyleBackColor = true;
             // 
             // tpScenesRequests
             // 
-            tpScenesRequests.Controls.Add(btnSetSceneSceneTransitionOverride);
-            tpScenesRequests.Controls.Add(btnGetSceneSceneTransitionOverride);
-            tpScenesRequests.Controls.Add(btnSetSceneName);
-            tpScenesRequests.Controls.Add(btnRemoveScene);
-            tpScenesRequests.Controls.Add(btnCreateScene);
-            tpScenesRequests.Controls.Add(btnSetCurrentPreviewScene);
-            tpScenesRequests.Controls.Add(btnGetCurrentPreviewScene);
-            tpScenesRequests.Controls.Add(btnSetCurrentProgramScene);
-            tpScenesRequests.Controls.Add(btnGetCurrentProgramScene);
-            tpScenesRequests.Controls.Add(btnGetGroupList);
-            tpScenesRequests.Controls.Add(btnGetSceneList);
-            tpScenesRequests.Location = new Point(8, 46);
-            tpScenesRequests.Name = "tpScenesRequests";
-            tpScenesRequests.Size = new Size(1241, 450);
-            tpScenesRequests.TabIndex = 3;
-            tpScenesRequests.Text = "Scenes Requests";
-            tpScenesRequests.UseVisualStyleBackColor = true;
+            this.tpScenesRequests.Controls.Add(this.btnSetSceneSceneTransitionOverride);
+            this.tpScenesRequests.Controls.Add(this.btnGetSceneSceneTransitionOverride);
+            this.tpScenesRequests.Controls.Add(this.btnSetSceneName);
+            this.tpScenesRequests.Controls.Add(this.btnRemoveScene);
+            this.tpScenesRequests.Controls.Add(this.btnCreateScene);
+            this.tpScenesRequests.Controls.Add(this.btnSetCurrentPreviewScene);
+            this.tpScenesRequests.Controls.Add(this.btnGetCurrentPreviewScene);
+            this.tpScenesRequests.Controls.Add(this.btnSetCurrentProgramScene);
+            this.tpScenesRequests.Controls.Add(this.btnGetCurrentProgramScene);
+            this.tpScenesRequests.Controls.Add(this.btnGetGroupList);
+            this.tpScenesRequests.Controls.Add(this.btnGetSceneList);
+            this.tpScenesRequests.Location = new Point(4, 34);
+            this.tpScenesRequests.Margin = new Padding(2);
+            this.tpScenesRequests.Name = "tpScenesRequests";
+            this.tpScenesRequests.Size = new Size(959, 356);
+            this.tpScenesRequests.TabIndex = 3;
+            this.tpScenesRequests.Text = "Scenes Requests";
+            this.tpScenesRequests.UseVisualStyleBackColor = true;
             // 
             // btnSetSceneSceneTransitionOverride
             // 
-            btnSetSceneSceneTransitionOverride.Enabled = false;
-            btnSetSceneSceneTransitionOverride.Location = new Point(351, 107);
-            btnSetSceneSceneTransitionOverride.Name = "btnSetSceneSceneTransitionOverride";
-            btnSetSceneSceneTransitionOverride.Size = new Size(460, 46);
-            btnSetSceneSceneTransitionOverride.TabIndex = 30;
-            btnSetSceneSceneTransitionOverride.Text = "Set Scene Scene Transition Override";
-            btnSetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
+            this.btnSetSceneSceneTransitionOverride.Enabled = false;
+            this.btnSetSceneSceneTransitionOverride.Location = new Point(270, 84);
+            this.btnSetSceneSceneTransitionOverride.Margin = new Padding(2);
+            this.btnSetSceneSceneTransitionOverride.Name = "btnSetSceneSceneTransitionOverride";
+            this.btnSetSceneSceneTransitionOverride.Size = new Size(354, 36);
+            this.btnSetSceneSceneTransitionOverride.TabIndex = 30;
+            this.btnSetSceneSceneTransitionOverride.Text = "Set Scene Scene Transition Override";
+            this.btnSetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
             // 
             // btnGetSceneSceneTransitionOverride
             // 
-            btnGetSceneSceneTransitionOverride.Enabled = false;
-            btnGetSceneSceneTransitionOverride.Location = new Point(351, 55);
-            btnGetSceneSceneTransitionOverride.Name = "btnGetSceneSceneTransitionOverride";
-            btnGetSceneSceneTransitionOverride.Size = new Size(460, 46);
-            btnGetSceneSceneTransitionOverride.TabIndex = 29;
-            btnGetSceneSceneTransitionOverride.Text = "Get Scene Scene Transition Override";
-            btnGetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
+            this.btnGetSceneSceneTransitionOverride.Enabled = false;
+            this.btnGetSceneSceneTransitionOverride.Location = new Point(270, 43);
+            this.btnGetSceneSceneTransitionOverride.Margin = new Padding(2);
+            this.btnGetSceneSceneTransitionOverride.Name = "btnGetSceneSceneTransitionOverride";
+            this.btnGetSceneSceneTransitionOverride.Size = new Size(354, 36);
+            this.btnGetSceneSceneTransitionOverride.TabIndex = 29;
+            this.btnGetSceneSceneTransitionOverride.Text = "Get Scene Scene Transition Override";
+            this.btnGetSceneSceneTransitionOverride.UseVisualStyleBackColor = true;
             // 
             // btnSetSceneName
             // 
-            btnSetSceneName.Location = new Point(351, 3);
-            btnSetSceneName.Name = "btnSetSceneName";
-            btnSetSceneName.Size = new Size(340, 46);
-            btnSetSceneName.TabIndex = 28;
-            btnSetSceneName.Text = "Set Scene Name";
-            btnSetSceneName.UseVisualStyleBackColor = true;
-            btnSetSceneName.Click += this.BtnSetSceneName_Click;
+            this.btnSetSceneName.Location = new Point(270, 2);
+            this.btnSetSceneName.Margin = new Padding(2);
+            this.btnSetSceneName.Name = "btnSetSceneName";
+            this.btnSetSceneName.Size = new Size(262, 36);
+            this.btnSetSceneName.TabIndex = 28;
+            this.btnSetSceneName.Text = "Set Scene Name";
+            this.btnSetSceneName.UseVisualStyleBackColor = true;
+            this.btnSetSceneName.Click += this.BtnSetSceneName_Click;
             // 
             // btnRemoveScene
             // 
-            btnRemoveScene.Location = new Point(3, 367);
-            btnRemoveScene.Name = "btnRemoveScene";
-            btnRemoveScene.Size = new Size(340, 46);
-            btnRemoveScene.TabIndex = 27;
-            btnRemoveScene.Text = "Remove Scene";
-            btnRemoveScene.UseVisualStyleBackColor = true;
-            btnRemoveScene.Click += this.BtnRemoveScene_Click;
+            this.btnRemoveScene.Location = new Point(2, 287);
+            this.btnRemoveScene.Margin = new Padding(2);
+            this.btnRemoveScene.Name = "btnRemoveScene";
+            this.btnRemoveScene.Size = new Size(262, 36);
+            this.btnRemoveScene.TabIndex = 27;
+            this.btnRemoveScene.Text = "Remove Scene";
+            this.btnRemoveScene.UseVisualStyleBackColor = true;
+            this.btnRemoveScene.Click += this.BtnRemoveScene_Click;
             // 
             // btnCreateScene
             // 
-            btnCreateScene.Location = new Point(3, 315);
-            btnCreateScene.Name = "btnCreateScene";
-            btnCreateScene.Size = new Size(340, 46);
-            btnCreateScene.TabIndex = 26;
-            btnCreateScene.Text = "Create Scene";
-            btnCreateScene.UseVisualStyleBackColor = true;
-            btnCreateScene.Click += this.BtnCreateScene_Click;
+            this.btnCreateScene.Location = new Point(2, 246);
+            this.btnCreateScene.Margin = new Padding(2);
+            this.btnCreateScene.Name = "btnCreateScene";
+            this.btnCreateScene.Size = new Size(262, 36);
+            this.btnCreateScene.TabIndex = 26;
+            this.btnCreateScene.Text = "Create Scene";
+            this.btnCreateScene.UseVisualStyleBackColor = true;
+            this.btnCreateScene.Click += this.BtnCreateScene_Click;
             // 
             // btnSetCurrentPreviewScene
             // 
-            btnSetCurrentPreviewScene.Location = new Point(3, 263);
-            btnSetCurrentPreviewScene.Name = "btnSetCurrentPreviewScene";
-            btnSetCurrentPreviewScene.Size = new Size(340, 46);
-            btnSetCurrentPreviewScene.TabIndex = 25;
-            btnSetCurrentPreviewScene.Text = "Set Current Preview Scene";
-            btnSetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            btnSetCurrentPreviewScene.Click += this.BtnSetCurrentPreviewScene_Click;
+            this.btnSetCurrentPreviewScene.Location = new Point(2, 205);
+            this.btnSetCurrentPreviewScene.Margin = new Padding(2);
+            this.btnSetCurrentPreviewScene.Name = "btnSetCurrentPreviewScene";
+            this.btnSetCurrentPreviewScene.Size = new Size(262, 36);
+            this.btnSetCurrentPreviewScene.TabIndex = 25;
+            this.btnSetCurrentPreviewScene.Text = "Set Current Preview Scene";
+            this.btnSetCurrentPreviewScene.UseVisualStyleBackColor = true;
+            this.btnSetCurrentPreviewScene.Click += this.BtnSetCurrentPreviewScene_Click;
             // 
             // btnGetCurrentPreviewScene
             // 
-            btnGetCurrentPreviewScene.Location = new Point(3, 211);
-            btnGetCurrentPreviewScene.Name = "btnGetCurrentPreviewScene";
-            btnGetCurrentPreviewScene.Size = new Size(340, 46);
-            btnGetCurrentPreviewScene.TabIndex = 24;
-            btnGetCurrentPreviewScene.Text = "Get Current Preview Scene";
-            btnGetCurrentPreviewScene.UseVisualStyleBackColor = true;
-            btnGetCurrentPreviewScene.Click += this.BtnGetCurrentPreviewScene_Click;
+            this.btnGetCurrentPreviewScene.Location = new Point(2, 165);
+            this.btnGetCurrentPreviewScene.Margin = new Padding(2);
+            this.btnGetCurrentPreviewScene.Name = "btnGetCurrentPreviewScene";
+            this.btnGetCurrentPreviewScene.Size = new Size(262, 36);
+            this.btnGetCurrentPreviewScene.TabIndex = 24;
+            this.btnGetCurrentPreviewScene.Text = "Get Current Preview Scene";
+            this.btnGetCurrentPreviewScene.UseVisualStyleBackColor = true;
+            this.btnGetCurrentPreviewScene.Click += this.BtnGetCurrentPreviewScene_Click;
             // 
             // btnSetCurrentProgramScene
             // 
-            btnSetCurrentProgramScene.Location = new Point(3, 159);
-            btnSetCurrentProgramScene.Name = "btnSetCurrentProgramScene";
-            btnSetCurrentProgramScene.Size = new Size(340, 46);
-            btnSetCurrentProgramScene.TabIndex = 23;
-            btnSetCurrentProgramScene.Text = "Set Current Program Scene";
-            btnSetCurrentProgramScene.UseVisualStyleBackColor = true;
-            btnSetCurrentProgramScene.Click += this.BtnSetCurrentProgramScene_Click;
+            this.btnSetCurrentProgramScene.Location = new Point(2, 124);
+            this.btnSetCurrentProgramScene.Margin = new Padding(2);
+            this.btnSetCurrentProgramScene.Name = "btnSetCurrentProgramScene";
+            this.btnSetCurrentProgramScene.Size = new Size(262, 36);
+            this.btnSetCurrentProgramScene.TabIndex = 23;
+            this.btnSetCurrentProgramScene.Text = "Set Current Program Scene";
+            this.btnSetCurrentProgramScene.UseVisualStyleBackColor = true;
+            this.btnSetCurrentProgramScene.Click += this.BtnSetCurrentProgramScene_Click;
             // 
             // btnGetCurrentProgramScene
             // 
-            btnGetCurrentProgramScene.Location = new Point(3, 107);
-            btnGetCurrentProgramScene.Name = "btnGetCurrentProgramScene";
-            btnGetCurrentProgramScene.Size = new Size(340, 46);
-            btnGetCurrentProgramScene.TabIndex = 22;
-            btnGetCurrentProgramScene.Text = "Get Current Program Scene";
-            btnGetCurrentProgramScene.UseVisualStyleBackColor = true;
-            btnGetCurrentProgramScene.Click += this.BtnGetCurrentProgramScene_Click;
+            this.btnGetCurrentProgramScene.Location = new Point(2, 84);
+            this.btnGetCurrentProgramScene.Margin = new Padding(2);
+            this.btnGetCurrentProgramScene.Name = "btnGetCurrentProgramScene";
+            this.btnGetCurrentProgramScene.Size = new Size(262, 36);
+            this.btnGetCurrentProgramScene.TabIndex = 22;
+            this.btnGetCurrentProgramScene.Text = "Get Current Program Scene";
+            this.btnGetCurrentProgramScene.UseVisualStyleBackColor = true;
+            this.btnGetCurrentProgramScene.Click += this.BtnGetCurrentProgramScene_Click;
             // 
             // btnGetGroupList
             // 
-            btnGetGroupList.Location = new Point(3, 55);
-            btnGetGroupList.Name = "btnGetGroupList";
-            btnGetGroupList.Size = new Size(340, 46);
-            btnGetGroupList.TabIndex = 21;
-            btnGetGroupList.Text = "Get Group List";
-            btnGetGroupList.UseVisualStyleBackColor = true;
-            btnGetGroupList.Click += this.BtnGetGroupList_Click;
+            this.btnGetGroupList.Location = new Point(2, 43);
+            this.btnGetGroupList.Margin = new Padding(2);
+            this.btnGetGroupList.Name = "btnGetGroupList";
+            this.btnGetGroupList.Size = new Size(262, 36);
+            this.btnGetGroupList.TabIndex = 21;
+            this.btnGetGroupList.Text = "Get Group List";
+            this.btnGetGroupList.UseVisualStyleBackColor = true;
+            this.btnGetGroupList.Click += this.BtnGetGroupList_Click;
             // 
             // btnGetSceneList
             // 
-            btnGetSceneList.Location = new Point(3, 3);
-            btnGetSceneList.Name = "btnGetSceneList";
-            btnGetSceneList.Size = new Size(340, 46);
-            btnGetSceneList.TabIndex = 20;
-            btnGetSceneList.Text = "Get Scene List";
-            btnGetSceneList.UseVisualStyleBackColor = true;
-            btnGetSceneList.Click += this.BtnGetSceneList_Click;
+            this.btnGetSceneList.Location = new Point(2, 2);
+            this.btnGetSceneList.Margin = new Padding(2);
+            this.btnGetSceneList.Name = "btnGetSceneList";
+            this.btnGetSceneList.Size = new Size(262, 36);
+            this.btnGetSceneList.TabIndex = 20;
+            this.btnGetSceneList.Text = "Get Scene List";
+            this.btnGetSceneList.UseVisualStyleBackColor = true;
+            this.btnGetSceneList.Click += this.BtnGetSceneList_Click;
             // 
             // tpInputsRequests
             // 
-            tpInputsRequests.Controls.Add(btnToggleInputMute);
-            tpInputsRequests.Controls.Add(btnSetInputMute);
-            tpInputsRequests.Controls.Add(btnGetInputMute);
-            tpInputsRequests.Controls.Add(btnSetInputSettings);
-            tpInputsRequests.Controls.Add(btnGetInputSettings);
-            tpInputsRequests.Controls.Add(btnGetInputDefaultSettings);
-            tpInputsRequests.Controls.Add(btnSetInputName);
-            tpInputsRequests.Controls.Add(btnRemoveInput);
-            tpInputsRequests.Controls.Add(btnCreateInput);
-            tpInputsRequests.Controls.Add(btnGetSpecialInputs);
-            tpInputsRequests.Controls.Add(btnGetInputKindList);
-            tpInputsRequests.Controls.Add(btnGetInputList);
-            tpInputsRequests.Location = new Point(8, 46);
-            tpInputsRequests.Name = "tpInputsRequests";
-            tpInputsRequests.Size = new Size(1241, 450);
-            tpInputsRequests.TabIndex = 4;
-            tpInputsRequests.Text = "Inputs Requests";
-            tpInputsRequests.UseVisualStyleBackColor = true;
+            this.tpInputsRequests.Controls.Add(this.btnToggleInputMute);
+            this.tpInputsRequests.Controls.Add(this.btnSetInputMute);
+            this.tpInputsRequests.Controls.Add(this.btnGetInputMute);
+            this.tpInputsRequests.Controls.Add(this.btnSetInputSettings);
+            this.tpInputsRequests.Controls.Add(this.btnGetInputSettings);
+            this.tpInputsRequests.Controls.Add(this.btnGetInputDefaultSettings);
+            this.tpInputsRequests.Controls.Add(this.btnSetInputName);
+            this.tpInputsRequests.Controls.Add(this.btnRemoveInput);
+            this.tpInputsRequests.Controls.Add(this.btnCreateInput);
+            this.tpInputsRequests.Controls.Add(this.btnGetSpecialInputs);
+            this.tpInputsRequests.Controls.Add(this.btnGetInputKindList);
+            this.tpInputsRequests.Controls.Add(this.btnGetInputList);
+            this.tpInputsRequests.Location = new Point(4, 34);
+            this.tpInputsRequests.Margin = new Padding(2);
+            this.tpInputsRequests.Name = "tpInputsRequests";
+            this.tpInputsRequests.Size = new Size(959, 356);
+            this.tpInputsRequests.TabIndex = 4;
+            this.tpInputsRequests.Text = "Inputs Requests";
+            this.tpInputsRequests.UseVisualStyleBackColor = true;
             // 
             // btnToggleInputMute
             // 
-            btnToggleInputMute.Enabled = false;
-            btnToggleInputMute.Location = new Point(351, 159);
-            btnToggleInputMute.Name = "btnToggleInputMute";
-            btnToggleInputMute.Size = new Size(340, 46);
-            btnToggleInputMute.TabIndex = 32;
-            btnToggleInputMute.Text = "Toggle Input Mute";
-            btnToggleInputMute.UseVisualStyleBackColor = true;
+            this.btnToggleInputMute.Enabled = false;
+            this.btnToggleInputMute.Location = new Point(270, 124);
+            this.btnToggleInputMute.Margin = new Padding(2);
+            this.btnToggleInputMute.Name = "btnToggleInputMute";
+            this.btnToggleInputMute.Size = new Size(262, 36);
+            this.btnToggleInputMute.TabIndex = 32;
+            this.btnToggleInputMute.Text = "Toggle Input Mute";
+            this.btnToggleInputMute.UseVisualStyleBackColor = true;
             // 
             // btnSetInputMute
             // 
-            btnSetInputMute.Enabled = false;
-            btnSetInputMute.Location = new Point(351, 107);
-            btnSetInputMute.Name = "btnSetInputMute";
-            btnSetInputMute.Size = new Size(340, 46);
-            btnSetInputMute.TabIndex = 31;
-            btnSetInputMute.Text = "Set Input Mute";
-            btnSetInputMute.UseVisualStyleBackColor = true;
+            this.btnSetInputMute.Enabled = false;
+            this.btnSetInputMute.Location = new Point(270, 84);
+            this.btnSetInputMute.Margin = new Padding(2);
+            this.btnSetInputMute.Name = "btnSetInputMute";
+            this.btnSetInputMute.Size = new Size(262, 36);
+            this.btnSetInputMute.TabIndex = 31;
+            this.btnSetInputMute.Text = "Set Input Mute";
+            this.btnSetInputMute.UseVisualStyleBackColor = true;
             // 
             // btnGetInputMute
             // 
-            btnGetInputMute.Enabled = false;
-            btnGetInputMute.Location = new Point(351, 55);
-            btnGetInputMute.Name = "btnGetInputMute";
-            btnGetInputMute.Size = new Size(340, 46);
-            btnGetInputMute.TabIndex = 30;
-            btnGetInputMute.Text = "Get Input Mute";
-            btnGetInputMute.UseVisualStyleBackColor = true;
+            this.btnGetInputMute.Enabled = false;
+            this.btnGetInputMute.Location = new Point(270, 43);
+            this.btnGetInputMute.Margin = new Padding(2);
+            this.btnGetInputMute.Name = "btnGetInputMute";
+            this.btnGetInputMute.Size = new Size(262, 36);
+            this.btnGetInputMute.TabIndex = 30;
+            this.btnGetInputMute.Text = "Get Input Mute";
+            this.btnGetInputMute.UseVisualStyleBackColor = true;
             // 
             // btnSetInputSettings
             // 
-            btnSetInputSettings.Enabled = false;
-            btnSetInputSettings.Location = new Point(351, 3);
-            btnSetInputSettings.Name = "btnSetInputSettings";
-            btnSetInputSettings.Size = new Size(340, 46);
-            btnSetInputSettings.TabIndex = 29;
-            btnSetInputSettings.Text = "Set Input Settings";
-            btnSetInputSettings.UseVisualStyleBackColor = true;
+            this.btnSetInputSettings.Enabled = false;
+            this.btnSetInputSettings.Location = new Point(270, 2);
+            this.btnSetInputSettings.Margin = new Padding(2);
+            this.btnSetInputSettings.Name = "btnSetInputSettings";
+            this.btnSetInputSettings.Size = new Size(262, 36);
+            this.btnSetInputSettings.TabIndex = 29;
+            this.btnSetInputSettings.Text = "Set Input Settings";
+            this.btnSetInputSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetInputSettings
             // 
-            btnGetInputSettings.Enabled = false;
-            btnGetInputSettings.Location = new Point(3, 367);
-            btnGetInputSettings.Name = "btnGetInputSettings";
-            btnGetInputSettings.Size = new Size(340, 46);
-            btnGetInputSettings.TabIndex = 28;
-            btnGetInputSettings.Text = "Get Input Settings";
-            btnGetInputSettings.UseVisualStyleBackColor = true;
+            this.btnGetInputSettings.Enabled = false;
+            this.btnGetInputSettings.Location = new Point(2, 287);
+            this.btnGetInputSettings.Margin = new Padding(2);
+            this.btnGetInputSettings.Name = "btnGetInputSettings";
+            this.btnGetInputSettings.Size = new Size(262, 36);
+            this.btnGetInputSettings.TabIndex = 28;
+            this.btnGetInputSettings.Text = "Get Input Settings";
+            this.btnGetInputSettings.UseVisualStyleBackColor = true;
             // 
             // btnGetInputDefaultSettings
             // 
-            btnGetInputDefaultSettings.Enabled = false;
-            btnGetInputDefaultSettings.Location = new Point(3, 315);
-            btnGetInputDefaultSettings.Name = "btnGetInputDefaultSettings";
-            btnGetInputDefaultSettings.Size = new Size(340, 46);
-            btnGetInputDefaultSettings.TabIndex = 27;
-            btnGetInputDefaultSettings.Text = "Get Input Default Settings";
-            btnGetInputDefaultSettings.UseVisualStyleBackColor = true;
+            this.btnGetInputDefaultSettings.Enabled = false;
+            this.btnGetInputDefaultSettings.Location = new Point(2, 246);
+            this.btnGetInputDefaultSettings.Margin = new Padding(2);
+            this.btnGetInputDefaultSettings.Name = "btnGetInputDefaultSettings";
+            this.btnGetInputDefaultSettings.Size = new Size(262, 36);
+            this.btnGetInputDefaultSettings.TabIndex = 27;
+            this.btnGetInputDefaultSettings.Text = "Get Input Default Settings";
+            this.btnGetInputDefaultSettings.UseVisualStyleBackColor = true;
             // 
             // btnSetInputName
             // 
-            btnSetInputName.Enabled = false;
-            btnSetInputName.Location = new Point(3, 263);
-            btnSetInputName.Name = "btnSetInputName";
-            btnSetInputName.Size = new Size(340, 46);
-            btnSetInputName.TabIndex = 26;
-            btnSetInputName.Text = "Set Input Name";
-            btnSetInputName.UseVisualStyleBackColor = true;
+            this.btnSetInputName.Enabled = false;
+            this.btnSetInputName.Location = new Point(2, 205);
+            this.btnSetInputName.Margin = new Padding(2);
+            this.btnSetInputName.Name = "btnSetInputName";
+            this.btnSetInputName.Size = new Size(262, 36);
+            this.btnSetInputName.TabIndex = 26;
+            this.btnSetInputName.Text = "Set Input Name";
+            this.btnSetInputName.UseVisualStyleBackColor = true;
             // 
             // btnRemoveInput
             // 
-            btnRemoveInput.Enabled = false;
-            btnRemoveInput.Location = new Point(3, 211);
-            btnRemoveInput.Name = "btnRemoveInput";
-            btnRemoveInput.Size = new Size(340, 46);
-            btnRemoveInput.TabIndex = 25;
-            btnRemoveInput.Text = "Remove Input";
-            btnRemoveInput.UseVisualStyleBackColor = true;
+            this.btnRemoveInput.Enabled = false;
+            this.btnRemoveInput.Location = new Point(2, 165);
+            this.btnRemoveInput.Margin = new Padding(2);
+            this.btnRemoveInput.Name = "btnRemoveInput";
+            this.btnRemoveInput.Size = new Size(262, 36);
+            this.btnRemoveInput.TabIndex = 25;
+            this.btnRemoveInput.Text = "Remove Input";
+            this.btnRemoveInput.UseVisualStyleBackColor = true;
             // 
             // btnCreateInput
             // 
-            btnCreateInput.Enabled = false;
-            btnCreateInput.Location = new Point(0, 159);
-            btnCreateInput.Name = "btnCreateInput";
-            btnCreateInput.Size = new Size(340, 46);
-            btnCreateInput.TabIndex = 24;
-            btnCreateInput.Text = "Create Input";
-            btnCreateInput.UseVisualStyleBackColor = true;
+            this.btnCreateInput.Enabled = false;
+            this.btnCreateInput.Location = new Point(0, 124);
+            this.btnCreateInput.Margin = new Padding(2);
+            this.btnCreateInput.Name = "btnCreateInput";
+            this.btnCreateInput.Size = new Size(262, 36);
+            this.btnCreateInput.TabIndex = 24;
+            this.btnCreateInput.Text = "Create Input";
+            this.btnCreateInput.UseVisualStyleBackColor = true;
             // 
             // btnGetSpecialInputs
             // 
-            btnGetSpecialInputs.Location = new Point(0, 107);
-            btnGetSpecialInputs.Name = "btnGetSpecialInputs";
-            btnGetSpecialInputs.Size = new Size(340, 46);
-            btnGetSpecialInputs.TabIndex = 23;
-            btnGetSpecialInputs.Text = "Get Special Inputs";
-            btnGetSpecialInputs.UseVisualStyleBackColor = true;
-            btnGetSpecialInputs.Click += this.BtnGetSpecialInputs_Click;
+            this.btnGetSpecialInputs.Location = new Point(0, 84);
+            this.btnGetSpecialInputs.Margin = new Padding(2);
+            this.btnGetSpecialInputs.Name = "btnGetSpecialInputs";
+            this.btnGetSpecialInputs.Size = new Size(262, 36);
+            this.btnGetSpecialInputs.TabIndex = 23;
+            this.btnGetSpecialInputs.Text = "Get Special Inputs";
+            this.btnGetSpecialInputs.UseVisualStyleBackColor = true;
+            this.btnGetSpecialInputs.Click += this.BtnGetSpecialInputs_Click;
             // 
             // btnGetInputKindList
             // 
-            btnGetInputKindList.Location = new Point(3, 55);
-            btnGetInputKindList.Name = "btnGetInputKindList";
-            btnGetInputKindList.Size = new Size(340, 46);
-            btnGetInputKindList.TabIndex = 22;
-            btnGetInputKindList.Text = "Get Input Kind List";
-            btnGetInputKindList.UseVisualStyleBackColor = true;
-            btnGetInputKindList.Click += this.BtnGetInputKindList_Click;
+            this.btnGetInputKindList.Location = new Point(2, 43);
+            this.btnGetInputKindList.Margin = new Padding(2);
+            this.btnGetInputKindList.Name = "btnGetInputKindList";
+            this.btnGetInputKindList.Size = new Size(262, 36);
+            this.btnGetInputKindList.TabIndex = 22;
+            this.btnGetInputKindList.Text = "Get Input Kind List";
+            this.btnGetInputKindList.UseVisualStyleBackColor = true;
+            this.btnGetInputKindList.Click += this.BtnGetInputKindList_Click;
             // 
             // btnGetInputList
             // 
-            btnGetInputList.Location = new Point(3, 3);
-            btnGetInputList.Name = "btnGetInputList";
-            btnGetInputList.Size = new Size(340, 46);
-            btnGetInputList.TabIndex = 21;
-            btnGetInputList.Text = "Get Input List";
-            btnGetInputList.UseVisualStyleBackColor = true;
-            btnGetInputList.Click += this.BtnGetInputList_Click;
+            this.btnGetInputList.Location = new Point(2, 2);
+            this.btnGetInputList.Margin = new Padding(2);
+            this.btnGetInputList.Name = "btnGetInputList";
+            this.btnGetInputList.Size = new Size(262, 36);
+            this.btnGetInputList.TabIndex = 21;
+            this.btnGetInputList.Text = "Get Input List";
+            this.btnGetInputList.UseVisualStyleBackColor = true;
+            this.btnGetInputList.Click += this.BtnGetInputList_Click;
             // 
             // tpFiltersRequests
             // 
-            tpFiltersRequests.Location = new Point(8, 46);
-            tpFiltersRequests.Name = "tpFiltersRequests";
-            tpFiltersRequests.Size = new Size(1241, 450);
-            tpFiltersRequests.TabIndex = 5;
-            tpFiltersRequests.Text = "Filters Requests";
-            tpFiltersRequests.UseVisualStyleBackColor = true;
+            this.tpFiltersRequests.Location = new Point(4, 34);
+            this.tpFiltersRequests.Margin = new Padding(2);
+            this.tpFiltersRequests.Name = "tpFiltersRequests";
+            this.tpFiltersRequests.Size = new Size(959, 356);
+            this.tpFiltersRequests.TabIndex = 5;
+            this.tpFiltersRequests.Text = "Filters Requests";
+            this.tpFiltersRequests.UseVisualStyleBackColor = true;
             // 
             // tbMediaInputsRequests
             // 
-            tbMediaInputsRequests.Location = new Point(8, 46);
-            tbMediaInputsRequests.Name = "tbMediaInputsRequests";
-            tbMediaInputsRequests.Size = new Size(1241, 450);
-            tbMediaInputsRequests.TabIndex = 6;
-            tbMediaInputsRequests.Text = "Media Inputs Requests";
-            tbMediaInputsRequests.UseVisualStyleBackColor = true;
+            this.tbMediaInputsRequests.Location = new Point(4, 34);
+            this.tbMediaInputsRequests.Margin = new Padding(2);
+            this.tbMediaInputsRequests.Name = "tbMediaInputsRequests";
+            this.tbMediaInputsRequests.Size = new Size(959, 356);
+            this.tbMediaInputsRequests.TabIndex = 6;
+            this.tbMediaInputsRequests.Text = "Media Inputs Requests";
+            this.tbMediaInputsRequests.UseVisualStyleBackColor = true;
             // 
             // tpOutputsRequests
             // 
-            tpOutputsRequests.Controls.Add(bnGetStreamStatus);
-            tpOutputsRequests.Controls.Add(btnGetVirtualCameraState);
-            tpOutputsRequests.Controls.Add(btnToggleVirtualCamera);
-            tpOutputsRequests.Controls.Add(btnStartVirtualCam);
-            tpOutputsRequests.Controls.Add(btnStopVirtualCamera);
-            tpOutputsRequests.Location = new Point(8, 46);
-            tpOutputsRequests.Name = "tpOutputsRequests";
-            tpOutputsRequests.Size = new Size(1241, 450);
-            tpOutputsRequests.TabIndex = 7;
-            tpOutputsRequests.Text = "Outputs Requests";
-            tpOutputsRequests.UseVisualStyleBackColor = true;
+            this.tpOutputsRequests.Controls.Add(this.bnGetStreamStatus);
+            this.tpOutputsRequests.Controls.Add(this.btnGetVirtualCameraState);
+            this.tpOutputsRequests.Controls.Add(this.btnToggleVirtualCamera);
+            this.tpOutputsRequests.Controls.Add(this.btnStartVirtualCam);
+            this.tpOutputsRequests.Controls.Add(this.btnStopVirtualCamera);
+            this.tpOutputsRequests.Location = new Point(4, 34);
+            this.tpOutputsRequests.Margin = new Padding(2);
+            this.tpOutputsRequests.Name = "tpOutputsRequests";
+            this.tpOutputsRequests.Size = new Size(959, 356);
+            this.tpOutputsRequests.TabIndex = 7;
+            this.tpOutputsRequests.Text = "Outputs Requests";
+            this.tpOutputsRequests.UseVisualStyleBackColor = true;
             // 
             // bnGetStreamStatus
             // 
-            bnGetStreamStatus.Location = new Point(0, 212);
-            bnGetStreamStatus.Name = "bnGetStreamStatus";
-            bnGetStreamStatus.Size = new Size(340, 46);
-            bnGetStreamStatus.TabIndex = 9;
-            bnGetStreamStatus.Text = "Get Stream Status";
-            bnGetStreamStatus.UseVisualStyleBackColor = true;
-            bnGetStreamStatus.Click += this.BtnGetStreamStatus_Click;
+            this.bnGetStreamStatus.Location = new Point(0, 166);
+            this.bnGetStreamStatus.Margin = new Padding(2);
+            this.bnGetStreamStatus.Name = "bnGetStreamStatus";
+            this.bnGetStreamStatus.Size = new Size(262, 36);
+            this.bnGetStreamStatus.TabIndex = 9;
+            this.bnGetStreamStatus.Text = "Get Stream Status";
+            this.bnGetStreamStatus.UseVisualStyleBackColor = true;
+            this.bnGetStreamStatus.Click += this.BtnGetStreamStatus_Click;
             // 
             // tbRecordRequests
             // 
-            tbRecordRequests.Controls.Add(btnSetRecordDirectory);
-            tbRecordRequests.Controls.Add(btnResumeRecord);
-            tbRecordRequests.Controls.Add(btnPauseRecord);
-            tbRecordRequests.Controls.Add(btnToggleRecordPause);
-            tbRecordRequests.Controls.Add(btnStopRecord);
-            tbRecordRequests.Controls.Add(btnStartRecord);
-            tbRecordRequests.Controls.Add(btnToggleRecord);
-            tbRecordRequests.Controls.Add(btnGetRecordStatus);
-            tbRecordRequests.Location = new Point(8, 46);
-            tbRecordRequests.Name = "tbRecordRequests";
-            tbRecordRequests.Size = new Size(1241, 450);
-            tbRecordRequests.TabIndex = 8;
-            tbRecordRequests.Text = "Record Requests";
-            tbRecordRequests.UseVisualStyleBackColor = true;
+            this.tbRecordRequests.Controls.Add(this.btnSetRecordDirectory);
+            this.tbRecordRequests.Controls.Add(this.btnResumeRecord);
+            this.tbRecordRequests.Controls.Add(this.btnPauseRecord);
+            this.tbRecordRequests.Controls.Add(this.btnToggleRecordPause);
+            this.tbRecordRequests.Controls.Add(this.btnStopRecord);
+            this.tbRecordRequests.Controls.Add(this.btnStartRecord);
+            this.tbRecordRequests.Controls.Add(this.btnToggleRecord);
+            this.tbRecordRequests.Controls.Add(this.btnGetRecordStatus);
+            this.tbRecordRequests.Location = new Point(4, 34);
+            this.tbRecordRequests.Margin = new Padding(2);
+            this.tbRecordRequests.Name = "tbRecordRequests";
+            this.tbRecordRequests.Size = new Size(959, 356);
+            this.tbRecordRequests.TabIndex = 8;
+            this.tbRecordRequests.Text = "Record Requests";
+            this.tbRecordRequests.UseVisualStyleBackColor = true;
             // 
             // btnSetRecordDirectory
             // 
-            btnSetRecordDirectory.Location = new Point(3, 368);
-            btnSetRecordDirectory.Name = "btnSetRecordDirectory";
-            btnSetRecordDirectory.Size = new Size(340, 46);
-            btnSetRecordDirectory.TabIndex = 16;
-            btnSetRecordDirectory.Text = "Set Record Directory";
-            btnSetRecordDirectory.UseVisualStyleBackColor = true;
-            btnSetRecordDirectory.Click += this.BtnSetRecordDirectory_Click;
+            this.btnSetRecordDirectory.Location = new Point(2, 288);
+            this.btnSetRecordDirectory.Margin = new Padding(2);
+            this.btnSetRecordDirectory.Name = "btnSetRecordDirectory";
+            this.btnSetRecordDirectory.Size = new Size(262, 36);
+            this.btnSetRecordDirectory.TabIndex = 16;
+            this.btnSetRecordDirectory.Text = "Set Record Directory";
+            this.btnSetRecordDirectory.UseVisualStyleBackColor = true;
+            this.btnSetRecordDirectory.Click += this.BtnSetRecordDirectory_Click;
             // 
             // btnResumeRecord
             // 
-            btnResumeRecord.Location = new Point(3, 316);
-            btnResumeRecord.Name = "btnResumeRecord";
-            btnResumeRecord.Size = new Size(340, 46);
-            btnResumeRecord.TabIndex = 15;
-            btnResumeRecord.Text = "Resume Record";
-            btnResumeRecord.UseVisualStyleBackColor = true;
-            btnResumeRecord.Click += this.BtnResumeRecord_Click;
+            this.btnResumeRecord.Location = new Point(2, 247);
+            this.btnResumeRecord.Margin = new Padding(2);
+            this.btnResumeRecord.Name = "btnResumeRecord";
+            this.btnResumeRecord.Size = new Size(262, 36);
+            this.btnResumeRecord.TabIndex = 15;
+            this.btnResumeRecord.Text = "Resume Record";
+            this.btnResumeRecord.UseVisualStyleBackColor = true;
+            this.btnResumeRecord.Click += this.BtnResumeRecord_Click;
             // 
             // btnPauseRecord
             // 
-            btnPauseRecord.Location = new Point(3, 264);
-            btnPauseRecord.Name = "btnPauseRecord";
-            btnPauseRecord.Size = new Size(340, 46);
-            btnPauseRecord.TabIndex = 14;
-            btnPauseRecord.Text = "Pause Record";
-            btnPauseRecord.UseVisualStyleBackColor = true;
-            btnPauseRecord.Click += this.BtnPauseRecord_Click;
+            this.btnPauseRecord.Location = new Point(2, 206);
+            this.btnPauseRecord.Margin = new Padding(2);
+            this.btnPauseRecord.Name = "btnPauseRecord";
+            this.btnPauseRecord.Size = new Size(262, 36);
+            this.btnPauseRecord.TabIndex = 14;
+            this.btnPauseRecord.Text = "Pause Record";
+            this.btnPauseRecord.UseVisualStyleBackColor = true;
+            this.btnPauseRecord.Click += this.BtnPauseRecord_Click;
             // 
             // btnToggleRecordPause
             // 
-            btnToggleRecordPause.Location = new Point(3, 212);
-            btnToggleRecordPause.Name = "btnToggleRecordPause";
-            btnToggleRecordPause.Size = new Size(340, 46);
-            btnToggleRecordPause.TabIndex = 13;
-            btnToggleRecordPause.Text = "Toggle Record Pause";
-            btnToggleRecordPause.UseVisualStyleBackColor = true;
-            btnToggleRecordPause.Click += this.BtnToggleRecordPause_Click;
+            this.btnToggleRecordPause.Location = new Point(2, 166);
+            this.btnToggleRecordPause.Margin = new Padding(2);
+            this.btnToggleRecordPause.Name = "btnToggleRecordPause";
+            this.btnToggleRecordPause.Size = new Size(262, 36);
+            this.btnToggleRecordPause.TabIndex = 13;
+            this.btnToggleRecordPause.Text = "Toggle Record Pause";
+            this.btnToggleRecordPause.UseVisualStyleBackColor = true;
+            this.btnToggleRecordPause.Click += this.BtnToggleRecordPause_Click;
             // 
             // btnStopRecord
             // 
-            btnStopRecord.Location = new Point(3, 160);
-            btnStopRecord.Name = "btnStopRecord";
-            btnStopRecord.Size = new Size(340, 46);
-            btnStopRecord.TabIndex = 12;
-            btnStopRecord.Text = "Stop Record";
-            btnStopRecord.UseVisualStyleBackColor = true;
-            btnStopRecord.Click += this.BtnStopRecord_Click;
+            this.btnStopRecord.Location = new Point(2, 125);
+            this.btnStopRecord.Margin = new Padding(2);
+            this.btnStopRecord.Name = "btnStopRecord";
+            this.btnStopRecord.Size = new Size(262, 36);
+            this.btnStopRecord.TabIndex = 12;
+            this.btnStopRecord.Text = "Stop Record";
+            this.btnStopRecord.UseVisualStyleBackColor = true;
+            this.btnStopRecord.Click += this.BtnStopRecord_Click;
             // 
             // btnStartRecord
             // 
-            btnStartRecord.Location = new Point(3, 108);
-            btnStartRecord.Name = "btnStartRecord";
-            btnStartRecord.Size = new Size(340, 46);
-            btnStartRecord.TabIndex = 11;
-            btnStartRecord.Text = "Start Record";
-            btnStartRecord.UseVisualStyleBackColor = true;
-            btnStartRecord.Click += this.BtnStartRecord_Click;
+            this.btnStartRecord.Location = new Point(2, 84);
+            this.btnStartRecord.Margin = new Padding(2);
+            this.btnStartRecord.Name = "btnStartRecord";
+            this.btnStartRecord.Size = new Size(262, 36);
+            this.btnStartRecord.TabIndex = 11;
+            this.btnStartRecord.Text = "Start Record";
+            this.btnStartRecord.UseVisualStyleBackColor = true;
+            this.btnStartRecord.Click += this.BtnStartRecord_Click;
             // 
             // btnToggleRecord
             // 
-            btnToggleRecord.Location = new Point(3, 56);
-            btnToggleRecord.Name = "btnToggleRecord";
-            btnToggleRecord.Size = new Size(340, 46);
-            btnToggleRecord.TabIndex = 10;
-            btnToggleRecord.Text = "Toggle Record";
-            btnToggleRecord.UseVisualStyleBackColor = true;
-            btnToggleRecord.Click += this.BtnToggleRecord_Click;
+            this.btnToggleRecord.Location = new Point(2, 44);
+            this.btnToggleRecord.Margin = new Padding(2);
+            this.btnToggleRecord.Name = "btnToggleRecord";
+            this.btnToggleRecord.Size = new Size(262, 36);
+            this.btnToggleRecord.TabIndex = 10;
+            this.btnToggleRecord.Text = "Toggle Record";
+            this.btnToggleRecord.UseVisualStyleBackColor = true;
+            this.btnToggleRecord.Click += this.BtnToggleRecord_Click;
             // 
             // btnGetRecordStatus
             // 
-            btnGetRecordStatus.Location = new Point(3, 4);
-            btnGetRecordStatus.Name = "btnGetRecordStatus";
-            btnGetRecordStatus.Size = new Size(340, 46);
-            btnGetRecordStatus.TabIndex = 9;
-            btnGetRecordStatus.Text = "Get Record Status";
-            btnGetRecordStatus.UseVisualStyleBackColor = true;
-            btnGetRecordStatus.Click += this.BtnGetRecordStatus_Click;
+            this.btnGetRecordStatus.Location = new Point(2, 3);
+            this.btnGetRecordStatus.Margin = new Padding(2);
+            this.btnGetRecordStatus.Name = "btnGetRecordStatus";
+            this.btnGetRecordStatus.Size = new Size(262, 36);
+            this.btnGetRecordStatus.TabIndex = 9;
+            this.btnGetRecordStatus.Text = "Get Record Status";
+            this.btnGetRecordStatus.UseVisualStyleBackColor = true;
+            this.btnGetRecordStatus.Click += this.BtnGetRecordStatus_Click;
             // 
             // tbSceneItemsRequests
             // 
-            tbSceneItemsRequests.Location = new Point(8, 46);
-            tbSceneItemsRequests.Name = "tbSceneItemsRequests";
-            tbSceneItemsRequests.Size = new Size(1241, 450);
-            tbSceneItemsRequests.TabIndex = 9;
-            tbSceneItemsRequests.Text = "Scene Items Requests";
-            tbSceneItemsRequests.UseVisualStyleBackColor = true;
+            this.tbSceneItemsRequests.Location = new Point(4, 34);
+            this.tbSceneItemsRequests.Margin = new Padding(2);
+            this.tbSceneItemsRequests.Name = "tbSceneItemsRequests";
+            this.tbSceneItemsRequests.Size = new Size(959, 356);
+            this.tbSceneItemsRequests.TabIndex = 9;
+            this.tbSceneItemsRequests.Text = "Scene Items Requests";
+            this.tbSceneItemsRequests.UseVisualStyleBackColor = true;
             // 
             // tpStreamRequests
             // 
-            tpStreamRequests.Location = new Point(8, 46);
-            tpStreamRequests.Name = "tpStreamRequests";
-            tpStreamRequests.Size = new Size(1241, 450);
-            tpStreamRequests.TabIndex = 10;
-            tpStreamRequests.Text = "Stream Requests";
-            tpStreamRequests.UseVisualStyleBackColor = true;
+            this.tpStreamRequests.Location = new Point(4, 34);
+            this.tpStreamRequests.Margin = new Padding(2);
+            this.tpStreamRequests.Name = "tpStreamRequests";
+            this.tpStreamRequests.Size = new Size(959, 356);
+            this.tpStreamRequests.TabIndex = 10;
+            this.tpStreamRequests.Text = "Stream Requests";
+            this.tpStreamRequests.UseVisualStyleBackColor = true;
             // 
             // tpTransitionsRequests
             // 
-            tpTransitionsRequests.Location = new Point(8, 46);
-            tpTransitionsRequests.Name = "tpTransitionsRequests";
-            tpTransitionsRequests.Size = new Size(1241, 450);
-            tpTransitionsRequests.TabIndex = 11;
-            tpTransitionsRequests.Text = "Transitions Requests";
-            tpTransitionsRequests.UseVisualStyleBackColor = true;
+            this.tpTransitionsRequests.Location = new Point(4, 34);
+            this.tpTransitionsRequests.Margin = new Padding(2);
+            this.tpTransitionsRequests.Name = "tpTransitionsRequests";
+            this.tpTransitionsRequests.Size = new Size(959, 356);
+            this.tpTransitionsRequests.TabIndex = 11;
+            this.tpTransitionsRequests.Text = "Transitions Requests";
+            this.tpTransitionsRequests.UseVisualStyleBackColor = true;
             // 
             // tpUIRequests
             // 
-            tpUIRequests.Controls.Add(btnOpenSourceProjectorWindow);
-            tpUIRequests.Controls.Add(button5);
-            tpUIRequests.Controls.Add(btnOpenSourceProjectorOnMonitor);
-            tpUIRequests.Controls.Add(btnOpenVideoMixProjectorWindow);
-            tpUIRequests.Controls.Add(btnOpenVideoMixProjectorOnMonitor);
-            tpUIRequests.Controls.Add(btnOpenInputInteractDialog);
-            tpUIRequests.Controls.Add(btnOpenInputFiltersDialog);
-            tpUIRequests.Controls.Add(btnOpenInputPropertiesDialog);
-            tpUIRequests.Controls.Add(btnGetStudioModeEnabled);
-            tpUIRequests.Controls.Add(btnStartStudioMode);
-            tpUIRequests.Controls.Add(btnStopStudioMode);
-            tpUIRequests.Controls.Add(btnGetMonitorList);
-            tpUIRequests.Location = new Point(8, 46);
-            tpUIRequests.Name = "tpUIRequests";
-            tpUIRequests.Size = new Size(1241, 450);
-            tpUIRequests.TabIndex = 12;
-            tpUIRequests.Text = "UI Requests";
-            tpUIRequests.UseVisualStyleBackColor = true;
+            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorWindow);
+            this.tpUIRequests.Controls.Add(this.button5);
+            this.tpUIRequests.Controls.Add(this.btnOpenSourceProjectorOnMonitor);
+            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorWindow);
+            this.tpUIRequests.Controls.Add(this.btnOpenVideoMixProjectorOnMonitor);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputInteractDialog);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputFiltersDialog);
+            this.tpUIRequests.Controls.Add(this.btnOpenInputPropertiesDialog);
+            this.tpUIRequests.Controls.Add(this.btnGetStudioModeEnabled);
+            this.tpUIRequests.Controls.Add(this.btnStartStudioMode);
+            this.tpUIRequests.Controls.Add(this.btnStopStudioMode);
+            this.tpUIRequests.Controls.Add(this.btnGetMonitorList);
+            this.tpUIRequests.Location = new Point(4, 34);
+            this.tpUIRequests.Margin = new Padding(2);
+            this.tpUIRequests.Name = "tpUIRequests";
+            this.tpUIRequests.Size = new Size(959, 356);
+            this.tpUIRequests.TabIndex = 12;
+            this.tpUIRequests.Text = "UI Requests";
+            this.tpUIRequests.UseVisualStyleBackColor = true;
             // 
             // btnOpenSourceProjectorWindow
             // 
-            btnOpenSourceProjectorWindow.Location = new Point(351, 212);
-            btnOpenSourceProjectorWindow.Name = "btnOpenSourceProjectorWindow";
-            btnOpenSourceProjectorWindow.Size = new Size(340, 46);
-            btnOpenSourceProjectorWindow.TabIndex = 20;
-            btnOpenSourceProjectorWindow.Text = "OpenSourceProjectorWindow";
-            btnOpenSourceProjectorWindow.UseVisualStyleBackColor = true;
+            this.btnOpenSourceProjectorWindow.Location = new Point(270, 166);
+            this.btnOpenSourceProjectorWindow.Margin = new Padding(2);
+            this.btnOpenSourceProjectorWindow.Name = "btnOpenSourceProjectorWindow";
+            this.btnOpenSourceProjectorWindow.Size = new Size(262, 36);
+            this.btnOpenSourceProjectorWindow.TabIndex = 20;
+            this.btnOpenSourceProjectorWindow.Text = "OpenSourceProjectorWindow";
+            this.btnOpenSourceProjectorWindow.UseVisualStyleBackColor = true;
             // 
             // button5
             // 
-            button5.Location = new Point(349, 160);
-            button5.Name = "button5";
-            button5.Size = new Size(340, 46);
-            button5.TabIndex = 19;
-            button5.Text = "OpenVideoMixProjectorOnMonitor";
-            button5.UseVisualStyleBackColor = true;
+            this.button5.Location = new Point(268, 125);
+            this.button5.Margin = new Padding(2);
+            this.button5.Name = "button5";
+            this.button5.Size = new Size(262, 36);
+            this.button5.TabIndex = 19;
+            this.button5.Text = "OpenVideoMixProjectorOnMonitor";
+            this.button5.UseVisualStyleBackColor = true;
             // 
             // btnOpenSourceProjectorOnMonitor
             // 
-            btnOpenSourceProjectorOnMonitor.Location = new Point(351, 108);
-            btnOpenSourceProjectorOnMonitor.Name = "btnOpenSourceProjectorOnMonitor";
-            btnOpenSourceProjectorOnMonitor.Size = new Size(340, 46);
-            btnOpenSourceProjectorOnMonitor.TabIndex = 18;
-            btnOpenSourceProjectorOnMonitor.Text = "OpenSourceProjectorOnMonitor";
-            btnOpenSourceProjectorOnMonitor.UseVisualStyleBackColor = true;
+            this.btnOpenSourceProjectorOnMonitor.Location = new Point(270, 84);
+            this.btnOpenSourceProjectorOnMonitor.Margin = new Padding(2);
+            this.btnOpenSourceProjectorOnMonitor.Name = "btnOpenSourceProjectorOnMonitor";
+            this.btnOpenSourceProjectorOnMonitor.Size = new Size(262, 36);
+            this.btnOpenSourceProjectorOnMonitor.TabIndex = 18;
+            this.btnOpenSourceProjectorOnMonitor.Text = "OpenSourceProjectorOnMonitor";
+            this.btnOpenSourceProjectorOnMonitor.UseVisualStyleBackColor = true;
             // 
             // btnOpenVideoMixProjectorWindow
             // 
-            btnOpenVideoMixProjectorWindow.Location = new Point(351, 56);
-            btnOpenVideoMixProjectorWindow.Name = "btnOpenVideoMixProjectorWindow";
-            btnOpenVideoMixProjectorWindow.Size = new Size(340, 46);
-            btnOpenVideoMixProjectorWindow.TabIndex = 17;
-            btnOpenVideoMixProjectorWindow.Text = "OpenVideoMixProjectorWindow";
-            btnOpenVideoMixProjectorWindow.UseVisualStyleBackColor = true;
+            this.btnOpenVideoMixProjectorWindow.Location = new Point(270, 44);
+            this.btnOpenVideoMixProjectorWindow.Margin = new Padding(2);
+            this.btnOpenVideoMixProjectorWindow.Name = "btnOpenVideoMixProjectorWindow";
+            this.btnOpenVideoMixProjectorWindow.Size = new Size(262, 36);
+            this.btnOpenVideoMixProjectorWindow.TabIndex = 17;
+            this.btnOpenVideoMixProjectorWindow.Text = "OpenVideoMixProjectorWindow";
+            this.btnOpenVideoMixProjectorWindow.UseVisualStyleBackColor = true;
             // 
             // btnOpenVideoMixProjectorOnMonitor
             // 
-            btnOpenVideoMixProjectorOnMonitor.Location = new Point(351, 4);
-            btnOpenVideoMixProjectorOnMonitor.Name = "btnOpenVideoMixProjectorOnMonitor";
-            btnOpenVideoMixProjectorOnMonitor.Size = new Size(340, 46);
-            btnOpenVideoMixProjectorOnMonitor.TabIndex = 16;
-            btnOpenVideoMixProjectorOnMonitor.Text = "OpenVideoMixProjectorOnMonitor";
-            btnOpenVideoMixProjectorOnMonitor.UseVisualStyleBackColor = true;
+            this.btnOpenVideoMixProjectorOnMonitor.Location = new Point(270, 3);
+            this.btnOpenVideoMixProjectorOnMonitor.Margin = new Padding(2);
+            this.btnOpenVideoMixProjectorOnMonitor.Name = "btnOpenVideoMixProjectorOnMonitor";
+            this.btnOpenVideoMixProjectorOnMonitor.Size = new Size(262, 36);
+            this.btnOpenVideoMixProjectorOnMonitor.TabIndex = 16;
+            this.btnOpenVideoMixProjectorOnMonitor.Text = "OpenVideoMixProjectorOnMonitor";
+            this.btnOpenVideoMixProjectorOnMonitor.UseVisualStyleBackColor = true;
             // 
             // btnOpenInputInteractDialog
             // 
-            btnOpenInputInteractDialog.Location = new Point(3, 264);
-            btnOpenInputInteractDialog.Name = "btnOpenInputInteractDialog";
-            btnOpenInputInteractDialog.Size = new Size(340, 46);
-            btnOpenInputInteractDialog.TabIndex = 15;
-            btnOpenInputInteractDialog.Text = "OpenInputInteractDialog";
-            btnOpenInputInteractDialog.UseVisualStyleBackColor = true;
+            this.btnOpenInputInteractDialog.Location = new Point(2, 206);
+            this.btnOpenInputInteractDialog.Margin = new Padding(2);
+            this.btnOpenInputInteractDialog.Name = "btnOpenInputInteractDialog";
+            this.btnOpenInputInteractDialog.Size = new Size(262, 36);
+            this.btnOpenInputInteractDialog.TabIndex = 15;
+            this.btnOpenInputInteractDialog.Text = "OpenInputInteractDialog";
+            this.btnOpenInputInteractDialog.UseVisualStyleBackColor = true;
             // 
             // btnOpenInputFiltersDialog
             // 
-            btnOpenInputFiltersDialog.Location = new Point(3, 212);
-            btnOpenInputFiltersDialog.Name = "btnOpenInputFiltersDialog";
-            btnOpenInputFiltersDialog.Size = new Size(340, 46);
-            btnOpenInputFiltersDialog.TabIndex = 14;
-            btnOpenInputFiltersDialog.Text = "OpenInputFiltersDialog";
-            btnOpenInputFiltersDialog.UseVisualStyleBackColor = true;
+            this.btnOpenInputFiltersDialog.Location = new Point(2, 166);
+            this.btnOpenInputFiltersDialog.Margin = new Padding(2);
+            this.btnOpenInputFiltersDialog.Name = "btnOpenInputFiltersDialog";
+            this.btnOpenInputFiltersDialog.Size = new Size(262, 36);
+            this.btnOpenInputFiltersDialog.TabIndex = 14;
+            this.btnOpenInputFiltersDialog.Text = "OpenInputFiltersDialog";
+            this.btnOpenInputFiltersDialog.UseVisualStyleBackColor = true;
             // 
             // btnOpenInputPropertiesDialog
             // 
-            btnOpenInputPropertiesDialog.Location = new Point(3, 160);
-            btnOpenInputPropertiesDialog.Name = "btnOpenInputPropertiesDialog";
-            btnOpenInputPropertiesDialog.Size = new Size(340, 46);
-            btnOpenInputPropertiesDialog.TabIndex = 13;
-            btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
-            btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
+            this.btnOpenInputPropertiesDialog.Location = new Point(2, 125);
+            this.btnOpenInputPropertiesDialog.Margin = new Padding(2);
+            this.btnOpenInputPropertiesDialog.Name = "btnOpenInputPropertiesDialog";
+            this.btnOpenInputPropertiesDialog.Size = new Size(262, 36);
+            this.btnOpenInputPropertiesDialog.TabIndex = 13;
+            this.btnOpenInputPropertiesDialog.Text = "OpenInputPropertiesDialog";
+            this.btnOpenInputPropertiesDialog.UseVisualStyleBackColor = true;
             // 
             // tpMisc
             // 
-            tpMisc.Controls.Add(btnBatch1);
-            tpMisc.Location = new Point(8, 46);
-            tpMisc.Name = "tpMisc";
-            tpMisc.Size = new Size(1241, 450);
-            tpMisc.TabIndex = 13;
-            tpMisc.Text = "Misc";
-            tpMisc.UseVisualStyleBackColor = true;
+            this.tpMisc.Controls.Add(this.btnBatch1);
+            this.tpMisc.Location = new Point(4, 34);
+            this.tpMisc.Margin = new Padding(2);
+            this.tpMisc.Name = "tpMisc";
+            this.tpMisc.Size = new Size(959, 356);
+            this.tpMisc.TabIndex = 13;
+            this.tpMisc.Text = "Misc";
+            this.tpMisc.UseVisualStyleBackColor = true;
             // 
             // btnBatch1
             // 
-            btnBatch1.Location = new Point(24, 18);
-            btnBatch1.Name = "btnBatch1";
-            btnBatch1.Size = new Size(340, 46);
-            btnBatch1.TabIndex = 23;
-            btnBatch1.Text = "Batch Request Sample 1";
-            btnBatch1.UseVisualStyleBackColor = true;
-            btnBatch1.Click += this.BtnBatch1_Click;
+            this.btnBatch1.Location = new Point(18, 14);
+            this.btnBatch1.Margin = new Padding(2);
+            this.btnBatch1.Name = "btnBatch1";
+            this.btnBatch1.Size = new Size(262, 36);
+            this.btnBatch1.TabIndex = 23;
+            this.btnBatch1.Text = "Batch Request Sample 1";
+            this.btnBatch1.UseVisualStyleBackColor = true;
+            this.btnBatch1.Click += this.BtnBatch1_Click;
             // 
             // lbScenes
             // 
-            lbScenes.FormattingEnabled = true;
-            lbScenes.ItemHeight = 32;
-            lbScenes.Location = new Point(1307, 311);
-            lbScenes.Name = "lbScenes";
-            lbScenes.Size = new Size(288, 452);
-            lbScenes.TabIndex = 20;
+            this.lbScenes.FormattingEnabled = true;
+            this.lbScenes.ItemHeight = 25;
+            this.lbScenes.Location = new Point(1005, 243);
+            this.lbScenes.Margin = new Padding(2);
+            this.lbScenes.Name = "lbScenes";
+            this.lbScenes.Size = new Size(222, 354);
+            this.lbScenes.TabIndex = 20;
             // 
             // label4
             // 
-            label4.AutoSize = true;
-            label4.Location = new Point(1307, 261);
-            label4.Name = "label4";
-            label4.Size = new Size(93, 32);
-            label4.TabIndex = 21;
-            label4.Text = "Scenes:";
+            this.label4.AutoSize = true;
+            this.label4.Location = new Point(1005, 204);
+            this.label4.Margin = new Padding(2, 0, 2, 0);
+            this.label4.Name = "label4";
+            this.label4.Size = new Size(70, 25);
+            this.label4.TabIndex = 21;
+            this.label4.Text = "Scenes:";
             // 
             // label5
             // 
-            label5.AutoSize = true;
-            label5.Location = new Point(1601, 260);
-            label5.Name = "label5";
-            label5.Size = new Size(95, 32);
-            label5.TabIndex = 23;
-            label5.Text = "Groups:";
+            this.label5.AutoSize = true;
+            this.label5.Location = new Point(1232, 203);
+            this.label5.Margin = new Padding(2, 0, 2, 0);
+            this.label5.Name = "label5";
+            this.label5.Size = new Size(74, 25);
+            this.label5.TabIndex = 23;
+            this.label5.Text = "Groups:";
             // 
             // lbGroups
             // 
-            lbGroups.FormattingEnabled = true;
-            lbGroups.ItemHeight = 32;
-            lbGroups.Location = new Point(1601, 310);
-            lbGroups.Name = "lbGroups";
-            lbGroups.Size = new Size(288, 452);
-            lbGroups.TabIndex = 22;
+            this.lbGroups.FormattingEnabled = true;
+            this.lbGroups.ItemHeight = 25;
+            this.lbGroups.Location = new Point(1232, 242);
+            this.lbGroups.Margin = new Padding(2);
+            this.lbGroups.Name = "lbGroups";
+            this.lbGroups.Size = new Size(222, 354);
+            this.lbGroups.TabIndex = 22;
             // 
             // tbNameItem
             // 
-            tbNameItem.Location = new Point(168, 203);
-            tbNameItem.Name = "tbNameItem";
-            tbNameItem.Size = new Size(200, 39);
-            tbNameItem.TabIndex = 24;
-            tbNameItem.Text = "Some Item Name";
+            this.tbNameItem.Location = new Point(129, 159);
+            this.tbNameItem.Margin = new Padding(2);
+            this.tbNameItem.Name = "tbNameItem";
+            this.tbNameItem.Size = new Size(155, 31);
+            this.tbNameItem.TabIndex = 24;
+            this.tbNameItem.Text = "Some Item Name";
             // 
             // label6
             // 
-            label6.AutoSize = true;
-            label6.Location = new Point(24, 206);
-            label6.Name = "label6";
-            label6.Size = new Size(138, 32);
-            label6.TabIndex = 25;
-            label6.Text = "Item Name:";
+            this.label6.AutoSize = true;
+            this.label6.Location = new Point(18, 161);
+            this.label6.Margin = new Padding(2, 0, 2, 0);
+            this.label6.Name = "label6";
+            this.label6.Size = new Size(104, 25);
+            this.label6.TabIndex = 25;
+            this.label6.Text = "Item Name:";
             // 
             // label7
             // 
-            label7.AutoSize = true;
-            label7.Location = new Point(1307, 22);
-            label7.Name = "label7";
-            label7.Size = new Size(152, 32);
-            label7.TabIndex = 26;
-            label7.Text = "Record State:";
+            this.label7.AutoSize = true;
+            this.label7.Location = new Point(1005, 17);
+            this.label7.Margin = new Padding(2, 0, 2, 0);
+            this.label7.Name = "label7";
+            this.label7.Size = new Size(115, 25);
+            this.label7.TabIndex = 26;
+            this.label7.Text = "Record State:";
             // 
             // lblRecordState
             // 
-            lblRecordState.AutoSize = true;
-            lblRecordState.Location = new Point(1465, 22);
-            lblRecordState.Name = "lblRecordState";
-            lblRecordState.Size = new Size(56, 32);
-            lblRecordState.TabIndex = 27;
-            lblRecordState.Text = "N/A";
+            this.lblRecordState.AutoSize = true;
+            this.lblRecordState.Location = new Point(1127, 17);
+            this.lblRecordState.Margin = new Padding(2, 0, 2, 0);
+            this.lblRecordState.Name = "lblRecordState";
+            this.lblRecordState.Size = new Size(44, 25);
+            this.lblRecordState.TabIndex = 27;
+            this.lblRecordState.Text = "N/A";
             // 
             // label8
             // 
-            label8.AutoSize = true;
-            label8.Location = new Point(1307, 60);
-            label8.Name = "label8";
-            label8.Size = new Size(166, 32);
-            label8.TabIndex = 28;
-            label8.Text = "Record Folder:";
+            this.label8.AutoSize = true;
+            this.label8.Location = new Point(1005, 47);
+            this.label8.Margin = new Padding(2, 0, 2, 0);
+            this.label8.Name = "label8";
+            this.label8.Size = new Size(126, 25);
+            this.label8.TabIndex = 28;
+            this.label8.Text = "Record Folder:";
             // 
             // tbRecordFolder
             // 
-            tbRecordFolder.Location = new Point(1479, 57);
-            tbRecordFolder.Name = "tbRecordFolder";
-            tbRecordFolder.Size = new Size(200, 39);
-            tbRecordFolder.TabIndex = 29;
+            this.tbRecordFolder.Location = new Point(1138, 45);
+            this.tbRecordFolder.Margin = new Padding(2);
+            this.tbRecordFolder.Name = "tbRecordFolder";
+            this.tbRecordFolder.Size = new Size(155, 31);
+            this.tbRecordFolder.TabIndex = 29;
             // 
             // cbAutoReconnect
             // 
-            cbAutoReconnect.AutoSize = true;
-            cbAutoReconnect.Checked = true;
-            cbAutoReconnect.CheckState = CheckState.Checked;
-            cbAutoReconnect.Location = new Point(146, 150);
-            cbAutoReconnect.Name = "cbAutoReconnect";
-            cbAutoReconnect.Size = new Size(208, 36);
-            cbAutoReconnect.TabIndex = 30;
-            cbAutoReconnect.Text = "AutoReconnect";
-            cbAutoReconnect.UseVisualStyleBackColor = true;
-            cbAutoReconnect.CheckedChanged += this.CbAutoReconnect_CheckedChanged;
+            this.cbAutoReconnect.AutoSize = true;
+            this.cbAutoReconnect.Checked = true;
+            this.cbAutoReconnect.CheckState = CheckState.Checked;
+            this.cbAutoReconnect.Location = new Point(112, 117);
+            this.cbAutoReconnect.Margin = new Padding(2);
+            this.cbAutoReconnect.Name = "cbAutoReconnect";
+            this.cbAutoReconnect.Size = new Size(158, 29);
+            this.cbAutoReconnect.TabIndex = 30;
+            this.cbAutoReconnect.Text = "AutoReconnect";
+            this.cbAutoReconnect.UseVisualStyleBackColor = true;
+            this.cbAutoReconnect.CheckedChanged += this.CbAutoReconnect_CheckedChanged;
             // 
             // lblBytesOut
             // 
-            lblBytesOut.AutoSize = true;
-            lblBytesOut.Location = new Point(752, 18);
-            lblBytesOut.Name = "lblBytesOut";
-            lblBytesOut.Size = new Size(27, 32);
-            lblBytesOut.TabIndex = 32;
-            lblBytesOut.Text = "0";
+            this.lblBytesOut.AutoSize = true;
+            this.lblBytesOut.Location = new Point(578, 14);
+            this.lblBytesOut.Margin = new Padding(2, 0, 2, 0);
+            this.lblBytesOut.Name = "lblBytesOut";
+            this.lblBytesOut.Size = new Size(22, 25);
+            this.lblBytesOut.TabIndex = 32;
+            this.lblBytesOut.Text = "0";
             // 
             // label10
             // 
-            label10.AutoSize = true;
-            label10.Location = new Point(594, 18);
-            label10.Name = "label10";
-            label10.Size = new Size(131, 32);
-            label10.TabIndex = 31;
-            label10.Text = "Bytes Sent:";
+            this.label10.AutoSize = true;
+            this.label10.Location = new Point(457, 14);
+            this.label10.Margin = new Padding(2, 0, 2, 0);
+            this.label10.Name = "label10";
+            this.label10.Size = new Size(98, 25);
+            this.label10.TabIndex = 31;
+            this.label10.Text = "Bytes Sent:";
             // 
             // lblBytesIn
             // 
-            lblBytesIn.AutoSize = true;
-            lblBytesIn.Location = new Point(752, 60);
-            lblBytesIn.Name = "lblBytesIn";
-            lblBytesIn.Size = new Size(27, 32);
-            lblBytesIn.TabIndex = 34;
-            lblBytesIn.Text = "0";
+            this.lblBytesIn.AutoSize = true;
+            this.lblBytesIn.Location = new Point(578, 47);
+            this.lblBytesIn.Margin = new Padding(2, 0, 2, 0);
+            this.lblBytesIn.Name = "lblBytesIn";
+            this.lblBytesIn.Size = new Size(22, 25);
+            this.lblBytesIn.TabIndex = 34;
+            this.lblBytesIn.Text = "0";
             // 
             // label12
             // 
-            label12.AutoSize = true;
-            label12.Location = new Point(594, 60);
-            label12.Name = "label12";
-            label12.Size = new Size(146, 32);
-            label12.TabIndex = 33;
-            label12.Text = "Bytes Recvd:";
+            this.label12.AutoSize = true;
+            this.label12.Location = new Point(457, 47);
+            this.label12.Margin = new Padding(2, 0, 2, 0);
+            this.label12.Name = "label12";
+            this.label12.Size = new Size(110, 25);
+            this.label12.TabIndex = 33;
+            this.label12.Text = "Bytes Recvd:";
             // 
             // lblMessagesIn
             // 
-            lblMessagesIn.AutoSize = true;
-            lblMessagesIn.Location = new Point(752, 150);
-            lblMessagesIn.Name = "lblMessagesIn";
-            lblMessagesIn.Size = new Size(27, 32);
-            lblMessagesIn.TabIndex = 38;
-            lblMessagesIn.Text = "0";
+            this.lblMessagesIn.AutoSize = true;
+            this.lblMessagesIn.Location = new Point(578, 117);
+            this.lblMessagesIn.Margin = new Padding(2, 0, 2, 0);
+            this.lblMessagesIn.Name = "lblMessagesIn";
+            this.lblMessagesIn.Size = new Size(22, 25);
+            this.lblMessagesIn.TabIndex = 38;
+            this.lblMessagesIn.Text = "0";
             // 
             // label11
             // 
-            label11.AutoSize = true;
-            label11.Location = new Point(594, 150);
-            label11.Name = "label11";
-            label11.Size = new Size(145, 32);
-            label11.TabIndex = 37;
-            label11.Text = "Msgs Recvd:";
+            this.label11.AutoSize = true;
+            this.label11.Location = new Point(457, 117);
+            this.label11.Margin = new Padding(2, 0, 2, 0);
+            this.label11.Name = "label11";
+            this.label11.Size = new Size(111, 25);
+            this.label11.TabIndex = 37;
+            this.label11.Text = "Msgs Recvd:";
             // 
             // lblMessagesOut
             // 
-            lblMessagesOut.AutoSize = true;
-            lblMessagesOut.Location = new Point(752, 108);
-            lblMessagesOut.Name = "lblMessagesOut";
-            lblMessagesOut.Size = new Size(27, 32);
-            lblMessagesOut.TabIndex = 36;
-            lblMessagesOut.Text = "0";
+            this.lblMessagesOut.AutoSize = true;
+            this.lblMessagesOut.Location = new Point(578, 84);
+            this.lblMessagesOut.Margin = new Padding(2, 0, 2, 0);
+            this.lblMessagesOut.Name = "lblMessagesOut";
+            this.lblMessagesOut.Size = new Size(22, 25);
+            this.lblMessagesOut.TabIndex = 36;
+            this.lblMessagesOut.Text = "0";
             // 
             // label14
             // 
-            label14.AutoSize = true;
-            label14.Location = new Point(594, 108);
-            label14.Name = "label14";
-            label14.Size = new Size(130, 32);
-            label14.TabIndex = 35;
-            label14.Text = "Msgs Sent:";
+            this.label14.AutoSize = true;
+            this.label14.Location = new Point(457, 84);
+            this.label14.Margin = new Padding(2, 0, 2, 0);
+            this.label14.Name = "label14";
+            this.label14.Size = new Size(99, 25);
+            this.label14.TabIndex = 35;
+            this.label14.Text = "Msgs Sent:";
             // 
             // label9
             // 
-            label9.AutoSize = true;
-            label9.Location = new Point(594, 194);
-            label9.Name = "label9";
-            label9.Size = new Size(126, 32);
-            label9.TabIndex = 39;
-            label9.Text = "Last Event:";
+            this.label9.AutoSize = true;
+            this.label9.Location = new Point(457, 152);
+            this.label9.Margin = new Padding(2, 0, 2, 0);
+            this.label9.Name = "label9";
+            this.label9.Size = new Size(95, 25);
+            this.label9.TabIndex = 39;
+            this.label9.Text = "Last Event:";
             // 
             // lblLastEvent
             // 
-            lblLastEvent.AutoSize = true;
-            lblLastEvent.Location = new Point(752, 194);
-            lblLastEvent.Name = "lblLastEvent";
-            lblLastEvent.Size = new Size(56, 32);
-            lblLastEvent.TabIndex = 40;
-            lblLastEvent.Text = "N/A";
+            this.lblLastEvent.AutoSize = true;
+            this.lblLastEvent.Location = new Point(578, 152);
+            this.lblLastEvent.Margin = new Padding(2, 0, 2, 0);
+            this.lblLastEvent.Name = "lblLastEvent";
+            this.lblLastEvent.Size = new Size(44, 25);
+            this.lblLastEvent.TabIndex = 40;
+            this.lblLastEvent.Text = "N/A";
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new SizeF(13F, 32F);
+            this.AutoScaleDimensions = new SizeF(10F, 25F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1986, 849);
-            this.Controls.Add(lblLastEvent);
-            this.Controls.Add(label9);
-            this.Controls.Add(lblMessagesIn);
-            this.Controls.Add(label11);
-            this.Controls.Add(lblMessagesOut);
-            this.Controls.Add(label14);
-            this.Controls.Add(lblBytesIn);
-            this.Controls.Add(label12);
-            this.Controls.Add(lblBytesOut);
-            this.Controls.Add(label10);
-            this.Controls.Add(cbAutoReconnect);
-            this.Controls.Add(tbRecordFolder);
-            this.Controls.Add(label8);
-            this.Controls.Add(lblRecordState);
-            this.Controls.Add(label7);
-            this.Controls.Add(label6);
-            this.Controls.Add(tbNameItem);
-            this.Controls.Add(label5);
-            this.Controls.Add(lbGroups);
-            this.Controls.Add(label4);
-            this.Controls.Add(lbScenes);
-            this.Controls.Add(tabControl1);
-            this.Controls.Add(label3);
-            this.Controls.Add(label2);
-            this.Controls.Add(label1);
-            this.Controls.Add(button3);
-            this.Controls.Add(tbPassword);
-            this.Controls.Add(nudPort);
-            this.Controls.Add(tbHostname);
-            this.Controls.Add(button1);
+            this.ClientSize = new Size(1528, 663);
+            this.Controls.Add(this.lblLastEvent);
+            this.Controls.Add(this.label9);
+            this.Controls.Add(this.lblMessagesIn);
+            this.Controls.Add(this.label11);
+            this.Controls.Add(this.lblMessagesOut);
+            this.Controls.Add(this.label14);
+            this.Controls.Add(this.lblBytesIn);
+            this.Controls.Add(this.label12);
+            this.Controls.Add(this.lblBytesOut);
+            this.Controls.Add(this.label10);
+            this.Controls.Add(this.cbAutoReconnect);
+            this.Controls.Add(this.tbRecordFolder);
+            this.Controls.Add(this.label8);
+            this.Controls.Add(this.lblRecordState);
+            this.Controls.Add(this.label7);
+            this.Controls.Add(this.label6);
+            this.Controls.Add(this.tbNameItem);
+            this.Controls.Add(this.label5);
+            this.Controls.Add(this.lbGroups);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.lbScenes);
+            this.Controls.Add(this.tabControl1);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.button3);
+            this.Controls.Add(this.tbPassword);
+            this.Controls.Add(this.nudPort);
+            this.Controls.Add(this.tbHostname);
+            this.Controls.Add(this.button1);
+            this.Margin = new Padding(2);
             this.Name = "Form1";
             this.Text = "OBS Client - Sample Windows Application";
             this.Load += this.Form1_Load;
-            ((System.ComponentModel.ISupportInitialize)nudPort).EndInit();
-            tabControl1.ResumeLayout(false);
-            tpGeneralRequests.ResumeLayout(false);
-            tpConfigRequests.ResumeLayout(false);
-            tpSourcesRequests.ResumeLayout(false);
-            tpScenesRequests.ResumeLayout(false);
-            tpInputsRequests.ResumeLayout(false);
-            tpOutputsRequests.ResumeLayout(false);
-            tbRecordRequests.ResumeLayout(false);
-            tpUIRequests.ResumeLayout(false);
-            tpMisc.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)this.nudPort).EndInit();
+            this.tabControl1.ResumeLayout(false);
+            this.tpGeneralRequests.ResumeLayout(false);
+            this.tpConfigRequests.ResumeLayout(false);
+            this.tpSourcesRequests.ResumeLayout(false);
+            this.tpScenesRequests.ResumeLayout(false);
+            this.tpInputsRequests.ResumeLayout(false);
+            this.tpOutputsRequests.ResumeLayout(false);
+            this.tbRecordRequests.ResumeLayout(false);
+            this.tpUIRequests.ResumeLayout(false);
+            this.tpMisc.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
         }

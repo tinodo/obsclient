@@ -7,22 +7,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetSceneItemTransform request.
     /// </summary>
-    public class SceneItemTransformResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SceneItemTransformResponse"/> class.
+    /// </remarks>
+    /// <param name="sceneItemTransform">The <see cref="SceneItemTransform"/>.</param>
+    [method: JsonConstructor]
+    public class SceneItemTransformResponse(SceneItemTransform sceneItemTransform) : IResponse
     {
         /// <summary>
         /// Gets the <see cref="SceneItemTransform"/>.
         /// </summary>
         [JsonPropertyName("sceneItemTransform")]
-        public SceneItemTransform SceneItemTransform { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SceneItemTransformResponse"/> class.
-        /// </summary>
-        /// <param name="sceneItemTransform">The <see cref="SceneItemTransform"/>.</param>
-        [JsonConstructor]
-        public SceneItemTransformResponse(SceneItemTransform sceneItemTransform)
-        {
-            this.SceneItemTransform = sceneItemTransform;
-        }
+        public SceneItemTransform SceneItemTransform { get; } = sceneItemTransform;
     }
 }

@@ -5,38 +5,31 @@
     /// <summary>
     /// Provides arguments for the SourceFilterEnableStateChanged event.
     /// </summary>
-    public class SourceFilterEnableStateChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SourceFilterEnableStateChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="sourceName">The source name.</param>
+    /// <param name="filterName">The filter name.</param>
+    /// <param name="filterEnabled">A value indicating whether the filter is enabled.</param>
+    [method: JsonConstructor]
+    public class SourceFilterEnableStateChangedEventArgs(string sourceName, string filterName, bool filterEnabled) : EventArgs
     {
         /// <summary>
         /// Gets the name of the source.
         /// </summary>
         [JsonPropertyName("sourceName")]
-        public string SourceName { get; }
+        public string SourceName { get; } = sourceName;
 
         /// <summary>
         /// Gets the name of the filter.
         /// </summary>
         [JsonPropertyName("filterName")]
-        public string FilterName { get; }
+        public string FilterName { get; } = filterName;
 
         /// <summary>
         /// Gets a value indicating whether the filter is enabled.
         /// </summary>
         [JsonPropertyName("filterEnabled")]
-        public bool FilterEnabled { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SourceFilterEnableStateChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="sourceName">The source name.</param>
-        /// <param name="filterName">The filter name.</param>
-        /// <param name="filterEnabled">A value indicating whether the filter is enabled.</param>
-        [JsonConstructor]
-        public SourceFilterEnableStateChangedEventArgs(string sourceName, string filterName, bool filterEnabled)
-        {
-            this.SourceName = sourceName;
-            this.FilterName = filterName;
-            this.FilterEnabled = filterEnabled;
-        }
+        public bool FilterEnabled { get; } = filterEnabled;
     }
 }

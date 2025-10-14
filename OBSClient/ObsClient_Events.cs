@@ -129,6 +129,14 @@
         public event EventHandler<InputNameChangedEventArgs>? InputNameChanged;
 
         /// <summary>
+        /// An input's settings have changed (been updated).
+        /// </summary>
+        /// <remarks>
+        /// Note: On some inputs, changing values in the properties dialog will cause an immediate update. Pressing the "Cancel" button will revert the settings, resulting in another event being fired.
+        /// </remarks>
+        public event EventHandler<InputSettingsChangedEventArgs>? InputSettingsChanged;
+
+        /// <summary>
         /// Occurs when an input's active state has changed.
         /// </summary>
         /// <remarks>
@@ -242,6 +250,11 @@
         /// Occurs when the name of a source filter has changed.
         /// </summary>
         public event EventHandler<SourceFilterNameChangedEventArgs>? SourceFilterNameChanged;
+
+        /// <summary>
+        /// An source filter's settings have changed (been updated).
+        /// </summary>
+        public event EventHandler<SourceFilterSettingsChangedEventArgs>? SourceFilterSettingsChanged;
 
         /// <summary>
         /// Occurs when a source filter's enable state has changed.

@@ -58,9 +58,10 @@
         /// Triggers a hotkey using its name. See <see cref="GetHotkeyList"/>
         /// </summary>
         /// <param name="hotkeyName">Name of the hotkey to trigger</param>
-        public async Task TriggerHotkeyByName(string hotkeyName)
+        /// <param name="contextName">Name of context of the hotkey to trigger</param>
+        public async Task TriggerHotkeyByName(string hotkeyName, string? contextName)
         {
-            await this.SendRequestAsync(new { hotkeyName });
+            await this.SendRequestAsync(new { hotkeyName, contextName });
         }
 
         /// <summary>

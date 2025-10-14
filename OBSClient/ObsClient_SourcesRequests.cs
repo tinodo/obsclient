@@ -14,8 +14,27 @@
         /// </remarks>
         public async Task<SourceActiveResponse> GetSourceActive(string sourceName)
         {
-            return await this.SendRequestAsync<SourceActiveResponse>(new { sourceName });
+            return await this.GetSourceActive(sourceName, null);
         }
+
+        /// <summary>
+        /// Gets the active and show state of a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to get the active state of</param>
+        /// <returns>A <see cref="SourceActiveResponse"/></returns>
+        /// <remarks>
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task<SourceActiveResponse> GetSourceActive(Guid sourceUuid)
+        {
+            return await this.GetSourceActive(null, sourceUuid);
+        }
+
+        private async Task<SourceActiveResponse> GetSourceActive(string? sourceName, Guid? sourceUuid)
+        {
+            return await this.SendRequestAsync<SourceActiveResponse>(new { sourceName, sourceUuid });
+        }
+
 
         /// <summary>
         /// Gets a Base64-encoded screenshot of a source.
@@ -32,7 +51,30 @@
         /// </remarks>
         public async Task<string> GetSourceScreenshot(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
+            return await GetSourceScreenshot(sourceName, null, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        /// <summary>
+        /// Gets a Base64-encoded screenshot of a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to take a screenshot of</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <returns>Base64-encoded screenshot</returns>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task<string> GetSourceScreenshot(Guid sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            return await GetSourceScreenshot(null, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        private async Task<string> GetSourceScreenshot(string? sourceName, Guid? sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
 
         /// <summary>
@@ -50,7 +92,30 @@
         /// </remarks>
         public async Task SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            await this.SendRequestAsync(new { sourceName, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality });
+            await this.SaveSourceScreenshot(sourceName, null, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        /// <summary>
+        /// Saves a screenshot of a source to the filesystem.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to take a screenshot of</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageFilePath">Path to save the screenshot file to. Eg. C:\Users\user\Desktop\screenshot.png</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task SaveSourceScreenshot(Guid sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            await this.SaveSourceScreenshot(null, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        private async Task SaveSourceScreenshot(string? sourceName, Guid? sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            await this.SendRequestAsync(new { sourceName, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality });
         }
     }
 }

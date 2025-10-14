@@ -14,8 +14,27 @@
         /// </remarks>
         public void AddGetSourceActiveRequest(string sourceName)
         {
-            this._requests.Add(new(new { sourceName }));
+            this.AddGetSourceActiveRequest(sourceName, null);
         }
+
+        /// <summary>
+        /// Adds a request to get the active and show state of a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to get the active state of</param>
+        /// <returns>A <see cref="SourceActiveResponse"/></returns>
+        /// <remarks>
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public void AddGetSourceActiveRequest(Guid sourceUuid)
+        {
+            this.AddGetSourceActiveRequest(null, sourceUuid);
+        }
+
+        private void AddGetSourceActiveRequest(string? sourceName, Guid? sourceUuid)
+        {
+            this._requests.Add(new(new { sourceName, sourceUuid }));
+        }
+
 
         /// <summary>
         /// Adds a request to get a Base64-encoded screenshot of a source.

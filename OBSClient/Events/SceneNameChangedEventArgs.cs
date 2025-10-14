@@ -5,30 +5,31 @@
     /// <summary>
     /// Provides arguments for the SceneNameChanged event.
     /// </summary>
-    public class SceneNameChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SceneNameChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="sceneUuid">The new scene uuid.</param>
+    /// <param name="oldSceneName">The old scene name.</param>
+    /// <param name="sceneName">The new scene name.</param>
+    [method: JsonConstructor]
+    public class SceneNameChangedEventArgs(Guid sceneUuid, string oldSceneName, string sceneName) : EventArgs
     {
+        /// <summary>
+        /// Gets the scene uuid.
+        /// </summary>
+        [JsonPropertyName("sceneUuid")]
+        public Guid SceneUuid { get; } = sceneUuid;
+
         /// <summary>
         /// Gets the old scene name.
         /// </summary>
         [JsonPropertyName("oldSceneName")]
-        public string OldSceneName { get; }
+        public string OldSceneName { get; } = oldSceneName;
 
         /// <summary>
         /// Gets the new scene name.
         /// </summary>
         [JsonPropertyName("sceneName")]
-        public string SceneName { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SceneNameChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="oldSceneName">The old scene name.</param>
-        /// <param name="sceneName">The new scene name.</param>
-        [JsonConstructor]
-        public SceneNameChangedEventArgs(string oldSceneName, string sceneName)
-        {
-            this.OldSceneName = oldSceneName;
-            this.SceneName = sceneName;
-        }
+        public string SceneName { get; } = sceneName;
     }
 }

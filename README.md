@@ -1,12 +1,12 @@
 # ObsClient
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
-Currently implementing: [**obs-websocket 5.3.0 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
+Currently implementing: [**obs-websocket 5.5.2 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
 Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 2.1.1`  
-From the command line: `dotnet add package OBSClient --version 2.1.1`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 3.0.0`  
+From the command line: `dotnet add package OBSClient --version 3.0.0`  
 
 ## Sample usage
 

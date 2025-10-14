@@ -52,25 +52,6 @@
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ObsResponseException"/> class.
-        /// </summary>
-        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
-        protected ObsResponseException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
-
-        /// <summary>
-        /// Sets the <see cref="SerializationInfo"/> with information about the exception.
-        /// </summary>
-        /// <param name="info">The <see cref="SerializationInfo"/> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="StreamingContext"/> that contains contextual information about the source or destination.</param>
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-        }
-
-        /// <summary>
         /// Gets the exception message.
         /// </summary>
         public override string Message => this.ErrorMessage ?? this.ErrorCode.ToString();

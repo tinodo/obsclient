@@ -48,7 +48,26 @@
         /// <returns>ID of the newly created scene item</returns>
         public void AddCreateInputRequest(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
         {
-            this._requests.Add(new(new { sceneName, inputName, inputKind, inputSettings, sceneItemEnabled }));
+            this.AddCreateInputRequest(sceneName, null, inputName, inputKind, inputSettings, sceneItemEnabled);
+        }
+
+        /// <summary>
+        /// Adds a request to create a new input, adding it as a scene item to the specified scene.
+        /// </summary>
+        /// <param name="sceneUuid">Uuid of the scene to add the input to as a scene item</param>
+        /// <param name="inputName">Name of the new input to created</param>
+        /// <param name="inputKind">The kind of input to be created</param>
+        /// <param name="inputSettings">Settings object to initialize the input with</param>
+        /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
+        /// <returns>ID of the newly created scene item</returns>
+        public void AddCreateInputRequest(Guid sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        {
+            this.AddCreateInputRequest(null, sceneUuid,inputName, inputKind, inputSettings, sceneItemEnabled);
+        }
+
+        private void AddCreateInputRequest(string? sceneName, Guid? sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        {
+            this._requests.Add(new(new { sceneName, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled }));
         }
 
         /// <summary>

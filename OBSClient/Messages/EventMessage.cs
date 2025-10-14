@@ -10,14 +10,22 @@
     /// <summary>
     /// Class for Event Messages 
     /// </summary>
-    public class EventMessage : IMessage, IJsonOnDeserialized
+    /// <remarks>
+    /// Creates a new instance of an <see cref="EventMessage"/> object.
+    /// </remarks>
+    /// <param name="eventType">The type of event.</param>
+    /// <param name="eventIntent">The subscribed events.</param>
+    /// <param name="rawEventData">The json data for the event data.</param>
+    [method: JsonConstructor]
+    public class EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData) : IMessage, IJsonOnDeserialized
     {
         /// <summary>
         /// Gets the type of the event based on the request type.
         /// </summary>
         private static readonly Dictionary<EventType, Type> _responseTypeMap = new()
-        { 
+        {
             // General Events
+            { EventType.ExitStarted, typeof(EventArgs) },
             { EventType.VendorEvent, typeof(VendorEventEventArgs) },
             { EventType.CustomEvent, typeof(CustomEventEventArgs) },
 
@@ -41,6 +49,7 @@
             { EventType.InputCreated, typeof(InputCreatedEventArgs) },
             { EventType.InputRemoved, typeof(InputNameEventArgs) },
             { EventType.InputNameChanged, typeof(InputNameChangedEventArgs) },
+            { EventType.InputSettingsChanged, typeof(InputSettingsChangedEventArgs) },
             { EventType.InputActiveStateChanged, typeof(InputActiveStateChangedEventArgs) },
             { EventType.InputShowStateChanged, typeof(InputShowStateChangedEventArgs) },
             { EventType.InputMuteStateChanged, typeof(InputMuteStateChangedEventArgs) },
@@ -63,6 +72,7 @@
             { EventType.SourceFilterCreated, typeof(SourceFilterCreatedEventArgs) },
             { EventType.SourceFilterRemoved, typeof(SourceFilterRemovedEventArgs) },
             { EventType.SourceFilterNameChanged, typeof(SourceFilterNameChangedEventArgs) },
+            { EventType.SourceFilterSettingsChanged, typeof(SourceFilterSettingsChangedEventArgs) },
             { EventType.SourceFilterEnableStateChanged, typeof(SourceFilterEnableStateChangedEventArgs) },
 
             // Scene Items Events
@@ -76,6 +86,7 @@
 
             // Outputs Events
             { EventType.StreamStateChanged, typeof(OutputStateChangedEventArgs) },
+            { EventType.RecordFileChanged, typeof(RecordFileChangedEventArgs) },
             { EventType.RecordStateChanged, typeof(RecordStateChangedEventArgs) },
             { EventType.ReplayBufferStateChanged, typeof(OutputStateChangedEventArgs) },
             { EventType.VirtualcamStateChanged, typeof(OutputStateChangedEventArgs) },
@@ -94,40 +105,25 @@
         /// </summary>
         [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("eventType")]
-        public EventType EventType { get; }
+        public EventType EventType { get; } = eventType;
 
         /// <summary>
         /// The Events you have subscribed to
         /// </summary>
         [JsonPropertyName("eventIntent")]
-        public EventSubscriptions EventIntent { get; }
+        public EventSubscriptions EventIntent { get; } = eventIntent;
 
         /// <summary>
         /// The raw JSON data sent to or received from OBS Studio
         /// </summary>
         [JsonPropertyName("eventData")]
-        public JsonElement? RawEventData { get; }
+        public JsonElement? RawEventData { get; } = rawEventData;
 
         /// <summary>
         /// The deserialized event
         /// </summary>
         [JsonIgnore]
-        public EventArgs EventData { get; private set; }
-
-        /// <summary>
-        /// Creates a new instance of an <see cref="EventMessage"/> object.
-        /// </summary>
-        /// <param name="eventType">The type of event.</param>
-        /// <param name="eventIntent">The subscribed events.</param>
-        /// <param name="rawEventData">The json data for the event data.</param>
-        [JsonConstructor]
-        public EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData)
-        {
-            this.EventType = eventType;
-            this.EventIntent = eventIntent;
-            this.RawEventData = rawEventData;
-            this.EventData = EventArgs.Empty;
-        }
+        public EventArgs EventData { get; private set; } = EventArgs.Empty;
 
         /// <summary>
         /// Deserializes the raw JSON data to EventArgs.
@@ -136,24 +132,21 @@
         /// <exception cref="ObsClientException">When deserialization failed.</exception>
         public void OnDeserialized()
         {
-            if (!this.RawEventData.HasValue)
-            {
-                if (_responseTypeMap.ContainsKey(this.EventType))
-                {
-                    throw new ObsClientException("OBS Studio returned an empty event.");
-                }
-
-                return;
-            }
-
             if (!_responseTypeMap.TryGetValue(this.EventType, out Type? responseType))
             {
                 throw new ObsClientException("OBS Studio event could not be mapped.");
             }
 
+            // If no data is present, and the event type expects no data, set EventArgs.Empty
+            if (!this.RawEventData.HasValue || responseType == typeof(EventArgs))
+            {
+                this.EventData = EventArgs.Empty;
+                return;
+            }
+
             if (JsonSerializer.Deserialize(this.RawEventData.Value.GetRawText(), responseType) is not EventArgs eventArgs)
             {
-                throw new ObsClientException("OBS Studio event could not read.");
+                throw new ObsClientException("OBS Studio event could not be read.");
             }
 
             this.EventData = eventArgs;

@@ -6,22 +6,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetLastReplayBufferReplay request.
     /// </summary>
-    public class SavedReplayPathResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SavedReplayPathResponse"/> class.
+    /// </remarks>
+    /// <param name="savedReplayPath">The path of the saved replay file.</param>
+    [method: JsonConstructor]
+    public class SavedReplayPathResponse(string savedReplayPath) : IResponse
     {
         /// <summary>
         /// Gets the path of the saved replay file.
         /// </summary>
         [JsonPropertyName("savedReplayPath")]
-        public string SavedReplayPath { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SavedReplayPathResponse"/> class.
-        /// </summary>
-        /// <param name="savedReplayPath">The path of the saved replay file.</param>
-        [JsonConstructor]
-        public SavedReplayPathResponse(string savedReplayPath)
-        {
-            this.SavedReplayPath = savedReplayPath;
-        }
+        public string SavedReplayPath { get; } = savedReplayPath;
     }
 }

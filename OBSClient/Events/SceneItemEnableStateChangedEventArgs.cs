@@ -5,38 +5,38 @@
     /// <summary>
     /// Provides arguments for the SceneItemEnableStateChanged event.
     /// </summary>
-    public class SceneItemEnableStateChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="SceneItemEnableStateChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="sceneName">The scene name.</param>
+    /// <param name="sceneUuid">The scene uuid.</param>
+    /// <param name="sceneItemId">The scene item id.</param>
+    /// <param name="sceneItemEnabled">A value indicating whether the scene item is enabled.</param>
+    [method: JsonConstructor]
+    public class SceneItemEnableStateChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, bool sceneItemEnabled) : EventArgs
     {
         /// <summary>
         /// Gets the name of the scene.
         /// </summary>
         [JsonPropertyName("sceneName")]
-        public string SceneName { get; }
+        public string SceneName { get; } = sceneName;
+
+        /// <summary>
+        /// Gets the UUID of the scene.
+        /// </summary>
+        [JsonPropertyName("sceneUuid")]
+        public Guid SceneUuid { get; } = sceneUuid;
 
         /// <summary>
         /// Gets the scene item id.
         /// </summary>
         [JsonPropertyName("sceneItemId")]
-        public int SceneItemId { get; }
+        public int SceneItemId { get; } = sceneItemId;
 
         /// <summary>
         /// Gets a value indicating whether the scene item is enabled.
         /// </summary>
         [JsonPropertyName("sceneItemEnabled")]
-        public bool SceneItemEnabled { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SceneItemEnableStateChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="sceneName">The scene name.</param>
-        /// <param name="sceneItemId">The scene item id.</param>
-        /// <param name="sceneItemEnabled">A value indicating whether the scene item is enabled.</param>
-        [JsonConstructor]
-        public SceneItemEnableStateChangedEventArgs(string sceneName, int sceneItemId, bool sceneItemEnabled)
-        {
-            this.SceneName = sceneName;
-            this.SceneItemId = sceneItemId;
-            this.SceneItemEnabled = sceneItemEnabled;
-        }
+        public bool SceneItemEnabled { get; } = sceneItemEnabled;
     }
 }

@@ -6,22 +6,17 @@
     /// <summary>
     /// Provides arguments for the CustomEvent event.
     /// </summary>
-    public class CustomEventEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="CustomEventEventArgs"/> class.
+    /// </remarks>
+    /// <param name="eventData">The event data.</param>
+    [method: JsonConstructor]
+    public class CustomEventEventArgs(JsonElement? eventData) : EventArgs
     {
         /// <summary>
         /// Gets the event data.
         /// </summary>
         [JsonPropertyName("eventData")]
-        public JsonElement? EventData { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CustomEventEventArgs"/> class.
-        /// </summary>
-        /// <param name="eventData">The event data.</param>
-        [JsonConstructor]
-        public CustomEventEventArgs(JsonElement? eventData)
-        {
-            this.EventData = eventData;
-        }
+        public JsonElement? EventData { get; } = eventData;
     }
 }

@@ -6,22 +6,17 @@
     /// <summary>
     /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful StopRecord request.
     /// </summary>
-    public class OutputPathResponse : IResponse
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="OutputPathResponse"/> class.
+    /// </remarks>
+    /// <param name="outputPath">The output path.</param>
+    [method: JsonConstructor]
+    public class OutputPathResponse(string outputPath) : IResponse
     {
         /// <summary>
         /// Gets the output path.
         /// </summary>
         [JsonPropertyName("outputPath")]
-        public string OutputPath { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="OutputPathResponse"/> class.
-        /// </summary>
-        /// <param name="outputPath">The output path.</param>
-        [JsonConstructor]
-        public OutputPathResponse(string outputPath)
-        {
-            this.OutputPath = outputPath;
-        }
+        public string OutputPath { get; } = outputPath;
     }
 }

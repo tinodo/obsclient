@@ -5,38 +5,38 @@
     /// <summary>
     /// Provides arguments for the InputVolumeChanged event.
     /// </summary>
-    public class InputVolumeChangedEventArgs : EventArgs
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="InputVolumeChangedEventArgs"/> class.
+    /// </remarks>
+    /// <param name="inputName">The input name.</param>
+    /// <param name="inputUuid">The input uuid.</param>
+    /// <param name="inputVolumeMul">The volume in Mul.</param>
+    /// <param name="inputVolumeDb">The volume in Db.</param>
+    [method: JsonConstructor]
+    public class InputVolumeChangedEventArgs(string inputName, Guid inputUuid, float inputVolumeMul, float inputVolumeDb) : EventArgs
     {
         /// <summary>
         /// Gets the name of the input.
         /// </summary>
         [JsonPropertyName("inputName")]
-        public string InputName { get; }
+        public string InputName { get; } = inputName;
+
+        /// <summary>
+        /// Gets the input uuid.
+        /// </summary>
+        [JsonPropertyName("inputUuid")]
+        public Guid InputUuid { get; } = inputUuid;
 
         /// <summary>
         /// Gets the volume of the input in Mul.
         /// </summary>
         [JsonPropertyName("inputVolumeMul")]
-        public float InputVolumeMul { get; }
+        public float InputVolumeMul { get; } = inputVolumeMul;
 
         /// <summary>
         /// Gets the volume of the input in Db.
         /// </summary>
         [JsonPropertyName("inputVolumeDb")]
-        public float InputVolumeDb { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="InputVolumeChangedEventArgs"/> class.
-        /// </summary>
-        /// <param name="inputName">The input name.</param>
-        /// <param name="inputVolumeMul">The volume in Mul.</param>
-        /// <param name="inputVolumeDb">The volume in Db.</param>
-        [JsonConstructor]
-        public InputVolumeChangedEventArgs(string inputName, float inputVolumeMul, float inputVolumeDb)
-        {
-            this.InputName = inputName;
-            this.InputVolumeMul = inputVolumeMul;
-            this.InputVolumeDb = inputVolumeDb;
-        }
+        public float InputVolumeDb { get; } = inputVolumeDb;
     }
 }
