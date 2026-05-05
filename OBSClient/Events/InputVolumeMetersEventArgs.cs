@@ -9,14 +9,14 @@
     /// <remarks>
     /// Initializes a new instance of the <see cref="InputVolumeMetersEventArgs"/> class.
     /// </remarks>
-    /// <param name="inputs">A list of <see cref="Input"/>.</param>
+    /// <param name="inputs">A list of <see cref="InputVolumeMeterResponse"/>.</param>
     [method: JsonConstructor]
-    public class InputVolumeMetersEventArgs(Input[] inputs) : EventArgs
+    public class InputVolumeMetersEventArgs(InputVolumeMeterResponse[] inputs) : EventArgs
     {
         /// <summary>
-        /// Gets a list of <see cref="Input"/>.
+        /// Gets a list of <see cref="InputVolumeMeterResponse"/>.
         /// </summary>
         [JsonPropertyName("inputs")]
-        public Input[] Inputs { get; } = inputs ?? [];
+        public InputVolumeMeterResponse[] Inputs { get; } = inputs ?? [];
     }
 }

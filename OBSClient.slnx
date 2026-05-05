@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/0. Tests/">
+    <Project Path="test/IntegrationTests/IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/1. Samples/">
+    <Project Path="SampleWindowsAppliation/SampleWindowsAppliation.csproj" />
+  </Folder>
+  <Folder Name="/2. Lib/">
+    <Project Path="OBSClient/OBSClient.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>
