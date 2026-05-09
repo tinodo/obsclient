@@ -5,8 +5,8 @@ Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client 
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 3.0.0`  
-From the command line: `dotnet add package OBSClient --version 3.0.0`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 3.0.1`  
+From the command line: `dotnet add package OBSClient --version 3.0.1`  
 
 ## Sample usage
 
@@ -37,7 +37,7 @@ if (isConnected)
     batchRequest.AddSleepRequest(5000, null);
     batchRequest.AddToggleVirtualCamRequest();
     batchRequest.AddSetStudioModeEnabledRequest(false);
-    var result = await _client.SendRequestBatchAsync(batchRequest, 6000);
+    var result = await client.SendRequestBatchAsync(batchRequest, 6000);
     client.Disconnect();
 }
 client.Dispose();
