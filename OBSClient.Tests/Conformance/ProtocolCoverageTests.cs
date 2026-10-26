@@ -54,7 +54,7 @@ namespace OBSStudioClient.Tests.Conformance
         [Fact]
         public void EveryRequest_HasAResponseType_ThatExposesTheDocumentedFields()
         {
-            var responseTypes = ReadMap<RequestType>(typeof(RequestResponseMessage));
+            var responseTypes = Registries.ReadTypeMap<RequestType>(typeof(RequestResponseMessage));
             var problems = new List<string>();
 
             foreach (var (name, request) in Protocol.Requests.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -81,7 +81,7 @@ namespace OBSStudioClient.Tests.Conformance
         [Fact]
         public void EveryEvent_CanBeDispatched_AndItsArgumentsExposeTheDocumentedFields()
         {
-            var argumentTypes = ReadMap<EventType>(typeof(EventMessage));
+            var argumentTypes = Registries.ReadTypeMap<EventType>(typeof(EventMessage));
             var problems = new List<string>();
 
             foreach (var (name, fields) in Protocol.Events.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -172,14 +172,6 @@ namespace OBSStudioClient.Tests.Conformance
         private static string Normalize(string identifier)
         {
             return new string(identifier.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
-        }
-
-        private static Dictionary<TKey, Type> ReadMap<TKey>(Type owner)
-            where TKey : notnull
-        {
-            var field = owner.GetField("_responseTypeMap", BindingFlags.NonPublic | BindingFlags.Static)
-                ?? throw new InvalidOperationException($"{owner.Name} no longer has the _responseTypeMap registry these tests inspect.");
-            return (Dictionary<TKey, Type>)field.GetValue(null)!;
         }
     }
 }

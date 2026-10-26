@@ -9,7 +9,9 @@ namespace OBSStudioClient.Tests.Conformance
     /// <summary>
     /// Calls every request method of <see cref="ObsClient"/> and checks, against the obs-websocket protocol
     /// snapshot, what actually goes over the wire: the request type, the names and JSON types of the fields, the
-    /// required fields, and that every documented field can be sent by at least one method.
+    /// required fields, and that every documented field can be sent by at least one method. The server answers with
+    /// the response the protocol documents for each request, and a call that then fails (for example because a response
+    /// cannot be read) is a problem too.
     /// </summary>
     /// <remarks>
     /// This is what catches a field name that is mistyped (it once was: <c>inputGuid</c> instead of <c>inputUuid</c>),
@@ -45,7 +47,7 @@ namespace OBSStudioClient.Tests.Conformance
             Assert.True(await connect.WithTimeoutAsync(HandshakeTimeout), "Could not connect to the fake OBS server.");
 
             var received = Channel.CreateUnbounded<(string RequestType, JsonElement? Data)>();
-            _ = RespondAsync(server, received.Writer);
+            _ = RespondAsync(server, received.Writer, new ResponseSamples(protocol));
 
             var problems = new List<string>();
             var sent = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -90,6 +92,12 @@ namespace OBSStudioClient.Tests.Conformance
                     else if (failure is TimeoutException)
                     {
                         problems.Add($"{ArgumentFactory.Describe(method)}: did not complete");
+                    }
+                    else if (failure is not null && calls.Count > 0)
+                    {
+                        // The server answered with exactly what the protocol documents, so the call has no reason to fail
+                        // (a method that refuses its arguments does so before it sends anything).
+                        problems.Add($"{ArgumentFactory.Describe(method)}: failed although obs-websocket answered with a valid response ({failure.GetType().Name}: {failure.Message})");
                     }
                 }
 
@@ -237,8 +245,8 @@ namespace OBSStudioClient.Tests.Conformance
             return (failure, calls);
         }
 
-        // Answers every request with an empty success response and remembers what was asked.
-        private static async Task RespondAsync(FakeObsWebSocketServer server, ChannelWriter<(string RequestType, JsonElement? Data)> received)
+        // Answers every request with the success response the protocol documents for it, and remembers what was asked.
+        private static async Task RespondAsync(FakeObsWebSocketServer server, ChannelWriter<(string RequestType, JsonElement? Data)> received, ResponseSamples responses)
         {
             try
             {
@@ -246,7 +254,7 @@ namespace OBSStudioClient.Tests.Conformance
                 {
                     var (requestType, requestId, data) = await server.ReceiveRequestAsync(TimeSpan.FromMinutes(2));
                     await received.WriteAsync((requestType, data));
-                    await server.SendRequestSuccessAsync(requestType, requestId, new { });
+                    await server.SendRequestSuccessAsync(requestType, requestId, responses.For(requestType));
                 }
             }
             catch (Exception)

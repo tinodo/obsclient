@@ -8,11 +8,10 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+  # No path filter on pull requests: main requires these checks, and a workflow that is skipped by a path filter
+  # leaves its required checks pending forever, which would block every docs-only pull request.
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   workflow_dispatch:
 
 permissions:

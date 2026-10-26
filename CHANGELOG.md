@@ -53,7 +53,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
   event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch
   builder and compare what is sent on the wire, field by field, with a snapshot of obs-websocket's own protocol
-  definition (`OBSClient.Tests/Protocol`); they also check the events, the responses and the numeric values of the enums.
+  definition (`OBSClient.Tests/Protocol`), answer each request with the response the protocol documents for it, and
+  check the events, the responses and the numeric values of the enums.
 - `tools/protocol/update-protocol-snapshot.py` to refresh that snapshot, and a scheduled workflow that opens an issue
   as soon as obs-websocket publishes a new version, with the differences.
 - CI: a cross-platform build and test matrix, CodeQL analysis, and a tag-triggered publish pipeline to nuget.org
