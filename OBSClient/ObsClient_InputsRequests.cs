@@ -479,7 +479,7 @@
 
         private async Task<MonitorType> GetInputAudioMonitorType(string? inputName, Guid? inputUuid)
         {
-            return (await this.SendRequestAsync<MonitorTypeResponse>(new { inputName, inputUuid })).MonitorType;
+            return (await this.SendRequestAsync<InputAudioMonitorTypeResponse>(new { inputName, inputUuid })).MonitorType;
         }
 
         /// <summary>

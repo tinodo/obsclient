@@ -128,6 +128,42 @@
         }
 
         [Fact]
+        public async Task SetInputSettings_Completes_AndTheConnectionStaysUsable()
+        {
+            // Regression test for https://github.com/tinodo/obsclient/issues/17: no response type was registered for
+            // SetInputSettings, so its (data-less) response made the receive loop throw, which closed the connection
+            // while ConnectionState still said Connected.
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+
+            var set = client.SetInputSettings("Browser", new Dictionary<string, object> { ["url"] = "https://example.com" });
+            var (requestType, requestId, requestData) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("SetInputSettings", requestType);
+            Assert.Equal("https://example.com", requestData!.Value.GetProperty("inputSettings").GetProperty("url").GetString());
+            await server.SendRequestSuccessAsync(requestType, requestId); // OBS Studio sends no response data for this request
+            await set.WithTimeoutAsync(Timeout, "SetInputSettings never completed.");
+
+            var next = client.GetStudioModeEnabled();
+            var (nextType, nextId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(nextType, nextId, new { studioModeEnabled = false });
+            Assert.False(await next.WithTimeoutAsync(Timeout, "The connection stopped working after SetInputSettings."));
+            Assert.Equal(Enums.ConnectionState.Connected, client.ConnectionState);
+        }
+
+        [Fact]
+        public async Task GetInputAudioMonitorType_ReturnsTheMonitorTypeOfTheInput()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+
+            var request = client.GetInputAudioMonitorType("Mic");
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { monitorType = "OBS_MONITORING_TYPE_MONITOR_ONLY" });
+
+            Assert.Equal(Enums.MonitorType.OBS_MONITORING_TYPE_MONITOR_ONLY, await request.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
         public async Task GetSceneList_WithoutCanvas_SendsNoRequestData()
         {
             // The no-argument overload keeps the wire format it always had; a canvasUuid is only sent when asked for.

@@ -87,6 +87,23 @@
         }
 
         [Fact]
+        public async Task RecordFileChanged_InvokesTheEventWithTheNewOutputPath()
+        {
+            // The event was parsed but no public event existed for it, so it was silently dropped.
+            await using var server = new FakeObsWebSocketServer();
+            var (client, _) = await ConnectAsync(server);
+            using var _1 = client;
+
+            var awaiter = new EventAwaiter<RecordFileChangedEventArgs>();
+            client.RecordFileChanged += awaiter.Handler;
+
+            await server.SendEventAsync("RecordFileChanged", new { newOutputPath = "/videos/recording-2.mp4" });
+
+            var args = await awaiter.Task.WithTimeoutAsync(Timeout, "RecordFileChanged handler was not invoked.");
+            Assert.Equal("/videos/recording-2.mp4", args.NewOutputPath);
+        }
+
+        [Fact]
         public async Task CanvasCreated_InvokesCanvasCreatedEventWithExpectedFields()
         {
             await using var server = new FakeObsWebSocketServer();

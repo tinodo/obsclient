@@ -335,6 +335,11 @@
         public event EventHandler<OutputStateChangedEventArgs>? StreamStateChanged;
 
         /// <summary>
+        /// Occurs when the record output has started writing to a new file. For example, when a file split happens.
+        /// </summary>
+        public event EventHandler<RecordFileChangedEventArgs>? RecordFileChanged;
+
+        /// <summary>
         /// Occurs when the state of the record output has changed.
         /// </summary>
         public event EventHandler<RecordStateChangedEventArgs>? RecordStateChanged;

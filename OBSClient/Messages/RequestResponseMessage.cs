@@ -89,6 +89,7 @@
             {RequestType.SetInputName, typeof(EmptyResponse) },
             {RequestType.GetInputDefaultSettings, typeof(DefaultInputSettingsResponse) },
             {RequestType.GetInputSettings, typeof(InputSettingsResponse) },
+            {RequestType.SetInputSettings, typeof(EmptyResponse) },
             {RequestType.GetInputMute, typeof(InputMutedResponse) },
             {RequestType.SetInputMute, typeof(EmptyResponse) },
             {RequestType.ToggleInputMute, typeof(InputMutedResponse) },

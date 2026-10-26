@@ -63,10 +63,18 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     threw an `InvalidCastException`.
   - `CreateInput` and `OpenSourceProjector…` had no way to give a `canvasUuid`; `CreateRecordChapter` could not send a
     chapter name.
-- `ConnectionState` could get permanently stuck at `Connected` after the connection was lost without a clean WebSocket
-  close (OBS Studio closing abruptly, a dropped network link), which also prevented `AutoReconnect` from ever
-  triggering ([#17](https://github.com/tinodo/obsclient/issues/17), related to
-  [#15](https://github.com/tinodo/obsclient/issues/15)).
+- Responses and events that were not wired up:
+  - **No response type was registered for `SetInputSettings`**, so reading its response threw inside the receive loop,
+    which ended without cleaning up: the connection was dead while `ConnectionState` kept saying `Connected`, and
+    `AutoReconnect` never kicked in. This is the root cause of [#17](https://github.com/tinodo/obsclient/issues/17)
+    (the reporter called `SetInputSettings` on a browser source) and produces exactly the symptoms in
+    [#15](https://github.com/tinodo/obsclient/issues/15): requests that time out, then "not connected".
+  - `GetInputAudioMonitorType` expected another response type than the one registered for it and always threw an
+    `InvalidCastException`.
+  - The `RecordFileChanged` event (obs-websocket 5.5.0) was parsed but the client had no event for it, so it never
+    reached anyone.
+- A receive loop that ends for any reason now always cleans up (`ConnectionState` reaches `Disconnected`,
+  `ConnectionClosed` fires, `AutoReconnect` works), and a response that cannot be mapped or read fails only its own request.
 - The connection lifecycle was reworked so that each connection owns its own socket, pending requests and handshake:
   - A response that arrived just after its request had timed out could throw inside the receive loop and take the
     whole connection down. The default request timeout is only 500 ms, which makes that realistic.
