@@ -1,0 +1,61 @@
+# Keeps the client from silently falling behind obs-websocket.
+# Once a week, compares the newest obs-websocket release with the protocol snapshot the conformance tests use, and
+# opens an issue (with the differences) when there is a newer one.
+name: Protocol watch
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check for a new obs-websocket version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare with the newest obs-websocket release
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/obsproject/obs-websocket/tags?per_page=100" --jq '.[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          current=$(jq -r .obsWebSocketVersion OBSClient.Tests/Protocol/protocol.schema.json)
+          echo "Snapshot: $current - newest obs-websocket: $latest"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          newest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n 1)
+          if [ -n "$latest" ] && [ "$newest" = "$latest" ] && [ "$latest" != "$current" ]; then
+            echo "outdated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "outdated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Describe the differences
+        if: steps.compare.outputs.outdated == 'true'
+        run: python tools/protocol/update-protocol-snapshot.py --tag "${{ steps.compare.outputs.latest }}" --dry-run --summary-file protocol-diff.md
+
+      - name: Open an issue
+        if: steps.compare.outputs.outdated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.compare.outputs.latest }}
+        run: |
+          title="Support obs-websocket $LATEST"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+          if [ "$existing" -gt 0 ]; then
+            echo "An issue for obs-websocket $LATEST is already open."
+            exit 0
+          fi
+          {
+            cat protocol-diff.md
+            echo
+            echo "Refresh the snapshot with \`python tools/protocol/update-protocol-snapshot.py --tag $LATEST\`, then make the conformance tests in \`OBSClient.Tests/Conformance\` pass. See CONTRIBUTING.md."
+          } > issue-body.md
+          gh issue create --title "$title" --body-file issue-body.md

@@ -2,6 +2,8 @@
 {
     using OBSStudioClient.Enums;
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
@@ -17,6 +19,8 @@
     /// </remarks>
     public class EventTypeConverter : JsonConverter<EventType>
     {
+        private static readonly Dictionary<string, EventType> _eventTypes = Enum.GetValues<EventType>().ToDictionary(eventType => eventType.ToString(), StringComparer.Ordinal);
+
         /// <summary>
         /// Reads an event type name, returning <see cref="EventType.Unknown"/> when it is not recognized.
         /// </summary>
@@ -26,12 +30,12 @@
         /// <returns>The matching <see cref="EventType"/>, or <see cref="EventType.Unknown"/> when unrecognized.</returns>
         public override EventType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var value = reader.GetString();
-            if (value != null && Enum.TryParse<EventType>(value, out var eventType) && Enum.IsDefined(eventType))
+            if (reader.TokenType == JsonTokenType.String && reader.GetString() is { } value && _eventTypes.TryGetValue(value, out var eventType))
             {
                 return eventType;
             }
 
+            reader.Skip();
             return EventType.Unknown;
         }
 

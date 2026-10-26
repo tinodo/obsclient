@@ -10,7 +10,7 @@
         /// <returns>A <see cref="SceneListResponse"/></returns>
         public async Task<SceneListResponse> GetSceneList()
         {
-            return await this.GetSceneList(null);
+            return await this.SendRequestAsync<SceneListResponse>();
         }
 
         /// <summary>
@@ -19,11 +19,6 @@
         /// <param name="canvasUuid">UUID of the canvas the scenes are in</param>
         /// <returns>A <see cref="SceneListResponse"/></returns>
         public async Task<SceneListResponse> GetSceneList(Guid canvasUuid)
-        {
-            return await this.GetSceneList((Guid?)canvasUuid);
-        }
-
-        private async Task<SceneListResponse> GetSceneList(Guid? canvasUuid)
         {
             return await this.SendRequestAsync<SceneListResponse>(new { canvasUuid });
         }

@@ -13,7 +13,11 @@
         /// An event type that this version of the client does not recognize. This can happen when OBS Studio
         /// sends an event type introduced after this client was released; no handler is invoked for it.
         /// </summary>
-        Unknown = 0,
+        /// <remarks>
+        /// The numeric values of the members of this enum are not part of the OBS WebSocket protocol, but they are
+        /// embedded in compiled consumers. Existing members must keep their values: add new members at the end.
+        /// </remarks>
+        Unknown = -1,
 
         //General Events
 
@@ -63,23 +67,6 @@
         /// The profile list has changed.
         /// </summary>
         ProfileListChanged,
-
-        //Canvases Events
-
-        /// <summary>
-        /// A new canvas has been created.
-        /// </summary>
-        CanvasCreated,
-
-        /// <summary>
-        /// A canvas has been removed.
-        /// </summary>
-        CanvasRemoved,
-
-        /// <summary>
-        /// The name of a canvas has changed.
-        /// </summary>
-        CanvasNameChanged,
 
         //Scenes Events
 
@@ -336,5 +323,22 @@
         /// A screenshot has been saved.
         /// </summary>
         ScreenshotSaved,
+
+        //Canvases Events (added in obs-websocket 5.7.0; appended to keep the values of the members above stable)
+
+        /// <summary>
+        /// A new canvas has been created.
+        /// </summary>
+        CanvasCreated,
+
+        /// <summary>
+        /// A canvas has been removed.
+        /// </summary>
+        CanvasRemoved,
+
+        /// <summary>
+        /// The name of a canvas has changed.
+        /// </summary>
+        CanvasNameChanged,
     }
 }

@@ -32,6 +32,15 @@
         }
 
         /// <summary>
+        /// Adds a request to open the properties dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public void AddOpenInputPropertiesDialogRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to open the filters dialog of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to open the dialog of</param>
@@ -41,12 +50,30 @@
         }
 
         /// <summary>
+        /// Adds a request to open the filters dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public void AddOpenInputFiltersDialogRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to open the interact dialog of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to open the dialog of</param>
         public void AddOpenInputInteractDialogRequest(string inputName)
         {
             this._requests.Add(new(new { inputName }));
+        }
+
+        /// <summary>
+        /// Adds a request to open the interact dialog of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to open the dialog of</param>
+        public void AddOpenInputInteractDialogRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
         }
 
         /// <summary>
@@ -95,6 +122,42 @@
         /// </remarks>
         public void AddOpenSourceProjectorRequest(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
         {
+            this.AddOpenSourceProjectorRequest(sourceName, null, null, monitorIndex, projectorGeometry);
+        }
+
+        /// <summary>
+        /// Adds a request to open a projector for a source.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to open a projector for</param>
+        /// <param name="canvasUuid">Uuid of the canvas the source is in</param>
+        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <remarks>
+        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
+        /// </remarks>
+        public void AddOpenSourceProjectorRequest(string sourceName, Guid canvasUuid, int? monitorIndex = -1, string? projectorGeometry = null)
+        {
+            this.AddOpenSourceProjectorRequest(sourceName, canvasUuid, null, monitorIndex, projectorGeometry);
+        }
+
+        /// <summary>
+        /// Adds a request to open a projector for a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to open a projector for</param>
+        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <remarks>
+        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
+        /// </remarks>
+        public void AddOpenSourceProjectorRequest(Guid sourceUuid, int? monitorIndex = -1, string? projectorGeometry = null)
+        {
+            this.AddOpenSourceProjectorRequest(null, null, sourceUuid, monitorIndex, projectorGeometry);
+        }
+
+        private void AddOpenSourceProjectorRequest(string? sourceName, Guid? canvasUuid, Guid? sourceUuid, int? monitorIndex, string? projectorGeometry)
+        {
             if (monitorIndex is null && projectorGeometry is null)
             {
                 throw new ArgumentException("Either monitorIndex or projectorGeometry must be set.");
@@ -105,7 +168,7 @@
                 throw new ArgumentException("Only one of monitorIndex or projectorGeometry must be set.");
             }
 
-            this._requests.Add(new(new { sourceName, monitorIndex, projectorGeometry }));
+            this._requests.Add(new(new { canvasUuid, sourceName, sourceUuid, monitorIndex, projectorGeometry }));
         }
     }
 }

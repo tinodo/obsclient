@@ -70,5 +70,25 @@
         {
             this._requests.Add(new(new { recordDirectory }));
         }
+
+        /// <summary>
+        /// Adds a request to split the current file being recorded into a new file.
+        /// </summary>
+        public void AddSplitRecordFileRequest()
+        {
+            this._requests.Add(new());
+        }
+
+        /// <summary>
+        /// Adds a request to add a new chapter marker to the file currently being recorded.
+        /// </summary>
+        /// <param name="chapterName">Name of the new chapter. When omitted, OBS Studio generates a default name.</param>
+        /// <remarks>
+        /// As of OBS 30.2.0, the only file format supporting this feature is Hybrid MP4.
+        /// </remarks>
+        public void AddCreateRecordChapterRequest(string? chapterName = null)
+        {
+            this._requests.Add(new(new { chapterName }));
+        }
     }
 }

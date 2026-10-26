@@ -45,9 +45,24 @@
         /// <param name="inputSettings">Settings object to initialize the input with</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
         /// <returns>ID of the newly created scene item</returns>
-        public async Task<CreateInputResponse> CreateInput(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        public async Task<CreateInputResponse> CreateInput(string sceneName, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            return await this.CreateInput(sceneName, null, inputName, inputKind, inputSettings, sceneItemEnabled);
+            return await this.CreateInput(sceneName, null, null, inputName, inputKind, inputSettings, sceneItemEnabled);
+        }
+
+        /// <summary>
+        /// Creates a new input, adding it as a scene item to the specified scene.
+        /// </summary>
+        /// <param name="sceneName">Name of the scene to add the input to as a scene item</param>
+        /// <param name="canvasUuid">Uuid of the canvas the scene is in</param>
+        /// <param name="inputName">Name of the new input to created</param>
+        /// <param name="inputKind">The kind of input to be created</param>
+        /// <param name="inputSettings">Settings object to initialize the input with</param>
+        /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
+        /// <returns>ID of the newly created scene item</returns>
+        public async Task<CreateInputResponse> CreateInput(string sceneName, Guid canvasUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
+        {
+            return await this.CreateInput(sceneName, canvasUuid, null, inputName, inputKind, inputSettings, sceneItemEnabled);
         }
 
         /// <summary>
@@ -59,14 +74,14 @@
         /// <param name="inputSettings">Settings object to initialize the input with</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
         /// <returns>ID of the newly created scene item</returns>
-        public async Task<CreateInputResponse> CreateInput(Guid sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        public async Task<CreateInputResponse> CreateInput(Guid sceneUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            return await this.CreateInput(null, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled);
+            return await this.CreateInput(null, null, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled);
         }
 
-        private async Task<CreateInputResponse> CreateInput(string? sceneName, Guid? sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        private async Task<CreateInputResponse> CreateInput(string? sceneName, Guid? canvasUuid, Guid? sceneUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            return await this.SendRequestAsync<CreateInputResponse>(new { sceneName, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled });
+            return await this.SendRequestAsync<CreateInputResponse>(new { canvasUuid, sceneName, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled });
         }
 
         /// <summary>
@@ -236,9 +251,9 @@
             await this.SetInputMute(null, inputUuid, inputMuted);
         }
 
-        private async Task SetInputMute(string? inputName, Guid? inputGuid, bool inputMuted)
+        private async Task SetInputMute(string? inputName, Guid? inputUuid, bool inputMuted)
         {
-            await this.SendRequestAsync(new { inputName, inputGuid, inputMuted });
+            await this.SendRequestAsync(new { inputName, inputUuid, inputMuted });
         }
 
         /// <summary>

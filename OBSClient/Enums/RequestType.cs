@@ -154,13 +154,6 @@
         /// </summary>
         SaveSourceScreenshot,
 
-        //Canvases Requests
-
-        /// <summary>
-        /// GetCanvasList Request
-        /// </summary>
-        GetCanvasList,
-
         //Scenes Requests
 
         /// <summary>
@@ -770,5 +763,12 @@
         /// OpenSourceProjector Request
         /// </summary>
         OpenSourceProjector,
+
+        //Canvases Requests (added in obs-websocket 5.7.0; appended to keep the values of the members above stable)
+
+        /// <summary>
+        /// GetCanvasList Request
+        /// </summary>
+        GetCanvasList,
     }
 }

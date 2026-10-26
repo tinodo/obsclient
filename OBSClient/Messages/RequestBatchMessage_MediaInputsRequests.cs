@@ -16,6 +16,16 @@
         }
 
         /// <summary>
+        /// Adds a request to get the status of a media input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the media input</param>
+        /// <returns>A <see cref="MediaInputStatusResponse"/></returns>
+        public void AddGetMediaInputStatusRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to get the cursor position of a media input.
         /// </summary>
         /// <param name="inputName">Name of the media input</param>
@@ -26,6 +36,19 @@
         public void AddSetMediaInputCursorRequest(string inputName, int mediaCursor)
         {
             this._requests.Add(new(new { inputName, mediaCursor }));
+        }
+
+        /// <summary>
+        /// Adds a request to get the cursor position of a media input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the media input</param>
+        /// <param name="mediaCursor">New cursor position to set (>= 0)</param>
+        /// <remarks>
+        /// This request does not perform bounds checking of the cursor position.
+        /// </remarks>
+        public void AddSetMediaInputCursorRequest(Guid inputUuid, int mediaCursor)
+        {
+            this._requests.Add(new(new { inputUuid, mediaCursor }));
         }
 
         /// <summary>
@@ -42,6 +65,19 @@
         }
 
         /// <summary>
+        /// Adds a request to offset the current cursor position of a media input by the specified value.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the media input</param>
+        /// <param name="mediaCursorOffset">Value to offset the current cursor position by</param>
+        /// <remarks>
+        /// This request does not perform bounds checking of the cursor position.
+        /// </remarks>
+        public void AddOffsetMediaInputCursorRequest(Guid inputUuid, int mediaCursorOffset)
+        {
+            this._requests.Add(new(new { inputUuid, mediaCursorOffset }));
+        }
+
+        /// <summary>
         /// Adds a request to trigger an action on a media input.
         /// </summary>
         /// <param name="inputName">Name of the media input</param>
@@ -49,6 +85,16 @@
         public void AddTriggerMediaInputActionRequest(string inputName, ObsMediaInputAction mediaAction)
         {
             this._requests.Add(new(new { inputName, mediaAction }));
+        }
+
+        /// <summary>
+        /// Adds a request to trigger an action on a media input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the media input</param>
+        /// <param name="mediaAction">Identifier of the ObsMediaInputAction enum</param>
+        public void AddTriggerMediaInputActionRequest(Guid inputUuid, ObsMediaInputAction mediaAction)
+        {
+            this._requests.Add(new(new { inputUuid, mediaAction }));
         }
     }
 }

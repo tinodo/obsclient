@@ -1,0 +1,3634 @@
+{
+  "obsWebSocketVersion": "5.7.6",
+  "source": "https://github.com/obsproject/obs-websocket/blob/5.7.6/docs/generated/protocol.json",
+  "requests": {
+    "BroadcastCustomEvent": {
+      "request": [
+        {
+          "name": "eventData",
+          "type": "Object"
+        }
+      ],
+      "response": []
+    },
+    "CallVendorRequest": {
+      "request": [
+        {
+          "name": "vendorName",
+          "type": "String"
+        },
+        {
+          "name": "requestType",
+          "type": "String"
+        },
+        {
+          "name": "requestData",
+          "type": "Object",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "vendorName",
+          "type": "String"
+        },
+        {
+          "name": "requestType",
+          "type": "String"
+        },
+        {
+          "name": "responseData",
+          "type": "Object"
+        }
+      ]
+    },
+    "CreateInput": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputName",
+          "type": "String"
+        },
+        {
+          "name": "inputKind",
+          "type": "String"
+        },
+        {
+          "name": "inputSettings",
+          "type": "Object",
+          "optional": true
+        },
+        {
+          "name": "sceneItemEnabled",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputUuid",
+          "type": "String"
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ]
+    },
+    "CreateProfile": {
+      "request": [
+        {
+          "name": "profileName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "CreateRecordChapter": {
+      "request": [
+        {
+          "name": "chapterName",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "CreateScene": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneUuid",
+          "type": "String"
+        }
+      ]
+    },
+    "CreateSceneCollection": {
+      "request": [
+        {
+          "name": "sceneCollectionName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "CreateSceneItem": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemEnabled",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ]
+    },
+    "CreateSourceFilter": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        },
+        {
+          "name": "filterKind",
+          "type": "String"
+        },
+        {
+          "name": "filterSettings",
+          "type": "Object",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "DuplicateSceneItem": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "destinationSceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "destinationSceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetCanvasList": {
+      "request": [],
+      "response": [
+        {
+          "name": "canvases",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetCurrentPreviewScene": {
+      "request": [],
+      "response": [
+        {
+          "name": "sceneName",
+          "type": "String"
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String"
+        },
+        {
+          "name": "currentPreviewSceneName",
+          "type": "String"
+        },
+        {
+          "name": "currentPreviewSceneUuid",
+          "type": "String"
+        }
+      ]
+    },
+    "GetCurrentProgramScene": {
+      "request": [],
+      "response": [
+        {
+          "name": "sceneName",
+          "type": "String"
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String"
+        },
+        {
+          "name": "currentProgramSceneName",
+          "type": "String"
+        },
+        {
+          "name": "currentProgramSceneUuid",
+          "type": "String"
+        }
+      ]
+    },
+    "GetCurrentSceneTransition": {
+      "request": [],
+      "response": [
+        {
+          "name": "transitionName",
+          "type": "String"
+        },
+        {
+          "name": "transitionUuid",
+          "type": "String"
+        },
+        {
+          "name": "transitionKind",
+          "type": "String"
+        },
+        {
+          "name": "transitionFixed",
+          "type": "Boolean"
+        },
+        {
+          "name": "transitionDuration",
+          "type": "Number"
+        },
+        {
+          "name": "transitionConfigurable",
+          "type": "Boolean"
+        },
+        {
+          "name": "transitionSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetCurrentSceneTransitionCursor": {
+      "request": [],
+      "response": [
+        {
+          "name": "transitionCursor",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetGroupList": {
+      "request": [],
+      "response": [
+        {
+          "name": "groups",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetGroupSceneItemList": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItems",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetHotkeyList": {
+      "request": [],
+      "response": [
+        {
+          "name": "hotkeys",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetInputAudioBalance": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputAudioBalance",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetInputAudioMonitorType": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "monitorType",
+          "type": "String"
+        }
+      ]
+    },
+    "GetInputAudioSyncOffset": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputAudioSyncOffset",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetInputAudioTracks": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputAudioTracks",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetInputDefaultSettings": {
+      "request": [
+        {
+          "name": "inputKind",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "defaultInputSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetInputDeinterlaceFieldOrder": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputDeinterlaceFieldOrder",
+          "type": "String"
+        }
+      ]
+    },
+    "GetInputDeinterlaceMode": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputDeinterlaceMode",
+          "type": "String"
+        }
+      ]
+    },
+    "GetInputKindList": {
+      "request": [
+        {
+          "name": "unversioned",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputKinds",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetInputList": {
+      "request": [
+        {
+          "name": "inputKind",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputs",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetInputMute": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputMuted",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetInputPropertiesListPropertyItems": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "propertyName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "propertyItems",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetInputSettings": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputSettings",
+          "type": "Object"
+        },
+        {
+          "name": "inputKind",
+          "type": "String"
+        }
+      ]
+    },
+    "GetInputVolume": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputVolumeMul",
+          "type": "Number"
+        },
+        {
+          "name": "inputVolumeDb",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetLastReplayBufferReplay": {
+      "request": [],
+      "response": [
+        {
+          "name": "savedReplayPath",
+          "type": "String"
+        }
+      ]
+    },
+    "GetMediaInputStatus": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "mediaState",
+          "type": "String"
+        },
+        {
+          "name": "mediaDuration",
+          "type": "Number"
+        },
+        {
+          "name": "mediaCursor",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetMonitorList": {
+      "request": [],
+      "response": [
+        {
+          "name": "monitors",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetOutputList": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputs",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetOutputSettings": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "outputSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetOutputStatus": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputReconnecting",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputTimecode",
+          "type": "String"
+        },
+        {
+          "name": "outputDuration",
+          "type": "Number"
+        },
+        {
+          "name": "outputCongestion",
+          "type": "Number"
+        },
+        {
+          "name": "outputBytes",
+          "type": "Number"
+        },
+        {
+          "name": "outputSkippedFrames",
+          "type": "Number"
+        },
+        {
+          "name": "outputTotalFrames",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetPersistentData": {
+      "request": [
+        {
+          "name": "realm",
+          "type": "String"
+        },
+        {
+          "name": "slotName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "slotValue",
+          "type": "Any"
+        }
+      ]
+    },
+    "GetProfileList": {
+      "request": [],
+      "response": [
+        {
+          "name": "currentProfileName",
+          "type": "String"
+        },
+        {
+          "name": "profiles",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetProfileParameter": {
+      "request": [
+        {
+          "name": "parameterCategory",
+          "type": "String"
+        },
+        {
+          "name": "parameterName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "parameterValue",
+          "type": "String"
+        },
+        {
+          "name": "defaultParameterValue",
+          "type": "String"
+        }
+      ]
+    },
+    "GetRecordDirectory": {
+      "request": [],
+      "response": [
+        {
+          "name": "recordDirectory",
+          "type": "String"
+        }
+      ]
+    },
+    "GetRecordStatus": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputPaused",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputTimecode",
+          "type": "String"
+        },
+        {
+          "name": "outputDuration",
+          "type": "Number"
+        },
+        {
+          "name": "outputBytes",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetReplayBufferStatus": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetSceneCollectionList": {
+      "request": [],
+      "response": [
+        {
+          "name": "currentSceneCollectionName",
+          "type": "String"
+        },
+        {
+          "name": "sceneCollections",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetSceneItemBlendMode": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemBlendMode",
+          "type": "String"
+        }
+      ]
+    },
+    "GetSceneItemEnabled": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemEnabled",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetSceneItemId": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String"
+        },
+        {
+          "name": "searchOffset",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetSceneItemIndex": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemIndex",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetSceneItemList": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItems",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetSceneItemLocked": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemLocked",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetSceneItemSource": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sourceName",
+          "type": "String"
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String"
+        }
+      ]
+    },
+    "GetSceneItemTransform": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": [
+        {
+          "name": "sceneItemTransform",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetSceneList": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "currentProgramSceneName",
+          "type": "String"
+        },
+        {
+          "name": "currentProgramSceneUuid",
+          "type": "String"
+        },
+        {
+          "name": "currentPreviewSceneName",
+          "type": "String"
+        },
+        {
+          "name": "currentPreviewSceneUuid",
+          "type": "String"
+        },
+        {
+          "name": "scenes",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetSceneSceneTransitionOverride": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "transitionName",
+          "type": "String"
+        },
+        {
+          "name": "transitionDuration",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetSceneTransitionList": {
+      "request": [],
+      "response": [
+        {
+          "name": "currentSceneTransitionName",
+          "type": "String"
+        },
+        {
+          "name": "currentSceneTransitionUuid",
+          "type": "String"
+        },
+        {
+          "name": "currentSceneTransitionKind",
+          "type": "String"
+        },
+        {
+          "name": "transitions",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetSourceActive": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "videoActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "videoShowing",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetSourceFilter": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "filterEnabled",
+          "type": "Boolean"
+        },
+        {
+          "name": "filterIndex",
+          "type": "Number"
+        },
+        {
+          "name": "filterKind",
+          "type": "String"
+        },
+        {
+          "name": "filterSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetSourceFilterDefaultSettings": {
+      "request": [
+        {
+          "name": "filterKind",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "defaultFilterSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetSourceFilterKindList": {
+      "request": [],
+      "response": [
+        {
+          "name": "sourceFilterKinds",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetSourceFilterList": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "filters",
+          "type": "Array<Object>"
+        }
+      ]
+    },
+    "GetSourceScreenshot": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "imageFormat",
+          "type": "String"
+        },
+        {
+          "name": "imageWidth",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "imageHeight",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "imageCompressionQuality",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "imageData",
+          "type": "String"
+        }
+      ]
+    },
+    "GetSpecialInputs": {
+      "request": [],
+      "response": [
+        {
+          "name": "desktop1",
+          "type": "String"
+        },
+        {
+          "name": "desktop2",
+          "type": "String"
+        },
+        {
+          "name": "mic1",
+          "type": "String"
+        },
+        {
+          "name": "mic2",
+          "type": "String"
+        },
+        {
+          "name": "mic3",
+          "type": "String"
+        },
+        {
+          "name": "mic4",
+          "type": "String"
+        }
+      ]
+    },
+    "GetStats": {
+      "request": [],
+      "response": [
+        {
+          "name": "cpuUsage",
+          "type": "Number"
+        },
+        {
+          "name": "memoryUsage",
+          "type": "Number"
+        },
+        {
+          "name": "availableDiskSpace",
+          "type": "Number"
+        },
+        {
+          "name": "activeFps",
+          "type": "Number"
+        },
+        {
+          "name": "averageFrameRenderTime",
+          "type": "Number"
+        },
+        {
+          "name": "renderSkippedFrames",
+          "type": "Number"
+        },
+        {
+          "name": "renderTotalFrames",
+          "type": "Number"
+        },
+        {
+          "name": "outputSkippedFrames",
+          "type": "Number"
+        },
+        {
+          "name": "outputTotalFrames",
+          "type": "Number"
+        },
+        {
+          "name": "webSocketSessionIncomingMessages",
+          "type": "Number"
+        },
+        {
+          "name": "webSocketSessionOutgoingMessages",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetStreamServiceSettings": {
+      "request": [],
+      "response": [
+        {
+          "name": "streamServiceType",
+          "type": "String"
+        },
+        {
+          "name": "streamServiceSettings",
+          "type": "Object"
+        }
+      ]
+    },
+    "GetStreamStatus": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputReconnecting",
+          "type": "Boolean"
+        },
+        {
+          "name": "outputTimecode",
+          "type": "String"
+        },
+        {
+          "name": "outputDuration",
+          "type": "Number"
+        },
+        {
+          "name": "outputCongestion",
+          "type": "Number"
+        },
+        {
+          "name": "outputBytes",
+          "type": "Number"
+        },
+        {
+          "name": "outputSkippedFrames",
+          "type": "Number"
+        },
+        {
+          "name": "outputTotalFrames",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetStudioModeEnabled": {
+      "request": [],
+      "response": [
+        {
+          "name": "studioModeEnabled",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "GetTransitionKindList": {
+      "request": [],
+      "response": [
+        {
+          "name": "transitionKinds",
+          "type": "Array<String>"
+        }
+      ]
+    },
+    "GetVersion": {
+      "request": [],
+      "response": [
+        {
+          "name": "obsVersion",
+          "type": "String"
+        },
+        {
+          "name": "obsWebSocketVersion",
+          "type": "String"
+        },
+        {
+          "name": "rpcVersion",
+          "type": "Number"
+        },
+        {
+          "name": "availableRequests",
+          "type": "Array<String>"
+        },
+        {
+          "name": "supportedImageFormats",
+          "type": "Array<String>"
+        },
+        {
+          "name": "platform",
+          "type": "String"
+        },
+        {
+          "name": "platformDescription",
+          "type": "String"
+        }
+      ]
+    },
+    "GetVideoSettings": {
+      "request": [],
+      "response": [
+        {
+          "name": "fpsNumerator",
+          "type": "Number"
+        },
+        {
+          "name": "fpsDenominator",
+          "type": "Number"
+        },
+        {
+          "name": "baseWidth",
+          "type": "Number"
+        },
+        {
+          "name": "baseHeight",
+          "type": "Number"
+        },
+        {
+          "name": "outputWidth",
+          "type": "Number"
+        },
+        {
+          "name": "outputHeight",
+          "type": "Number"
+        }
+      ]
+    },
+    "GetVirtualCamStatus": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "OffsetMediaInputCursor": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "mediaCursorOffset",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "OpenInputFiltersDialog": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "OpenInputInteractDialog": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "OpenInputPropertiesDialog": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "OpenSourceProjector": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "monitorIndex",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "projectorGeometry",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "OpenVideoMixProjector": {
+      "request": [
+        {
+          "name": "videoMixType",
+          "type": "String"
+        },
+        {
+          "name": "monitorIndex",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "projectorGeometry",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "PauseRecord": {
+      "request": [],
+      "response": []
+    },
+    "PressInputPropertiesButton": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "propertyName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "RemoveInput": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "RemoveProfile": {
+      "request": [
+        {
+          "name": "profileName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "RemoveScene": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "RemoveSceneItem": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "RemoveSourceFilter": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "ResumeRecord": {
+      "request": [],
+      "response": []
+    },
+    "SaveReplayBuffer": {
+      "request": [],
+      "response": []
+    },
+    "SaveSourceScreenshot": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "imageFormat",
+          "type": "String"
+        },
+        {
+          "name": "imageFilePath",
+          "type": "String"
+        },
+        {
+          "name": "imageWidth",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "imageHeight",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "imageCompressionQuality",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SendStreamCaption": {
+      "request": [
+        {
+          "name": "captionText",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentPreviewScene": {
+      "request": [
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentProfile": {
+      "request": [
+        {
+          "name": "profileName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentProgramScene": {
+      "request": [
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentSceneCollection": {
+      "request": [
+        {
+          "name": "sceneCollectionName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentSceneTransition": {
+      "request": [
+        {
+          "name": "transitionName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentSceneTransitionDuration": {
+      "request": [
+        {
+          "name": "transitionDuration",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetCurrentSceneTransitionSettings": {
+      "request": [
+        {
+          "name": "transitionSettings",
+          "type": "Object"
+        },
+        {
+          "name": "overlay",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetInputAudioBalance": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputAudioBalance",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetInputAudioMonitorType": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "monitorType",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetInputAudioSyncOffset": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputAudioSyncOffset",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetInputAudioTracks": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputAudioTracks",
+          "type": "Object"
+        }
+      ],
+      "response": []
+    },
+    "SetInputDeinterlaceFieldOrder": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputDeinterlaceFieldOrder",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetInputDeinterlaceMode": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputDeinterlaceMode",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetInputMute": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputMuted",
+          "type": "Boolean"
+        }
+      ],
+      "response": []
+    },
+    "SetInputName": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "newInputName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetInputSettings": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputSettings",
+          "type": "Object"
+        },
+        {
+          "name": "overlay",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetInputVolume": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputVolumeMul",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "inputVolumeDb",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetMediaInputCursor": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "mediaCursor",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetOutputSettings": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        },
+        {
+          "name": "outputSettings",
+          "type": "Object"
+        }
+      ],
+      "response": []
+    },
+    "SetPersistentData": {
+      "request": [
+        {
+          "name": "realm",
+          "type": "String"
+        },
+        {
+          "name": "slotName",
+          "type": "String"
+        },
+        {
+          "name": "slotValue",
+          "type": "Any"
+        }
+      ],
+      "response": []
+    },
+    "SetProfileParameter": {
+      "request": [
+        {
+          "name": "parameterCategory",
+          "type": "String"
+        },
+        {
+          "name": "parameterName",
+          "type": "String"
+        },
+        {
+          "name": "parameterValue",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetRecordDirectory": {
+      "request": [
+        {
+          "name": "recordDirectory",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneItemBlendMode": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "sceneItemBlendMode",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneItemEnabled": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "sceneItemEnabled",
+          "type": "Boolean"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneItemIndex": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "sceneItemIndex",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneItemLocked": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "sceneItemLocked",
+          "type": "Boolean"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneItemTransform": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneItemId",
+          "type": "Number"
+        },
+        {
+          "name": "sceneItemTransform",
+          "type": "Object"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneName": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "newSceneName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetSceneSceneTransitionOverride": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sceneUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "transitionName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "transitionDuration",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetSourceFilterEnabled": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        },
+        {
+          "name": "filterEnabled",
+          "type": "Boolean"
+        }
+      ],
+      "response": []
+    },
+    "SetSourceFilterIndex": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        },
+        {
+          "name": "filterIndex",
+          "type": "Number"
+        }
+      ],
+      "response": []
+    },
+    "SetSourceFilterName": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        },
+        {
+          "name": "newFilterName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "SetSourceFilterSettings": {
+      "request": [
+        {
+          "name": "canvasUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "sourceUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "filterName",
+          "type": "String"
+        },
+        {
+          "name": "filterSettings",
+          "type": "Object"
+        },
+        {
+          "name": "overlay",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetStreamServiceSettings": {
+      "request": [
+        {
+          "name": "streamServiceType",
+          "type": "String"
+        },
+        {
+          "name": "streamServiceSettings",
+          "type": "Object"
+        }
+      ],
+      "response": []
+    },
+    "SetStudioModeEnabled": {
+      "request": [
+        {
+          "name": "studioModeEnabled",
+          "type": "Boolean"
+        }
+      ],
+      "response": []
+    },
+    "SetTBarPosition": {
+      "request": [
+        {
+          "name": "position",
+          "type": "Number"
+        },
+        {
+          "name": "release",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SetVideoSettings": {
+      "request": [
+        {
+          "name": "fpsNumerator",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "fpsDenominator",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "baseWidth",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "baseHeight",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "outputWidth",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "outputHeight",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "Sleep": {
+      "request": [
+        {
+          "name": "sleepMillis",
+          "type": "Number",
+          "optional": true
+        },
+        {
+          "name": "sleepFrames",
+          "type": "Number",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "SplitRecordFile": {
+      "request": [],
+      "response": []
+    },
+    "StartOutput": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "StartRecord": {
+      "request": [],
+      "response": []
+    },
+    "StartReplayBuffer": {
+      "request": [],
+      "response": []
+    },
+    "StartStream": {
+      "request": [],
+      "response": []
+    },
+    "StartVirtualCam": {
+      "request": [],
+      "response": []
+    },
+    "StopOutput": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "StopRecord": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputPath",
+          "type": "String"
+        }
+      ]
+    },
+    "StopReplayBuffer": {
+      "request": [],
+      "response": []
+    },
+    "StopStream": {
+      "request": [],
+      "response": []
+    },
+    "StopVirtualCam": {
+      "request": [],
+      "response": []
+    },
+    "ToggleInputMute": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": [
+        {
+          "name": "inputMuted",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "ToggleOutput": {
+      "request": [
+        {
+          "name": "outputName",
+          "type": "String"
+        }
+      ],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "ToggleRecord": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "ToggleRecordPause": {
+      "request": [],
+      "response": []
+    },
+    "ToggleReplayBuffer": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "ToggleStream": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "ToggleVirtualCam": {
+      "request": [],
+      "response": [
+        {
+          "name": "outputActive",
+          "type": "Boolean"
+        }
+      ]
+    },
+    "TriggerHotkeyByKeySequence": {
+      "request": [
+        {
+          "name": "keyId",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "keyModifiers",
+          "type": "Object",
+          "optional": true
+        },
+        {
+          "name": "keyModifiers.shift",
+          "type": "Boolean",
+          "optional": true
+        },
+        {
+          "name": "keyModifiers.control",
+          "type": "Boolean",
+          "optional": true
+        },
+        {
+          "name": "keyModifiers.alt",
+          "type": "Boolean",
+          "optional": true
+        },
+        {
+          "name": "keyModifiers.command",
+          "type": "Boolean",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "TriggerHotkeyByName": {
+      "request": [
+        {
+          "name": "hotkeyName",
+          "type": "String"
+        },
+        {
+          "name": "contextName",
+          "type": "String",
+          "optional": true
+        }
+      ],
+      "response": []
+    },
+    "TriggerMediaInputAction": {
+      "request": [
+        {
+          "name": "inputName",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "inputUuid",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "mediaAction",
+          "type": "String"
+        }
+      ],
+      "response": []
+    },
+    "TriggerStudioModeTransition": {
+      "request": [],
+      "response": []
+    }
+  },
+  "events": {
+    "CanvasCreated": [
+      {
+        "name": "canvasName",
+        "type": "String"
+      },
+      {
+        "name": "canvasUuid",
+        "type": "String"
+      }
+    ],
+    "CanvasNameChanged": [
+      {
+        "name": "canvasUuid",
+        "type": "String"
+      },
+      {
+        "name": "oldCanvasName",
+        "type": "String"
+      },
+      {
+        "name": "canvasName",
+        "type": "String"
+      }
+    ],
+    "CanvasRemoved": [
+      {
+        "name": "canvasName",
+        "type": "String"
+      },
+      {
+        "name": "canvasUuid",
+        "type": "String"
+      }
+    ],
+    "CurrentPreviewSceneChanged": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      }
+    ],
+    "CurrentProfileChanged": [
+      {
+        "name": "profileName",
+        "type": "String"
+      }
+    ],
+    "CurrentProfileChanging": [
+      {
+        "name": "profileName",
+        "type": "String"
+      }
+    ],
+    "CurrentProgramSceneChanged": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      }
+    ],
+    "CurrentSceneCollectionChanged": [
+      {
+        "name": "sceneCollectionName",
+        "type": "String"
+      }
+    ],
+    "CurrentSceneCollectionChanging": [
+      {
+        "name": "sceneCollectionName",
+        "type": "String"
+      }
+    ],
+    "CurrentSceneTransitionChanged": [
+      {
+        "name": "transitionName",
+        "type": "String"
+      },
+      {
+        "name": "transitionUuid",
+        "type": "String"
+      }
+    ],
+    "CurrentSceneTransitionDurationChanged": [
+      {
+        "name": "transitionDuration",
+        "type": "Number"
+      }
+    ],
+    "CustomEvent": [
+      {
+        "name": "eventData",
+        "type": "Object"
+      }
+    ],
+    "ExitStarted": [],
+    "InputActiveStateChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "videoActive",
+        "type": "Boolean"
+      }
+    ],
+    "InputAudioBalanceChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputAudioBalance",
+        "type": "Number"
+      }
+    ],
+    "InputAudioMonitorTypeChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "monitorType",
+        "type": "String"
+      }
+    ],
+    "InputAudioSyncOffsetChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputAudioSyncOffset",
+        "type": "Number"
+      }
+    ],
+    "InputAudioTracksChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputAudioTracks",
+        "type": "Object"
+      }
+    ],
+    "InputCreated": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputKind",
+        "type": "String"
+      },
+      {
+        "name": "unversionedInputKind",
+        "type": "String"
+      },
+      {
+        "name": "inputKindCaps",
+        "type": "Number"
+      },
+      {
+        "name": "inputSettings",
+        "type": "Object"
+      },
+      {
+        "name": "defaultInputSettings",
+        "type": "Object"
+      }
+    ],
+    "InputMuteStateChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputMuted",
+        "type": "Boolean"
+      }
+    ],
+    "InputNameChanged": [
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "oldInputName",
+        "type": "String"
+      },
+      {
+        "name": "inputName",
+        "type": "String"
+      }
+    ],
+    "InputRemoved": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      }
+    ],
+    "InputSettingsChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputSettings",
+        "type": "Object"
+      }
+    ],
+    "InputShowStateChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "videoShowing",
+        "type": "Boolean"
+      }
+    ],
+    "InputVolumeChanged": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "inputVolumeMul",
+        "type": "Number"
+      },
+      {
+        "name": "inputVolumeDb",
+        "type": "Number"
+      }
+    ],
+    "InputVolumeMeters": [
+      {
+        "name": "inputs",
+        "type": "Array<Object>"
+      }
+    ],
+    "MediaInputActionTriggered": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      },
+      {
+        "name": "mediaAction",
+        "type": "String"
+      }
+    ],
+    "MediaInputPlaybackEnded": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      }
+    ],
+    "MediaInputPlaybackStarted": [
+      {
+        "name": "inputName",
+        "type": "String"
+      },
+      {
+        "name": "inputUuid",
+        "type": "String"
+      }
+    ],
+    "ProfileListChanged": [
+      {
+        "name": "profiles",
+        "type": "Array<String>"
+      }
+    ],
+    "RecordFileChanged": [
+      {
+        "name": "newOutputPath",
+        "type": "String"
+      }
+    ],
+    "RecordStateChanged": [
+      {
+        "name": "outputActive",
+        "type": "Boolean"
+      },
+      {
+        "name": "outputState",
+        "type": "String"
+      },
+      {
+        "name": "outputPath",
+        "type": "String"
+      }
+    ],
+    "ReplayBufferSaved": [
+      {
+        "name": "savedReplayPath",
+        "type": "String"
+      }
+    ],
+    "ReplayBufferStateChanged": [
+      {
+        "name": "outputActive",
+        "type": "Boolean"
+      },
+      {
+        "name": "outputState",
+        "type": "String"
+      }
+    ],
+    "SceneCollectionListChanged": [
+      {
+        "name": "sceneCollections",
+        "type": "Array<String>"
+      }
+    ],
+    "SceneCreated": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "isGroup",
+        "type": "Boolean"
+      }
+    ],
+    "SceneItemCreated": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "sourceUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      },
+      {
+        "name": "sceneItemIndex",
+        "type": "Number"
+      }
+    ],
+    "SceneItemEnableStateChanged": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      },
+      {
+        "name": "sceneItemEnabled",
+        "type": "Boolean"
+      }
+    ],
+    "SceneItemListReindexed": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItems",
+        "type": "Array<Object>"
+      }
+    ],
+    "SceneItemLockStateChanged": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      },
+      {
+        "name": "sceneItemLocked",
+        "type": "Boolean"
+      }
+    ],
+    "SceneItemRemoved": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "sourceUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      }
+    ],
+    "SceneItemSelected": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      }
+    ],
+    "SceneItemTransformChanged": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "sceneItemId",
+        "type": "Number"
+      },
+      {
+        "name": "sceneItemTransform",
+        "type": "Object"
+      }
+    ],
+    "SceneListChanged": [
+      {
+        "name": "scenes",
+        "type": "Array<Object>"
+      }
+    ],
+    "SceneNameChanged": [
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "oldSceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneName",
+        "type": "String"
+      }
+    ],
+    "SceneRemoved": [
+      {
+        "name": "sceneName",
+        "type": "String"
+      },
+      {
+        "name": "sceneUuid",
+        "type": "String"
+      },
+      {
+        "name": "isGroup",
+        "type": "Boolean"
+      }
+    ],
+    "SceneTransitionEnded": [
+      {
+        "name": "transitionName",
+        "type": "String"
+      },
+      {
+        "name": "transitionUuid",
+        "type": "String"
+      }
+    ],
+    "SceneTransitionStarted": [
+      {
+        "name": "transitionName",
+        "type": "String"
+      },
+      {
+        "name": "transitionUuid",
+        "type": "String"
+      }
+    ],
+    "SceneTransitionVideoEnded": [
+      {
+        "name": "transitionName",
+        "type": "String"
+      },
+      {
+        "name": "transitionUuid",
+        "type": "String"
+      }
+    ],
+    "ScreenshotSaved": [
+      {
+        "name": "savedScreenshotPath",
+        "type": "String"
+      }
+    ],
+    "SourceFilterCreated": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "filterName",
+        "type": "String"
+      },
+      {
+        "name": "filterKind",
+        "type": "String"
+      },
+      {
+        "name": "filterIndex",
+        "type": "Number"
+      },
+      {
+        "name": "filterSettings",
+        "type": "Object"
+      },
+      {
+        "name": "defaultFilterSettings",
+        "type": "Object"
+      }
+    ],
+    "SourceFilterEnableStateChanged": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "filterName",
+        "type": "String"
+      },
+      {
+        "name": "filterEnabled",
+        "type": "Boolean"
+      }
+    ],
+    "SourceFilterListReindexed": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "filters",
+        "type": "Array<Object>"
+      }
+    ],
+    "SourceFilterNameChanged": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "oldFilterName",
+        "type": "String"
+      },
+      {
+        "name": "filterName",
+        "type": "String"
+      }
+    ],
+    "SourceFilterRemoved": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "filterName",
+        "type": "String"
+      }
+    ],
+    "SourceFilterSettingsChanged": [
+      {
+        "name": "sourceName",
+        "type": "String"
+      },
+      {
+        "name": "filterName",
+        "type": "String"
+      },
+      {
+        "name": "filterSettings",
+        "type": "Object"
+      }
+    ],
+    "StreamStateChanged": [
+      {
+        "name": "outputActive",
+        "type": "Boolean"
+      },
+      {
+        "name": "outputState",
+        "type": "String"
+      }
+    ],
+    "StudioModeStateChanged": [
+      {
+        "name": "studioModeEnabled",
+        "type": "Boolean"
+      }
+    ],
+    "VendorEvent": [
+      {
+        "name": "vendorName",
+        "type": "String"
+      },
+      {
+        "name": "eventType",
+        "type": "String"
+      },
+      {
+        "name": "eventData",
+        "type": "Object"
+      }
+    ],
+    "VirtualcamStateChanged": [
+      {
+        "name": "outputActive",
+        "type": "Boolean"
+      },
+      {
+        "name": "outputState",
+        "type": "String"
+      }
+    ]
+  },
+  "enums": {
+    "EventSubscription": {
+      "None": 0,
+      "General": 1,
+      "Config": 2,
+      "Scenes": 4,
+      "Inputs": 8,
+      "Transitions": 16,
+      "Filters": 32,
+      "Outputs": 64,
+      "SceneItems": 128,
+      "MediaInputs": 256,
+      "Vendors": 512,
+      "Ui": 1024,
+      "Canvases": 2048,
+      "All": 4095,
+      "InputVolumeMeters": 65536,
+      "InputActiveStateChanged": 131072,
+      "InputShowStateChanged": 262144,
+      "SceneItemTransformChanged": 524288
+    },
+    "ObsMediaInputAction": {
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NONE": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NONE",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT",
+      "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS"
+    },
+    "ObsOutputState": {
+      "OBS_WEBSOCKET_OUTPUT_UNKNOWN": "OBS_WEBSOCKET_OUTPUT_UNKNOWN",
+      "OBS_WEBSOCKET_OUTPUT_STARTING": "OBS_WEBSOCKET_OUTPUT_STARTING",
+      "OBS_WEBSOCKET_OUTPUT_STARTED": "OBS_WEBSOCKET_OUTPUT_STARTED",
+      "OBS_WEBSOCKET_OUTPUT_STOPPING": "OBS_WEBSOCKET_OUTPUT_STOPPING",
+      "OBS_WEBSOCKET_OUTPUT_STOPPED": "OBS_WEBSOCKET_OUTPUT_STOPPED",
+      "OBS_WEBSOCKET_OUTPUT_RECONNECTING": "OBS_WEBSOCKET_OUTPUT_RECONNECTING",
+      "OBS_WEBSOCKET_OUTPUT_RECONNECTED": "OBS_WEBSOCKET_OUTPUT_RECONNECTED",
+      "OBS_WEBSOCKET_OUTPUT_PAUSED": "OBS_WEBSOCKET_OUTPUT_PAUSED",
+      "OBS_WEBSOCKET_OUTPUT_RESUMED": "OBS_WEBSOCKET_OUTPUT_RESUMED"
+    },
+    "RequestBatchExecutionType": {
+      "None": -1,
+      "SerialRealtime": 0,
+      "SerialFrame": 1,
+      "Parallel": 2
+    },
+    "RequestStatus": {
+      "Unknown": 0,
+      "NoError": 10,
+      "Success": 100,
+      "MissingRequestType": 203,
+      "UnknownRequestType": 204,
+      "GenericError": 205,
+      "UnsupportedRequestBatchExecutionType": 206,
+      "NotReady": 207,
+      "MissingRequestField": 300,
+      "MissingRequestData": 301,
+      "InvalidRequestField": 400,
+      "InvalidRequestFieldType": 401,
+      "RequestFieldOutOfRange": 402,
+      "RequestFieldEmpty": 403,
+      "TooManyRequestFields": 404,
+      "OutputRunning": 500,
+      "OutputNotRunning": 501,
+      "OutputPaused": 502,
+      "OutputNotPaused": 503,
+      "OutputDisabled": 504,
+      "StudioModeActive": 505,
+      "StudioModeNotActive": 506,
+      "ResourceNotFound": 600,
+      "ResourceAlreadyExists": 601,
+      "InvalidResourceType": 602,
+      "NotEnoughResources": 603,
+      "InvalidResourceState": 604,
+      "InvalidInputKind": 605,
+      "ResourceNotConfigurable": 606,
+      "InvalidFilterKind": 607,
+      "ResourceCreationFailed": 700,
+      "ResourceActionFailed": 701,
+      "RequestProcessingFailed": 702,
+      "CannotAct": 703
+    },
+    "WebSocketCloseCode": {
+      "DontClose": 0,
+      "UnknownReason": 4000,
+      "MessageDecodeError": 4002,
+      "MissingDataField": 4003,
+      "InvalidDataFieldType": 4004,
+      "InvalidDataFieldValue": 4005,
+      "UnknownOpCode": 4006,
+      "NotIdentified": 4007,
+      "AlreadyIdentified": 4008,
+      "AuthenticationFailed": 4009,
+      "UnsupportedRpcVersion": 4010,
+      "SessionInvalidated": 4011,
+      "UnsupportedFeature": 4012
+    },
+    "WebSocketOpCode": {
+      "Hello": 0,
+      "Identify": 1,
+      "Identified": 2,
+      "Reidentify": 3,
+      "Event": 5,
+      "Request": 6,
+      "RequestResponse": 7,
+      "RequestBatch": 8,
+      "RequestBatchResponse": 9
+    }
+  }
+}

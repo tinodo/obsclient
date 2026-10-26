@@ -35,6 +35,19 @@
             Assert.Equal(EventType.Unknown, result);
         }
 
+        [Theory]
+        [InlineData("\"5\"")] // numeric strings must not be parsed into an unrelated member
+        [InlineData("\"ExitStarted, VendorEvent\"")] // flag-style lists must not be accepted
+        [InlineData("5")]
+        [InlineData("{\"nested\":[1,2,3]}")]
+        [InlineData("[1,2,3]")]
+        public void Read_NonNameToken_ReturnsUnknownInsteadOfThrowing(string rawJson)
+        {
+            var result = JsonSerializer.Deserialize<EventType>(rawJson);
+
+            Assert.Equal(EventType.Unknown, result);
+        }
+
         [Fact]
         public void Write_SerializesEnumValueAsItsName()
         {

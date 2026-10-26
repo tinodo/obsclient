@@ -144,7 +144,19 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorOnMonitor(string sourceName, int monitorIndex)
         {
-            await this.OpenSourceProjector(sourceName, null, monitorIndex, null);
+            await this.OpenSourceProjector(sourceName, null, null, monitorIndex, null);
+        }
+
+        /// <summary>
+        /// Opens a projector for a source.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to open a projector for</param>
+        /// <param name="canvasUuid">Uuid of the canvas the source is in</param>
+        /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index. Use -1 for windowed mode.</param>
+        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
+        public async Task OpenSourceProjectorOnMonitor(string sourceName, Guid canvasUuid, int monitorIndex)
+        {
+            await this.OpenSourceProjector(sourceName, canvasUuid, null, monitorIndex, null);
         }
 
         /// <summary>
@@ -155,7 +167,7 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorOnMonitor(Guid sourceUuid, int monitorIndex)
         {
-            await this.OpenSourceProjector(null, sourceUuid, monitorIndex, null);
+            await this.OpenSourceProjector(null, null, sourceUuid, monitorIndex, null);
         }
 
 
@@ -167,7 +179,19 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorWindow(string sourceName, string projectorGeometry)
         {
-            await this.OpenSourceProjector(sourceName, null, null, projectorGeometry);
+            await this.OpenSourceProjector(sourceName, null, null, null, projectorGeometry);
+        }
+
+        /// <summary>
+        /// Opens a projector for a source.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to open a projector for</param>
+        /// <param name="canvasUuid">Uuid of the canvas the source is in</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. See <see cref="GetGeometry(int, int, int, int, int, bool, bool, int)"/>.</param>
+        /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
+        public async Task OpenSourceProjectorWindow(string sourceName, Guid canvasUuid, string projectorGeometry)
+        {
+            await this.OpenSourceProjector(sourceName, canvasUuid, null, null, projectorGeometry);
         }
 
         /// <summary>
@@ -178,13 +202,13 @@
         /// <remarks>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</remarks>
         public async Task OpenSourceProjectorWindow(Guid sourceUuid, string projectorGeometry)
         {
-            await this.OpenSourceProjector(null, sourceUuid, null, projectorGeometry);
+            await this.OpenSourceProjector(null, null, sourceUuid, null, projectorGeometry);
         }
 
 
-        private async Task OpenSourceProjector(string? sourceName, Guid? sourceUuid, int? monitorIndex = -1, string? projectorGeometry = null)
+        private async Task OpenSourceProjector(string? sourceName, Guid? canvasUuid, Guid? sourceUuid, int? monitorIndex = -1, string? projectorGeometry = null)
         {
-            await this.SendRequestAsync(new { sourceName, sourceUuid, monitorIndex, projectorGeometry });
+            await this.SendRequestAsync(new { canvasUuid, sourceName, sourceUuid, monitorIndex, projectorGeometry });
         }
     }
 }

@@ -46,9 +46,24 @@
         /// <param name="inputSettings">Settings object to initialize the input with</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
         /// <returns>ID of the newly created scene item</returns>
-        public void AddCreateInputRequest(string sceneName, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        public void AddCreateInputRequest(string sceneName, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            this.AddCreateInputRequest(sceneName, null, inputName, inputKind, inputSettings, sceneItemEnabled);
+            this.AddCreateInputRequest(sceneName, null, null, inputName, inputKind, inputSettings, sceneItemEnabled);
+        }
+
+        /// <summary>
+        /// Adds a request to create a new input, adding it as a scene item to the specified scene.
+        /// </summary>
+        /// <param name="sceneName">Name of the scene to add the input to as a scene item</param>
+        /// <param name="canvasUuid">Uuid of the canvas the scene is in</param>
+        /// <param name="inputName">Name of the new input to created</param>
+        /// <param name="inputKind">The kind of input to be created</param>
+        /// <param name="inputSettings">Settings object to initialize the input with</param>
+        /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
+        /// <returns>ID of the newly created scene item</returns>
+        public void AddCreateInputRequest(string sceneName, Guid canvasUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
+        {
+            this.AddCreateInputRequest(sceneName, canvasUuid, null, inputName, inputKind, inputSettings, sceneItemEnabled);
         }
 
         /// <summary>
@@ -60,14 +75,14 @@
         /// <param name="inputSettings">Settings object to initialize the input with</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled</param>
         /// <returns>ID of the newly created scene item</returns>
-        public void AddCreateInputRequest(Guid sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        public void AddCreateInputRequest(Guid sceneUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            this.AddCreateInputRequest(null, sceneUuid,inputName, inputKind, inputSettings, sceneItemEnabled);
+            this.AddCreateInputRequest(null, null, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled);
         }
 
-        private void AddCreateInputRequest(string? sceneName, Guid? sceneUuid, string inputName, string inputKind, Input? inputSettings, bool sceneItemEnabled = true)
+        private void AddCreateInputRequest(string? sceneName, Guid? canvasUuid, Guid? sceneUuid, string inputName, string inputKind, Dictionary<string, object>? inputSettings, bool sceneItemEnabled = true)
         {
-            this._requests.Add(new(new { sceneName, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled }));
+            this._requests.Add(new(new { canvasUuid, sceneName, sceneUuid, inputName, inputKind, inputSettings, sceneItemEnabled }));
         }
 
         /// <summary>
@@ -83,6 +98,18 @@
         }
 
         /// <summary>
+        /// Adds a request to remove an existing input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to remove</param>
+        /// <remarks>
+        /// Note: Will immediately remove all associated scene items.
+        /// </remarks>
+        public void AddRemoveInputRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the name of an input (rename).
         /// </summary>
         /// <param name="inputName">Current input name</param>
@@ -90,6 +117,16 @@
         public void AddSetInputNameRequest(string inputName, string newInputName)
         {
             this._requests.Add(new(new { inputName, newInputName }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the name of an input (rename).
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input</param>
+        /// <param name="newInputName">New name for the input</param>
+        public void AddSetInputNameRequest(Guid inputUuid, string newInputName)
+        {
+            this._requests.Add(new(new { inputUuid, newInputName }));
         }
 
         /// <summary>
@@ -116,6 +153,19 @@
         }
 
         /// <summary>
+        /// Adds a request to get the settings of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to get the settings of</param>
+        /// <returns>A <see cref="InputSettingsResponse"/></returns>
+        /// <remarks>
+        /// Note: Does not include defaults. To create the entire settings object, overlay inputSettings over the defaultInputSettings provided by GetInputDefaultSettings.
+        /// </remarks>
+        public void AddGetInputSettingsRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the settings of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the settings of</param>
@@ -124,6 +174,17 @@
         public void AddSetInputSettingsRequest(string inputName, Dictionary<string, object> inputSettings, bool overlay = true)
         {
             this._requests.Add(new(new { inputName, inputSettings, overlay }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the settings of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the settings of</param>
+        /// <param name="inputSettings">Object of settings to apply</param>
+        /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings.</param>
+        public void AddSetInputSettingsRequest(Guid inputUuid, Dictionary<string, object> inputSettings, bool overlay = true)
+        {
+            this._requests.Add(new(new { inputUuid, inputSettings, overlay }));
         }
 
         /// <summary>
@@ -137,6 +198,16 @@
         }
 
         /// <summary>
+        /// Adds a request to get the audio mute state of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of input to get the mute state of</param>
+        /// <returns>Whether the input is muted</returns>
+        public void AddGetInputMuteRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the audio mute state of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the mute state of</param>
@@ -144,6 +215,16 @@
         public void AddSetInputMuteRequest(string inputName, bool inputMuted)
         {
             this._requests.Add(new(new { inputName, inputMuted }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the audio mute state of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the mute state of</param>
+        /// <param name="inputMuted">Whether to mute the input or not</param>
+        public void AddSetInputMuteRequest(Guid inputUuid, bool inputMuted)
+        {
+            this._requests.Add(new(new { inputUuid, inputMuted }));
         }
 
         /// <summary>
@@ -157,6 +238,16 @@
         }
 
         /// <summary>
+        /// Adds a request to toggle the audio mute state of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to toggle the mute state of</param>
+        /// <returns>Whether the input has been muted or unmuted</returns>
+        public void AddToggleInputMuteRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to add a request to get the current volume setting of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to get the volume of</param>
@@ -164,6 +255,16 @@
         public void AddGetInputVolumeRequest(string inputName)
         {
             this._requests.Add(new(new { inputName }));
+        }
+
+        /// <summary>
+        /// Adds a request to add a request to get the current volume setting of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to get the volume of</param>
+        /// <returns>A <see cref="InputVolumeResponse"/></returns>
+        public void AddGetInputVolumeRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
         }
 
         /// <summary>
@@ -176,6 +277,24 @@
         /// <exception cref="ArgumentException"></exception>
         public void AddSetInputVolumeRequest(string inputName, float? inputVolumeMul, float? inputVolumeDb)
         {
+            this.AddSetInputVolumeRequest(inputName, null, inputVolumeMul, inputVolumeDb);
+        }
+
+        /// <summary>
+        /// Sets the volume setting of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the volume of</param>
+        /// <param name="inputVolumeMul">Volume setting in mul.</param>
+        /// <param name="inputVolumeDb">Volume setting in dB.</param>
+        /// <remarks>Use either inputVolumeMul or inputVolumeDb.</remarks>
+        /// <exception cref="ArgumentException"></exception>
+        public void AddSetInputVolumeRequest(Guid inputUuid, float? inputVolumeMul, float? inputVolumeDb)
+        {
+            this.AddSetInputVolumeRequest(null, inputUuid, inputVolumeMul, inputVolumeDb);
+        }
+
+        private void AddSetInputVolumeRequest(string? inputName, Guid? inputUuid, float? inputVolumeMul, float? inputVolumeDb)
+        {
             if (inputVolumeMul is null && inputVolumeDb is null)
             {
                 throw new ArgumentException("Either inputVolumeMul or inputVolumeDb must be set.");
@@ -186,7 +305,7 @@
                 throw new ArgumentException("Only one of inputVolumeMul or inputVolumeDb can be set.");
             }
 
-            this._requests.Add(new(new { inputName, inputVolumeMul, inputVolumeDb }));
+            this._requests.Add(new(new { inputName, inputUuid, inputVolumeMul, inputVolumeDb }));
         }
 
         /// <summary>
@@ -200,6 +319,16 @@
         }
 
         /// <summary>
+        /// Adds a request to get the audio balance of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to get the audio balance of</param>
+        /// <returns>Audio balance value from 0.0-1.0</returns>
+        public void AddGetInputAudioBalanceRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the audio balance of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio balance of</param>
@@ -207,6 +336,16 @@
         public void AddSetInputAudioBalanceRequest(string inputName, float inputAudioBalance)
         {
             this._requests.Add(new(new { inputName, inputAudioBalance }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the audio balance of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the audio balance of</param>
+        /// <param name="inputAudioBalance">New audio balance value.</param>
+        public void AddSetInputAudioBalanceRequest(Guid inputUuid, float inputAudioBalance)
+        {
+            this._requests.Add(new(new { inputUuid, inputAudioBalance }));
         }
 
         /// <summary>
@@ -223,6 +362,19 @@
         }
 
         /// <summary>
+        /// Adds a request to get the audio sync offset of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to get the audio sync offset of</param>
+        /// <returns>Audio sync offset in milliseconds</returns>
+        /// <remarks>
+        /// Note: The audio sync offset can be negative too!
+        /// </remarks>
+        public void AddGetInputAudioSyncOffsetRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the audio sync offset of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio sync offset of</param>
@@ -230,6 +382,16 @@
         public void AddSetInputAudioSyncOffsetRequest(string inputName, int inputAudioSyncOffset)
         {
             this._requests.Add(new(new { inputName, inputAudioSyncOffset }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the audio sync offset of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the audio sync offset of</param>
+        /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds.</param>
+        public void AddSetInputAudioSyncOffsetRequest(Guid inputUuid, int inputAudioSyncOffset)
+        {
+            this._requests.Add(new(new { inputUuid, inputAudioSyncOffset }));
         }
 
         /// <summary>
@@ -243,6 +405,16 @@
         }
 
         /// <summary>
+        /// Adds a request to get the audio monitor type of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to get the audio monitor type of</param>
+        /// <returns>Audio monitor type</returns>
+        public void AddGetInputAudioMonitorTypeRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the audio monitor type of an input.
         /// </summary>
         /// <param name="inputName">Name of the input to set the audio monitor type of</param>
@@ -250,6 +422,16 @@
         public void AddSetInputAudioMonitorTypeRequest(string inputName, MonitorType monitorType)
         {
             this._requests.Add(new(new { inputName, monitorType }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the audio monitor type of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input to set the audio monitor type of</param>
+        /// <param name="monitorType">Audio monitor type</param>
+        public void AddSetInputAudioMonitorTypeRequest(Guid inputUuid, MonitorType monitorType)
+        {
+            this._requests.Add(new(new { inputUuid, monitorType }));
         }
 
         /// <summary>
@@ -263,6 +445,16 @@
         }
 
         /// <summary>
+        /// Adds a request to get the enable state of all audio tracks of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input</param>
+        /// <returns>Object of audio tracks and associated enable states</returns>
+        public void AddGetInputAudioTracksRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
         /// Adds a request to set the enable state of audio tracks of an input.
         /// </summary>
         /// <param name="inputName">Name of the input</param>
@@ -270,6 +462,16 @@
         public void AddSetInputAudioTracksRequest(string inputName, AudioTracks inputAudioTracks)
         {
             this._requests.Add(new(new { inputName, inputAudioTracks }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the enable state of audio tracks of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input</param>
+        /// <param name="inputAudioTracks">Track settings to apply</param>
+        public void AddSetInputAudioTracksRequest(Guid inputUuid, AudioTracks inputAudioTracks)
+        {
+            this._requests.Add(new(new { inputUuid, inputAudioTracks }));
         }
 
         /// <summary>
@@ -287,6 +489,20 @@
         }
 
         /// <summary>
+        /// Adds a request to get the items of a list property from an input's properties.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input</param>
+        /// <param name="propertyName">Name of the list property to get the items of</param>
+        /// <returns>Array of items in the list property</returns>
+        /// <remarks>
+        /// Note: Use this in cases where an input provides a dynamic, selectable list of items. For example, display capture, where it provides a list of available displays.
+        /// </remarks>
+        public void AddGetInputPropertiesListPropertyItemsRequest(Guid inputUuid, string propertyName)
+        {
+            this._requests.Add(new(new { inputUuid, propertyName }));
+        }
+
+        /// <summary>
         /// Adds a request to press a button in the properties of an input.
         /// </summary>
         /// <param name="inputName">Name of the input</param>
@@ -297,6 +513,121 @@
         public void AddPressInputPropertiesButtonRequest(string inputName, string propertyName)
         {
             this._requests.Add(new(new { inputName, propertyName }));
+        }
+
+        /// <summary>
+        /// Adds a request to press a button in the properties of an input.
+        /// </summary>
+        /// <param name="inputUuid">Uuid of the input</param>
+        /// <param name="propertyName">Name of the button property to press</param>
+        /// <remarks>
+        /// Note: Use this in cases where there is a button in the properties of an input that cannot be accessed in any other way. For example, browser sources, where there is a refresh button.
+        /// </remarks>
+        public void AddPressInputPropertiesButtonRequest(Guid inputUuid, string propertyName)
+        {
+            this._requests.Add(new(new { inputUuid, propertyName }));
+        }
+
+        /// <summary>
+        /// Adds a request to get the deinterlace mode of an input.
+        /// </summary>
+        /// <param name="inputName">Name of the input</param>
+        /// <returns>Deinterlace mode of the input</returns>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddGetInputDeinterlaceModeRequest(string inputName)
+        {
+            this._requests.Add(new(new { inputName }));
+        }
+
+        /// <summary>
+        /// Adds a request to get the deinterlace mode of an input.
+        /// </summary>
+        /// <param name="inputUuid">UUID of the input</param>
+        /// <returns>Deinterlace mode of the input</returns>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddGetInputDeinterlaceModeRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the deinterlace mode of an input.
+        /// </summary>
+        /// <param name="inputName">Name of the input</param>
+        /// <param name="inputDeinterlaceMode">Deinterlace mode for the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddSetInputDeinterlaceModeRequest(string inputName, DeinterlaceMode inputDeinterlaceMode)
+        {
+            this._requests.Add(new(new { inputName, inputDeinterlaceMode }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the deinterlace mode of an input.
+        /// </summary>
+        /// <param name="inputUuid">UUID of the input</param>
+        /// <param name="inputDeinterlaceMode">Deinterlace mode for the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddSetInputDeinterlaceModeRequest(Guid inputUuid, DeinterlaceMode inputDeinterlaceMode)
+        {
+            this._requests.Add(new(new { inputUuid, inputDeinterlaceMode }));
+        }
+
+        /// <summary>
+        /// Adds a request to get the deinterlace field order of an input.
+        /// </summary>
+        /// <param name="inputName">Name of the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddGetInputDeinterlaceFieldOrderRequest(string inputName)
+        {
+            this._requests.Add(new(new { inputName }));
+        }
+
+        /// <summary>
+        /// Adds a request to get the deinterlace field order of an input.
+        /// </summary>
+        /// <param name="inputUuid">UUID of the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddGetInputDeinterlaceFieldOrderRequest(Guid inputUuid)
+        {
+            this._requests.Add(new(new { inputUuid }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the deinterlace field order of an input.
+        /// </summary>
+        /// <param name="inputName">Name of the input</param>
+        /// <param name="inputDeinterlaceFieldOrder">Deinterlace field order for the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddSetInputDeinterlaceFieldOrderRequest(string inputName, string inputDeinterlaceFieldOrder)
+        {
+            this._requests.Add(new(new { inputName, inputDeinterlaceFieldOrder }));
+        }
+
+        /// <summary>
+        /// Adds a request to set the deinterlace field order of an input.
+        /// </summary>
+        /// <param name="inputUuid">UUID of the input</param>
+        /// <param name="inputDeinterlaceFieldOrder">Deinterlace field order for the input</param>
+        /// <remarks>
+        /// Deinterlacing functionality is restricted to async inputs only.
+        /// </remarks>
+        public void AddSetInputDeinterlaceFieldOrderRequest(Guid inputUuid, string inputDeinterlaceFieldOrder)
+        {
+            this._requests.Add(new(new { inputUuid, inputDeinterlaceFieldOrder }));
         }
     }
 }

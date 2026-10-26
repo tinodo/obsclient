@@ -87,6 +87,24 @@
             this.AddGetSourceScreenshotRequest(sourceName, (Guid?)canvasUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
         }
 
+        /// <summary>
+        /// Adds a request to get a Base64-encoded screenshot of a source.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to take a screenshot of</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <returns>Base64-encoded screenshot</returns>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public void AddGetSourceScreenshotRequest(Guid sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            this._requests.Add(new(new { sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality }));
+        }
+
         private void AddGetSourceScreenshotRequest(string sourceName, Guid? canvasUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
             this._requests.Add(new(new { sourceName, canvasUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality }));
@@ -129,6 +147,25 @@
         public void AddSaveSourceScreenshotRequest(string sourceName, Guid canvasUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
             this.AddSaveSourceScreenshotRequest(sourceName, (Guid?)canvasUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        /// <summary>
+        /// Adds a request to save a screenshot of a source to the filesystem.
+        /// </summary>
+        /// <param name="sourceUuid">Uuid of the source to take a screenshot of</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageFilePath">Path to save the screenshot file to. Eg. C:\Users\user\Desktop\screenshot.png</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <returns>Base64-encoded screenshot</returns>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public void AddSaveSourceScreenshotRequest(Guid sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            this._requests.Add(new(new { sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality }));
         }
 
         private void AddSaveSourceScreenshotRequest(string sourceName, Guid? canvasUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)

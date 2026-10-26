@@ -1,39 +1,100 @@
 # Changelog
 
 All notable changes to this project are documented in this file.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-For history before 3.1.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
+[Semantic Versioning](https://semver.org/).
+For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
-## [3.1.0] - Unreleased
+## [4.0.0] - Unreleased
+
+Brings the client up to **obs-websocket 5.7.6** (the README claimed 5.5.2) and fixes a number of long-standing
+problems that were found by checking the client, request by request and field by field, against the machine-readable
+protocol definition. A new test suite keeps it that way (see *Added*).
+
+What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
+
+| obs-websocket | Change | In this client |
+| --- | --- | --- |
+| 5.5.3 – 5.5.6 | No changes to the protocol definition. | – |
+| 5.6.0 | `Get/SetInputDeinterlaceMode`, `Get/SetInputDeinterlaceFieldOrder`; `inputKindCaps` on the `InputCreated` event. | The requests existed but `GetInputDeinterlaceFieldOrder` was broken (see *Fixed*) and had no batch builders; `InputKindCaps` is new. |
+| 5.7.0 | Canvases: `GetCanvasList`, `CanvasCreated`/`CanvasRemoved`/`CanvasNameChanged`, `EventSubscription.Canvases`, `canvasUuid` on the requests that look up a scene or source by name. | New (see *Added*). |
+| 5.7.1 | `canvasName` was dropped again in favour of `canvasUuid`; `canvasUuid` added to `CreateScene`. | Only `canvasUuid` is supported. |
+| 5.7.2 – 5.7.6 | No changes to the protocol definition. | – |
+
+### Breaking changes
+- `Scene`'s constructor gained a required `sceneUuid` parameter and `Scene.SceneIndex` is now nullable (`int?`): OBS
+  Studio has always returned a scene UUID, and scenes on a non-main canvas have no index. Code that only reads
+  `Scene` instances needs to handle the nullable index; code that constructs `Scene` instances has to pass a UUID.
+- `CreateRecordChapter(string? chapterName = null)` now returns `Task` instead of `Task<string?>`, and takes the optional
+  chapter name that obs-websocket supports. OBS Studio returns no data for this request, so the old method could never
+  succeed: it always threw an `InvalidCastException`. `CreateRecordChapterResponse` was removed.
+- `CreateInput` (and `RequestBatchMessage.AddCreateInputRequest`) take `Dictionary<string, object>? inputSettings` instead
+  of `Input? inputSettings`. `Input` describes an entry of the input list (kind and name), not the settings of an input,
+  so there was no way to give a new input any settings (such as the URL of a browser source). Passing `null` still works.
+- `ObsClient.TotalMessagesReceived` and `SessionMessagesReceived` now count messages; they counted WebSocket frames,
+  which made a large message count several times.
 
 ### Added
-- Support for the **Canvases** category added in obs-websocket 5.7.0 (multi-canvas support): `GetCanvasList`
-  request, `Canvas`/`CanvasFlags`/`CanvasVideoSettings` classes, `CanvasCreated`/`CanvasRemoved`/`CanvasNameChanged`
-  events, and the `EventSubscriptions.Canvases` flag (now included in `EventSubscriptions.All`).
-- `canvasUuid` overloads on scene, scene item, filter and source requests that can be scoped to a non-main canvas
-  (e.g. `GetSceneList(Guid canvasUuid)`, `CreateScene(string sceneName, Guid canvasUuid)`).
-- `net10.0` as an additional target framework, alongside `net8.0`.
-- A test project (`OBSClient.Tests`) with an in-process fake obs-websocket server, covering connection lifecycle,
-  authentication, event dispatch, and request/response handling.
-- CI: cross-platform build & test matrix, CodeQL analysis, and a tag-triggered publish pipeline to nuget.org
-  (via Trusted Publishing) and GitHub Packages.
+- Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
+  `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
+  `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).
+- `canvasUuid` overloads for every request that identifies a scene or a source by name, so they can address a
+  non-main canvas (for example `GetSceneList(Guid canvasUuid)` and `CreateScene(string sceneName, Guid canvasUuid)`).
+- `InputCreatedEventArgs.InputKindCaps` (obs-websocket 5.6.0) and `SceneItemTransform.CropToBounds`.
+- Request batches can now address inputs, scenes, sources and scene items by UUID, like the individual requests
+  always could (about sixty new `Add…Request(Guid …)` overloads), and the batch builders that were missing altogether:
+  `AddGetInputDeinterlaceModeRequest`, `AddSetInputDeinterlaceModeRequest`, `AddGetInputDeinterlaceFieldOrderRequest`,
+  `AddSetInputDeinterlaceFieldOrderRequest`, `AddGetSceneItemSourceRequest`, `AddGetSourceFilterKindListRequest`,
+  `AddSplitRecordFileRequest` and `AddCreateRecordChapterRequest`. `AddTriggerHotkeyByNameRequest` accepts a context name.
+- `net10.0` as an additional target framework, next to `net8.0`.
+- **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
+  event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch
+  builder and compare what is sent on the wire, field by field, with a snapshot of obs-websocket's own protocol
+  definition (`OBSClient.Tests/Protocol`); they also check the events, the responses and the numeric values of the enums.
+- `tools/protocol/update-protocol-snapshot.py` to refresh that snapshot, and a scheduled workflow that opens an issue
+  as soon as obs-websocket publishes a new version, with the differences.
+- CI: a cross-platform build and test matrix, CodeQL analysis, and a tag-triggered publish pipeline to nuget.org
+  (Trusted Publishing) and GitHub Packages.
 
 ### Fixed
-- `ConnectionState` could get permanently stuck at `Connected` after the underlying connection was lost without a
-  clean WebSocket close handshake (e.g. OBS Studio closing abruptly, or a dropped network link). This also
-  prevented `AutoReconnect` from ever triggering. ([#17](https://github.com/tinodo/obsclient/issues/17),
-  related to the symptoms in [#15](https://github.com/tinodo/obsclient/issues/15))
-- An OBS Studio event type not yet known to this client version (for example a newly introduced event from a
-  future obs-websocket version) would throw during deserialization and could silently kill the receive loop.
-  Unrecognized event types now safely map to `EventType.Unknown` and are ignored. This is the same class of bug
-  previously reported in [#12](https://github.com/tinodo/obsclient/issues/12), for an event type that is missing
-  rather than misnamed.
-- `ConnectionClosed` did not fire after a deliberate `Disconnect()` call, because the event was (incorrectly)
-  raised on the already-cancelled receiver `CancellationToken`.
-- `Scene.SceneIndex` is now nullable (`int?`): scenes on a non-main canvas have no ordered index and OBS Studio
-  returns `null` for them, which previously could not be deserialized.
-- `Scene` now exposes `SceneUuid`, which OBS Studio has always returned but was not previously mapped.
+- Request fields that could not be sent, or were sent wrongly:
+  - `SetInputMute(Guid inputUuid, bool)` sent the UUID as `inputGuid`, which obs-websocket ignores, so it always failed.
+  - `GetInputDeinterlaceFieldOrder` was registered with the response type of `GetInputDeinterlaceMode` and always
+    threw an `InvalidCastException`.
+  - `CreateInput` and `OpenSourceProjector…` had no way to give a `canvasUuid`; `CreateRecordChapter` could not send a
+    chapter name.
+- `ConnectionState` could get permanently stuck at `Connected` after the connection was lost without a clean WebSocket
+  close (OBS Studio closing abruptly, a dropped network link), which also prevented `AutoReconnect` from ever
+  triggering ([#17](https://github.com/tinodo/obsclient/issues/17), related to
+  [#15](https://github.com/tinodo/obsclient/issues/15)).
+- The connection lifecycle was reworked so that each connection owns its own socket, pending requests and handshake:
+  - A response that arrived just after its request had timed out could throw inside the receive loop and take the
+    whole connection down. The default request timeout is only 500 ms, which makes that realistic.
+  - One message that cannot be read no longer closes the connection. A response that cannot be read fails only its own
+    request, with a descriptive exception (it used to be a timeout, at best); an event that cannot be read is skipped.
+  - Requests that are waiting for a response when the connection is lost now fail immediately with an
+    `ObsClientException` instead of waiting for their timeout.
+  - `ConnectAsync` returned never (it hung) when the connection was lost before OBS Studio had accepted the handshake; it
+    now returns `false`, and it gives up after 10 seconds when OBS Studio never completes the handshake.
+  - A handler of `PropertyChanged` that reconnects as soon as the state becomes `Disconnected` could have the new
+    connection disposed by the receive loop of the old one.
+  - Multi-byte characters (scene names, settings) that straddled the 4096-byte receive buffer were corrupted.
+  - Concurrent requests now take turns writing to the socket.
+  - Events of the client (`PropertyChanged`, the byte and message statistics, `ConnectionClosed`) no longer let an
+    exception of a handler disturb the connection, and `PropertyChanged` is no longer raised while the client holds a lock
+    (a handler that waited for a UI thread could deadlock it).
+- An event type that this client version does not know (for example one introduced by a newer obs-websocket version)
+  no longer throws during deserialization; it maps to `EventType.Unknown` and is ignored
+  ([#12](https://github.com/tinodo/obsclient/issues/12) was the same class of bug for an event type that was misnamed).
+- `ConnectionClosed` did not fire after a deliberate `Disconnect()`.
+- `GetSceneList()` keeps sending no request data; the canvas overload sends the `canvasUuid`.
 
-### Changed
-- `Scene`'s constructor gained a required `sceneUuid` parameter (see above). Code that deserializes `Scene` from
-  OBS Studio is unaffected; code that constructs `Scene` instances directly will need to pass a UUID.
+### Compatibility
+- The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
+  is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
+- The new `InputKindCaps` and `CropToBounds` are `init` properties, so no existing constructor changed.
+- The `Canvases` event subscription is part of `EventSubscriptions.All`. The behaviour of obs-websocket versions before
+  5.7.0 for an `Identify` message that carries a bit they do not know has not been verified; connect with an explicit
+  `EventSubscriptions` value when you target an older obs-websocket.
+- Event handlers run on the receive thread. A handler must not block waiting for a response of OBS Studio (for example
+  with `.Result`); it would keep the client from receiving that response.

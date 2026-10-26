@@ -68,6 +68,25 @@
         }
 
         [Fact]
+        public async Task UnreadableEvent_IsIgnored_AndTheConnectionStaysUsable()
+        {
+            // An event whose data cannot be read (here: the wrong JSON types) must be skipped, not close the connection.
+            await using var server = new FakeObsWebSocketServer();
+            var (client, _) = await ConnectAsync(server);
+            using var _1 = client;
+
+            await server.SendEventAsync("CurrentProgramSceneChanged", new { sceneName = 123, sceneUuid = "this is not a uuid" });
+
+            var requestTask = client.GetCanvasList();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { canvases = Array.Empty<object>() });
+
+            var canvases = await requestTask.WithTimeoutAsync(Timeout, "The connection stopped working after an unreadable event.");
+            Assert.Empty(canvases);
+            Assert.Equal(Enums.ConnectionState.Connected, client.ConnectionState);
+        }
+
+        [Fact]
         public async Task CanvasCreated_InvokesCanvasCreatedEventWithExpectedFields()
         {
             await using var server = new FakeObsWebSocketServer();

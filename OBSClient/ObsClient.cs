@@ -30,9 +30,13 @@
     {
         private readonly int _receiveBufferSize = 4096;
 
-        private readonly ConcurrentDictionary<string, TaskCompletionSource<IMessage>> _requests = new();
-
         private readonly int _reconnectInterval = 3000;
+
+        private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(2);
+
+        private static readonly TimeSpan _authenticationTimeout = TimeSpan.FromSeconds(10);
+
+        private static readonly TimeSpan _closeTimeout = TimeSpan.FromSeconds(1);
 
         private readonly Timer _reconnectTimer;
 
@@ -46,13 +50,11 @@
 
         private EventSubscriptions _eventSubscriptions = EventSubscriptions.All;
 
-        private CancellationTokenSource _receiver = new();
-
         private ConnectionState _connectionState = ConnectionState.Disconnected;
 
-        private ClientWebSocket _client = new();
-
-        private TaskCompletionSource<bool> _authenticationComplete = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        // The connection that is currently active (or being established). Every connection attempt gets its own
+        // session, so a receive loop that is still winding down can never touch the state of a newer connection.
+        private volatile ConnectionSession? _session;
 
         private bool _disposed = false;
 
@@ -85,8 +87,6 @@
         private readonly ConcurrentDictionary<string, DateTime> _eventThrottleMap = new();
 
         private readonly TimeSpan _highVolumeEventThrottleInterval = TimeSpan.FromMilliseconds(100);
-
-        private Task? _receiverTask;
 
         /// <summary>
         /// Gets or sets the maximum amount of time, in milliseconds, the <see cref="ObsClient"/> to wait for an OBS Studio response after making a request.
@@ -129,12 +129,27 @@
             }
             private set
             {
+                bool changed;
                 lock (_syncRoot)
                 {
-                    if (this._connectionState != value)
+                    changed = this._connectionState != value;
+                    if (changed)
                     {
                         this._connectionState = value;
+                    }
+                }
+
+                // Raised outside the lock: a handler that blocks (for example by marshalling to a UI thread that is
+                // itself waiting to read ConnectionState) must not be able to deadlock the client.
+                if (changed)
+                {
+                    try
+                    {
                         this.OnPropertyChanged();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Exception in a PropertyChanged handler for {Property}", nameof(ConnectionState));
                     }
                 }
             }
@@ -450,12 +465,7 @@
             this._password = password;
             this._eventSubscriptions = eventSubscription;
 
-            // Dispose previous token before creating a new one
-            this._receiver?.Dispose();
-            this._receiver = new CancellationTokenSource();
-            this._authenticationComplete = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            _logger.LogInformation("Connected to {Hostname}:{Port}", hostname, port);
+            _logger.LogInformation("Connecting to {Hostname}:{Port}", hostname, port);
 
             return await this.StartAsync().ConfigureAwait(false);
         }
@@ -467,7 +477,7 @@
         {
             _logger.LogInformation("Disconnecting from OBS Studio");
             this.AutoReconnect = false;
-            this._receiver.Cancel();
+            this._session?.Cancellation.Cancel();
         }
 
         /// <summary>
@@ -506,7 +516,7 @@
             this._eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
-            await this.SendAsync(message).ConfigureAwait(false);
+            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -527,75 +537,96 @@
         {
             lock (_syncRoot)
             {
-                if (!_disposed)
+                if (_disposed)
                 {
-                    this._reconnectTimer.Dispose();
-
-                    if (disposing)
-                    {
-                        this.Disconnect();
-                        if (_client.State != WebSocketState.None)
-                        {
-                            _client.Dispose();
-                            _client = new ClientWebSocket();
-                        }
-                        this._receiver?.Dispose();
-                        this._receiver = new CancellationTokenSource();
-                    }
-
-                    this._requests.Clear();
-                    this._eventsMap.Clear();
-                    _disposed = true;
+                    return;
                 }
+
+                _disposed = true;
             }
+
+            if (disposing)
+            {
+                // Stops AutoReconnect and ends the active session. The session's receive loop owns the socket and
+                // disposes it, and fails any request that is still waiting for a response.
+                this.Disconnect();
+            }
+
+            this._reconnectTimer.Dispose();
+            this._eventsMap.Clear();
         }
 
         private async Task<bool> StartAsync()
         {
+            var session = new ConnectionSession();
+            this._session = session;
             this.ConnectionState = ConnectionState.Connecting;
-            // Ensure _client is fresh before connecting
-            if (_client.State != WebSocketState.None)
-            {
-                _client.Dispose();
-                _client = new ClientWebSocket();
-            }
-            TaskCompletionSource<IMessage> tcs = new();
-            using CancellationTokenSource cts = new(2000);
-            using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
+
             try
             {
-                await this._client.ConnectAsync(this._uri, cts.Token).ConfigureAwait(false);
+                using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(session.Cancellation.Token);
+                connectCts.CancelAfter(_connectTimeout);
+                await session.Socket.ConnectAsync(this._uri, connectCts.Token).ConfigureAwait(false);
             }
-            catch (WebSocketException)
+            catch (Exception ex)
             {
-                // Could not connect.
-            }
-            catch (TaskCanceledException)
-            {
-                // Connection timed out.
-            }
-            finally
-            {
-                _ = ctr.Unregister();
+                // Could not connect, the attempt timed out, or Disconnect() was called while connecting.
+                _logger.LogDebug(ex, "Could not connect to OBS Studio at {Uri}", this._uri);
             }
 
-            if (this._client?.State == WebSocketState.Open)
+            if (session.Socket.State == WebSocketState.Open)
             {    
-                // Ensure previous receiver is completed
-                if (_receiverTask != null && !_receiverTask.IsCompleted)
-                {
-                    try { await _receiverTask; } catch { /* ignore exceptions */ }
-                }
-
-                _receiverTask = Task.Run(() => this.ReceiverAsync(this._receiver.Token));
-                return await this._authenticationComplete.Task.ConfigureAwait(false);
+                _ = Task.Run(() => this.ReceiverAsync(session));
+                return await this.WaitForAuthenticationAsync(session).ConfigureAwait(false);
             }
             else
             {
-                this.ConnectionState = ConnectionState.Disconnected;
-                this._client?.Dispose();
+                AbandonPendingWork(session);
+                this.SetConnectionState(session, ConnectionState.Disconnected);
+                session.Dispose();
                 return false;
             }
+        }
+
+        private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
+        {
+            try
+            {
+                return await session.Authenticated.Task.WaitAsync(_authenticationTimeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // Something accepted the connection but never completed the obs-websocket handshake.
+                _logger.LogWarning("OBS Studio did not complete the authentication handshake within {Timeout}; closing the connection.", _authenticationTimeout);
+                session.Cancellation.Cancel();
+                return await session.Authenticated.Task.ConfigureAwait(false);
+            }
+        }
+
+        private void SetConnectionState(ConnectionSession session, ConnectionState state)
+        {
+            // Only the active session may report the connection state: a session that has already been replaced by
+            // a newer connection attempt must not overwrite the state of that newer connection.
+            if (ReferenceEquals(this._session, session))
+            {
+                this.ConnectionState = state;
+            }
+        }
+
+        // Fails everything that is still waiting on the session. Safe to call more than once.
+        private static void AbandonPendingWork(ConnectionSession session)
+        {
+            if (Interlocked.Exchange(ref session.Closed, 1) != 0)
+            {
+                return;
+            }
+
+            foreach (var pending in session.Requests)
+            {
+                pending.Value.TrySetException(new ObsClientException("The connection to OBS Studio was closed before a response was received."));
+            }
+
+            session.Authenticated.TrySetResult(false);
         }
 
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -603,11 +634,11 @@
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private async Task ProcessHelloMessageAsync(ObsMessage responseMessage)
+        private async Task ProcessHelloMessageAsync(ConnectionSession session, ObsMessage responseMessage)
         {
             if (responseMessage.Data is HelloMessage helloResponseData)
             {
-                this.ConnectionState = ConnectionState.Authenticating;
+                this.SetConnectionState(session, ConnectionState.Authenticating);
                 string? authentication = null;
                 if (helloResponseData.Authentication != null)
                 {
@@ -617,7 +648,7 @@
 
                 IdentifyMessage identify = new(helloResponseData.RpcVersion, authentication, this._eventSubscriptions);
                 ObsMessage message = new(identify);
-                await this.SendAsync(message).ConfigureAwait(false);
+                await this.SendAsync(session, message).ConfigureAwait(false);
             }
             else
             {
@@ -625,7 +656,7 @@
             }
         }
 
-        private void ProcessIdentifiedMessage(ObsMessage responseMessage)
+        private void ProcessIdentifiedMessage(ConnectionSession session, ObsMessage responseMessage)
         {
             // We have succesfully authenticated - OR - we did a Reidentify.
             if (responseMessage.Data is not IdentifiedMessage)
@@ -633,25 +664,36 @@
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
             }
 
-            // Set ConnectionState before completing _authenticationComplete: awaiters of that task (e.g. a
+            // Set ConnectionState before completing the authentication task: awaiters of that task (e.g. a
             // caller's `await ConnectAsync(...)`) could otherwise observe the still-stale previous state if
-            // their continuation runs synchronously on this thread as part of SetResult().
-            this.ConnectionState = ConnectionState.Connected;
-            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
+            // their continuation runs synchronously on this thread as part of TrySetResult().
+            this.SetConnectionState(session, ConnectionState.Connected);
+            session.Authenticated.TrySetResult(true);
         }
 
-        private void ProcessRequestResponseMessage(ObsMessage responseMessage)
+        private void ProcessRequestResponseMessage(ConnectionSession session, ObsMessage responseMessage)
         {
             if (responseMessage.Data is RequestResponseMessage requestResponseData)
             {
-                if (this._requests.TryGetValue(requestResponseData.RequestId, out var tcs))
-                {
-                    tcs.SetResult(requestResponseData);
-                }
+                this.CompleteRequest(session, requestResponseData.RequestId, requestResponseData);
             }
             else
             {
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
+            }
+        }
+
+        private void CompleteRequest(ConnectionSession session, string requestId, IMessage response)
+        {
+            // TryRemove + TrySetResult, never SetResult: the waiter may have timed out (and cancelled its
+            // task) an instant before this response arrived, and that must not be able to throw here.
+            if (session.Requests.TryRemove(requestId, out var tcs))
+            {
+                tcs.TrySetResult(response);
+            }
+            else
+            {
+                _logger.LogDebug("Received a response for request {RequestId}, which is no longer waiting for one (it timed out or was cancelled).", requestId);
             }
         }
 
@@ -709,14 +751,11 @@
             }
         }
 
-        private void ProcessRequestBatchResponseMessage(ObsMessage responseMessage)
+        private void ProcessRequestBatchResponseMessage(ConnectionSession session, ObsMessage responseMessage)
         {
             if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
             {
-                if (this._requests.TryGetValue(requestBatchResponseData.RequestId, out var tcs))
-                {
-                    tcs.SetResult(requestBatchResponseData);
-                }
+                this.CompleteRequest(session, requestBatchResponseData.RequestId, requestBatchResponseData);
             }
             else
             {
@@ -724,7 +763,7 @@
             }
         }
 
-        private async Task ProcessReceivedMessageAsync(StringBuilder responseBuilder)
+        private async Task ProcessReceivedMessageAsync(ConnectionSession session, StringBuilder responseBuilder)
         {
             if (responseBuilder.Length == 0)
             {
@@ -734,27 +773,48 @@
             var response = responseBuilder.ToString();
             _logger.LogDebug("Received: {Response}", response);
             Debug.WriteLine($"Received: {response}");
-            if (JsonSerializer.Deserialize<ObsMessage>(response) is not ObsMessage message)
+
+            ObsMessage? message;
+            try
             {
-                throw new ObsClientException($"Could not read message from OBS Studio.");
+                message = JsonSerializer.Deserialize<ObsMessage>(response);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                this.HandleUnreadableMessage(session, response, ex);
+                return;
+            }
+
+            if (message is null)
+            {
+                this.HandleUnreadableMessage(session, response, new ObsClientException("Could not read message from OBS Studio."));
+                return;
             }
 
             switch (message.Op)
             {
                 case OpCode.Hello:
-                    await this.ProcessHelloMessageAsync(message).ConfigureAwait(false);
+                    await this.ProcessHelloMessageAsync(session, message).ConfigureAwait(false);
                     break;
                 case OpCode.Identified:
-                    this.ProcessIdentifiedMessage(message);
+                    this.ProcessIdentifiedMessage(session, message);
                     break;
                 case OpCode.RequestResponse:
-                    this.ProcessRequestResponseMessage(message);
+                    this.ProcessRequestResponseMessage(session, message);
                     break;
                 case OpCode.Event:
-                    this.ProcessEventMessage(message);
+                    try
+                    {
+                        this.ProcessEventMessage(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to process an event from OBS Studio; the event is ignored.");
+                    }
+
                     break;
                 case OpCode.RequestBatchResponse:
-                    this.ProcessRequestBatchResponseMessage(message);
+                    this.ProcessRequestBatchResponseMessage(session, message);
                     break;
                 case OpCode.Identify:
                 case OpCode.Reidentify:
@@ -767,13 +827,66 @@
             }
         }
 
-        private async Task SendAsync(dynamic request)
+        // A message that cannot be read must not take the whole connection down with it: it only ever affects the
+        // request it is the response to (which then fails immediately with a descriptive exception instead of
+        // timing out), or it is an event that is skipped. Only a broken handshake is fatal.
+        private void HandleUnreadableMessage(ConnectionSession session, string response, Exception exception)
         {
-            // Snapshot the client reference: the receiver loop can dispose and replace _client concurrently
-            // when a connection fails, and re-reading the field between the state check and the send below
-            // could otherwise observe two different WebSocket instances.
-            var client = this._client;
-            if (client.State != WebSocketState.Open)
+            var hasEnvelope = TryReadEnvelope(response, out OpCode op, out string? requestId);
+
+            if (hasEnvelope && (op == OpCode.Hello || op == OpCode.Identified))
+            {
+                throw new ObsClientException("OBS Studio sent a handshake message that could not be read.", exception);
+            }
+
+            var preview = response.Length > 512 ? string.Concat(response.AsSpan(0, 512), "...") : response;
+            if (hasEnvelope && (op == OpCode.RequestResponse || op == OpCode.RequestBatchResponse) && requestId is not null)
+            {
+                _logger.LogError(exception, "The response to request {RequestId} could not be read: {Message}", requestId, preview);
+                if (session.Requests.TryRemove(requestId, out var tcs))
+                {
+                    tcs.TrySetException(new ObsClientException($"The response to request {requestId} could not be read.", exception));
+                }
+
+                return;
+            }
+
+            _logger.LogError(exception, "A message from OBS Studio could not be read and is ignored: {Message}", preview);
+        }
+
+        private static bool TryReadEnvelope(string json, out OpCode op, out string? requestId)
+        {
+            op = default;
+            requestId = null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("op", out var opElement) || !opElement.TryGetInt32(out var opValue))
+                {
+                    return false;
+                }
+
+                op = (OpCode)opValue;
+                if (root.TryGetProperty("d", out var data) && data.ValueKind == JsonValueKind.Object
+                    && data.TryGetProperty("requestId", out var requestIdElement) && requestIdElement.ValueKind == JsonValueKind.String)
+                {
+                    requestId = requestIdElement.GetString();
+                }
+
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        private async Task SendAsync(ConnectionSession session, dynamic request)
+        {
+            var socket = session.Socket;
+            if (socket.State != WebSocketState.Open)
             {
                 throw new ObsClientException("Not connected.");
             }
@@ -781,29 +894,65 @@
             Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
+            var lockTaken = false;
             try
             {
-                await client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token).ConfigureAwait(false);
+                // A WebSocket message must be written in one piece, so concurrent callers take turns.
+                await session.SendLock.WaitAsync(session.Cancellation.Token).ConfigureAwait(false);
+                lockTaken = true;
+                await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is ObjectDisposedException or WebSocketException)
+            catch (Exception ex) when (ex is ObjectDisposedException or WebSocketException or OperationCanceledException)
             {
                 throw new ObsClientException("Not connected.", ex);
             }
+            finally
+            {
+                if (lockTaken)
+                {
+                    session.SendLock.Release();
+                }
+            }
+
             Interlocked.Add(ref this._totalBytesSent, bytes.LongLength);
             Interlocked.Increment(ref this._totalMessagesSent);
             Interlocked.Add(ref this._sessionBytesSent, bytes.LongLength);
             Interlocked.Increment(ref this._sessionMessagesSent);
 
-            TotalBytesSentChanged?.Invoke(this, this._totalBytesSent);
-            TotalMessagesSentChanged?.Invoke(this, this._totalMessagesSent);
-            SessionBytesSentChanged?.Invoke(this, this._sessionBytesSent);
-            SessionMessagesSentChanged?.Invoke(this, this._sessionMessagesSent);
+            this.RaiseSafely(TotalBytesSentChanged, this._totalBytesSent);
+            this.RaiseSafely(TotalMessagesSentChanged, this._totalMessagesSent);
+            this.RaiseSafely(SessionBytesSentChanged, this._sessionBytesSent);
+            this.RaiseSafely(SessionMessagesSentChanged, this._sessionMessagesSent);
         }
 
-        private async Task ReceiverAsync(CancellationToken ct)
+        // These statistics events are raised on whichever thread sends or receives; a handler that throws must
+        // never be able to disturb the connection.
+        private void RaiseSafely<T>(EventHandler<T>? handler, T value)
         {
+            if (handler is null)
+            {
+                return;
+            }
+
+            try
+            {
+                handler(this, value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in a statistics event handler");
+            }
+        }
+
+        private async Task ReceiverAsync(ConnectionSession session)
+        {
+            var ct = session.Cancellation.Token;
             var bufferPool = ArrayPool<byte>.Shared;
             byte[] receiveBuffer = bufferPool.Rent(_receiveBufferSize);
+
+            // Decoding UTF-8 never yields more chars than bytes; the headroom covers the (at most 3) bytes of a
+            // multi-byte character that the stateful decoder carries over from the previous chunk.
+            var charBuffer = new char[_receiveBufferSize + 16];
 
             try
             {
@@ -819,12 +968,12 @@
                         StringBuilder responseBuilder = StringBuilderCache.Acquire();
                         try
                         {
-                            bool receiveFailed = await ReceiveWebSocketMessageAsync(receiveBuffer, responseBuilder, ct).ConfigureAwait(false);
+                            bool receiveFailed = await ReceiveWebSocketMessageAsync(session, receiveBuffer, charBuffer, responseBuilder, ct).ConfigureAwait(false);
 
-                            if (receiveFailed || ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted)
+                            if (receiveFailed || ct.IsCancellationRequested || session.Socket.State == WebSocketState.CloseReceived || session.Socket.State == WebSocketState.Aborted)
                                 break;
 
-                            await this.ProcessReceivedMessageAsync(responseBuilder).ConfigureAwait(false);
+                            await this.ProcessReceivedMessageAsync(session, responseBuilder).ConfigureAwait(false);
                         }
                         finally
                         {
@@ -838,25 +987,26 @@
                 }
                 catch (Exception ex)
                 {
-                    // Any unexpected failure (an OBS protocol message this client version doesn't yet recognize,
-                    // a transport-level error, etc.) must never leave the receiver silently dead while
-                    // ConnectionState is still reporting Connected. See https://github.com/tinodo/obsclient/issues/17.
+                    // Only a transport failure or a broken handshake gets here: a single unreadable message is
+                    // handled in ProcessReceivedMessageAsync. Either way the receiver must never be left silently dead
+                    // while ConnectionState is still reporting Connected. See https://github.com/tinodo/obsclient/issues/17.
                     _logger.LogError(ex, "Unhandled exception in the receiver loop; closing the connection");
                 }
 
-                // Guaranteed to run exactly once whenever the loop above stops, for any reason, so
-                // ConnectionState always reaches Disconnected and ConnectionClosed always fires.
-                await this.CloseConnectionAsync(ct).ConfigureAwait(false);
+                // Guaranteed to run whenever the loop above stops, for any reason, so ConnectionState always
+                // reaches Disconnected and ConnectionClosed always fires.
+                await this.CloseConnectionAsync(session).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected exception while closing the connection");
             }
             finally
             {
-                if (_client.State != WebSocketState.None)
-                {
-                    _client.Dispose();
-                    _client = new ClientWebSocket();
-                }
-
+                // Nothing may be left waiting on a connection that no longer exists, whatever happened above.
+                AbandonPendingWork(session);
                 bufferPool.Return(receiveBuffer);
+                session.Dispose();
 
                 _logger.LogDebug("Receiver ended");
             }
@@ -866,8 +1016,11 @@
         /// Receives a single, possibly multi-frame, WebSocket message into <paramref name="responseBuilder"/>.
         /// </summary>
         /// <returns><see langword="true"/> if the receive failed and the connection should be considered lost; otherwise <see langword="false"/>.</returns>
-        private async Task<bool> ReceiveWebSocketMessageAsync(byte[] receiveBuffer, StringBuilder responseBuilder, CancellationToken ct)
+        private async Task<bool> ReceiveWebSocketMessageAsync(ConnectionSession session, byte[] receiveBuffer, char[] charBuffer, StringBuilder responseBuilder, CancellationToken ct)
         {
+            // A UTF-8 encoded character can straddle two receive buffers (or two WebSocket frames), so the bytes
+            // have to be decoded statefully rather than one chunk at a time.
+            var decoder = Encoding.UTF8.GetDecoder();
             WebSocketReceiveResult received;
             do
             {
@@ -878,7 +1031,7 @@
 
                 try
                 {
-                    received = await this._client.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, 0, _receiveBufferSize), ct).ConfigureAwait(false);
+                    received = await session.Socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, 0, _receiveBufferSize), ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException e)
                 {
@@ -892,34 +1045,43 @@
                 }
                 catch (ObjectDisposedException e)
                 {
-                    // The underlying socket was disposed concurrently, e.g. by Dispose().
+                    // The underlying socket was disposed concurrently.
                     _logger.LogError(e, "Handled Exception in ReceiverAsync");
                     return true;
                 }
 
-                Interlocked.Add(ref this._totalBytesReceived, received.Count);
-                Interlocked.Increment(ref this._totalMessagesReceived);
-                Interlocked.Add(ref this._sessionBytesReceived, received.Count);
-                Interlocked.Increment(ref this._sessionMessagesReceived);
-                responseBuilder.Append(Encoding.UTF8.GetString(receiveBuffer, 0, received.Count));
+                if (received.MessageType == WebSocketMessageType.Close)
+                {
+                    // The caller notices the CloseReceived state and ends the receive loop.
+                    return false;
+                }
 
-                TotalBytesReceivedChanged?.Invoke(this, this._totalBytesReceived);
-                TotalMessagesReceivedChanged?.Invoke(this, this._totalMessagesReceived);
-                SessionBytesReceivedChanged?.Invoke(this, this._sessionBytesReceived);
-                SessionMessagesReceivedChanged?.Invoke(this, this._sessionMessagesReceived);
+                Interlocked.Add(ref this._totalBytesReceived, received.Count);
+                Interlocked.Add(ref this._sessionBytesReceived, received.Count);
+                var charCount = decoder.GetChars(receiveBuffer, 0, received.Count, charBuffer, 0, received.EndOfMessage);
+                responseBuilder.Append(charBuffer, 0, charCount);
+
+                this.RaiseSafely(TotalBytesReceivedChanged, this._totalBytesReceived);
+                this.RaiseSafely(SessionBytesReceivedChanged, this._sessionBytesReceived);
             } while (!received.EndOfMessage);
+
+            Interlocked.Increment(ref this._totalMessagesReceived);
+            Interlocked.Increment(ref this._sessionMessagesReceived);
+            this.RaiseSafely(TotalMessagesReceivedChanged, this._totalMessagesReceived);
+            this.RaiseSafely(SessionMessagesReceivedChanged, this._sessionMessagesReceived);
 
             return false;
         }
 
-        private async Task CloseConnectionAsync(CancellationToken ct)
+        private async Task CloseConnectionAsync(ConnectionSession session)
         {
+            var socket = session.Socket;
             WebSocketCloseCode closeCode = WebSocketCloseCode.UnknownReason;
             string closeDescription = "Connection lost";
 
             try
             {
-                if (ct.IsCancellationRequested)
+                if (session.Cancellation.IsCancellationRequested)
                 {
                     // Closed the connection because you called Disconnect().
                     closeCode = WebSocketCloseCode.NormalClosure;
@@ -928,14 +1090,18 @@
                 else
                 {
                     // Closed the connection because OBS Studio closed it or the network connection was interrupted.
-                    closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
-                    closeDescription = this._client.CloseStatusDescription ?? "Connection lost";
+                    closeCode = socket.CloseStatus.HasValue ? (WebSocketCloseCode)(int)socket.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
+                    closeDescription = socket.CloseStatusDescription ?? "Connection lost";
                 }
 
-                if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
+                if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
                 {
-                    this.ConnectionState = ConnectionState.Disconnecting;
-                    await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
+                    this.SetConnectionState(session, ConnectionState.Disconnecting);
+
+                    // Not the session's own token: when this runs because of Disconnect() that token is already
+                    // cancelled, which would make the close handshake fail before it even starts.
+                    using var closeTimeout = new CancellationTokenSource(_closeTimeout);
+                    await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, closeTimeout.Token).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -945,55 +1111,76 @@
                 _logger.LogDebug(ex, "Ignoring exception while closing an already-failed connection.");
             }
 
-            this.ConnectionState = ConnectionState.Disconnected;
-            // Intentionally not passing ct: it is frequently already cancelled here (the normal Disconnect()
-            // path), and Task.Run with an already-cancelled token would skip invoking the delegate entirely,
-            // silently suppressing the ConnectionClosed event on every deliberate disconnect.
-            _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)));
-            Interlocked.Exchange(ref this._sessionBytesReceived, 0);
-            Interlocked.Exchange(ref this._sessionBytesSent, 0);
-            Interlocked.Exchange(ref this._sessionMessagesReceived, 0);
-            Interlocked.Exchange(ref this._sessionMessagesSent, 0);
-            if (closeCode == WebSocketCloseCode.AuthenticationFailed && this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion)
+            // Everything still waiting on this connection (requests, a pending ConnectAsync) learns right away
+            // that it is gone, instead of having to wait for a timeout.
+            AbandonPendingWork(session);
+
+            if (ReferenceEquals(this._session, session))
             {
-                this._authenticationComplete.SetResult(false);
+                // The statistics are reset before the disconnect is reported, so a handler that reconnects
+                // immediately cannot have the counters of its new session wiped.
+                Interlocked.Exchange(ref this._sessionBytesReceived, 0);
+                Interlocked.Exchange(ref this._sessionBytesSent, 0);
+                Interlocked.Exchange(ref this._sessionMessagesReceived, 0);
+                Interlocked.Exchange(ref this._sessionMessagesSent, 0);
+                this.ConnectionState = ConnectionState.Disconnected;
             }
+
+            // Intentionally not passing a cancellation token to Task.Run: the session's is frequently already
+            // cancelled here (the normal Disconnect() path), and Task.Run with an already-cancelled token would skip
+            // invoking the delegate entirely, silently suppressing the ConnectionClosed event on every deliberate disconnect.
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception in a ConnectionClosed handler");
+                }
+            });
         }
 
         private async Task<IMessage> SendAndWaitAsync(dynamic request, int? timeout = null)
         {
-            if (this._connectionState != ConnectionState.Connected)
+            var session = this._session;
+            if (session is null || this._connectionState != ConnectionState.Connected)
             {
                 throw new ObsClientException("Not connected.");
             }
 
             string requestId = request.d.requestId;
-            // RunContinuationsAsynchronously avoids running this awaiter's continuation synchronously on the
-            // receiver loop's thread when ProcessRequestResponseMessage calls tcs.SetResult(...), which would
-            // otherwise delay the receiver from moving on to the next incoming message.
+            // RunContinuationsAsynchronously keeps this awaiter's continuation off the receiver loop's thread when
+            // CompleteRequest completes the task, which would otherwise delay the receiver from reading the next message.
             TaskCompletionSource<IMessage> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             using CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
             using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
-            if (this._requests.TryAdd(requestId, tcs))
-            {
-                try
-                {
-                    await SendAsync(request).ConfigureAwait(false);
-                    return await tcs.Task.ConfigureAwait(false);
-                }
-                catch (TaskCanceledException)
-                {
-                    throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
-                }
-                finally
-                {
-                    _ = ctr.Unregister();
-                    _ = this._requests.TryRemove(requestId, out _);
-                }
-            }
-            else
+            if (!session.Requests.TryAdd(requestId, tcs))
             {
                 throw new ObsClientException($"Could not add request {requestId} to the request queue.");
+            }
+
+            try
+            {
+                // The connection can end between the state check and registering the request. The pending requests
+                // were failed by then, so this one would otherwise have to sit out its full timeout.
+                if (Volatile.Read(ref session.Closed) != 0)
+                {
+                    throw new ObsClientException("Not connected.");
+                }
+
+                await this.SendAsync(session, request).ConfigureAwait(false);
+                return await tcs.Task.ConfigureAwait(false);
+            }
+            catch (TaskCanceledException)
+            {
+                throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
+            }
+            finally
+            {
+                _ = ctr.Unregister();
+                _ = session.Requests.TryRemove(requestId, out _);
             }
         }
 
@@ -1077,6 +1264,41 @@
                 || eventType == EventType.InputActiveStateChanged
                 || eventType == EventType.InputShowStateChanged
                 || eventType == EventType.SceneItemTransformChanged;
+        }
+
+        /// <summary>
+        /// Everything that belongs to one physical connection to OBS Studio. A new instance is created for every
+        /// connection attempt, so the receive loop of a connection that is winding down can never dispose, complete
+        /// or otherwise disturb the socket, pending requests or handshake of a newer connection.
+        /// </summary>
+        private sealed class ConnectionSession : IDisposable
+        {
+            /// <summary>Gets the socket for this connection. It is disposed together with the session.</summary>
+            public ClientWebSocket Socket { get; } = new();
+
+            /// <summary>
+            /// Gets the source that is cancelled to end this connection (<see cref="ObsClient.Disconnect"/>).
+            /// Intentionally never disposed: it owns no timers or linked registrations, and a Disconnect() call can
+            /// race with the end of the session.
+            /// </summary>
+            public CancellationTokenSource Cancellation { get; } = new();
+
+            /// <summary>Gets the task that completes when the handshake succeeded (true) or the connection ended first (false).</summary>
+            public TaskCompletionSource<bool> Authenticated { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Gets the requests that are waiting for a response on this connection.</summary>
+            public ConcurrentDictionary<string, TaskCompletionSource<IMessage>> Requests { get; } = new();
+
+            /// <summary>Gets the lock that makes concurrent senders take turns writing messages.</summary>
+            public SemaphoreSlim SendLock { get; } = new(1, 1);
+
+            /// <summary>1 once the connection has ended and everything that was waiting on it has been failed.</summary>
+            public int Closed;
+
+            public void Dispose()
+            {
+                this.Socket.Dispose();
+            }
         }
     }
 }

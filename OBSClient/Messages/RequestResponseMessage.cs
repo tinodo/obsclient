@@ -104,7 +104,7 @@
             {RequestType.SetInputAudioTracks, typeof(EmptyResponse) },
             {RequestType.GetInputDeinterlaceMode, typeof(InputDeinterlaceModeResponse) },
             {RequestType.SetInputDeinterlaceMode, typeof(EmptyResponse) },
-            {RequestType.GetInputDeinterlaceFieldOrder, typeof(InputDeinterlaceModeResponse) },
+            {RequestType.GetInputDeinterlaceFieldOrder, typeof(InputDeinterlaceFieldOrderResponse) },
             {RequestType.SetInputDeinterlaceFieldOrder, typeof(EmptyResponse) },
             {RequestType.GetInputPropertiesListPropertyItems, typeof(PropertyItemsResponse) },
             {RequestType.PressInputPropertiesButton, typeof(EmptyResponse) },

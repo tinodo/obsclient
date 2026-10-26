@@ -123,5 +123,64 @@
 
             client.Disconnect();
         }
+
+        [Fact]
+        public async Task ConnectionLostDuringTheHandshake_ConnectAsyncReturnsFalse_InsteadOfHanging()
+        {
+            // Nothing completed the authentication task when the connection ended before OBS Studio said
+            // Identified (other than a rejected password), so ConnectAsync could wait forever.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+
+            var connectTask = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
+            await server.WaitForConnectionAsync(Timeout);
+            await server.SendRawAsync("{\"op\":0,\"d\":{\"obsStudioVersion\":\"30.2.2\",\"obsWebSocketVersion\":\"5.7.6\",\"rpcVersion\":1}}");
+            await server.ReceiveJsonAsync(Timeout); // the client's Identify message
+            server.AbortConnection();
+
+            var connected = await connectTask.WithTimeoutAsync(Timeout, "ConnectAsync never completed after the connection was lost during the handshake.");
+
+            Assert.False(connected);
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Disconnected, Timeout));
+        }
+
+        [Fact]
+        public async Task ReconnectFromAConnectionStateHandler_DoesNotDisturbTheNewConnection()
+        {
+            // A handler that reconnects as soon as ConnectionState becomes Disconnected runs on the receive loop of
+            // the connection that just ended; that loop must not tear down the connection the handler just started.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient { RequestTimeout = 5000 };
+
+            Task<bool>? secondConnect = null;
+            client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.ConnectionState) && client.ConnectionState == ConnectionState.Disconnected && secondConnect is null)
+                {
+                    secondConnect = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
+                }
+            };
+
+            var firstConnect = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            await firstConnect.WithTimeoutAsync(Timeout);
+
+            server.AbortConnection();
+            await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "The client did not reconnect.");
+
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => secondConnect is not null, Timeout));
+            Assert.True(await secondConnect!.WithTimeoutAsync(Timeout));
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // The new connection is usable, so nothing of it was disposed by the old one.
+            var request = client.GetStudioModeEnabled();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { studioModeEnabled = true });
+            Assert.True(await request.WithTimeoutAsync(Timeout));
+
+            client.Disconnect();
+        }
     }
 }

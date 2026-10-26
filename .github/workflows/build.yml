@@ -52,9 +52,13 @@ jobs:
         run: >
           dotnet test OBSClient.Tests/OBSClient.Tests.csproj
           --no-build --configuration Release
-          --logger "trx;LogFileName=test-results.trx"
+          --logger "trx;LogFilePrefix=test-results"
           --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
+
+      - name: Check the protocol snapshot tooling compiles
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 -m py_compile tools/protocol/update-protocol-snapshot.py
 
       - name: Upload test results
         if: always()

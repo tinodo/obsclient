@@ -65,6 +65,16 @@
         }
 
         /// <summary>
+        /// Adds a request to trigger a hotkey using its name. See GetHotkeyList
+        /// </summary>
+        /// <param name="hotkeyName">Name of the hotkey to trigger</param>
+        /// <param name="contextName">Name of context of the hotkey to trigger</param>
+        public void AddTriggerHotkeyByNameRequest(string hotkeyName, string? contextName)
+        {
+            this._requests.Add(new(new { hotkeyName, contextName }));
+        }
+
+        /// <summary>
         /// Adds a request to trigger a hotkey using a sequence of keys.
         /// </summary>
         /// <param name="keyId">The OBS key ID to use. See https://github.com/obsproject/obs-studio/blob/master/libobs/obs-hotkeys.h</param>

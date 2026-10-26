@@ -84,13 +84,13 @@
         /// <summary>
         /// Adds a new chapter marker to the file currently being recorded.
         /// </summary>
-        /// <returns>The name of the new chapter.</returns>
+        /// <param name="chapterName">Name of the new chapter. When omitted, OBS Studio generates a default name.</param>
         /// <remarks>
         /// As of OBS 30.2.0, the only file format supporting this feature is Hybrid MP4.
         /// </remarks>
-        public async Task<string?> CreateRecordChapter()
+        public async Task CreateRecordChapter(string? chapterName = null)
         {
-            return (await this.SendRequestAsync<CreateRecordChapterResponse>()).ChapterName;
+            await this.SendRequestAsync(new { chapterName });
         }
     }
 }
