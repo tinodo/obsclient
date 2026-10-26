@@ -101,8 +101,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
 - The new `InputKindCaps` and `CropToBounds` are `init` properties, so no existing constructor changed.
-- The `Canvases` event subscription is part of `EventSubscriptions.All`. The behaviour of obs-websocket versions before
-  5.7.0 for an `Identify` message that carries a bit they do not know has not been verified; connect with an explicit
-  `EventSubscriptions` value when you target an older obs-websocket.
+- The `Canvases` event subscription is part of `EventSubscriptions.All`. Older obs-websocket versions only require the
+  value to be an unsigned number and ignore the bits they do not know (checked in the source of 5.5.2), so that is harmless there.
 - Event handlers run on the receive thread. A handler must not block waiting for a response of OBS Studio (for example
   with `.Result`); it would keep the client from receiving that response.
