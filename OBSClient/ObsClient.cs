@@ -143,14 +143,7 @@
                 // itself waiting to read ConnectionState) must not be able to deadlock the client.
                 if (changed)
                 {
-                    try
-                    {
-                        this.OnPropertyChanged();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Exception in a PropertyChanged handler for {Property}", nameof(ConnectionState));
-                    }
+                    this.RaisePropertyChangedSafely();
                 }
             }
         }
@@ -190,8 +183,11 @@
                     }
 
                     this._autoReconnect = value;
-                    this.OnPropertyChanged();
                 }
+
+                // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
+                // property, so a handler must not be able to deadlock the client or break those calls.
+                this.RaisePropertyChangedSafely();
             }
         }
 
@@ -633,6 +629,20 @@
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // For the notifications that the client raises from its own flow (the receive loop, Disconnect, ConnectAsync):
+        // an exception of a handler is logged, so it cannot break that flow.
+        private void RaisePropertyChangedSafely([CallerMemberName] string? propertyName = null)
+        {
+            try
+            {
+                this.OnPropertyChanged(propertyName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in a PropertyChanged handler for {Property}", propertyName);
+            }
         }
 
         private async Task ProcessHelloMessageAsync(ConnectionSession session, ObsMessage responseMessage)

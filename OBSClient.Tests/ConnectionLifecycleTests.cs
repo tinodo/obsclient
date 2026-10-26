@@ -206,5 +206,37 @@
 
             client.Disconnect();
         }
+
+        [Fact]
+        public async Task AutoReconnect_PropertyChangedHandlerThatWaitsForAnotherThread_DoesNotDeadlock()
+        {
+            // A handler that hands work to another thread, which reads the client (as a UI handler does), deadlocked
+            // while the notification was raised from inside the client's lock.
+            using var client = new ObsClient();
+            client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.AutoReconnect))
+                {
+                    Task.Run(() => client.AutoReconnect).Wait();
+                }
+            };
+
+            await Task.Run(() => client.AutoReconnect = false).WithTimeoutAsync(Timeout, "Setting AutoReconnect deadlocked in its PropertyChanged handler.");
+        }
+
+        [Fact]
+        public void AutoReconnect_PropertyChangedHandlerThatThrows_DoesNotBreakTheSetterOrDisconnect()
+        {
+            // Disconnect() and ConnectAsync() set AutoReconnect, so a failing handler must not be able to break them.
+            using var client = new ObsClient();
+            client.PropertyChanged += (_, _) => throw new InvalidOperationException("handler failure");
+
+            var setterFailure = Record.Exception(() => client.AutoReconnect = false);
+            var disconnectFailure = Record.Exception(() => client.Disconnect());
+
+            Assert.Null(setterFailure);
+            Assert.Null(disconnectFailure);
+            Assert.False(client.AutoReconnect);
+        }
     }
 }

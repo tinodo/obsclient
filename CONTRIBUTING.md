@@ -14,9 +14,10 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 ## Development setup
 
 - .NET SDK 8.0 and 10.0 (the library multi-targets both; see `OBSClient/OBSClient.csproj`).
-- `dotnet restore OBSClient.sln`
-- `dotnet build OBSClient.sln`
-- `dotnet test OBSClient.Tests/OBSClient.Tests.csproj`
+- `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` restores and builds the library and runs the tests. It works on
+  Windows, Linux and macOS, and is what CI runs on each of them.
+- `dotnet build OBSClient.sln` builds everything, including the WinForms sample (`SampleWindowsAppliation`), so it needs
+  Windows; on Linux and macOS it fails with NETSDK1100. CI builds the sample on its own Windows job.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.

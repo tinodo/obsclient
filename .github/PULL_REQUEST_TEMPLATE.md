@@ -12,4 +12,4 @@
 - [ ] I added/updated XML doc comments for public API changes.
 - [ ] I added tests covering this change (or explained why none are needed).
 - [ ] I updated `README.md` if public API or behavior changed.
-- [ ] `dotnet build OBSClient.sln` and `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` pass locally.
+- [ ] `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` passes locally (any OS). On Windows, `dotnet build OBSClient.sln` also builds the WinForms sample; it cannot be built on Linux or macOS.

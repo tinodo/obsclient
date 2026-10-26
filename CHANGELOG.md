@@ -92,9 +92,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     connection disposed by the receive loop of the old one.
   - Multi-byte characters (scene names, settings) that straddled the 4096-byte receive buffer were corrupted.
   - Concurrent requests now take turns writing to the socket.
-  - Events of the client (`PropertyChanged`, the byte and message statistics, `ConnectionClosed`) no longer let an
-    exception of a handler disturb the connection, and `PropertyChanged` is no longer raised while the client holds a lock
-    (a handler that waited for a UI thread could deadlock it).
+  - An exception of a handler of `ConnectionClosed`, of the byte and message statistics events, or of `PropertyChanged`
+    for `ConnectionState` and `AutoReconnect` (the notifications the client raises from its own flow) is logged instead
+    of disturbing the connection, and those two `PropertyChanged` notifications are no longer raised while the client holds
+    a lock (a handler that waited for a UI thread could deadlock it). `RequestTimeout`, `MaxRequestRetries` and
+    `RequestRetryInterval` are only changed by you: they raise on the thread that sets them, and an exception of a handler
+    reaches that caller.
 - An event type that this client version does not know (for example one introduced by a newer obs-websocket version)
   no longer throws during deserialization; it maps to `EventType.Unknown` and is ignored
   ([#12](https://github.com/tinodo/obsclient/issues/12) was the same class of bug for an event type that was misnamed).
