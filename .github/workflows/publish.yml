@@ -35,7 +35,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          # A manual run names the tag; qualify it so a branch of the same name can never be packaged instead
+          # (a tag push already provides a fully qualified ref).
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4

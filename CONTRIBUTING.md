@@ -26,9 +26,10 @@ need a running copy of OBS Studio to run or write most tests.
 
 `OBSClient.Tests/Protocol/protocol.schema.json` is a compact snapshot of obs-websocket's own protocol definition
 (`docs/generated/protocol.json`). The tests in `OBSClient.Tests/Conformance` call every request method of `ObsClient` and
-every batch builder of `RequestBatchMessage`, compare what is sent with that snapshot, and answer each request with the
-response the snapshot documents for it. A missing request, a field that cannot be sent, a mistyped field name, a wrongly
-registered response or a response the client cannot read fails the build.
+every batch builder of `RequestBatchMessage`, check that each sends the request it is named after and compare what is
+sent with that snapshot, answer each request with the response the snapshot documents for it, and send every event
+the way the snapshot documents it. A missing request, a field that cannot be sent, a mistyped field name, a wrongly
+registered response, a method wired to another request, or a response or event the client cannot read fails the build.
 
 When obs-websocket publishes a new version (a scheduled workflow opens an issue when it does):
 

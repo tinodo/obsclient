@@ -35,6 +35,18 @@ namespace OBSStudioClient.Tests.Conformance
         // Sleep only exists inside a request batch; it cannot be sent on its own.
         private static readonly HashSet<string> BatchOnlyRequests = new(StringComparer.Ordinal) { "Sleep" };
 
+        // The convenience methods of ObsClient that send a request under another name than their own. Every other
+        // method has to send the request that is named after it.
+        private static readonly Dictionary<string, string> SentUnderAnotherName = new(StringComparer.Ordinal)
+        {
+            [nameof(ObsClient.OpenSourceProjectorOnMonitor)] = "OpenSourceProjector",
+            [nameof(ObsClient.OpenSourceProjectorWindow)] = "OpenSourceProjector",
+            [nameof(ObsClient.OpenVideoMixProjectorOnMonitor)] = "OpenVideoMixProjector",
+            [nameof(ObsClient.OpenVideoMixProjectorWindow)] = "OpenVideoMixProjector",
+            [nameof(ObsClient.SetInputVolumeDb)] = "SetInputVolume",
+            [nameof(ObsClient.SetInputVolumeMul)] = "SetInputVolume",
+        };
+
         [Fact]
         public async Task EveryRequestMethodOfTheClient_SendsWhatTheProtocolDocuments()
         {
@@ -76,11 +88,17 @@ namespace OBSStudioClient.Tests.Conformance
                 }
 
                 var anySent = false;
+                var expectedRequestType = SentUnderAnotherName.TryGetValue(method.Name, out var otherName) ? otherName : method.Name;
                 foreach (var (failure, calls) in outcomes)
                 {
                     foreach (var (requestType, data) in calls)
                     {
                         anySent = true;
+                        if (!string.Equals(requestType, expectedRequestType, StringComparison.Ordinal))
+                        {
+                            problems.Add($"{ArgumentFactory.Describe(method)}: sends the request '{requestType}' instead of '{expectedRequestType}'");
+                        }
+
                         problems.AddRange(ProtocolPayload.Validate(protocol, requestType, data).Select(problem => $"{ArgumentFactory.Describe(method)}: {problem}"));
                         Record(protocol, sent, requestType, data);
                     }
@@ -145,9 +163,17 @@ namespace OBSStudioClient.Tests.Conformance
                     problems.Add($"{ArgumentFactory.Describe(builder)}: added no request");
                 }
 
+                // The request type of a builder is derived from its name (AddGetInputMuteRequest adds GetInputMute), so a
+                // builder that hands its work to a differently named one would silently add another request.
+                var expectedRequestType = builder.Name[3..^7];
                 foreach (var request in requests)
                 {
                     var requestType = request.RequestType.ToString();
+                    if (!string.Equals(requestType, expectedRequestType, StringComparison.Ordinal))
+                    {
+                        problems.Add($"{ArgumentFactory.Describe(builder)}: adds the request '{requestType}' instead of '{expectedRequestType}'");
+                    }
+
                     problems.AddRange(ProtocolPayload.Validate(protocol, requestType, request.RequestData).Select(problem => $"{ArgumentFactory.Describe(builder)}: {problem}"));
                     Record(protocol, sent, requestType, request.RequestData);
                 }

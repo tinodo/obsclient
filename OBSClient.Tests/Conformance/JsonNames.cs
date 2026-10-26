@@ -9,13 +9,19 @@ namespace OBSStudioClient.Tests.Conformance
     {
         public static HashSet<string> Of(Type type)
         {
-            return PropertyTypes(type).Keys.ToHashSet(StringComparer.Ordinal);
+            return Properties(type).Keys.ToHashSet(StringComparer.Ordinal);
         }
 
         /// <summary>Returns the type of the client's property for each JSON name of <paramref name="type"/>.</summary>
         public static Dictionary<string, Type> PropertyTypes(Type type)
         {
-            var types = new Dictionary<string, Type>(StringComparer.Ordinal);
+            return Properties(type).ToDictionary(pair => pair.Key, pair => pair.Value.PropertyType, StringComparer.Ordinal);
+        }
+
+        /// <summary>Returns the client's property for each JSON name of <paramref name="type"/>.</summary>
+        public static Dictionary<string, PropertyInfo> Properties(Type type)
+        {
+            var properties = new Dictionary<string, PropertyInfo>(StringComparer.Ordinal);
             foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (property.GetCustomAttribute<JsonIgnoreAttribute>() is not null)
@@ -23,10 +29,10 @@ namespace OBSStudioClient.Tests.Conformance
                     continue;
                 }
 
-                types[property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? JsonNamingPolicy.CamelCase.ConvertName(property.Name)] = property.PropertyType;
+                properties[property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? JsonNamingPolicy.CamelCase.ConvertName(property.Name)] = property;
             }
 
-            return types;
+            return properties;
         }
     }
 
