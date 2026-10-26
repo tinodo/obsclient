@@ -43,10 +43,10 @@ jobs:
             10.0.x
 
       - name: Restore
-        run: dotnet restore OBSClient/OBSClient.csproj OBSClient.Tests/OBSClient.Tests.csproj
+        run: dotnet restore OBSClient.Tests/OBSClient.Tests.csproj
 
       - name: Build
-        run: dotnet build OBSClient/OBSClient.csproj OBSClient.Tests/OBSClient.Tests.csproj --no-restore --configuration Release
+        run: dotnet build OBSClient.Tests/OBSClient.Tests.csproj --no-restore --configuration Release
 
       - name: Test
         run: >
