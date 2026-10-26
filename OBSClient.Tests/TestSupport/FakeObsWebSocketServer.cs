@@ -10,28 +10,38 @@
     /// <summary>
     /// A minimal, single-connection obs-websocket server used to exercise <see cref="ObsClient"/> end-to-end
     /// without a real OBS Studio instance. It speaks just enough of the protocol (Hello/Identify/Identified,
-    /// Request/RequestResponse, Event) to drive the scenarios under test, and lets a test script arbitrary raw
-    /// frames and abrupt disconnects.
+    /// Request/RequestResponse, Event) to drive the scenarios under test.
     /// </summary>
+    /// <remarks>
+    /// Built directly on <see cref="TcpListener"/> plus a hand-rolled RFC 6455 handshake (rather than
+    /// <see cref="System.Net.HttpListener"/>) specifically so <see cref="AbortConnection"/> can reach the raw
+    /// socket: an <see cref="HttpListener"/>-backed <see cref="WebSocket.Abort"/> does not reliably sever the
+    /// underlying TCP connection on Linux, which made the abrupt-disconnect regression tests
+    /// (https://github.com/tinodo/obsclient/issues/17) flaky in Linux CI. Setting <see cref="LingerOption"/> to
+    /// an abortive close and closing the socket directly sends a TCP RST on every platform.
+    /// </remarks>
     internal sealed class FakeObsWebSocketServer : IAsyncDisposable
     {
-        private readonly HttpListener _listener;
+        private const string WebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+        private readonly TcpListener _listener;
         private readonly SemaphoreSlim _connectionSignal = new(0);
         private Task? _acceptLoop;
+        private TcpClient? _tcpClient;
         private WebSocket? _socket;
+        private bool _stopped;
 
         public FakeObsWebSocketServer()
         {
-            Port = GetFreeTcpPort();
-            _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+            _listener = new TcpListener(IPAddress.Loopback, 0);
+            _listener.Start();
+            Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         }
 
         public int Port { get; }
 
         public void Start()
         {
-            _listener.Start();
             _acceptLoop = AcceptLoopAsync();
         }
 
@@ -39,25 +49,73 @@
         {
             try
             {
-                while (_listener.IsListening)
+                while (!_stopped)
                 {
-                    var context = await _listener.GetContextAsync().ConfigureAwait(false);
-                    if (!context.Request.IsWebSocketRequest)
-                    {
-                        context.Response.StatusCode = 400;
-                        context.Response.Close();
-                        continue;
-                    }
+                    var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    client.NoDelay = true;
+                    var stream = client.GetStream();
+                    await PerformHandshakeAsync(stream).ConfigureAwait(false);
 
-                    var wsContext = await context.AcceptWebSocketAsync(subProtocol: null).ConfigureAwait(false);
-                    _socket = wsContext.WebSocket;
+                    _tcpClient = client;
+                    _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
                     _connectionSignal.Release();
                 }
             }
-            catch (Exception) when (!_listener.IsListening)
+            catch (Exception) when (_stopped)
             {
                 // Listener was stopped; exit quietly.
             }
+        }
+
+        private static async Task PerformHandshakeAsync(NetworkStream stream)
+        {
+            var headers = await ReadHttpHeadersAsync(stream).ConfigureAwait(false);
+            var key = ExtractHeaderValue(headers, "Sec-WebSocket-Key")
+                ?? throw new InvalidOperationException("Handshake request was missing Sec-WebSocket-Key.");
+            var accept = Convert.ToBase64String(SHA1.HashData(Encoding.ASCII.GetBytes(key + WebSocketGuid)));
+
+            var response =
+                "HTTP/1.1 101 Switching Protocols\r\n" +
+                "Upgrade: websocket\r\n" +
+                "Connection: Upgrade\r\n" +
+                $"Sec-WebSocket-Accept: {accept}\r\n\r\n";
+            var responseBytes = Encoding.ASCII.GetBytes(response);
+            await stream.WriteAsync(responseBytes).ConfigureAwait(false);
+        }
+
+        private static async Task<string> ReadHttpHeadersAsync(NetworkStream stream)
+        {
+            var builder = new StringBuilder();
+            var buffer = new byte[1];
+            while (true)
+            {
+                var read = await stream.ReadAsync(buffer.AsMemory(0, 1)).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    throw new IOException("Connection closed before the WebSocket handshake completed.");
+                }
+
+                builder.Append((char)buffer[0]);
+                if (builder.Length >= 4 &&
+                    builder[^4] == '\r' && builder[^3] == '\n' && builder[^2] == '\r' && builder[^1] == '\n')
+                {
+                    return builder.ToString();
+                }
+            }
+        }
+
+        private static string? ExtractHeaderValue(string headers, string name)
+        {
+            foreach (var line in headers.Split("\r\n"))
+            {
+                var separatorIndex = line.IndexOf(':');
+                if (separatorIndex > 0 && string.Equals(line[..separatorIndex].Trim(), name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return line[(separatorIndex + 1)..].Trim();
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -243,25 +301,34 @@
         /// Kills the connection without performing a WebSocket close handshake, simulating a crashed OBS process
         /// or an interrupted network link. See https://github.com/tinodo/obsclient/issues/17.
         /// </summary>
+        /// <remarks>
+        /// Forces an abortive close (TCP RST) on the raw socket, in addition to <see cref="WebSocket.Abort"/>,
+        /// so the peer's pending read reliably fails on every platform instead of merely hanging.
+        /// </remarks>
         public void AbortConnection()
         {
             _socket?.Abort();
-        }
-
-        private static int GetFreeTcpPort()
-        {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            try
+            {
+                if (_tcpClient != null)
+                {
+                    _tcpClient.Client.LingerState = new LingerOption(true, 0);
+                    _tcpClient.Close();
+                }
+            }
+            catch
+            {
+                // Best-effort: the connection is being torn down anyway.
+            }
         }
 
         public async ValueTask DisposeAsync()
         {
+            _stopped = true;
             try
             {
                 _socket?.Abort();
+                _tcpClient?.Close();
                 _listener.Stop();
                 if (_acceptLoop != null)
                 {
@@ -274,7 +341,6 @@
             }
             finally
             {
-                _listener.Close();
                 _connectionSignal.Dispose();
             }
         }
