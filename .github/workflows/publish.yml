@@ -3,8 +3,8 @@
 # push/PR, publishing only runs on a deliberate version tag.
 #
 # Release process:
-#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 3.1.0) and commit/merge it to main.
-#   2. git tag v3.1.0 && git push origin v3.1.0
+#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0) and commit/merge it to main.
+#   2. git tag v4.0.0 && git push origin v4.0.0
 #   3. This workflow packs once, then pushes that same .nupkg to both nuget.org and GitHub Packages.
 #
 # One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to (re)publish, e.g. v3.1.0'
+        description: 'Existing tag to (re)publish, e.g. v4.0.0'
         required: true
 
 permissions:
@@ -47,16 +47,24 @@ jobs:
       - name: Determine version from tag
         id: version
         shell: bash
+        env:
+          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$TAG' is not a version tag (expected vX.Y.Z)."
+            exit 1
+          fi
           echo "VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Validate tag matches project version
         shell: bash
+        env:
+          TAG_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           PROJECT_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj)
-          if [ "$PROJECT_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
-            echo "::error::Tag version (${{ steps.version.outputs.VERSION }}) does not match <Version> in OBSClient.csproj ($PROJECT_VERSION)"
+          if [ "$PROJECT_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match <Version> in OBSClient.csproj ($PROJECT_VERSION)"
             exit 1
           fi
 
@@ -103,7 +111,9 @@ jobs:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push to NuGet.org
-        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   publish-github-packages:
     name: Publish to GitHub Packages
@@ -125,6 +135,9 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Push to GitHub Packages
+        env:
+          OWNER: ${{ github.repository_owner }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          dotnet nuget add source --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          dotnet nuget push ./artifacts/*.nupkg --source github --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+          dotnet nuget add source --username "$OWNER" --password "$TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/$OWNER/index.json"
+          dotnet nuget push ./artifacts/*.nupkg --source github --api-key "$TOKEN" --skip-duplicate

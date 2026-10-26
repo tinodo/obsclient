@@ -39,7 +39,9 @@ jobs:
 
       - name: Describe the differences
         if: steps.compare.outputs.outdated == 'true'
-        run: python tools/protocol/update-protocol-snapshot.py --tag "${{ steps.compare.outputs.latest }}" --dry-run --summary-file protocol-diff.md
+        env:
+          LATEST: ${{ steps.compare.outputs.latest }}
+        run: python tools/protocol/update-protocol-snapshot.py --tag "$LATEST" --dry-run --summary-file protocol-diff.md
 
       - name: Open an issue
         if: steps.compare.outputs.outdated == 'true'

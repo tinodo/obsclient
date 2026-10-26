@@ -424,7 +424,8 @@
 
         private static string HashEncode(string input)
         {
-            var textBytes = Encoding.ASCII.GetBytes(input);
+            // obs-websocket hashes the UTF-8 bytes of the password/salt/challenge (QByteArray / QString::toUtf8()).
+            var textBytes = Encoding.UTF8.GetBytes(input);
             var hash = SHA256.HashData(textBytes);
             return Convert.ToBase64String(hash);
         }

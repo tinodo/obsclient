@@ -83,5 +83,15 @@
         [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("sourceType")]
         public SourceType SourceType { get; } = sourceType;
+
+        /// <summary>
+        /// Gets the uuid of the source of the scene item.
+        /// </summary>
+        /// <remarks>
+        /// <see langword="null"/> when OBS Studio does not send it. It is an <see langword="init"/> property, rather
+        /// than a constructor parameter, to keep the public constructor of this class unchanged.
+        /// </remarks>
+        [JsonPropertyName("sourceUuid")]
+        public Guid? SourceUuid { get; init; }
     }
 }

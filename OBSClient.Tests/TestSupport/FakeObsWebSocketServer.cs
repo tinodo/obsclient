@@ -180,8 +180,8 @@
         /// </summary>
         private static string ComputeExpectedAuthentication(string password, string salt, string challenge)
         {
-            var base64Secret = Convert.ToBase64String(SHA256.HashData(Encoding.ASCII.GetBytes(password + salt)));
-            return Convert.ToBase64String(SHA256.HashData(Encoding.ASCII.GetBytes(base64Secret + challenge)));
+            var base64Secret = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(password + salt)));
+            return Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(base64Secret + challenge)));
         }
 
         /// <summary>

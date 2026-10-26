@@ -40,7 +40,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).
 - `canvasUuid` overloads for every request that identifies a scene or a source by name, so they can address a
   non-main canvas (for example `GetSceneList(Guid canvasUuid)` and `CreateScene(string sceneName, Guid canvasUuid)`).
-- `InputCreatedEventArgs.InputKindCaps` (obs-websocket 5.6.0) and `SceneItemTransform.CropToBounds`.
+- `InputCreatedEventArgs.InputKindCaps` (obs-websocket 5.6.0), `SceneItemTransform.CropToBounds`, `Input.InputUuid` and
+  `Input.InputKindCaps` (entries of `GetInputList`), and `SceneItem.SourceUuid` (entries of `GetSceneItemList`): obs-websocket
+  has sent all of these for a while, but the client did not expose them, so the UUIDs that the UUID based requests need
+  could not be read from a list. They are `init` properties, so no constructor changed.
 - Request batches can now address inputs, scenes, sources and scene items by UUID, like the individual requests
   always could (about sixty new `Add…Request(Guid …)` overloads), and the batch builders that were missing altogether:
   `AddGetInputDeinterlaceModeRequest`, `AddSetInputDeinterlaceModeRequest`, `AddGetInputDeinterlaceFieldOrderRequest`,
@@ -95,12 +98,15 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   no longer throws during deserialization; it maps to `EventType.Unknown` and is ignored
   ([#12](https://github.com/tinodo/obsclient/issues/12) was the same class of bug for an event type that was misnamed).
 - `ConnectionClosed` did not fire after a deliberate `Disconnect()`.
+- Authentication hashed the password, salt and challenge as ASCII, so a password with a non-ASCII character (for
+  example `pässword`) was silently changed to `?` and could not authenticate. obs-websocket hashes the UTF-8 bytes
+  (`Utils::Crypto::GenerateSecret`/`CheckAuthenticationString`), and the client now does the same.
 - `GetSceneList()` keeps sending no request data; the canvas overload sends the `canvasUuid`.
 
 ### Compatibility
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
-- The new `InputKindCaps` and `CropToBounds` are `init` properties, so no existing constructor changed.
+- The new `InputKindCaps`, `CropToBounds`, `InputUuid` and `SourceUuid` are `init` properties, so no existing constructor changed.
 - The `Canvases` event subscription is part of `EventSubscriptions.All`. Older obs-websocket versions only require the
   value to be an unsigned number and ignore the bits they do not know (checked in the source of 5.5.2), so that is harmless there.
 - Event handlers run on the receive thread. A handler must not block waiting for a response of OBS Studio (for example

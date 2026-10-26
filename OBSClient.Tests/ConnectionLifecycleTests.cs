@@ -47,6 +47,30 @@
             client.Disconnect();
         }
 
+        [Theory]
+        [InlineData("P@ssw0rd!", "Ub42d25FQ+K1NOWmd9kA1fT417w7cg95vrg13T009Mk=")]
+        [InlineData("p\u00e4ssword", "A9jzi81MGl6JsHHXds/5dYT+sPOw3GvoIFOu4Lxvug0=")]
+        [InlineData("\u043f\u0430\u0440\u043e\u043b\u044c", "oFSBMYAi9U6b/iNucuzBlCtaCLx0fPCW2xOPqEb7F9E=")]
+        [InlineData("\u5bc6\u7801\U0001F512", "/5EcgIKE7Pu0ldOuEPfZWI1x9Y+q2eIaD0wO3QSLbVc=")]
+        public async Task ConnectAsync_AuthenticationString_MatchesTheUtf8ReferenceVector(string password, string expectedAuthentication)
+        {
+            // obs-websocket hashes the UTF-8 bytes of the password (Utils::Crypto::GenerateSecret/CheckAuthenticationString).
+            // The vectors were computed independently (Python hashlib) for the fake server's fixed salt and challenge,
+            // so a client and fake server that agree on the wrong encoding cannot both pass.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+
+            var connectTask = client.ConnectAsync(password: password, hostname: "127.0.0.1", port: server.Port);
+            using var identify = await server.HandshakeAsync(password: password).WithTimeoutAsync(Timeout);
+            var connected = await connectTask.WithTimeoutAsync(Timeout);
+
+            Assert.True(connected);
+            Assert.Equal(expectedAuthentication, identify.RootElement.GetProperty("d").GetProperty("authentication").GetString());
+
+            client.Disconnect();
+        }
+
         [Fact]
         public async Task Disconnect_AfterDeliberateCall_FiresConnectionClosedWithNormalClosure()
         {
