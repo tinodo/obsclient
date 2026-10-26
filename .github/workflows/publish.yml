@@ -1,0 +1,130 @@
+# Publishes the OBSClient NuGet package to nuget.org (via Trusted Publishing/OIDC - no long-lived API key)
+# and to GitHub Packages, whenever a vX.Y.Z tag is pushed. Keep this separate from build.yml: CI runs on every
+# push/PR, publishing only runs on a deliberate version tag.
+#
+# Release process:
+#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 3.1.0) and commit/merge it to main.
+#   2. git tag v3.1.0 && git push origin v3.1.0
+#   3. This workflow packs once, then pushes that same .nupkg to both nuget.org and GitHub Packages.
+#
+# One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+#   nuget.org/account/trustedpublishing -> Add policy
+#     Repository Owner: tinodo | Repository: obsclient | Workflow File: publish.yml | Environment: release
+#   Then add a `release` environment in this repo's Settings -> Environments, with an environment secret
+#   NUGET_USER = your nuget.org account/profile name (not email).
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)publish, e.g. v3.1.0'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Determine version from tag
+        id: version
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches project version
+        shell: bash
+        run: |
+          PROJECT_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj)
+          if [ "$PROJECT_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "::error::Tag version (${{ steps.version.outputs.VERSION }}) does not match <Version> in OBSClient.csproj ($PROJECT_VERSION)"
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore OBSClient/OBSClient.csproj
+
+      - name: Build
+        run: dotnet build OBSClient/OBSClient.csproj --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build -o ./artifacts
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts/*.nupkg
+          retention-days: 90
+
+  publish-nuget-org:
+    name: Publish to NuGet.org
+    needs: pack
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write # required for NuGet Trusted Publishing (OIDC)
+      contents: read
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget add source --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          dotnet nuget push ./artifacts/*.nupkg --source github --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate

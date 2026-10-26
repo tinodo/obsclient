@@ -24,6 +24,10 @@
         /// </summary>
         private static readonly Dictionary<EventType, Type> _responseTypeMap = new()
         {
+            // Unknown: an event type this client version does not recognize yet. Treated as a no-data
+            // event so it is safely ignored instead of throwing. See EventTypeConverter.
+            { EventType.Unknown, typeof(EventArgs) },
+
             // General Events
             { EventType.ExitStarted, typeof(EventArgs) },
             { EventType.VendorEvent, typeof(VendorEventEventArgs) },
@@ -36,6 +40,11 @@
             { EventType.CurrentProfileChanging, typeof(ProfileNameEventArgs) },
             { EventType.CurrentProfileChanged, typeof(ProfileNameEventArgs) },
             { EventType.ProfileListChanged, typeof(ProfileListEventArgs) },
+
+            // Canvases Events
+            { EventType.CanvasCreated, typeof(CanvasCreatedEventArgs) },
+            { EventType.CanvasRemoved, typeof(CanvasRemovedEventArgs) },
+            { EventType.CanvasNameChanged, typeof(CanvasNameChangedEventArgs) },
 
             // Scenes Events
             { EventType.SceneCreated, typeof(SceneModifiedEventArgs) },
@@ -103,7 +112,6 @@
         /// <summary>
         /// The type of Event
         /// </summary>
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("eventType")]
         public EventType EventType { get; } = eventType;
 

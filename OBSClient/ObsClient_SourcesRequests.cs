@@ -14,7 +14,21 @@
         /// </remarks>
         public async Task<SourceActiveResponse> GetSourceActive(string sourceName)
         {
-            return await this.GetSourceActive(sourceName, null);
+            return await this.GetSourceActive(sourceName, null, null);
+        }
+
+        /// <summary>
+        /// Gets the active and show state of a source on a canvas.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to get the active state of</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in</param>
+        /// <returns>A <see cref="SourceActiveResponse"/></returns>
+        /// <remarks>
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task<SourceActiveResponse> GetSourceActive(string sourceName, Guid canvasUuid)
+        {
+            return await this.GetSourceActive(sourceName, canvasUuid, null);
         }
 
         /// <summary>
@@ -27,12 +41,12 @@
         /// </remarks>
         public async Task<SourceActiveResponse> GetSourceActive(Guid sourceUuid)
         {
-            return await this.GetSourceActive(null, sourceUuid);
+            return await this.GetSourceActive(null, null, sourceUuid);
         }
 
-        private async Task<SourceActiveResponse> GetSourceActive(string? sourceName, Guid? sourceUuid)
+        private async Task<SourceActiveResponse> GetSourceActive(string? sourceName, Guid? canvasUuid, Guid? sourceUuid)
         {
-            return await this.SendRequestAsync<SourceActiveResponse>(new { sourceName, sourceUuid });
+            return await this.SendRequestAsync<SourceActiveResponse>(new { sourceName, canvasUuid, sourceUuid });
         }
 
 
@@ -51,7 +65,26 @@
         /// </remarks>
         public async Task<string> GetSourceScreenshot(string sourceName, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return await GetSourceScreenshot(sourceName, null, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
+            return await GetSourceScreenshot(sourceName, null, null, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        /// <summary>
+        /// Gets a Base64-encoded screenshot of a source on a canvas.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to take a screenshot of</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <returns>Base64-encoded screenshot</returns>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task<string> GetSourceScreenshot(string sourceName, Guid canvasUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            return await GetSourceScreenshot(sourceName, canvasUuid, null, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
         }
 
         /// <summary>
@@ -69,12 +102,12 @@
         /// </remarks>
         public async Task<string> GetSourceScreenshot(Guid sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return await GetSourceScreenshot(null, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
+            return await GetSourceScreenshot(null, null, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality);
         }
 
-        private async Task<string> GetSourceScreenshot(string? sourceName, Guid? sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        private async Task<string> GetSourceScreenshot(string? sourceName, Guid? canvasUuid, Guid? sourceUuid, string imageFormat, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
+            return (await this.SendRequestAsync<ImageDataResponse>(new { sourceName, canvasUuid, sourceUuid, imageFormat, imageWidth, imageHeight, imageCompressionQuality })).ImageData;
         }
 
         /// <summary>
@@ -92,7 +125,26 @@
         /// </remarks>
         public async Task SaveSourceScreenshot(string sourceName, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            await this.SaveSourceScreenshot(sourceName, null, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+            await this.SaveSourceScreenshot(sourceName, null, null, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+        }
+
+        /// <summary>
+        /// Saves a screenshot of a source on a canvas to the filesystem.
+        /// </summary>
+        /// <param name="sourceName">Name of the source to take a screenshot of</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in</param>
+        /// <param name="imageFormat">Image compression format to use. Use GetVersion to get compatible image formats</param>
+        /// <param name="imageFilePath">Path to save the screenshot file to. Eg. C:\Users\user\Desktop\screenshot.png</param>
+        /// <param name="imageWidth">Width to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageHeight">Height to scale the screenshot to (between 8 and 4096)</param>
+        /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) (between -1 and 100)</param>
+        /// <remarks>
+        /// The imageWidth and imageHeight parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If imageWidth and imageHeight are not specified, the compressed image will use the full resolution of the source.
+        /// Compatible with inputs and scenes.
+        /// </remarks>
+        public async Task SaveSourceScreenshot(string sourceName, Guid canvasUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        {
+            await this.SaveSourceScreenshot(sourceName, canvasUuid, null, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
         }
 
         /// <summary>
@@ -110,12 +162,12 @@
         /// </remarks>
         public async Task SaveSourceScreenshot(Guid sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            await this.SaveSourceScreenshot(null, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
+            await this.SaveSourceScreenshot(null, null, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality);
         }
 
-        private async Task SaveSourceScreenshot(string? sourceName, Guid? sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
+        private async Task SaveSourceScreenshot(string? sourceName, Guid? canvasUuid, Guid? sourceUuid, string imageFormat, string imageFilePath, int? imageWidth = null, int? imageHeight = null, int? imageCompressionQuality = -1)
         {
-            await this.SendRequestAsync(new { sourceName, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality });
+            await this.SendRequestAsync(new { sourceName, canvasUuid, sourceUuid, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality });
         }
     }
 }

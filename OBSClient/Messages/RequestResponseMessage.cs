@@ -64,6 +64,9 @@
             {RequestType.GetSourceScreenshot, typeof(ImageDataResponse) },
             {RequestType.SaveSourceScreenshot, typeof(EmptyResponse) },
 
+            // Canvases Requests
+            {RequestType.GetCanvasList, typeof(CanvasListResponse) },
+
             // Scenes Requests
             {RequestType.GetSceneList, typeof(SceneListResponse) },
             {RequestType.GetGroupList, typeof(GroupsResponse) },

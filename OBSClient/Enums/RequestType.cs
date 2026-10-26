@@ -154,6 +154,13 @@
         /// </summary>
         SaveSourceScreenshot,
 
+        //Canvases Requests
+
+        /// <summary>
+        /// GetCanvasList Request
+        /// </summary>
+        GetCanvasList,
+
         //Scenes Requests
 
         /// <summary>

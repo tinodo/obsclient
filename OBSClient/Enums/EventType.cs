@@ -1,13 +1,20 @@
 ﻿namespace OBSStudioClient.Enums
 {
+    using OBSStudioClient.Converters;
     using System.Text.Json.Serialization;
 
     /// <summary>
     /// Event Types.
     /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonConverter(typeof(EventTypeConverter))]
     public enum EventType
     {
+        /// <summary>
+        /// An event type that this version of the client does not recognize. This can happen when OBS Studio
+        /// sends an event type introduced after this client was released; no handler is invoked for it.
+        /// </summary>
+        Unknown = 0,
+
         //General Events
 
         /// <summary>
@@ -56,6 +63,23 @@
         /// The profile list has changed.
         /// </summary>
         ProfileListChanged,
+
+        //Canvases Events
+
+        /// <summary>
+        /// A new canvas has been created.
+        /// </summary>
+        CanvasCreated,
+
+        /// <summary>
+        /// A canvas has been removed.
+        /// </summary>
+        CanvasRemoved,
+
+        /// <summary>
+        /// The name of a canvas has changed.
+        /// </summary>
+        CanvasNameChanged,
 
         //Scenes Events
 

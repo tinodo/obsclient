@@ -73,6 +73,27 @@
 
         //
         //
+        // Canvases Events
+        //
+        //
+
+        /// <summary>
+        /// Occurs when a new canvas has been created.
+        /// </summary>
+        public event EventHandler<CanvasCreatedEventArgs>? CanvasCreated;
+
+        /// <summary>
+        /// Occurs when a canvas has been removed.
+        /// </summary>
+        public event EventHandler<CanvasRemovedEventArgs>? CanvasRemoved;
+
+        /// <summary>
+        /// Occurs when the name of a canvas has changed.
+        /// </summary>
+        public event EventHandler<CanvasNameChangedEventArgs>? CanvasNameChanged;
+
+        //
+        //
         // Scenes Events
         //
         //

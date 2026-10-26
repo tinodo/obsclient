@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a new request/event/enum from the obs-websocket protocol, or an improvement to OBSClient
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is about a specific obs-websocket request/event/enum, please link the relevant section of the
+        [obs-websocket protocol docs](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md).
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: What's the use case / why is this needed?
+    validations:
+      required: false

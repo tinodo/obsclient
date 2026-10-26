@@ -766,7 +766,11 @@
 
         private async Task SendAsync(dynamic request)
         {
-            if (this._client.State != WebSocketState.Open)
+            // Snapshot the client reference: the receiver loop can dispose and replace _client concurrently
+            // when a connection fails, and re-reading the field between the state check and the send below
+            // could otherwise observe two different WebSocket instances.
+            var client = this._client;
+            if (client.State != WebSocketState.Open)
             {
                 throw new ObsClientException("Not connected.");
             }
@@ -774,7 +778,14 @@
             Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
             var sendBuffer = new ArraySegment<byte>(bytes);
-            await this._client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token).ConfigureAwait(false);
+            try
+            {
+                await client.SendAsync(sendBuffer, WebSocketMessageType.Text, true, this._receiver.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or WebSocketException)
+            {
+                throw new ObsClientException("Not connected.", ex);
+            }
             Interlocked.Add(ref this._totalBytesSent, bytes.LongLength);
             Interlocked.Increment(ref this._totalMessagesSent);
             Interlocked.Add(ref this._sessionBytesSent, bytes.LongLength);
@@ -793,26 +804,45 @@
 
             try
             {
-                while (true)
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-
-                    StringBuilder responseBuilder = StringBuilderCache.Acquire();
-                    try
+                    while (true)
                     {
-                        await ReceiveWebSocketMessageAsync(receiveBuffer, responseBuilder, ct).ConfigureAwait(false);
-
-                        if (ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted)
+                        if (ct.IsCancellationRequested)
+                        {
                             break;
+                        }
 
-                        await this.ProcessReceivedMessageAsync(responseBuilder).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        StringBuilderCache.Release(responseBuilder);
+                        StringBuilder responseBuilder = StringBuilderCache.Acquire();
+                        try
+                        {
+                            bool receiveFailed = await ReceiveWebSocketMessageAsync(receiveBuffer, responseBuilder, ct).ConfigureAwait(false);
+
+                            if (receiveFailed || ct.IsCancellationRequested || this._client.State == WebSocketState.CloseReceived || this._client.State == WebSocketState.Aborted)
+                                break;
+
+                            await this.ProcessReceivedMessageAsync(responseBuilder).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            StringBuilderCache.Release(responseBuilder);
+                        }
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    // Expected when Disconnect() cancels the token mid-receive.
+                }
+                catch (Exception ex)
+                {
+                    // Any unexpected failure (an OBS protocol message this client version doesn't yet recognize,
+                    // a transport-level error, etc.) must never leave the receiver silently dead while
+                    // ConnectionState is still reporting Connected. See https://github.com/tinodo/obsclient/issues/17.
+                    _logger.LogError(ex, "Unhandled exception in the receiver loop; closing the connection");
+                }
 
+                // Guaranteed to run exactly once whenever the loop above stops, for any reason, so
+                // ConnectionState always reaches Disconnected and ConnectionClosed always fires.
                 await this.CloseConnectionAsync(ct).ConfigureAwait(false);
             }
             finally
@@ -829,26 +859,39 @@
             }
         }
 
-        private async Task ReceiveWebSocketMessageAsync(byte[] receiveBuffer, StringBuilder responseBuilder, CancellationToken ct)
+        /// <summary>
+        /// Receives a single, possibly multi-frame, WebSocket message into <paramref name="responseBuilder"/>.
+        /// </summary>
+        /// <returns><see langword="true"/> if the receive failed and the connection should be considered lost; otherwise <see langword="false"/>.</returns>
+        private async Task<bool> ReceiveWebSocketMessageAsync(byte[] receiveBuffer, StringBuilder responseBuilder, CancellationToken ct)
         {
             WebSocketReceiveResult received;
             do
             {
-                ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested)
+                {
+                    return true;
+                }
 
                 try
                 {
                     received = await this._client.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, 0, _receiveBufferSize), ct).ConfigureAwait(false);
                 }
-                catch (TaskCanceledException e)
+                catch (OperationCanceledException e)
                 {
-                    _logger.LogError(e, "Handled Exception in ReceiverAsync");
-                    break;
+                    _logger.LogDebug(e, "Receive cancelled in ReceiverAsync");
+                    return true;
                 }
                 catch (WebSocketException e)
                 {
                     _logger.LogError(e, "Handled Exception in ReceiverAsync");
-                    break;
+                    return true;
+                }
+                catch (ObjectDisposedException e)
+                {
+                    // The underlying socket was disposed concurrently, e.g. by Dispose().
+                    _logger.LogError(e, "Handled Exception in ReceiverAsync");
+                    return true;
                 }
 
                 Interlocked.Add(ref this._totalBytesReceived, received.Count);
@@ -862,33 +905,48 @@
                 SessionBytesReceivedChanged?.Invoke(this, this._sessionBytesReceived);
                 SessionMessagesReceivedChanged?.Invoke(this, this._sessionMessagesReceived);
             } while (!received.EndOfMessage);
+
+            return false;
         }
 
         private async Task CloseConnectionAsync(CancellationToken ct)
         {
-            WebSocketCloseCode closeCode;
-            string closeDescription;
-            if (ct.IsCancellationRequested)
-            {
-                // Closed the connection because you called Disconnect().
-                closeCode = WebSocketCloseCode.NormalClosure;
-                closeDescription = "Disconnecting due to request.";
-            }
-            else
-            {
-                // Closed the connection because OBS Studio closed it or the network connection was interrupted.
-                closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
-                closeDescription = this._client.CloseStatusDescription ?? "Connection lost";
-            }
+            WebSocketCloseCode closeCode = WebSocketCloseCode.UnknownReason;
+            string closeDescription = "Connection lost";
 
-            if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
+            try
             {
-                this.ConnectionState = ConnectionState.Disconnecting;
-                await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
+                if (ct.IsCancellationRequested)
+                {
+                    // Closed the connection because you called Disconnect().
+                    closeCode = WebSocketCloseCode.NormalClosure;
+                    closeDescription = "Disconnecting due to request.";
+                }
+                else
+                {
+                    // Closed the connection because OBS Studio closed it or the network connection was interrupted.
+                    closeCode = this._client.CloseStatus.HasValue ? (WebSocketCloseCode)(int)this._client.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
+                    closeDescription = this._client.CloseStatusDescription ?? "Connection lost";
+                }
+
+                if (this._client.State == WebSocketState.Open || this._client.State == WebSocketState.CloseReceived)
+                {
+                    this.ConnectionState = ConnectionState.Disconnecting;
+                    await this._client.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Best-effort graceful close only; the connection is already going away and we must still
+                // transition to Disconnected below so ConnectionState can never get stuck.
+                _logger.LogDebug(ex, "Ignoring exception while closing an already-failed connection.");
             }
 
             this.ConnectionState = ConnectionState.Disconnected;
-            _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)), ct);
+            // Intentionally not passing ct: it is frequently already cancelled here (the normal Disconnect()
+            // path), and Task.Run with an already-cancelled token would skip invoking the delegate entirely,
+            // silently suppressing the ConnectionClosed event on every deliberate disconnect.
+            _ = Task.Run(() => this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription)));
             Interlocked.Exchange(ref this._sessionBytesReceived, 0);
             Interlocked.Exchange(ref this._sessionBytesSent, 0);
             Interlocked.Exchange(ref this._sessionMessagesReceived, 0);

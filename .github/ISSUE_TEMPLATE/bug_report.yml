@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a problem with OBSClient
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out as much of this as you can.
+  - type: input
+    id: library-version
+    attributes:
+      label: OBSClient version
+      description: The NuGet package version you are using.
+      placeholder: "3.0.1"
+    validations:
+      required: true
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: Target framework / .NET version
+      placeholder: "net8.0 / .NET 8.0.10"
+    validations:
+      required: true
+  - type: input
+    id: obs-version
+    attributes:
+      label: OBS Studio version (and obs-websocket version, if known)
+      placeholder: "30.2.2 / obs-websocket 5.5.2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including the exact exception/stack trace if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Steps to reproduce, or a minimal code snippet.
+      render: csharp
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: false

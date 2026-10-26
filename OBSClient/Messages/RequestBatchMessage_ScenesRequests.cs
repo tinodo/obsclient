@@ -10,7 +10,22 @@
         /// <returns>A <see cref="SceneListResponse"/></returns>
         public void AddGetSceneListRequest()
         {
-            this._requests.Add(new());
+            this.AddGetSceneListRequest(null);
+        }
+
+        /// <summary>
+        /// Adds a request to get an array of all scenes on a canvas in OBS.
+        /// </summary>
+        /// <param name="canvasUuid">UUID of the canvas the scenes are in</param>
+        /// <returns>A <see cref="SceneListResponse"/></returns>
+        public void AddGetSceneListRequest(Guid canvasUuid)
+        {
+            this.AddGetSceneListRequest((Guid?)canvasUuid);
+        }
+
+        private void AddGetSceneListRequest(Guid? canvasUuid)
+        {
+            this._requests.Add(new(new { canvasUuid }));
         }
 
         /// <summary>
@@ -72,7 +87,21 @@
         /// <param name="sceneName">Scene to set as the current preview scene</param>
         public void AddSetCurrentPreviewSceneRequest(string sceneName)
         {
-            this._requests.Add(new(new { sceneName }));
+            this.AddSetCurrentPreviewSceneRequest(sceneName, null);
+        }
+
+        /// <summary>
+        /// Adds a request to set the current preview scene.
+        /// </summary>
+        /// <param name="sceneUuid">Scene to set as the current preview scene</param>
+        public void AddSetCurrentPreviewSceneRequest(Guid sceneUuid)
+        {
+            this.AddSetCurrentPreviewSceneRequest(null, sceneUuid);
+        }
+
+        private void AddSetCurrentPreviewSceneRequest(string? sceneName, Guid? sceneUuid)
+        {
+            this._requests.Add(new(new { sceneName, sceneUuid }));
         }
 
         /// <summary>
@@ -81,7 +110,22 @@
         /// <param name="sceneName">Name for the new scene</param>
         public void AddCreateSceneRequest(string sceneName)
         {
-            this._requests.Add(new(new { sceneName }));
+            this.AddCreateSceneRequest(sceneName, null);
+        }
+
+        /// <summary>
+        /// Adds a request to create a new scene on a canvas in OBS.
+        /// </summary>
+        /// <param name="sceneName">Name for the new scene</param>
+        /// <param name="canvasUuid">UUID of the canvas to create the new scene in</param>
+        public void AddCreateSceneRequest(string sceneName, Guid canvasUuid)
+        {
+            this.AddCreateSceneRequest(sceneName, (Guid?)canvasUuid);
+        }
+
+        private void AddCreateSceneRequest(string sceneName, Guid? canvasUuid)
+        {
+            this._requests.Add(new(new { sceneName, canvasUuid }));
         }
 
         /// <summary>
@@ -90,7 +134,22 @@
         /// <param name="sceneName">Name of the scene to remove</param>
         public void AddRemoveSceneRequest(string sceneName)
         {
-            this._requests.Add(new(new { sceneName }));
+            this.AddRemoveSceneRequest(sceneName, null);
+        }
+
+        /// <summary>
+        /// Adds a request to remove a scene from a canvas in OBS.
+        /// </summary>
+        /// <param name="sceneName">Name of the scene to remove</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
+        public void AddRemoveSceneRequest(string sceneName, Guid canvasUuid)
+        {
+            this.AddRemoveSceneRequest(sceneName, (Guid?)canvasUuid);
+        }
+
+        private void AddRemoveSceneRequest(string sceneName, Guid? canvasUuid)
+        {
+            this._requests.Add(new(new { sceneName, canvasUuid }));
         }
 
         /// <summary>
@@ -100,7 +159,23 @@
         /// <param name="newSceneName">New name for the scene</param>
         public void AddSetSceneNameRequest(string sceneName, string newSceneName)
         {
-            this._requests.Add(new(new { sceneName, newSceneName }));
+            this.AddSetSceneNameRequest(sceneName, null, newSceneName);
+        }
+
+        /// <summary>
+        /// Adds a request to set the name of a scene on a canvas (rename).
+        /// </summary>
+        /// <param name="sceneName">Name of the scene to be renamed</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
+        /// <param name="newSceneName">New name for the scene</param>
+        public void AddSetSceneNameRequest(string sceneName, Guid canvasUuid, string newSceneName)
+        {
+            this.AddSetSceneNameRequest(sceneName, (Guid?)canvasUuid, newSceneName);
+        }
+
+        private void AddSetSceneNameRequest(string sceneName, Guid? canvasUuid, string newSceneName)
+        {
+            this._requests.Add(new(new { sceneName, canvasUuid, newSceneName }));
         }
 
         /// <summary>
@@ -110,7 +185,23 @@
         /// <returns>A <see cref="SceneTransitionResponse"/></returns>
         public void AddGetSceneSceneTransitionOverrideRequest(string sceneName)
         {
-            this._requests.Add(new(new { sceneName }));
+            this.AddGetSceneSceneTransitionOverrideRequest(sceneName, null);
+        }
+
+        /// <summary>
+        /// Adds a request to get the scene transition overridden for a scene on a canvas.
+        /// </summary>
+        /// <param name="sceneName">Name of the scene</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
+        /// <returns>A <see cref="SceneTransitionResponse"/></returns>
+        public void AddGetSceneSceneTransitionOverrideRequest(string sceneName, Guid canvasUuid)
+        {
+            this.AddGetSceneSceneTransitionOverrideRequest(sceneName, (Guid?)canvasUuid);
+        }
+
+        private void AddGetSceneSceneTransitionOverrideRequest(string sceneName, Guid? canvasUuid)
+        {
+            this._requests.Add(new(new { sceneName, canvasUuid }));
         }
 
         /// <summary>
@@ -121,7 +212,25 @@
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove.</param>
         public void AddSetSceneSceneTransitionOverrideRequest(string sceneName, string? transitionName, int? transitionDuration)
         {
-            this._requests.Add(new(new { sceneName, transitionName, transitionDuration }));
+            this.AddSetSceneSceneTransitionOverrideRequest(sceneName, null, transitionName, transitionDuration);
+        }
+
+        /// <summary>
+        /// Adds a request to get the scene transition overridden for a scene on a canvas.
+        /// </summary>
+        /// <param name="sceneName">Name of the scene</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
+        /// <param name="transitionName">Name of the scene transition to use as override. Specify null to remove.</param>
+        /// <param name="transitionDuration">Duration to use for any overridden transition. Specify null to remove.</param>
+        public void AddSetSceneSceneTransitionOverrideRequest(string sceneName, Guid canvasUuid, string? transitionName, int? transitionDuration)
+        {
+            this.AddSetSceneSceneTransitionOverrideRequest(sceneName, (Guid?)canvasUuid, transitionName, transitionDuration);
+        }
+
+        private void AddSetSceneSceneTransitionOverrideRequest(string sceneName, Guid? canvasUuid, string? transitionName, int? transitionDuration)
+        {
+            this._requests.Add(new(new { sceneName, canvasUuid, transitionName, transitionDuration }));
         }
     }
 }
+

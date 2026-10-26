@@ -18,5 +18,12 @@
         /// </summary>
         /// <param name="message">The error message.</param>
         public ObsClientException(string message) : base(message) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ObsClientException"/> class.
+        /// </summary>
+        /// <param name="message">The error message.</param>
+        /// <param name="innerException">The exception that caused this exception.</param>
+        public ObsClientException(string message, Exception innerException) : base(message, innerException) { }
     }
 }
