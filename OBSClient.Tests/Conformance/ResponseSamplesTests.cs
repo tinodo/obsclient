@@ -33,6 +33,33 @@ namespace OBSStudioClient.Tests.Conformance
         }
 
         [Fact]
+        public void ANumberThatTheClientModelsAsAGuid_StaysANumber()
+        {
+            // A Guid string would hide a client that models a documented number as a Guid.
+            Assert.Equal(1, ResponseSamples.SampleFor("Number", typeof(Guid), "field"));
+        }
+
+        [Fact]
+        public void ABooleanThatTheClientModelsAsAnEnum_StaysABoolean()
+        {
+            Assert.Equal(true, ResponseSamples.SampleFor("Boolean", typeof(DayOfWeek), "field"));
+        }
+
+        [Fact]
+        public void AStringThatTheClientModelsAsAnEnum_IsAMemberOfThatEnum()
+        {
+            Assert.Equal(nameof(DayOfWeek.Sunday), ResponseSamples.SampleFor("String", typeof(DayOfWeek?), "field"));
+        }
+
+        [Fact]
+        public void AnArrayOfStringsThatTheClientModelsAsGuids_HasAGuidElement()
+        {
+            var elements = Assert.IsType<object[]>(ResponseSamples.SampleFor("Array<String>", typeof(List<Guid>), "field"));
+
+            Assert.True(Guid.TryParse(Assert.IsType<string>(Assert.Single(elements)), out _));
+        }
+
+        [Fact]
         public void EveryDocumentedResponseField_HasASample()
         {
             var missing = ProtocolSnapshot.Current.Requests

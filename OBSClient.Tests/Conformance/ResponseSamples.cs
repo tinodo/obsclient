@@ -12,7 +12,7 @@ namespace OBSStudioClient.Tests.Conformance
     /// sent empty; the client reads members that are missing as their default. An array carries one element of the
     /// documented element type, which is what shows that the client models the elements correctly. Where the protocol
     /// documents a string, but the client models the field (or element) as an enum or a Guid, the sample is a value
-    /// that exists for that type.
+    /// that exists for that type; any other mismatch is left in the sample, so it fails.
     /// </remarks>
     internal sealed class ResponseSamples
     {
@@ -46,19 +46,21 @@ namespace OBSStudioClient.Tests.Conformance
             return this._responses.TryGetValue(requestType, out var response) ? response : new Dictionary<string, object?>();
         }
 
-        private static object? SampleFor(string protocolType, Type? clientType, string fieldName)
+        internal static object? SampleFor(string protocolType, Type? clientType, string fieldName)
         {
             var underlying = clientType is null ? null : Nullable.GetUnderlyingType(clientType) ?? clientType;
 
-            if (underlying == typeof(Guid))
+            // A Guid or an enum can only stand for a documented string (or number, for an enum): for any other documented
+            // type the sample keeps the documented type, so a client that models the field that way fails to read it.
+            if (underlying == typeof(Guid) && protocolType is ("String" or "Any"))
             {
                 return Guid.NewGuid().ToString();
             }
 
-            if (underlying is { IsEnum: true })
+            if (underlying is { IsEnum: true } && protocolType is ("String" or "Number" or "Any"))
             {
                 var first = Enum.GetValues(underlying).GetValue(0)!;
-                return protocolType == "String" ? Enum.GetName(underlying, first) : (object)Convert.ToInt64(first);
+                return protocolType == "Number" ? (object)Convert.ToInt64(first) : Enum.GetName(underlying, first);
             }
 
             if (protocolType.StartsWith(ArrayPrefix, StringComparison.Ordinal) && protocolType.EndsWith('>'))

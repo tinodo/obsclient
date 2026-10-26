@@ -67,6 +67,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     threw an `InvalidCastException`.
   - `CreateInput` and `OpenSourceProjector…` had no way to give a `canvasUuid`; `CreateRecordChapter` could not send a
     chapter name.
+  - The projector request builders (`AddOpenSourceProjectorRequest`, `AddOpenVideoMixProjectorRequest`) refused a
+    `projectorGeometry` next to a `monitorIndex` of `-1`, which is the default of the former, so a windowed projector
+    could only be requested by passing `null` for the index. obs-websocket treats `-1` as "no monitor" and accepts that
+    combination; only a real monitor index (0 or more) and a geometry exclude each other, as on the server.
 - Responses and events that were not wired up:
   - **No response type was registered for `SetInputSettings`**, so reading its response threw inside the receive loop,
     which ended without cleaning up: the connection was dead while `ConnectionState` kept saying `Connected`, and

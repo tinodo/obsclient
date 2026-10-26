@@ -90,22 +90,14 @@
         /// </summary>
         /// <param name="videoMixType">Type of mix to open</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with a monitorIndex of 0 or more</param>
         /// <remarks>
-        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Use either a monitorIndex or a projectorGeometry. A monitorIndex of -1 means no monitor, that is a windowed projector, and can be combined with a projectorGeometry.
         /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
         /// </remarks>
         public void AddOpenVideoMixProjectorRequest(MixType videoMixType, int? monitorIndex, string? projectorGeometry)
         {
-            if (monitorIndex is null && projectorGeometry is null)
-            {
-                throw new ArgumentException("Either monitorIndex or projectorGeometry must be set.");
-            }
-
-            if (monitorIndex is not null && projectorGeometry is not null)
-            {
-                throw new ArgumentException("Only one of monitorIndex or projectorGeometry must be set.");
-            }
+            ValidateProjectorTarget(monitorIndex, projectorGeometry);
 
             this._requests.Add(new(new { videoMixType, monitorIndex, projectorGeometry }));
         }
@@ -115,9 +107,9 @@
         /// </summary>
         /// <param name="sourceName">Name of the source to open a projector for</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with a monitorIndex of 0 or more</param>
         /// <remarks>
-        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Use either a monitorIndex or a projectorGeometry. A monitorIndex of -1 (the default) means no monitor, that is a windowed projector, and can be combined with a projectorGeometry.
         /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
         /// </remarks>
         public void AddOpenSourceProjectorRequest(string sourceName, int? monitorIndex = -1, string? projectorGeometry = null)
@@ -131,9 +123,9 @@
         /// <param name="sourceName">Name of the source to open a projector for</param>
         /// <param name="canvasUuid">Uuid of the canvas the source is in</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with a monitorIndex of 0 or more</param>
         /// <remarks>
-        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Use either a monitorIndex or a projectorGeometry. A monitorIndex of -1 (the default) means no monitor, that is a windowed projector, and can be combined with a projectorGeometry.
         /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
         /// </remarks>
         public void AddOpenSourceProjectorRequest(string sourceName, Guid canvasUuid, int? monitorIndex = -1, string? projectorGeometry = null)
@@ -146,9 +138,9 @@
         /// </summary>
         /// <param name="sourceUuid">Uuid of the source to open a projector for</param>
         /// <param name="monitorIndex">Monitor index, use GetMonitorList to obtain index</param>
-        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with monitorIndex</param>
+        /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with a monitorIndex of 0 or more</param>
         /// <remarks>
-        /// Use either monitorIndex or projectGeometry. One of both should be null, not both.
+        /// Use either a monitorIndex or a projectorGeometry. A monitorIndex of -1 (the default) means no monitor, that is a windowed projector, and can be combined with a projectorGeometry.
         /// Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.
         /// </remarks>
         public void AddOpenSourceProjectorRequest(Guid sourceUuid, int? monitorIndex = -1, string? projectorGeometry = null)
@@ -158,17 +150,24 @@
 
         private void AddOpenSourceProjectorRequest(string? sourceName, Guid? canvasUuid, Guid? sourceUuid, int? monitorIndex, string? projectorGeometry)
         {
+            ValidateProjectorTarget(monitorIndex, projectorGeometry);
+
+            this._requests.Add(new(new { canvasUuid, sourceName, sourceUuid, monitorIndex, projectorGeometry }));
+        }
+
+        // obs-websocket treats a monitorIndex of -1 (also its default) as "no monitor", that is a windowed projector, and
+        // accepts it together with a geometry; only a real monitor index and a geometry exclude each other.
+        private static void ValidateProjectorTarget(int? monitorIndex, string? projectorGeometry)
+        {
             if (monitorIndex is null && projectorGeometry is null)
             {
                 throw new ArgumentException("Either monitorIndex or projectorGeometry must be set.");
             }
 
-            if (monitorIndex is not null && projectorGeometry is not null)
+            if (monitorIndex is >= 0 && projectorGeometry is not null)
             {
                 throw new ArgumentException("Only one of monitorIndex or projectorGeometry must be set.");
             }
-
-            this._requests.Add(new(new { canvasUuid, sourceName, sourceUuid, monitorIndex, projectorGeometry }));
         }
     }
 }
