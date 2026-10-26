@@ -52,7 +52,7 @@
 
         private ClientWebSocket _client = new();
 
-        private TaskCompletionSource<bool> _authenticationComplete = new();
+        private TaskCompletionSource<bool> _authenticationComplete = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private bool _disposed = false;
 
@@ -453,7 +453,7 @@
             // Dispose previous token before creating a new one
             this._receiver?.Dispose();
             this._receiver = new CancellationTokenSource();
-            this._authenticationComplete = new();
+            this._authenticationComplete = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _logger.LogInformation("Connected to {Hostname}:{Port}", hostname, port);
 
@@ -633,8 +633,11 @@
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
             }
 
-            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
+            // Set ConnectionState before completing _authenticationComplete: awaiters of that task (e.g. a
+            // caller's `await ConnectAsync(...)`) could otherwise observe the still-stale previous state if
+            // their continuation runs synchronously on this thread as part of SetResult().
             this.ConnectionState = ConnectionState.Connected;
+            if (this._authenticationComplete.Task.Status != TaskStatus.RanToCompletion) this._authenticationComplete.SetResult(true);
         }
 
         private void ProcessRequestResponseMessage(ObsMessage responseMessage)
@@ -965,7 +968,10 @@
             }
 
             string requestId = request.d.requestId;
-            TaskCompletionSource<IMessage> tcs = new();
+            // RunContinuationsAsynchronously avoids running this awaiter's continuation synchronously on the
+            // receiver loop's thread when ProcessRequestResponseMessage calls tcs.SetResult(...), which would
+            // otherwise delay the receiver from moving on to the next incoming message.
+            TaskCompletionSource<IMessage> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             using CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
             using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
             if (this._requests.TryAdd(requestId, tcs))
