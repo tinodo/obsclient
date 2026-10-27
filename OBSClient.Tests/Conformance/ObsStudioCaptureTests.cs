@@ -172,6 +172,12 @@ namespace OBSStudioClient.Tests.Conformance
                     data["eventData"] = eventData;
                 }
 
+                // The client passes on one volume meter every 100 ms: those of a capture are sent far enough apart.
+                if (eventType == nameof(EventType.InputVolumeMeters))
+                {
+                    await Task.Delay(150);
+                }
+
                 await server.SendRawAsync(JsonSerializer.Serialize(new { op = 5, d = data }));
 
                 var raised = await AsyncTestHelpers.WaitUntilAsync(() => { lock (heard) { return heard.Count > before; } }, TimeSpan.FromSeconds(3));

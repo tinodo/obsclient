@@ -84,9 +84,14 @@
 
         private readonly object _syncRoot = new();
 
-        private readonly ConcurrentDictionary<string, DateTime> _eventThrottleMap = new();
+        // The volume meters are the only events that are throttled: obs-websocket sends them many times a second, and each one is a
+        // sample of the levels of every input, so the latest replaces the ones that were skipped. The other events that obs-websocket
+        // counts as high-volume (an active or show state, a transform) each describe a change of one input or one scene item, and
+        // none can be left out without the application missing that change: a scene switch changes the active state of many
+        // inputs at the same moment. (Until 4.0.0 all four were throttled by type, which dropped those changes.)
+        private const long VolumeMetersIntervalMilliseconds = 100;
 
-        private readonly TimeSpan _highVolumeEventThrottleInterval = TimeSpan.FromMilliseconds(100);
+        private long _lastVolumeMetersTick = long.MinValue / 2;
 
         /// <summary>
         /// Gets or sets the maximum amount of time, in milliseconds, the <see cref="ObsClient"/> to wait for an OBS Studio response after making a request.
@@ -714,17 +719,16 @@
             {
                 var eventType = eventResponseData.EventType.ToString();
 
-                // Throttle high-frequency events
-                if (IsHighFrequencyEvent(eventResponseData.EventType))
+                // Throttle the volume meters (the tick count does not go back when the clock is set).
+                if (eventResponseData.EventType == EventType.InputVolumeMeters)
                 {
-                    var now = DateTime.UtcNow;
-                    _eventThrottleMap.AddOrUpdate(
-                        eventType,
-                        now,
-                        (key, lastTime) => (now - lastTime) < _highVolumeEventThrottleInterval ? lastTime : now
-                    );
-                    if ((_eventThrottleMap[eventType] != now))
-                        return; // Skip invocation
+                    var now = Environment.TickCount64;
+                    if (now - this._lastVolumeMetersTick < VolumeMetersIntervalMilliseconds)
+                    {
+                        return;
+                    }
+
+                    this._lastVolumeMetersTick = now;
                 }
 
                 if (this._eventsMap.TryGetValue(eventType, out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)
@@ -1275,14 +1279,6 @@
                     }
                 });
             }
-        }
-
-        private static bool IsHighFrequencyEvent(EventType eventType)
-        {
-            return eventType == EventType.InputVolumeMeters
-                || eventType == EventType.InputActiveStateChanged
-                || eventType == EventType.InputShowStateChanged
-                || eventType == EventType.SceneItemTransformChanged;
         }
 
         /// <summary>

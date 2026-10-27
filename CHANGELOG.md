@@ -198,6 +198,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - **`GetSceneSceneTransitionOverride` failed for every scene without an override**, which is every scene by default: OBS Studio
   answers with `transitionName` and `transitionDuration` set to `null`, and the client could not convert the null to a number.
   Found by reading the responses of a real OBS Studio (`ObsStudioCaptureTests`).
+- **State changes of inputs and scene items were dropped** (this was so in 3.0.1 as well): the client passed on one event per
+  100 ms for each of the four events that obs-websocket counts as high-volume, whichever input or scene item it was about, so a
+  scene switch, which changes the active state of many inputs at the same moment, reached the application as one change
+  (`InputActiveStateChanged`, `InputShowStateChanged`, `SceneItemTransformChanged`). Only `InputVolumeMeters`, a stream of samples of
+  which the latest replaces the others, is throttled now (one every 100 ms, as before). Found by sending the events that were
+  captured from a real OBS Studio one after the other (`ObsStudioCaptureTests`).
 - **The data of a `CustomEvent` never arrived** (this was so in 3.0.1 as well): obs-websocket sends the data that another client
   gave to `BroadcastCustomEvent` as the data of the event itself, and not as a member `eventData` of it (checked in the source of
   5.7.6, and in the events of a real OBS Studio), which is what its documentation of the event says, so `CustomEventEventArgs.EventData`
