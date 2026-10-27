@@ -16,9 +16,11 @@ internal static class JsonTools
     private static readonly Regex JsonString = new(@"""[^""\\]*(?:\\.[^""\\]*)*""", RegexOptions.Compiled);
 
     // The value of a member whose name ends in password, secret, token or key (streamKey, apiKey, ...) or is authentication.
-    // The value is read as a JSON string, so that a secret that contains an escaped quote is hidden as a whole.
+    // The value is read as a JSON string, so that a secret that contains an escaped quote is hidden as a whole. The client logs
+    // a piece of a message that it could not read, cut off at a fixed length: the value of a secret may end there without its
+    // closing quote (or in the middle of an escape), and is hidden up to the end of the text or of the line then.
     private static readonly Regex Secret = new(
-        @"(""(?:[^""\\]*(?:password|secret|token|key)|authentication)""\s*:\s*)""(?:[^""\\]|\\.)*""",
+        @"(""(?:[^""\\]*(?:password|secret|token|key)|authentication)""\s*:\s*)""(?:[^""\\\r\n]|\\.)*(?:""|\\?(?=[\r\n]|\z))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly JsonWriterOptions IndentedWriter = new() { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };

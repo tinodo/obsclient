@@ -31,6 +31,9 @@ public sealed partial class LogPage : Page
     private readonly ObsSession _session = App.Session;
     private string? _lastExport;
 
+    // The position in the log up to which the entries have been handled, by a rebuild or by a batch that the log handed over.
+    private long _shownThrough;
+
     /// <summary>Initializes a new instance of the <see cref="LogPage"/> class.</summary>
     public LogPage()
     {
@@ -71,7 +74,7 @@ public sealed partial class LogPage : Page
         var filter = this.FilterBox.Text.Trim();
         return filter.Length == 0
             || entry.Title.Contains(filter, StringComparison.OrdinalIgnoreCase)
-            || entry.Text.Contains(filter, StringComparison.OrdinalIgnoreCase);
+            || entry.DisplayText.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnAdded(object? sender, IReadOnlyList<LogEntry> entries)
@@ -81,9 +84,16 @@ public sealed partial class LogPage : Page
             return;
         }
 
-        foreach (var entry in entries.Where(this.Matches))
+        // The entries that a rebuild has already put in the list may still be on their way here: the log hands them over in
+        // batches, and a rebuild reads everything that has been logged, the entries that were not handed over yet included.
+        foreach (var entry in entries.Where(candidate => candidate.Sequence > this._shownThrough && this.Matches(candidate)))
         {
             this.Visible.Add(entry);
+        }
+
+        if (entries.Count > 0)
+        {
+            this._shownThrough = Math.Max(this._shownThrough, entries[entries.Count - 1].Sequence);
         }
 
         while (this.Visible.Count > MaxShown)
@@ -101,8 +111,10 @@ public sealed partial class LogPage : Page
 
     private void Rebuild()
     {
+        var snapshot = this._session.Log.Snapshot();
+        this._shownThrough = snapshot.Count > 0 ? snapshot[snapshot.Count - 1].Sequence : this._shownThrough;
         this.Visible.Clear();
-        foreach (var entry in this._session.Log.Snapshot().Where(this.Matches).TakeLast(MaxShown))
+        foreach (var entry in snapshot.Where(this.Matches).TakeLast(MaxShown))
         {
             this.Visible.Add(entry);
         }
@@ -126,7 +138,7 @@ public sealed partial class LogPage : Page
         }
 
         this.DetailTitle.Text = $"{entry.Title} \u00b7 {entry.TimeText}";
-        this.DetailBox.Text = entry.Kind == LogKind.Client ? entry.Text : JsonTools.Pretty(entry.Text);
+        this.DetailBox.Text = entry.Kind == LogKind.Client ? entry.Text : JsonTools.Pretty(entry.DisplayText);
     }
 
     private void ShowExport(string title, string path)

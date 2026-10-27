@@ -31,6 +31,7 @@
     -->
     <Compile Include="..\OBSClient.TestApp\Analysis\JsonShape.cs" Link="TestApp\Linked\JsonShape.cs" />
     <Compile Include="..\OBSClient.TestApp\Services\JsonTools.cs" Link="TestApp\Linked\JsonTools.cs" />
+    <Compile Include="..\OBSClient.TestApp\Services\FrameInfo.cs" Link="TestApp\Linked\FrameInfo.cs" />
     <Compile Include="..\OBSClient.TestApp\Services\LogEntry.cs" Link="TestApp\Linked\LogEntry.cs" />
     <Compile Include="..\OBSClient.TestApp\Services\ObservationStore.cs" Link="TestApp\Linked\ObservationStore.cs" />
     <Compile Include="..\OBSClient.TestApp\Services\SessionExporter.cs" Link="TestApp\Linked\SessionExporter.cs" />

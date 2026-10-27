@@ -65,6 +65,30 @@ namespace OBSStudioClient.Tests.TestAppTests
             Assert.Equal(expected.Replace(" ", string.Empty, StringComparison.Ordinal), JsonTools.Redact(json).Replace(" ", string.Empty, StringComparison.Ordinal));
         }
 
+        [Theory]
+        [InlineData("""The response could not be read: {"op":7,"d":{"password":"hunter2-is-the-sec""", "hunter2")]
+        [InlineData("""The response could not be read: {"streamServiceSettings":{"key":"live_123\""", "live_123")]
+        [InlineData("""The response could not be read: {"authentication":"abc\u00""", "abc")]
+        [InlineData("""The response could not be read: {"password":"hunter2""", "hunter2")]
+        public void Redact_HidesASecretThatIsCutOff_AtTheEndOfAPreview(string text, string secret)
+        {
+            var redacted = JsonTools.Redact(text);
+
+            Assert.DoesNotContain(secret, redacted, StringComparison.Ordinal);
+            Assert.Contains("***", redacted, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void Redact_StopsAnUnfinishedSecret_AtTheEndOfTheLine()
+        {
+            var text = "The response could not be read: {\"password\":\"hunter2" + Environment.NewLine + "and the next line";
+
+            var redacted = JsonTools.Redact(text);
+
+            Assert.DoesNotContain("hunter2", redacted, StringComparison.Ordinal);
+            Assert.EndsWith("and the next line", redacted, StringComparison.Ordinal);
+        }
+
         [Fact]
         public void Pretty_IndentsJson_AndReturnsOtherTextAsItIs()
         {

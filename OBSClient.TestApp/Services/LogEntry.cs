@@ -19,6 +19,8 @@ public enum LogKind
 /// <summary>One line of the log: a message that went over the wire, or something the client reported.</summary>
 public sealed class LogEntry
 {
+    private string? _displayText;
+
     /// <summary>Gets the position of the entry in the log; it grows with every entry.</summary>
     public long Sequence { get; internal set; }
 
@@ -34,8 +36,14 @@ public sealed class LogEntry
     /// <summary>Gets what the entry is, in a few words.</summary>
     public string Title { get; internal set; } = string.Empty;
 
-    /// <summary>Gets the whole entry: the JSON of a message, or the text of the report.</summary>
+    /// <summary>Gets the whole entry: the JSON of a message exactly as it went over the wire, or the text of the report.</summary>
     public string Text { get; internal set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the entry as it is shown on screen: in a message, a very long string (an image, for example) is left out, so that the
+    /// rest stays readable. <see cref="Text"/> is the whole entry, which is what is compared and exported.
+    /// </summary>
+    public string DisplayText => this._displayText ??= this.Kind == LogKind.Client ? this.Text : JsonTools.Collapse(this.Text);
 
     /// <summary>Gets the operation code of a message.</summary>
     public int? OpCode { get; internal set; }

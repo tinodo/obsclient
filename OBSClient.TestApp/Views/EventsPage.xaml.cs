@@ -12,8 +12,6 @@ public sealed partial class EventsPage : Page
     private const int MaxShown = 3000;
 
     private readonly ObsSession _session = App.Session;
-    private readonly List<SessionEvent> _all = [];
-    private int _received;
 
     /// <summary>Initializes a new instance of the <see cref="EventsPage"/> class.</summary>
     public EventsPage()
@@ -21,7 +19,9 @@ public sealed partial class EventsPage : Page
         this.InitializeComponent();
         this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
         this._session.EventReceived += this.OnEventReceived;
-        this.ShowCount();
+
+        // The page is made when it is first opened, which may be after the events were raised: the session has kept them.
+        this.Rebuild();
     }
 
     /// <summary>Gets the events that match the filter.</summary>
@@ -52,14 +52,9 @@ public sealed partial class EventsPage : Page
     {
         if (this.PauseButton.IsChecked == true)
         {
+            // The session keeps the event: it is shown when the page is resumed.
+            this.ShowCount();
             return;
-        }
-
-        this._received++;
-        this._all.Add(entry);
-        if (this._all.Count > MaxShown)
-        {
-            this._all.RemoveAt(0);
         }
 
         if (this.Matches(entry))
@@ -81,14 +76,14 @@ public sealed partial class EventsPage : Page
 
     private void ShowCount()
     {
-        this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._received:N0} received" + (this.PauseButton.IsChecked == true ? " \u00b7 paused" : string.Empty);
+        this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._session.EventsReceived:N0} received" + (this.PauseButton.IsChecked == true ? " \u00b7 paused" : string.Empty);
         this.EmptyText.Visibility = this.Visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Rebuild()
     {
         this.Visible.Clear();
-        foreach (var entry in this._all.Where(this.Matches))
+        foreach (var entry in this._session.EventHistory.Where(this.Matches).TakeLast(MaxShown))
         {
             this.Visible.Add(entry);
         }
@@ -119,15 +114,24 @@ public sealed partial class EventsPage : Page
         }
     }
 
-    private void PauseButton_Click(object sender, RoutedEventArgs e) => this.ShowCount();
+    private void PauseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (this.PauseButton.IsChecked != true)
+        {
+            this.Rebuild();
+        }
+        else
+        {
+            this.ShowCount();
+        }
+    }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e) => this.Reset();
 
-    /// <summary>Forgets the events that were received.</summary>
+    /// <summary>Forgets the events that were received, here and in the session.</summary>
     internal void Reset()
     {
-        this._all.Clear();
-        this._received = 0;
+        this._session.ClearEventHistory();
         this.Visible.Clear();
         this.ShowDetail();
         this.ShowCount();

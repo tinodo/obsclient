@@ -86,7 +86,13 @@ internal static partial class SmokeTest
             await Task.Delay(1500);
             await ShowAsync(window, "connection", typeof(ConnectionPage), folder);
 
+            // An event that was raised before the Events page was ever opened has to be on it when it is opened.
+            RaiseEarlyEvent();
             await ShowAsync(window, "events", typeof(EventsPage), folder, prepare: RaiseSampleEvents, inspect: () => (window.CurrentPage as EventsPage)?.SelectFirst());
+            if (window.CurrentPage is EventsPage opened)
+            {
+                Check(opened.Shown.Any(entry => entry.Name == "StudioModeStateChanged"), "the Events page shows an event that was raised before the page was opened");
+            }
 
             await ShowAsync(window, "log", typeof(LogPage), folder, prepare: WriteSampleLog, inspect: () => (window.CurrentPage as LogPage)?.SelectFirst());
 
@@ -207,6 +213,14 @@ internal static partial class SmokeTest
             }
         }
     }
+
+    private static void RaiseEarlyEvent() =>
+        App.Session.RaiseForSmokeTest(new SessionEvent(
+            DateTimeOffset.Now,
+            "StudioModeStateChanged",
+            "Ui",
+            "{\n  \"StudioModeEnabled\": true\n}",
+            "{\"d\":{\"eventData\":{\"studioModeEnabled\":true},\"eventIntent\":1024,\"eventType\":\"StudioModeStateChanged\"},\"op\":5}"));
 
     private static void RaiseSampleEvents()
     {

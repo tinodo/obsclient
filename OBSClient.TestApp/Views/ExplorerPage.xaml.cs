@@ -288,7 +288,7 @@ public sealed partial class ExplorerPage : Page
         this._typed = this.Render("result", () => result.Succeeded
             ? result.Value is null ? "(this request returns no data)" : JsonTools.Serialize(result.Value)
             : "(the request failed)");
-        this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.Text);
+        this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.DisplayText);
         this._comparison = this.Render("comparison", () => Compare(request, result, frame));
 
         if (result.Error is { } error)

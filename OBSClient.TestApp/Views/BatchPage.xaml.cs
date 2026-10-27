@@ -284,7 +284,7 @@ public sealed partial class BatchPage : Page
         var frame = result.RequestId is null ? null : this._session.Log.FindBatchResponse(result.RequestId, result.StartSequence);
         var responses = result.Responses ?? [];
         this._typed = this.Render("responses", () => result.Succeeded ? DescribeResponses(responses) : "(the batch failed)");
-        this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.Text);
+        this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.DisplayText);
         this._comparison = this.Render("comparison", () => result.Succeeded ? CompareResponses(responses) : "Nothing to compare: the batch failed.");
 
         if (result.Error is { } error)

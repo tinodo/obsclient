@@ -12,6 +12,10 @@ namespace OBSStudioClient.TestApp.Services;
 internal sealed class WireLog : ILogger<ObsClient>
 {
     private const int Capacity = 20_000;
+
+    // What the entries may hold altogether, in characters: the message of a screenshot alone is megabytes of text.
+    private const long MaxCharacters = 40_000_000;
+    private const int TrimBatch = 2000;
     private const string SendingPrefix = "Sending: ";
     private const string ReceivedPrefix = "Received: ";
 
@@ -21,6 +25,7 @@ internal sealed class WireLog : ILogger<ObsClient>
     private readonly ObservationStore _observations;
     private readonly DispatcherQueueTimer _timer;
     private long _sequence;
+    private long _characters;
 
     /// <summary>Initializes a new instance of the <see cref="WireLog"/> class; call it on the thread of the user interface.</summary>
     /// <param name="dispatcher">The dispatcher of the user interface.</param>
@@ -65,16 +70,32 @@ internal sealed class WireLog : ILogger<ObsClient>
             return;
         }
 
-        var entry = this.Create(logLevel, formatter(state, exception), exception);
+        // The client logs a message before it reads it, so an exception here would close the connection for a message that is not
+        // what the protocol says. A log that fails keeps what it can: the report of the failure, in place of the entry.
+        LogEntry entry;
+        try
+        {
+            entry = this.Create(logLevel, formatter(state, exception), exception);
+        }
+        catch (Exception problem) when (problem is not OutOfMemoryException)
+        {
+            entry = new LogEntry
+            {
+                Time = DateTimeOffset.Now,
+                Kind = LogKind.Client,
+                Level = LogLevel.Error,
+                Title = "The log could not make an entry",
+                Text = problem.ToString(),
+            };
+        }
+
         lock (this._gate)
         {
             entry.Sequence = ++this._sequence;
             this._entries.Add(entry);
             this._pending.Add(entry);
-            if (this._entries.Count > Capacity + 2000)
-            {
-                this._entries.RemoveRange(0, 2000);
-            }
+            this._characters += entry.Text.Length;
+            this.Trim();
         }
     }
 
@@ -100,6 +121,7 @@ internal sealed class WireLog : ILogger<ObsClient>
         {
             this._entries.Clear();
             this._pending.Clear();
+            this._characters = 0;
         }
     }
 
@@ -137,9 +159,6 @@ internal sealed class WireLog : ILogger<ObsClient>
         }
     }
 
-    private static string? StringOf(JsonElement data, string name) =>
-        data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-
     private void ObserveResponse(string requestType, JsonElement responseData)
     {
         // A request without response data has none, or a null: that is not a shape.
@@ -147,6 +166,28 @@ internal sealed class WireLog : ILogger<ObsClient>
         {
             this._observations.ObserveResponse(requestType, responseData);
         }
+    }
+
+    /// <summary>Drops the oldest entries when there are too many, or when they hold too much text. Call it with the lock held.</summary>
+    private void Trim()
+    {
+        if (this._entries.Count <= Capacity + TrimBatch && this._characters <= MaxCharacters)
+        {
+            return;
+        }
+
+        // Down to three quarters of what is allowed, so that the cost of removing is not paid for every entry that is added.
+        var remove = 0;
+        var removed = 0L;
+        while (remove < this._entries.Count - 1
+            && (this._entries.Count - remove > Capacity || this._characters - removed > MaxCharacters / 4 * 3))
+        {
+            removed += this._entries[remove].Text.Length;
+            remove++;
+        }
+
+        this._entries.RemoveRange(0, remove);
+        this._characters -= removed;
     }
 
     private LogEntry? FindLast(long afterSequence, Func<LogEntry, bool> match)
@@ -208,99 +249,65 @@ internal sealed class WireLog : ILogger<ObsClient>
 
     private LogEntry CreateFrame(DateTimeOffset time, LogLevel level, LogKind kind, string json)
     {
-        int? op = null;
-        string? requestType = null;
-        string? requestId = null;
-        string? eventType = null;
-        var failed = false;
-        var status = string.Empty;
+        var info = FrameInfo.None;
 
         try
         {
             using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            if (root.ValueKind == JsonValueKind.Object)
+            info = FrameInfo.Read(document.RootElement);
+            if (kind == LogKind.Received)
             {
-                if (root.TryGetProperty("op", out var opElement) && opElement.TryGetInt32(out var opValue))
-                {
-                    op = opValue;
-                }
-
-                if (root.TryGetProperty("d", out var data) && data.ValueKind == JsonValueKind.Object)
-                {
-                    requestType = StringOf(data, "requestType");
-                    requestId = StringOf(data, "requestId");
-                    eventType = StringOf(data, "eventType");
-
-                    if (op == 7 && data.TryGetProperty("requestStatus", out var requestStatus) && requestStatus.ValueKind == JsonValueKind.Object)
-                    {
-                        failed = requestStatus.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.False;
-                        if (failed)
-                        {
-                            var code = requestStatus.TryGetProperty("code", out var codeElement) && codeElement.TryGetInt32(out var codeValue) ? codeValue.ToString() : "?";
-                            var comment = StringOf(requestStatus, "comment");
-                            status = $" failed ({code}){(string.IsNullOrEmpty(comment) ? string.Empty : ": " + comment)}";
-                        }
-                    }
-
-                    if (kind == LogKind.Received)
-                    {
-                        if (op == 7 && requestType is not null && data.TryGetProperty("responseData", out var responseData))
-                        {
-                            this.ObserveResponse(requestType, responseData);
-                        }
-                        else if (op == 9 && data.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
-                        {
-                            // The responses to the requests of a batch are in the answer to the batch.
-                            foreach (var result in results.EnumerateArray())
-                            {
-                                if (result.ValueKind == JsonValueKind.Object
-                                    && StringOf(result, "requestType") is { } resultType
-                                    && result.TryGetProperty("responseData", out var resultData))
-                                {
-                                    this.ObserveResponse(resultType, resultData);
-                                }
-                            }
-                        }
-                        else if (op == 5 && eventType is not null && data.TryGetProperty("eventData", out var eventData))
-                        {
-                            this._observations.ObserveEvent(eventType, eventData);
-                        }
-                    }
-                }
+                this.Observe(document.RootElement, info);
             }
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
         {
-            // Not JSON: the entry is kept as text.
+            // Not JSON, or not what the protocol says: the entry is kept as text, with what could be read of it.
         }
 
-        var title = op switch
-        {
-            0 => "Hello",
-            1 => "Identify",
-            2 => "Identified",
-            3 => "Reidentify",
-            5 => $"Event {eventType}",
-            6 => $"Request {requestType}",
-            7 => $"Response {requestType}{status}",
-            8 => "Request batch",
-            9 => "Request batch response",
-            _ => "Message",
-        };
-
+        // The whole message: what is shown on screen leaves out a very long string (an image), what is exported and compared does not.
         return new LogEntry
         {
             Time = time,
             Kind = kind,
             Level = level,
-            Title = title,
-            Text = JsonTools.Collapse(json),
-            OpCode = op,
-            RequestType = requestType,
-            RequestId = requestId,
-            EventType = eventType,
-            Failed = failed,
+            Title = info.Title,
+            Text = json,
+            OpCode = info.OpCode,
+            RequestType = info.RequestType,
+            RequestId = info.RequestId,
+            EventType = info.EventType,
+            Failed = info.Failed,
         };
+    }
+
+    private void Observe(JsonElement root, FrameInfo info)
+    {
+        if (!root.TryGetProperty("d", out var data) || data.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (info.OpCode == 7 && info.RequestType is not null && data.TryGetProperty("responseData", out var responseData))
+        {
+            this.ObserveResponse(info.RequestType, responseData);
+        }
+        else if (info.OpCode == 9 && data.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            // The responses to the requests of a batch are in the answer to the batch.
+            foreach (var result in results.EnumerateArray())
+            {
+                if (result.ValueKind == JsonValueKind.Object
+                    && FrameInfo.StringOf(result, "requestType") is { } resultType
+                    && result.TryGetProperty("responseData", out var resultData))
+                {
+                    this.ObserveResponse(resultType, resultData);
+                }
+            }
+        }
+        else if (info.OpCode == 5 && info.EventType is not null && data.TryGetProperty("eventData", out var eventData))
+        {
+            this._observations.ObserveEvent(info.EventType, eventData);
+        }
     }
 }

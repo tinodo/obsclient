@@ -45,6 +45,27 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
+        public void ALongStringOfAMessage_IsLeftOutOfWhatIsShown_ButNotOutOfWhatIsExported()
+        {
+            var image = new string('A', 5000);
+            var entry = Entry(LogKind.Received, "Response GetSourceScreenshot", "{\"d\":{\"responseData\":{\"imageData\":\"" + image + "\"}},\"op\":7}");
+
+            Assert.Contains(image, entry.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain(image, entry.DisplayText, StringComparison.Ordinal);
+            Assert.Contains("characters left out", entry.DisplayText, StringComparison.Ordinal);
+            Assert.Contains(image, SessionExporter.ToLine(entry, redact: false), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void TheReportOfTheClient_IsShownAsItIs()
+        {
+            var report = "Could not read: " + new string('A', 5000);
+            var entry = Entry(LogKind.Client, "Could not read", report);
+
+            Assert.Equal(report, entry.DisplayText);
+        }
+
+        [Fact]
         public void AMessageThatWentOverTheWire_IsWrittenAsAFrame_AndRedacted()
         {
             var entry = Entry(LogKind.Sent, "Identify", """{"d":{"authentication":"abc"},"op":1}""");

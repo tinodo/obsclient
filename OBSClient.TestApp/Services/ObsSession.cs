@@ -27,7 +27,10 @@ internal sealed record SessionStatistics(long BytesSent, long BytesReceived, int
 /// </summary>
 internal sealed class ObsSession
 {
+    private const int EventHistoryCapacity = 3000;
+
     private readonly DispatcherQueue _dispatcher;
+    private readonly List<SessionEvent> _eventHistory = [];
 
     // The app has one request in flight at a time. The response to a request is found in the log by its type and by where the
     // log was when the request started, which tells two requests of the same type apart only if they do not overlap (the
@@ -97,8 +100,25 @@ internal sealed class ObsSession
         ? new SessionStatistics(client.SessionBytesSent, client.SessionBytesReceived, client.SessionMessagesSent, client.SessionMessagesReceived)
         : null;
 
+    /// <summary>
+    /// Gets the events that the client raised, the latest last. The session keeps them from the moment it exists, so that the page
+    /// that shows them has them when it is opened for the first time, after the events were raised. Use it on the thread of the
+    /// user interface.
+    /// </summary>
+    public IReadOnlyList<SessionEvent> EventHistory => this._eventHistory;
+
+    /// <summary>Gets how many events the client raised since the history was last cleared; the history keeps the latest ones.</summary>
+    public int EventsReceived { get; private set; }
+
+    /// <summary>Forgets the events that were raised.</summary>
+    public void ClearEventHistory()
+    {
+        this._eventHistory.Clear();
+        this.EventsReceived = 0;
+    }
+
     /// <summary>Raises an event as if the client had raised it; for the smoke test, which shows the pages with something on them.</summary>
-    internal void RaiseForSmokeTest(SessionEvent entry) => this.EventReceived?.Invoke(this, entry);
+    internal void RaiseForSmokeTest(SessionEvent entry) => this.RaiseEvent(entry);
 
     /// <summary>Connects to OBS Studio and waits until the handshake is done.</summary>
     /// <param name="settings">How to connect.</param>
@@ -390,8 +410,21 @@ internal sealed class ObsSession
         {
             if (!this._closing)
             {
-                this.EventReceived?.Invoke(this, entry);
+                this.RaiseEvent(entry);
             }
         });
+    }
+
+    // On the thread of the user interface.
+    private void RaiseEvent(SessionEvent entry)
+    {
+        this.EventsReceived++;
+        this._eventHistory.Add(entry);
+        if (this._eventHistory.Count > EventHistoryCapacity)
+        {
+            this._eventHistory.RemoveAt(0);
+        }
+
+        this.EventReceived?.Invoke(this, entry);
     }
 }

@@ -82,7 +82,10 @@ sample, and it is not part of the NuGet package.
 
 What it shows is a sample: a member that was not seen may exist, and a hardware dependent feature (the virtual camera, the replay
 buffer, a streaming service) only answers when OBS Studio has it. Exports go to `Documents\OBSClient Test App`; passwords and stream
-keys are hidden in them unless you say otherwise, but check a file before you share it.
+keys are hidden in them unless you say otherwise, but check a file before you share it. The log keeps every message whole, a screenshot
+included (up to 40 million characters; the oldest entries go first): the screen leaves a very long string out and shows a note of its
+length, the export and the comparison use the whole message. The events of the session are kept from the moment the app starts, so the
+Events page has them when it is opened after they were raised.
 
 Build and run it on Windows with the .NET 10 SDK: `dotnet run --project OBSClient.TestApp -p:Platform=x64`. Every build of CI
 publishes it as the artifact `OBSClient.TestApp-win-x64` (unpackaged and self-contained: unzip it and start `OBSClient.TestApp.exe`;
