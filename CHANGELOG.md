@@ -171,7 +171,15 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
 - The response and event types are what they were in 3.0.1 (the same constructors and properties, checked field by field),
   except for `CreateRecordChapterResponse` and `MonitorTypeResponse` (removed, see above) and the new canvas types; a list in
-  a response is empty instead of null when OBS Studio sends none.
+  a response is empty instead of null when OBS Studio sends none. The obsolete `CurrentProgramSceneName`,
+  `CurrentProgramSceneUuid`, `CurrentPreviewSceneName` and `CurrentPreviewSceneUuid` properties of the two current-scene
+  responses are still there.
+- **Checked against the released package.** .NET's package validation (ApiCompat) of this build against the published 3.0.1
+  package reports 224 differences, and each one is described in this file: the two removed response types, the constructor and
+  `SceneIndex` of `Scene`, the removed constructors of `RequestMessage`, the value of the constant `EventSubscriptions.All`
+  (below), and 217 request methods and builders whose signature takes a `SceneRef`, an `InputRef` or a `SourceRef` where it
+  took a name or a `Guid`. Those are binary breaks, and source breaks only for the seven overloads named above (and for named
+  arguments and method groups, as described there). Nothing else of the public API was removed or changed.
 - The new `InputKindCaps`, `CropToBounds`, `InputUuid` and `SourceUuid` are `init` properties, so no existing constructor changed.
 - Optional arguments that are not given are left out of the request instead of being sent as `null`. obs-websocket treats
   the two alike (`Request::Contains` ignores a null), except for the three fields where it gives a null a meaning: it
@@ -180,5 +188,6 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   deletes the parameter.
 - The `Canvases` event subscription is part of `EventSubscriptions.All`. Older obs-websocket versions only require the
   value to be an unsigned number and ignore the bits they do not know (checked in the source of 5.5.2), so that is harmless there.
+  `All` is a constant, so code that was compiled against 3.x keeps the old value (without `Canvases`) until it is recompiled.
 - Event handlers run on the receive thread. A handler must not block waiting for a response of OBS Studio (for example
   with `.Result`); it would keep the client from receiving that response.
