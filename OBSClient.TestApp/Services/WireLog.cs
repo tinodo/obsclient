@@ -22,6 +22,7 @@ internal sealed class WireLog : ILogger<ObsClient>
     private readonly object _gate = new();
     private readonly List<LogEntry> _entries = [];
     private readonly List<LogEntry> _pending = [];
+    private readonly EventPairing _pairing = new();
     private readonly ObservationStore _observations;
     private readonly DispatcherQueueTimer _timer;
     private long _sequence;
@@ -109,6 +110,8 @@ internal sealed class WireLog : ILogger<ObsClient>
             this._characters += entry.Text.Length;
             this.Trim();
         }
+
+        this._pairing.Received(entry);
     }
 
     /// <summary>Adds a message of the app itself to the log.</summary>
@@ -135,6 +138,8 @@ internal sealed class WireLog : ILogger<ObsClient>
             this._pending.Clear();
             this._characters = 0;
         }
+
+        this._pairing.Clear();
     }
 
     /// <summary>Finds the response to a request that was sent after a given point of the log.</summary>
@@ -153,23 +158,13 @@ internal sealed class WireLog : ILogger<ObsClient>
 
     /// <summary>Finds the message in which OBS Studio sent the event that the client has just raised.</summary>
     /// <param name="eventType">The type of the event.</param>
-    /// <returns>The latest message of that event, or null.</returns>
-    public LogEntry? LatestEvent(string eventType)
-    {
-        lock (this._gate)
-        {
-            for (var index = this._entries.Count - 1; index >= Math.Max(0, this._entries.Count - 500); index--)
-            {
-                var entry = this._entries[index];
-                if (entry.Kind == LogKind.Received && entry.OpCode == 5 && entry.EventType == eventType)
-                {
-                    return entry;
-                }
-            }
-
-            return null;
-        }
-    }
+    /// <param name="typedJson">What the client made of the event: the event arguments, as JSON.</param>
+    /// <returns>The message of that event, or null.</returns>
+    /// <remarks>
+    /// The client raises the events on a thread of its own, one at a time and in the order in which they arrived, so a few more messages of
+    /// that type may have arrived since: the message of the event is the oldest one that was not matched with an event yet.
+    /// </remarks>
+    public LogEntry? ClaimEvent(string eventType, string typedJson) => this._pairing.Match(eventType, typedJson);
 
     private void ObserveResponse(string requestType, JsonElement responseData)
     {

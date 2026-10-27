@@ -405,7 +405,7 @@ internal sealed class ObsSession
             this.Log.Note(LogLevel.Warning, $"The arguments of the event {name} could not be shown: {exception.Message}");
         }
 
-        var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, this.Log.LatestEvent(name)?.Text);
+        var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, this.Log.ClaimEvent(name, typed)?.Text);
         this._dispatcher.TryEnqueue(() =>
         {
             if (!this._closing)

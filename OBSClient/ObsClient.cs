@@ -25,6 +25,17 @@
     /// </summary>
     /// <remarks>
     /// Implements <see href="https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md"/>
+    /// <para>
+    /// The events of OBS Studio and <see cref="ConnectionClosed"/> are raised by a dispatcher of the client: one at a time, in the
+    /// order in which they happened, on a thread of the thread pool that is not the thread that reads from OBS Studio. A handler can
+    /// therefore wait for a response to a request, but the events behind it wait while it runs, and they queue up in memory when the
+    /// handlers are slower than OBS Studio is. Once the client is disposed nothing is raised any more.
+    /// </para>
+    /// <para>
+    /// <see cref="PropertyChanged"/> and the statistics events (<see cref="TotalBytesSentChanged"/> and the others) are raised on the thread
+    /// that causes the change, which can be the thread that reads from OBS Studio: keep those handlers short, and do not wait for a
+    /// response from OBS Studio in them.
+    /// </para>
     /// </remarks>
     public partial class ObsClient : INotifyPropertyChanged, IDisposable
     {
@@ -56,7 +67,7 @@
         // session, so a receive loop that is still winding down can never touch the state of a newer connection.
         private volatile ConnectionSession? _session;
 
-        private bool _disposed = false;
+        private volatile bool _disposed = false;
 
         private bool _autoReconnect = false;
 
@@ -83,6 +94,20 @@
         private readonly ILogger<ObsClient> _logger;
 
         private readonly object _syncRoot = new();
+
+        // Everything that the client reports because of what happens on the connection (the events of OBS Studio, and ConnectionClosed)
+        // goes through this queue. The receive loop only adds to it: a task of the thread pool raises the notifications, one at a time and
+        // in the order in which they were added. So a handler can wait for the response to a request, which the receive loop has to read,
+        // without keeping it from doing so.
+        private readonly ConcurrentQueue<Action> _notifications = new();
+
+        // 1 while a task is raising the notifications of the queue.
+        private int _delivering;
+
+        // How many notifications are waiting, to warn when the handlers of the application are slower than OBS Studio is.
+        private int _waitingNotifications;
+
+        private const int NotificationBacklogWarning = 1000;
 
         // The volume meters are the only events that are throttled: obs-websocket sends them many times a second, and each one is a
         // sample of the levels of every input, so the latest replaces the ones that were skipped. The other events that obs-websocket
@@ -305,13 +330,21 @@
         }
 
         /// <summary>
-        /// Asynchronous event, triggered when the connection with OBS Studio is closed.
+        /// Occurs when the connection with OBS Studio is closed, for whatever reason, a call of <see cref="Disconnect"/> included.
         /// </summary>
+        /// <remarks>
+        /// Raised by the dispatcher of the client, after the events of OBS Studio that arrived before the connection ended.
+        /// See the remarks of <see cref="ObsClient"/>.
+        /// </remarks>
         public event EventHandler<ConnectionClosedEventArgs>? ConnectionClosed;
 
         /// <summary>
-        /// Synchronous event, triggered when an important property changes.
+        /// Occurs when an important property changes, <see cref="ConnectionState"/> for instance.
         /// </summary>
+        /// <remarks>
+        /// Raised on the thread that causes the change, which can be the thread that reads from OBS Studio: a handler must be quick, and
+        /// must not wait for a response from OBS Studio.
+        /// </remarks>
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
@@ -562,6 +595,7 @@
 
             this._reconnectTimer.Dispose();
             this._eventsMap.Clear();
+            this._notifications.Clear();
         }
 
         private async Task<bool> StartAsync()
@@ -723,8 +757,6 @@
         {
             if (responseMessage.Data is EventMessage eventResponseData)
             {
-                var eventType = eventResponseData.EventType.ToString();
-
                 // Throttle the volume meters (the tick count does not go back when the clock is set).
                 if (eventResponseData.EventType == EventType.InputVolumeMeters)
                 {
@@ -737,38 +769,102 @@
                     this._lastVolumeMetersTick = now;
                 }
 
-                if (this._eventsMap.TryGetValue(eventType, out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)
+                // The receive loop does not run the handlers: it queues the event, and goes on reading. An event that nobody listens
+                // to is not queued at all.
+                if (this._eventsMap.TryGetValue(eventResponseData.EventType.ToString(), out var field) && field.GetValue(this) is not null)
                 {
-                    foreach (var handler in eventDelegate.GetInvocationList())
-                    {
-                        try
-                        {
-                            if (eventResponseData.EventData == null)
-                            {
-                                if (handler is EventHandler eh)
-                                    eh(this, EventArgs.Empty);
-                                else
-                                    handler.DynamicInvoke(this);
-                            }
-                            else
-                            {
-                                if (handler is EventHandler<object> ehObj)
-                                    ehObj(this, eventResponseData.EventData);
-                                else
-                                    handler.DynamicInvoke(this, eventResponseData.EventData);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Exception in event handler for {EventType}", eventResponseData.EventType);
-                        }
-                    }
+                    this.Notify(() => this.RaiseEvent(eventResponseData));
                 }
             }
             else
             {
                 _logger.LogError("Unexpected response type in ProcessEventMessage");
                 throw new ObsClientException($"Unexpected response type {responseMessage.Data?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
+            }
+        }
+
+        // Raises an event for the handlers that it has at this moment (not at the moment that it arrived: a handler that was removed in the
+        // meantime does not get it). A handler that throws is logged, and does not keep the other handlers from getting their turn.
+        private void RaiseEvent(EventMessage eventResponseData)
+        {
+            if (this._eventsMap.TryGetValue(eventResponseData.EventType.ToString(), out var field) && field.GetValue(this) is MulticastDelegate eventDelegate)
+            {
+                foreach (var handler in eventDelegate.GetInvocationList())
+                {
+                    try
+                    {
+                        if (eventResponseData.EventData == null)
+                        {
+                            if (handler is EventHandler eh)
+                                eh(this, EventArgs.Empty);
+                            else
+                                handler.DynamicInvoke(this);
+                        }
+                        else
+                        {
+                            if (handler is EventHandler<object> ehObj)
+                                ehObj(this, eventResponseData.EventData);
+                            else
+                                handler.DynamicInvoke(this, eventResponseData.EventData);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Exception in event handler for {EventType}", eventResponseData.EventType);
+                    }
+                }
+            }
+        }
+
+        // Adds a notification to the queue, and makes sure that a task is raising the notifications. Once the client is disposed nothing is
+        // raised any more.
+        private void Notify(Action notification)
+        {
+            if (this._disposed)
+            {
+                return;
+            }
+
+            if (Interlocked.Increment(ref this._waitingNotifications) == NotificationBacklogWarning)
+            {
+                _logger.LogWarning(
+                    "{Count} notifications are waiting for the handlers of the application, which are slower than OBS Studio is. A handler that waits for something holds up all the notifications behind it.",
+                    NotificationBacklogWarning);
+            }
+
+            this._notifications.Enqueue(notification);
+            if (Interlocked.CompareExchange(ref this._delivering, 1, 0) == 0)
+            {
+                _ = Task.Run(this.DeliverNotifications);
+            }
+        }
+
+        // The one task that raises the notifications. It ends when the queue is empty, and the next notification starts another one.
+        private void DeliverNotifications()
+        {
+            while (true)
+            {
+                while (!this._disposed && this._notifications.TryDequeue(out var notification))
+                {
+                    Interlocked.Decrement(ref this._waitingNotifications);
+                    try
+                    {
+                        notification();
+                    }
+                    catch (Exception ex)
+                    {
+                        // The notifications handle the exceptions of their handlers themselves; this keeps the delivery alive whatever happens.
+                        _logger.LogError(ex, "Exception while raising a notification");
+                    }
+                }
+
+                // Interlocked, for the full fence: a notification that was added after the last look at the queue found this task still
+                // delivering and started none, so the queue has to be looked at again after the flag was reset.
+                Interlocked.Exchange(ref this._delivering, 0);
+                if (this._disposed || this._notifications.IsEmpty || Interlocked.CompareExchange(ref this._delivering, 1, 0) != 0)
+                {
+                    return;
+                }
             }
         }
 
@@ -1173,14 +1269,14 @@
                 this.ConnectionState = ConnectionState.Disconnected;
             }
 
-            // Intentionally not passing a cancellation token to Task.Run: the session's is frequently already
-            // cancelled here (the normal Disconnect() path), and Task.Run with an already-cancelled token would skip
-            // invoking the delegate entirely, silently suppressing the ConnectionClosed event on every deliberate disconnect.
-            _ = Task.Run(() =>
+            // Raised through the queue of notifications: after the events that arrived before the connection ended, and never by this loop,
+            // so a handler that connects again, or waits for anything, cannot hold up the cleanup of the connection that just ended.
+            var closed = new ConnectionClosedEventArgs(closeCode, closeDescription);
+            this.Notify(() =>
             {
                 try
                 {
-                    this.ConnectionClosed?.Invoke(this, new ConnectionClosedEventArgs(closeCode, closeDescription));
+                    this.ConnectionClosed?.Invoke(this, closed);
                 }
                 catch (Exception ex)
                 {

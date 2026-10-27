@@ -84,6 +84,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   the format of the list (see *Fixed*). `item.ItemValue!.Value.GetString()` is what `item.ItemValue` was for a list of strings.
 - `SceneItemListReindexedEventArgs.SceneItems` is an array of the new `BasicSceneItem`, with the `SceneItemId` and the
   `SceneItemIndex` that OBS Studio sends for each item of a reindexed scene (see *Fixed*), instead of an array of `SceneItem`.
+- **The events of OBS Studio and `ConnectionClosed` are raised off the receive thread** *(after beta1)*. The thread that reads from OBS Studio
+  used to run the handlers itself, so a handler that waited for a response (`.Result`, `.Wait()`) kept the client from reading it, and the
+  request timed out. The client now queues them, and a task of the thread pool raises them, one at a time and in the order in which they
+  happened: a handler can wait for a response, and a slow handler delays only the events behind it. What that changes for code that
+  worked: (1) an event is no longer raised before the response to the request that caused it is handled (`await
+  client.SetCurrentProgramScene("Game")` can return before `CurrentProgramSceneChanged` was raised for it); (2) events queue up in memory
+  while a handler runs, without a limit (dropping one would lose a change), where they used to hold up the receive loop and everything
+  behind it, and the client logs a warning when 1000 of them are waiting; (3) `ConnectionClosed` is raised after the events that arrived
+  before the connection ended, and once the client is disposed nothing that was waiting is raised any more. `PropertyChanged` and the
+  statistics events are not changed: they are still raised on the thread that causes the change, which can be the receive thread.
 
 ### Added
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
@@ -265,5 +275,6 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - The `Canvases` event subscription is part of `EventSubscriptions.All`. Older obs-websocket versions only require the
   value to be an unsigned number and ignore the bits they do not know (checked in the source of 5.5.2), so that is harmless there.
   `All` is a constant, so code that was compiled against 3.x keeps the old value (without `Canvases`) until it is recompiled.
-- Event handlers run on the receive thread. A handler must not block waiting for a response of OBS Studio (for example
-  with `.Result`); it would keep the client from receiving that response.
+- The events of OBS Studio and `ConnectionClosed` are raised by a dispatcher of the client and not by the receive thread, since 4.0.0
+  (see *Breaking changes*): up to and including 4.0.0-beta1 a handler that blocked waiting for a response of OBS Studio (for example with
+  `.Result`) kept the client from receiving that response, and the request timed out.

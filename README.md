@@ -87,8 +87,9 @@ client.Dispose();
 
 ## Good to know
 
-- **Events run on the receive thread.** A handler must not block waiting for a response from OBS Studio (for example
-  `client.GetSceneList().Result`): the client could not receive that response while the handler is waiting for it.
+- **Events are raised by a dispatcher of the client**, one at a time and in the order in which they happened, on a thread that is not
+  the one that reads from OBS Studio: a handler can wait for a response from OBS Studio, and a slow handler only delays the events
+  behind it. `PropertyChanged` and the statistics events are raised on the thread that causes the change: keep those handlers quick.
 - **Requests time out after 500 ms by default.** Change `ObsClient.RequestTimeout` if OBS Studio is busy (batches with long
   `Sleep` requests need a longer timeout; see `SendRequestBatchAsync`).
 - **A lost connection is reported, not hidden.** `ConnectionState` and `ConnectionClosed` tell you when it ends, requests

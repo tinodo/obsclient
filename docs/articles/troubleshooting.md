@@ -39,8 +39,11 @@ OBS Studio did not answer within [`RequestTimeout`](xref:OBSStudioClient.ObsClie
 
 - Some requests take OBS Studio longer, a screenshot of a large source for instance. Raise `RequestTimeout`.
 - A batch that sleeps needs a timeout that is longer than all its sleeps: pass `timeOutInMilliseconds` to `SendRequestBatchAsync`.
-- **Every request of your program times out after one in an event handler did.** A handler that waits for a response (`.Result`, `.Wait()`)
-  blocks the thread that has to read it. See [the rules for handlers](events.md#rules-for-handlers).
+- **Every request of your program times out after a `PropertyChanged` or statistics handler waited for one.** Those handlers run on
+  the thread that causes the change, which can be the one that reads the responses, and a handler that waits there (`.Result`,
+  `.Wait()`) keeps it from reading. Do not wait for a response in them. The handlers of the events of OBS Studio run on a thread of
+  their own, and one that waits there only delays the events behind it (up to and including 4.0.0-beta1 they ran on the thread that
+  reads, so such a handler made every request time out). See [the rules for handlers](events.md#rules-for-handlers).
 
 ## A request throws `ObsClientException`: "Not connected."
 

@@ -79,10 +79,10 @@ skips the ones in between. The other three events each describe a change of one 
 
 ## Rules for handlers
 
-- **Handlers run on the thread that reads from the socket**, one after the other, in the order in which the events arrived. A slow handler
-  delays everything behind it, the responses to your requests included.
-- **Never wait for a response inside a handler.** `client.GetSceneList().Result` (or `.Wait()`) blocks the very thread that has to read the response, so
-  the request can only end in a timeout. Use an `async` handler, which gives the thread back at the first `await`:
+- **Handlers run one at a time, in the order in which the events arrived**, on a thread of the thread pool that is not the thread
+  that reads from OBS Studio. A slow handler delays the events behind it, and nothing else: the responses to your requests are read
+  all the same, so a handler can wait for a response (`client.GetSceneList().Result` does not time out), although an `async` handler
+  that awaits it does not hold up the events behind it while it waits:
 
   ```csharp
   client.CurrentProgramSceneChanged += async (_, e) =>
@@ -101,6 +101,17 @@ skips the ones in between. The other three events each describe a change of one 
   };
   ```
 
+- **Events queue up in memory while a handler runs.** There is no limit, because dropping an event would lose a change that your
+  application has to know about; the client logs a warning when 1000 of them are waiting. Keep handlers short, and do the long work
+  in a task of your own.
+- **`ConnectionClosed` comes in the same order**: after the events that arrived before the connection ended. Events that are waiting
+  when you call `Disconnect()` are still raised, before `ConnectionClosed`. Once the client is disposed nothing is raised any more, and
+  what was still waiting is dropped.
+- **An event is not guaranteed to be raised before the response of the request that caused it.** `await client.SetCurrentProgramScene("Game")`
+  can return before `CurrentProgramSceneChanged` was raised for it; the two are on different threads.
+- **Not everything is raised this way.** `PropertyChanged` (for `ConnectionState` and the other properties) and the statistics events
+  (`TotalBytesSentChanged` and the others) are raised on the thread that causes the change, which can be the thread that reads from OBS
+  Studio: keep those handlers quick, and do not wait for a response from OBS Studio in them.
 - **An exception in a handler does not harm the connection.** The client logs it and goes on with the other handlers and the next
   event. (The `try`/`catch` above is for the part of an `async` handler after its first `await`, which the client cannot see.)
 - **A user interface has its own thread.** Hand the work over to it (`Dispatcher.Invoke`, `DispatcherQueue.TryEnqueue`,
