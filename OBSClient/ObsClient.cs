@@ -612,6 +612,7 @@
             else
             {
                 AbandonPendingWork(session);
+                this.SwitchOffAutoReconnectOfEndedAttempt(session);
                 this.SetConnectionState(session, ConnectionState.Disconnected);
                 session.Dispose();
                 connected = false;
@@ -626,17 +627,26 @@
             return connected;
         }
 
-        // What Disconnect() does, for the session of one attempt to connect: it is ended, and AutoReconnect is switched off only when that
-        // session is still the active one, so that a connection that was started in its place keeps its settings.
+        // What Disconnect() does, for the session of one attempt to connect and only for it: the session is cancelled, and marked as ended by
+        // its caller. AutoReconnect is not written from here but when the session has ended (SwitchOffAutoReconnectOfEndedAttempt), so that
+        // a call that runs late can never reach a connection that a handler started in its place: that one cannot start before this session
+        // is Disconnected. Ending a session more than once does no harm.
         private void EndAttempt(ConnectionSession session)
         {
             _logger.LogInformation("Ending the attempt to connect to OBS Studio");
-            if (ReferenceEquals(this._session, session))
+            session.EndedByCaller = true;
+            session.Cancellation.Cancel();
+        }
+
+        // Switches AutoReconnect off, as Disconnect() does, for an attempt that its token ended. It is called when the session has ended
+        // and before the state becomes Disconnected, which is what the reconnect timer waits for and what a handler of PropertyChanged may
+        // answer by connecting again, and only for the session that is still the active one.
+        private void SwitchOffAutoReconnectOfEndedAttempt(ConnectionSession session)
+        {
+            if (session.EndedByCaller && ReferenceEquals(this._session, session))
             {
                 this.AutoReconnect = false;
             }
-
-            session.Cancellation.Cancel();
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
@@ -1234,6 +1244,7 @@
                 Interlocked.Exchange(ref this._sessionBytesSent, 0);
                 Interlocked.Exchange(ref this._sessionMessagesReceived, 0);
                 Interlocked.Exchange(ref this._sessionMessagesSent, 0);
+                this.SwitchOffAutoReconnectOfEndedAttempt(session);
                 this.ConnectionState = ConnectionState.Disconnected;
             }
 
@@ -1391,6 +1402,9 @@
 
             /// <summary>1 once the connection has ended and everything that was waiting on it has been failed.</summary>
             public int Closed;
+
+            /// <summary>True when the token of the call that made this session ended it: <see cref="ObsClient.ConnectAsync"/> switches AutoReconnect off for it, as Disconnect() does.</summary>
+            public volatile bool EndedByCaller;
 
             public void Dispose()
             {

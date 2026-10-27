@@ -198,6 +198,17 @@ namespace OBSStudioClient.Tests
         [Fact]
         public async Task ACancelledConnectAsync_DoesNotDisturbAConnectionThatAHandlerStartedInItsPlace()
         {
+            // The end of the call that was cancelled and the handler that connects again run at the same time on different threads, and a call
+            // that reaches the new connection hits it only when they overlap by a few microseconds: the scenario is repeated, to make that
+            // overlap likely, as a failure of one round says nothing about the others.
+            for (var round = 0; round < 30; round++)
+            {
+                await ACancelledConnectAsyncAndAHandlerThatConnectsAgainAsync(round);
+            }
+        }
+
+        private static async Task ACancelledConnectAsyncAndAHandlerThatConnectsAgainAsync(int round)
+        {
             // A handler of ConnectionState that connects again as soon as the connection is gone starts a new connection, while the
             // call that was cancelled is still on its way out: that call must end its own attempt, and nothing of the new one.
             await using var server = new FakeObsWebSocketServer();
@@ -218,13 +229,13 @@ namespace OBSStudioClient.Tests
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
 
-            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => replacement is not null, Timeout), "The handler did not connect again.");
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => replacement is not null, Timeout), $"The handler did not connect again (round {round}).");
             await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "The connection that the handler started did not get its handshake.");
             Assert.True(await replacement!.WithTimeoutAsync(Timeout));
             Assert.Equal(ConnectionState.Connected, client.ConnectionState);
 
             // The setting of the new connection is its own: the call that was cancelled did not switch it off.
-            Assert.True(client.AutoReconnect);
+            Assert.True(client.AutoReconnect, $"The call that was cancelled switched AutoReconnect off for the connection that replaced it (round {round}).");
 
             client.Disconnect();
         }

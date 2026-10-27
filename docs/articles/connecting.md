@@ -48,7 +48,8 @@ or that you cancelled the attempt, see below.
 ### Cancelling a connection attempt
 
 Cancelling the `cancellationToken` ends the attempt as `Disconnect()` would: the connection that is being opened is closed, and
-`AutoReconnect` is switched off, so that the client does not go on trying behind your back. `ConnectAsync` then throws an
+`AutoReconnect` is switched off, so that the client does not go on trying behind your back. `AutoReconnect` goes off as the attempt ends,
+which can be a moment after `ConnectAsync` threw, and before `ConnectionState` is `Disconnected`. `ConnectAsync` throws an
 `OperationCanceledException`; it does not return `false`, which is for an attempt that failed. A token that is cancelled after
 `ConnectAsync` returned has no effect on the connection.
 
