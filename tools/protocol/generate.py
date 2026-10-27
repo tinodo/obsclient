@@ -342,6 +342,209 @@ def assign_ordinals(model: Model, missing: dict[str, list[str]]) -> None:
     pm.OVERLAY_FILE.write_text(text, encoding="utf-8", newline="\n")
 
 
+# -- requests ---------------------------------------------------------------------------------------------------------
+
+REQUEST_USINGS = (
+    "OBSStudioClient.Classes",
+    "OBSStudioClient.Enums",
+    "OBSStudioClient.Messages",
+    "OBSStudioClient.Responses",
+    "System.Text.Json",
+    "System.Text.Json.Serialization",
+)
+
+MAX_SIGNATURE = 150
+
+
+def paragraphs(text: str) -> list[str]:
+    return [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
+
+
+def param_text(p: pm.Param) -> str:
+    """The documentation of a parameter: what the protocol says about the field, and what it restricts it to."""
+    if p.ref:
+        named = re.match(r"[Nn]ame of (.+)", p.fields[0].description)
+        what = named.group(1) if named else f"the {pm.last_word(p.name)}"
+        what = what if what.lower().startswith(("the ", "a ", "an ")) else "the " + what
+        text = f"{what[0].upper()}{what[1:]}, by name or by UUID."
+        extra = [p.fields[0].behavior] if p.has_default else []
+    else:
+        text = sentence(p.field.description)
+        extra = []
+        if p.field.restrictions:
+            text += f" Restrictions: {p.field.restrictions}."
+        if p.field.behavior and not p.always_sent:
+            extra.append(p.field.behavior)
+    for behavior in extra:
+        if behavior not in ("Unknown", "N/A"):
+            text += f" If omitted: {behavior}."
+    return xml(text)
+
+
+def request_docs(source: Source, request: pm.Request, params: list[pm.Param], ret: pm.Returns, batch: bool) -> None:
+    paras = paragraphs(request.description)
+    if batch:
+        source.add(2, "/// <summary>")
+        source.add(2, f"/// Adds a <c>{request.name}</c> request to the batch.")
+        source.add(2, "/// </summary>")
+        remarks = list(paras)
+    else:
+        source.summary(2, sentence(paras[0]))
+        remarks = paras[1:]
+    since = version_remark(request.since)
+    if since:
+        remarks.append(since)
+    for p in params:
+        source.add(2, f'/// <param name="{p.name}">{param_text(p)}</param>')
+    if not batch:
+        if ret.kind == "field":
+            text = xml(sentence(ret.field.description)) if ret.field.description else f"The value of <c>{ret.field.name}</c>."
+            source.add(2, f"/// <returns>{text}</returns>")
+        elif ret.kind == "dto":
+            source.add(2, f'/// <returns>A <see cref="{ret.dto}"/> with the response data.</returns>')
+    if remarks:
+        source.add(2, "/// <remarks>")
+        for text in remarks:
+            source.add(2, f"/// <para>{xml(sentence(text))}</para>")
+        source.add(2, "/// </remarks>")
+
+
+def declaration(prefix: str, params: list[pm.Param], depth: int) -> list[str]:
+    """The signature of a method, on one line when it fits."""
+    parts = [f"{p.type.text} {p.name}" + (" = null" if p.has_default else "") for p in params]
+    line = f"{prefix}({', '.join(parts)})"
+    if len(line) + 4 * depth <= MAX_SIGNATURE:
+        return [line]
+    return [f"{prefix}("] + [f"    {part}{',' if index < len(parts) - 1 else ')'}" for index, part in enumerate(parts)]
+
+
+def needs_null_check(p: pm.Param) -> bool:
+    return not p.ref and not p.type.nullable and not p.type.is_value_type
+
+
+def emit_request_methods(source: Source, model: Model, requests: list[pm.Request]) -> None:
+    """The methods of ObsClient that send the requests."""
+    for index, request in enumerate(requests):
+        params = model.request_params(request)
+        ret = model.returns(request)
+        payload = f"{model.payload_type(request.name)}.Create({', '.join(p.name for p in params)})" if request.plain_request_fields else None
+        if index:
+            source.add()
+        request_docs(source, request, params, ret, batch=False)
+        task = "Task" if ret.kind == "none" else f"Task<{ret.type}>"
+        lines = declaration(f"public async {task} {request.name}", params, 2)
+        for line in lines:
+            source.add(2, line)
+        source.add(2, "{")
+        arguments = f"RequestType.{request.name}" + (f", {payload}" if payload else "")
+        if ret.kind == "none":
+            source.add(3, f"await this.SendRequestAsync({arguments}).ConfigureAwait(false);")
+        elif ret.kind == "dto":
+            source.add(3, f"return await this.SendRequestAsync<{ret.dto}>({arguments}).ConfigureAwait(false);")
+        else:
+            source.add(3, f"var response = await this.SendRequestAsync<{ret.dto}>({arguments}).ConfigureAwait(false);")
+            source.add(3, f"return response.{pm.pascal(ret.field.name)};")
+        source.add(2, "}")
+
+
+def emit_batch_builders(source: Source, model: Model, requests: list[pm.Request]) -> None:
+    """The methods of RequestBatchMessage that add the requests to a batch."""
+    for index, request in enumerate(requests):
+        params = model.request_params(request)
+        payload = f"{model.payload_type(request.name)}.Create({', '.join(p.name for p in params)})" if request.plain_request_fields else "null"
+        if index:
+            source.add()
+        request_docs(source, request, params, pm.Returns("none", "", "", None), batch=True)
+        for line in declaration(f"public void Add{request.name}Request", params, 2):
+            source.add(2, line)
+        source.add(2, "{")
+        source.add(3, f"this._requests.Add(new RequestMessage(RequestType.{request.name}, {payload}));")
+        source.add(2, "}")
+
+
+def emit_payload(source: Source, model: Model, request: pm.Request) -> None:
+    """The type that becomes the requestData of the request, with the one method that fills it from the arguments."""
+    params = model.request_params(request)
+    cls = model.payload_type(request.name)
+    owner = {}
+    for p in params:
+        if p.ref:
+            owner[p.fields[0].name] = (p, "name")
+            owner[p.fields[1].name] = (p, "uuid")
+        else:
+            owner[p.field.name] = (p, "plain")
+
+    source.add(1, f"internal sealed class {cls}")
+    source.add(1, "{")
+    for f in request.plain_request_fields:
+        p, kind = owner[f.name]
+        source.add(2, f'[JsonPropertyName("{f.name}")]')
+        if p.ref:
+            source.add(2, "[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]")
+            source.add(2, f"public {'string?' if kind == 'name' else 'Guid?'} {pm.pascal(f.name)} {{ get; init; }}")
+        else:
+            if p.has_default:
+                source.add(2, "[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]")
+            source.add(2, f"public {'' if p.has_default else 'required '}{p.type.text} {pm.pascal(f.name)} {{ get; init; }}")
+        source.add()
+
+    for line in declaration(f"public static {cls} Create", [pm.Param(p.name, p.type, p.fields, p.ref, False, p.always_sent) for p in params], 2):
+        source.add(2, line)
+    source.add(2, "{")
+    for p in params:
+        if p.ref and p.has_default:
+            source.add(3, f"{p.name}?.EnsureSpecified(nameof({p.name}));")
+        elif p.ref:
+            source.add(3, f"{p.name}.EnsureSpecified(nameof({p.name}));")
+        elif needs_null_check(p):
+            source.add(3, f"ArgumentNullException.ThrowIfNull({p.name});")
+    source.add(3, f"return new {cls}")
+    source.add(3, "{")
+    for p in params:
+        if p.ref and p.has_default:
+            source.add(4, f"{pm.pascal(p.fields[0].name)} = {p.name}?.Name,")
+            source.add(4, f"{pm.pascal(p.fields[1].name)} = {p.name}?.Uuid,")
+        elif p.ref:
+            source.add(4, f"{pm.pascal(p.fields[0].name)} = {p.name}.Name,")
+            source.add(4, f"{pm.pascal(p.fields[1].name)} = {p.name}.Uuid,")
+        else:
+            source.add(4, f"{pm.pascal(p.field.name)} = {p.name},")
+    source.add(3, "};")
+    source.add(2, "}")
+    source.add(1, "}")
+
+
+def emit_requests(model: Model, requests: list[pm.Request]) -> str:
+    source = Source(model)
+    source.add(0, "namespace OBSStudioClient")
+    source.add(0, "{")
+    for using in REQUEST_USINGS:
+        source.add(1, f"using {using};")
+    source.add()
+    source.add(1, "public partial class ObsClient")
+    source.add(1, "{")
+    emit_request_methods(source, model, requests)
+    source.add(1, "}")
+    source.add(0, "}")
+    source.add()
+    source.add(0, "namespace OBSStudioClient.Messages")
+    source.add(0, "{")
+    for using in REQUEST_USINGS:
+        if using != "OBSStudioClient.Messages":
+            source.add(1, f"using {using};")
+    source.add()
+    source.add(1, "public partial class RequestBatchMessage")
+    source.add(1, "{")
+    emit_batch_builders(source, model, requests)
+    source.add(1, "}")
+    for request in requests:
+        if request.plain_request_fields:
+            source.add()
+            emit_payload(source, model, request)
+    source.add(0, "}")
+    return source.text()
+
+
 # -- snapshot for the tests -------------------------------------------------------------------------------------------
 
 
@@ -412,6 +615,11 @@ def generate(model: Model) -> dict[Path, str]:
     files[GENERATED / "EventType.g.cs"] = emit_enum(
         model, "EventType", ordinal_members(model, "EventType", event_descriptions),
         "The events that obs-websocket knows. Unknown stands for an event type this version of the client does not know.", "EventTypeConverter")
+    for category in CATEGORY_ORDER + sorted({r.category for r in model.requests} - set(CATEGORY_ORDER)):
+        requests = [r for r in model.generated_requests() if r.category == category]
+        if requests:
+            title = CATEGORY_TITLES.get(category, category.title()).replace(" ", "")
+            files[GENERATED / f"Requests.{title}.g.cs"] = emit_requests(model, requests)
     files[SNAPSHOT] = json.dumps(build_snapshot(model), indent=2) + "\n"
     return files
 

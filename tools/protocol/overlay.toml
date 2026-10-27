@@ -565,6 +565,7 @@ sleepFrames = "int"
 sleepMillis = "int"
 streamServiceSettings = "object"
 transitionDuration = "int"
+videoMixType = "MixType"
 
 # Where a field of one response or event differs from the vocabulary: <Type>.<field>.
 [types.data_exceptions]
@@ -604,9 +605,38 @@ fields = [
 "OutputStatusResponse.outputCongestion" = "NullableNumberToNumberConverter"
 
 # ---------------------------------------------------------------------------------------------------------------
+# Requests. A request has a method on ObsClient and a builder on RequestBatchMessage, with the fields of the request
+# as parameters (see Model.request_params): an <x>Name field and an <x>Uuid field that identify the same object
+# are one parameter <x> that holds either (a value type written by hand in OBSClient/Classes), and canvasUuid is a
+# parameter of its own, the last one.
+# ---------------------------------------------------------------------------------------------------------------
+[refs]
+# The type of such a parameter, by the last word of <x>: sceneName and sceneUuid -> SceneRef, destinationSceneName and
+# destinationSceneUuid -> SceneRef too.
+kinds = { scene = "SceneRef", input = "InputRef", source = "SourceRef" }
+
+# A ref is required unless it is listed here: <Request>.<x>.
+optional = ["DuplicateSceneItem.destinationScene"]
+
+# Fields to which the protocol gives a meaning for null: the request removes the value (checked in obs-websocket's
+# source, RequestHandler_Config.cpp and RequestHandler_Scenes.cpp; every other request treats null as absent). The client
+# always sends them, null as null, and the parameter accepts null without a default: <Request>.<field>.
+[request_nulls]
+fields = [
+  "SetProfileParameter.parameterValue",
+  "SetSceneSceneTransitionOverride.transitionDuration",
+  "SetSceneSceneTransitionOverride.transitionName",
+]
+
+# ---------------------------------------------------------------------------------------------------------------
 # Written by hand. These types are registered and used by the generated code, but not generated themselves.
 # ---------------------------------------------------------------------------------------------------------------
 [manual]
 # EmptyResponse: the response of every request that returns nothing.
 # TransitionResponse: derives from Transition (GetCurrentSceneTransition returns a transition plus its settings).
 dtos = ["EmptyResponse", "TransitionResponse"]
+
+# Requests whose methods are written by hand (OBSClient/ObsClient_ManualRequests.cs and
+# OBSClient/Messages/RequestBatchMessage_ManualRequests.cs), because the client offers them in another shape than the protocol does:
+# TriggerHotkeyByKeySequence takes the modifier keys as a KeyModifier flags value; Sleep exists in a batch only.
+requests = ["Sleep", "TriggerHotkeyByKeySequence"]

@@ -494,7 +494,7 @@
             var d = new { requestId, requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(new { d, op }, timeOutInMilliseconds).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData.Results;
@@ -894,7 +894,7 @@
             }
         }
 
-        private async Task SendAsync(ConnectionSession session, dynamic request)
+        private async Task SendAsync(ConnectionSession session, object request)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -1153,7 +1153,7 @@
             });
         }
 
-        private async Task<IMessage> SendAndWaitAsync(dynamic request, int? timeout = null)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null)
         {
             var session = this._session;
             if (session is null || this._connectionState != ConnectionState.Connected)
@@ -1161,7 +1161,6 @@
                 throw new ObsClientException("Not connected.");
             }
 
-            string requestId = request.d.requestId;
             // RunContinuationsAsynchronously keeps this awaiter's continuation off the receiver loop's thread when
             // CompleteRequest completes the task, which would otherwise delay the receiver from reading the next message.
             TaskCompletionSource<IMessage> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1195,36 +1194,27 @@
             }
         }
 
-        private async Task SendRequestAsync(object? requestData = null, [CallerMemberName] string requestType = "")
+        private async Task SendRequestAsync(RequestType requestType, object? requestData = null)
         {
-            if (requestType.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase))
-            {
-                requestType = requestType[..^5];
-            }
-
             await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
         }
 
-        private async Task<T> SendRequestAsync<T>(object? requestData = null, [CallerMemberName] string requestType = "") where T : IResponse
+        private async Task<T> SendRequestAsync<T>(RequestType requestType, object? requestData = null) where T : IResponse
         {
-            if (requestType.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase))
-            {
-                requestType = requestType[..^5];
-            }
-
             var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
             return (T)requestResponseData.ResponseData!;
         }
 
-        private async Task<RequestResponseMessage> SendRequestAndWaitAsync(string requestType, object? requestData = null)
+        private async Task<RequestResponseMessage> SendRequestAndWaitAsync(RequestType requestType, object? requestData)
         {
+            var payload = RequestPayload.ToElement(requestData);
             int retryCount = 0;
             while (true)
             {
                 var requestId = Guid.NewGuid().ToString();
-                var d = new { requestType, requestId, requestData };
+                object d = payload is null ? new { requestType, requestId } : new { requestType, requestId, requestData = payload };
                 var op = (int)OpCode.Request;
-                var result = await this.SendAndWaitAsync(new { d, op }).ConfigureAwait(false);
+                var result = await this.SendAndWaitAsync(requestId, new { d, op }).ConfigureAwait(false);
                 if (result is RequestResponseMessage requestResponseData)
                 {
                     if (requestResponseData.RequestStatus.Result)

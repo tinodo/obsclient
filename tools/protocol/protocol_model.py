@@ -28,7 +28,7 @@ CSHARP_KEYWORDS = {
     "using", "virtual", "void", "volatile", "while",
 }
 
-VALUE_TYPES = {"int", "long", "uint", "float", "double", "bool", "Guid"}
+VALUE_TYPES = {"int", "long", "uint", "float", "double", "bool", "Guid", "JsonElement"}
 
 # What the protocol says is what the convention follows when the overlay has nothing to say about a field.
 DEFAULT_DATA_TYPES = {
@@ -49,6 +49,11 @@ class ModelError(Exception):
 
 def pascal(name: str) -> str:
     return name[0].upper() + name[1:]
+
+
+def last_word(name: str) -> str:
+    """The last word of a camelCase name, in lower case: destinationScene -> scene."""
+    return re.findall(r"[A-Z]?[a-z0-9]+", name)[-1].lower()
 
 
 def identifier(name: str) -> str:
@@ -84,6 +89,32 @@ class ClrType:
     @property
     def is_collection(self) -> bool:
         return self.name.endswith("[]") or self.name.startswith("Dictionary<")
+
+
+@dataclass(frozen=True)
+class Param:
+    """A parameter of the method that sends a request, and of the one that adds the request to a batch."""
+
+    name: str  # the C# name
+    type: ClrType
+    fields: tuple[Field, ...]  # the protocol field it fills: one, or the (<x>Name, <x>Uuid) pair of a ref
+    ref: bool = False
+    has_default: bool = False  # the argument can be left out (null)
+    always_sent: bool = False  # written even when null, because the protocol gives a null a meaning
+
+    @property
+    def field(self) -> Field:
+        return self.fields[0]
+
+
+@dataclass(frozen=True)
+class Returns:
+    """What the method that sends a request hands back."""
+
+    kind: str  # "none", "field" (the one field of the response) or "dto" (the response type)
+    type: str  # the C# type; empty for "none"
+    dto: str  # the type that holds the response; empty for "none"
+    field: Field | None
 
 
 @dataclass
@@ -141,6 +172,8 @@ class Model:
     def __init__(self, upstream: dict, overlay: dict, version: str):
         self.version = version
         self.overlay = overlay
+        self.ref_kinds: dict[str, str] = dict(overlay.get("refs", {}).get("kinds", {}))
+        self.ref_types = set(self.ref_kinds.values())
         self.enums = upstream["enums"]
         self.client_enums = client_enum_names()
         self.requests = [
@@ -168,6 +201,7 @@ class Model:
         self._apply_patches()
         self._request_by_name = {r.name: r for r in self.requests}
         self._event_by_name = {e.name: e for e in self.events}
+        self._check_request_overlay()
 
     # -- loading ----------------------------------------------------------------------------------------------------
 
@@ -242,7 +276,7 @@ class Model:
     # -- types ------------------------------------------------------------------------------------------------------
 
     def _clr(self, name: str, nullable: bool) -> ClrType:
-        return ClrType(name, nullable, name in VALUE_TYPES or name in self.client_enums)
+        return ClrType(name, nullable, name in VALUE_TYPES or name in self.client_enums or name in self.ref_types)
 
     def data_type(self, dto: str, field: Field) -> ClrType:
         """The C# type of a field of a response or an event."""
@@ -265,6 +299,98 @@ class Model:
 
     def converter(self, dto: str, field: Field) -> str | None:
         return self.overlay.get("converters", {}).get(f"{dto}.{field.name}")
+
+    # -- requests ---------------------------------------------------------------------------------------------------
+
+    def _check_request_overlay(self) -> None:
+        """An overlay entry about a request or field that the protocol no longer defines is stale: fail so it gets removed."""
+        fields = {r.name: {f.name for f in r.request_fields} for r in self.requests}
+        for name in self.overlay.get("manual", {}).get("requests", []):
+            if name not in fields:
+                raise ModelError(f"overlay.toml lists '{name}' as a manual request, which the protocol does not define (remove it).")
+        for key in self.overlay.get("request_nulls", {}).get("fields", []):
+            request, _, field = key.partition(".")
+            if field not in fields.get(request, ()):
+                raise ModelError(f"overlay.toml [request_nulls] has '{key}', which the protocol does not define (remove it).")
+        for key in self.overlay.get("refs", {}).get("optional", []):
+            request, _, base = key.partition(".")
+            known = fields.get(request, ())
+            if base + "Name" not in known or base + "Uuid" not in known:
+                raise ModelError(f"overlay.toml [refs] lists the optional ref '{key}', which the protocol does not define (remove it).")
+
+    def is_manual_request(self, name: str) -> bool:
+        """True for a request whose methods are written by hand (the generator leaves them alone)."""
+        return name in self.overlay.get("manual", {}).get("requests", [])
+
+    def generated_requests(self) -> list[Request]:
+        return [r for r in self.requests if not self.is_manual_request(r.name)]
+
+    @staticmethod
+    def payload_type(request_name: str) -> str:
+        return f"{request_name}RequestData"
+
+    def request_params(self, request: Request) -> list[Param]:
+        """The parameters of the methods of a request: required ones first, then the ones that can be left out.
+
+        An <x>Name and an <x>Uuid field together identify an object and are one parameter <x>, of a ref type that holds
+        either (SceneRef, InputRef or SourceRef). The canvasUuid field is a parameter of its own, and the last one.
+        """
+        fields = request.plain_request_fields
+        by_name = {f.name: f for f in fields}
+        optional_refs = set(self.overlay.get("refs", {}).get("optional", []))
+        always_sent = set(self.overlay.get("request_nulls", {}).get("fields", []))
+        positional: list[Param] = []
+        defaulted: list[Param] = []
+        canvas: list[Param] = []
+        consumed: set[str] = set()
+
+        for f in fields:
+            if f.name in consumed:
+                continue
+            base = f.name[:-4] if f.name.endswith("Name") else ""
+            uuid = by_name.get(base + "Uuid") if base else None
+            if uuid is not None and f.vtype == "String" and uuid.vtype == "String":
+                kind = self.ref_kinds.get(last_word(base))
+                if kind is None:
+                    raise ModelError(
+                        f"{request.name}: '{f.name}' and '{uuid.name}' identify an object, but overlay.toml has no ref type for "
+                        f"'{last_word(base)}'. Add it to [refs.kinds] (the type itself is written by hand in OBSClient/Classes)."
+                    )
+                if self.request_type(request.name, uuid).name != "Guid":
+                    raise ModelError(f"{request.name}: '{uuid.name}' is not a Guid, so it cannot be half of a {kind}.")
+                consumed |= {f.name, uuid.name}
+                optional = f"{request.name}.{base}" in optional_refs
+                param = Param(identifier(base), self._clr(kind, optional), (f, uuid), ref=True, has_default=optional)
+                (defaulted if optional else positional).append(param)
+                continue
+
+            ctype = self.request_type(request.name, f)
+            if f"{request.name}.{f.name}" in always_sent:
+                # Accepts null without a default: the caller says explicitly that the value is to be removed.
+                positional.append(Param(identifier(f.name), self._clr(ctype.name, True), (f,), always_sent=True))
+            elif not ctype.nullable:
+                positional.append(Param(identifier(f.name), ctype, (f,)))
+            else:
+                param = Param(identifier(f.name), ctype, (f,), has_default=True)
+                (canvas if f.name == "canvasUuid" else defaulted).append(param)
+
+        positional.sort(key=lambda p: not p.ref)
+        defaulted.sort(key=lambda p: not p.ref)
+        params = positional + defaulted + canvas
+        names = [p.name for p in params]
+        if len(set(names)) != len(names):
+            raise ModelError(f"{request.name}: the parameters {sorted(n for n in names if names.count(n) > 1)} have the same name.")
+        return params
+
+    def returns(self, request: Request) -> Returns:
+        """The response of a request: nothing, the value of its only field, or the type that holds all of its fields."""
+        fields = request.plain_response_fields
+        if not fields:
+            return Returns("none", "", "", None)
+        dto = self.response_dto(request.name)
+        if len(fields) == 1:
+            return Returns("field", self.data_type(dto, fields[0]).text, dto, fields[0])
+        return Returns("dto", dto, dto, None)
 
     # -- ordinals ---------------------------------------------------------------------------------------------------
 

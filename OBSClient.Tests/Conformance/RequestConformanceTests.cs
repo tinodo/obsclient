@@ -74,55 +74,59 @@ namespace OBSStudioClient.Tests.Conformance
 
             foreach (var method in methods)
             {
-                var outcome = await InvokeAsync(client, method, ArgumentFactory.Create(method), received.Reader);
-                var outcomes = new List<(Exception? Failure, List<(string RequestType, JsonElement? Data)> Calls)> { outcome };
-
-                // A method that refuses the arguments (it accepts either one value or another) is tried again with each
-                // optional argument left out in turn.
-                if (outcome.Calls.Count == 0 && outcome.Failure is ArgumentException or NotSupportedException)
+                // A method that identifies an object by name or by UUID sends another field for each, so it is called both ways.
+                foreach (var refMode in ArgumentFactory.RefModes(method))
                 {
-                    foreach (var index in ArgumentFactory.NullableParameterIndexes(method))
-                    {
-                        outcomes.Add(await InvokeAsync(client, method, ArgumentFactory.Create(method, index), received.Reader));
-                    }
-                }
+                    var outcome = await InvokeAsync(client, method, ArgumentFactory.Create(method, null, refMode), received.Reader);
+                    var outcomes = new List<(Exception? Failure, List<(string RequestType, JsonElement? Data)> Calls)> { outcome };
 
-                var anySent = false;
-                var expectedRequestType = SentUnderAnotherName.TryGetValue(method.Name, out var otherName) ? otherName : method.Name;
-                foreach (var (failure, calls) in outcomes)
-                {
-                    foreach (var (requestType, data) in calls)
+                    // A method that refuses the arguments (it accepts either one value or another) is tried again with each
+                    // optional argument left out in turn.
+                    if (outcome.Calls.Count == 0 && outcome.Failure is ArgumentException or NotSupportedException)
                     {
-                        anySent = true;
-                        if (!string.Equals(requestType, expectedRequestType, StringComparison.Ordinal))
+                        foreach (var index in ArgumentFactory.NullableParameterIndexes(method))
                         {
-                            problems.Add($"{ArgumentFactory.Describe(method)}: sends the request '{requestType}' instead of '{expectedRequestType}'");
+                            outcomes.Add(await InvokeAsync(client, method, ArgumentFactory.Create(method, index, refMode), received.Reader));
+                        }
+                    }
+
+                    var anySent = false;
+                    var expectedRequestType = SentUnderAnotherName.TryGetValue(method.Name, out var otherName) ? otherName : method.Name;
+                    foreach (var (failure, calls) in outcomes)
+                    {
+                        foreach (var (requestType, data) in calls)
+                        {
+                            anySent = true;
+                            if (!string.Equals(requestType, expectedRequestType, StringComparison.Ordinal))
+                            {
+                                problems.Add($"{ArgumentFactory.Describe(method)}: sends the request '{requestType}' instead of '{expectedRequestType}'");
+                            }
+
+                            problems.AddRange(ProtocolPayload.Validate(protocol, requestType, data).Select(problem => $"{ArgumentFactory.Describe(method)}: {problem}"));
+                            Record(protocol, sent, requestType, data);
                         }
 
-                        problems.AddRange(ProtocolPayload.Validate(protocol, requestType, data).Select(problem => $"{ArgumentFactory.Describe(method)}: {problem}"));
-                        Record(protocol, sent, requestType, data);
+                        if (failure is InvalidCastException)
+                        {
+                            problems.Add($"{ArgumentFactory.Describe(method)}: the response is registered with another type than the method expects ({failure.Message})");
+                        }
+                        else if (failure is TimeoutException)
+                        {
+                            problems.Add($"{ArgumentFactory.Describe(method)}: did not complete");
+                        }
+                        else if (failure is not null && calls.Count > 0)
+                        {
+                            // The server answered with exactly what the protocol documents, so the call has no reason to fail
+                            // (a method that refuses its arguments does so before it sends anything).
+                            problems.Add($"{ArgumentFactory.Describe(method)}: failed although obs-websocket answered with a valid response ({failure.GetType().Name}: {failure.Message})");
+                        }
                     }
 
-                    if (failure is InvalidCastException)
+                    if (!anySent)
                     {
-                        problems.Add($"{ArgumentFactory.Describe(method)}: the response is registered with another type than the method expects ({failure.Message})");
+                        var failure = outcomes.Select(candidate => candidate.Failure).FirstOrDefault(candidate => candidate is not null);
+                        problems.Add($"{ArgumentFactory.Describe(method)}: sent no request ({failure?.GetType().Name}: {failure?.Message})");
                     }
-                    else if (failure is TimeoutException)
-                    {
-                        problems.Add($"{ArgumentFactory.Describe(method)}: did not complete");
-                    }
-                    else if (failure is not null && calls.Count > 0)
-                    {
-                        // The server answered with exactly what the protocol documents, so the call has no reason to fail
-                        // (a method that refuses its arguments does so before it sends anything).
-                        problems.Add($"{ArgumentFactory.Describe(method)}: failed although obs-websocket answered with a valid response ({failure.GetType().Name}: {failure.Message})");
-                    }
-                }
-
-                if (!anySent)
-                {
-                    var failure = outcomes.Select(candidate => candidate.Failure).FirstOrDefault(candidate => candidate is not null);
-                    problems.Add($"{ArgumentFactory.Describe(method)}: sent no request ({failure?.GetType().Name}: {failure?.Message})");
                 }
             }
 
@@ -147,20 +151,26 @@ namespace OBSStudioClient.Tests.Conformance
 
             foreach (var builder in builders)
             {
-                var requests = Build(builder, ArgumentFactory.Create(builder), problems, out var refused);
-
-                if (requests.Count == 0 && refused)
+                var requests = new List<RequestMessage>();
+                foreach (var refMode in ArgumentFactory.RefModes(builder))
                 {
-                    // The builder refuses the arguments (it accepts either one value or another): leave each optional one out in turn.
-                    foreach (var index in ArgumentFactory.NullableParameterIndexes(builder))
+                    var added = Build(builder, ArgumentFactory.Create(builder, null, refMode), problems, out var refused);
+
+                    if (added.Count == 0 && refused)
                     {
-                        requests.AddRange(Build(builder, ArgumentFactory.Create(builder, index), problems, out _));
+                        // The builder refuses the arguments (it accepts either one value or another): leave each optional one out in turn.
+                        foreach (var index in ArgumentFactory.NullableParameterIndexes(builder))
+                        {
+                            added.AddRange(Build(builder, ArgumentFactory.Create(builder, index, refMode), problems, out _));
+                        }
                     }
-                }
 
-                if (requests.Count == 0)
-                {
-                    problems.Add($"{ArgumentFactory.Describe(builder)}: added no request");
+                    if (added.Count == 0)
+                    {
+                        problems.Add($"{ArgumentFactory.Describe(builder)}: added no request");
+                    }
+
+                    requests.AddRange(added);
                 }
 
                 // The request type of a builder is derived from its name (AddGetInputMuteRequest adds GetInputMute), so a

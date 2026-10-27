@@ -20,7 +20,7 @@ namespace OBSStudioClient.Tests.Unit
                 .Select(reference => reference.Name!)
                 .Where(name => !name.StartsWith("System", StringComparison.Ordinal)
                     && !name.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)
-                    && name is not ("mscorlib" or "netstandard" or "Microsoft.CSharp"))
+                    && name is not ("mscorlib" or "netstandard"))
                 .ToList();
 
             Assert.Empty(unexpected);
