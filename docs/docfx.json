@@ -54,6 +54,8 @@
     }
   },
   "rules": {
-    "InvalidCref": "info"
+    "UidNotFound": "error",
+    "InvalidCref": "error",
+    "InvalidFileLink": "error"
   }
 }

@@ -48,7 +48,7 @@ foreach (RequestResponseMessage result in results)
 | --- | --- |
 | `RequestType` | The request that this is the result of. |
 | `RequestStatus` | `Result` (did it succeed), `Code` (a [`RequestStatusCode`](xref:OBSStudioClient.Enums.RequestStatusCode)) and `Comment` (what OBS Studio says about a failure). |
-| `ResponseData` | The response as the type that belongs to the request (`VersionResponse` for `GetVersion`, and so on): an `EmptyResponse` when the request returns no data, and `null` when the request failed. |
+| `ResponseData` | The response as the type that belongs to the request (`VersionResponse` for `GetVersion`, and so on). It says nothing about success: for a request that returns no data it is an `EmptyResponse` even when the request failed, and for a request that returns data it is `null` when the request failed. Check `RequestStatus.Result` first. |
 | `RawResponseData` | The data of the response as OBS Studio sent it. |
 
 ```csharp
@@ -58,8 +58,15 @@ batch.AddGetStatsRequest();
 
 RequestResponseMessage[] results = await client.SendRequestBatchAsync(batch);
 
-var version = (VersionResponse)results[0].ResponseData!;
-var stats = (StatsResponse)results[1].ResponseData!;
+if (results[0].RequestStatus.Result && results[0].ResponseData is VersionResponse version)
+{
+    Console.WriteLine($"OBS Studio {version.ObsVersion}");
+}
+
+if (results[1].RequestStatus.Result && results[1].ResponseData is StatsResponse stats)
+{
+    Console.WriteLine($"{stats.ActiveFps} frames per second");
+}
 ```
 
 ## Stopping at a failure
