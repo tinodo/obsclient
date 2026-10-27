@@ -316,13 +316,19 @@
         /// </remarks>
         public void AbortConnection()
         {
-            _socket?.Abort();
+            // Take the connection that is to be killed before anything is done to it. Its client may reconnect at once (a
+            // test of a handler that does so), and the accept loop then replaces these fields while this method is still
+            // running: the connection that was made for the reconnect must not be the one that is closed below.
+            var socket = _socket;
+            var tcpClient = _tcpClient;
+
+            socket?.Abort();
             try
             {
-                if (_tcpClient != null)
+                if (tcpClient != null)
                 {
-                    _tcpClient.Client.LingerState = new LingerOption(true, 0);
-                    _tcpClient.Close();
+                    tcpClient.Client.LingerState = new LingerOption(true, 0);
+                    tcpClient.Close();
                 }
             }
             catch
