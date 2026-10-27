@@ -47,7 +47,10 @@ internal static class SessionExporter
         return Path.Combine(AppSettings.ExportFolder, $"{name}-{DateTime.Now:yyyyMMdd-HHmmss}.{extension}");
     }
 
-    private static string ToLine(LogEntry entry, bool redact)
+    /// <summary>Writes an entry as one line of JSON.</summary>
+    /// <param name="entry">The entry.</param>
+    /// <param name="redact">Whether to replace passwords and keys by asterisks, in the title and the text.</param>
+    internal static string ToLine(LogEntry entry, bool redact)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
@@ -71,7 +74,8 @@ internal static class SessionExporter
                 writer.WriteString("eventType", entry.EventType);
             }
 
-            writer.WriteString("title", entry.Title);
+            // The title of a report of the client can hold a piece of a message that could not be read.
+            writer.WriteString("title", redact ? JsonTools.Redact(entry.Title) : entry.Title);
             var text = redact ? JsonTools.Redact(entry.Text) : entry.Text;
             if (entry.Kind != LogKind.Client && IsJson(text))
             {

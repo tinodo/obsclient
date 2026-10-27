@@ -138,17 +138,26 @@ internal static partial class SmokeTest
         await explorer.SendForSmokeTest(RequestCatalog.Find("GetSceneList")!);
         Check(explorer.Problem is null && explorer.TypedResult.Contains("Just Chatting", StringComparison.Ordinal), "GetSceneList returned the scenes");
         Check(explorer.ComparisonResult.StartsWith("What OBS Studio sent", StringComparison.Ordinal), "the comparison of GetSceneList was made");
+
+        // The method hands back the value of the one field of the response: that field is what is compared.
+        await explorer.SendForSmokeTest(RequestCatalog.Find("GetStudioModeEnabled")!);
+        Check(explorer.Problem is null && explorer.TypedResult.Trim() == "false", "GetStudioModeEnabled returned false");
+        Check(
+            explorer.ComparisonResult.Contains("the member studioModeEnabled of the response data", StringComparison.Ordinal)
+                && explorer.ComparisonResult.Contains("Identical:", StringComparison.Ordinal),
+            "the comparison of a response with one field compares that field with what the client returned");
     }
 
     private static async Task BatchAsync(MainWindow window, ExplorerPage explorer, string folder)
     {
-        // Three requests, the second of which OBS Studio refuses.
+        // Four requests, the second of which OBS Studio refuses. GetHotkeyList is only ever answered inside the batch.
         Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("GetVersion")!), "GetVersion was put in the batch");
         Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("SetCurrentProgramScene")!), "SetCurrentProgramScene was put in the batch");
         Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("Sleep")!, "sleepMillis"), "a Sleep was put in the batch");
+        Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("GetHotkeyList")!), "GetHotkeyList was put in the batch");
         Check(!explorer.AddToBatchForSmokeTest(RequestCatalog.Find("SetInputVolumeDb")!), "a shortcut of the client cannot be put in the batch");
         Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("Sleep")!) is false && explorer.Problem is not null, "a Sleep of both milliseconds and frames is refused");
-        Check(App.Session.Batch.Count == 3, "the batch holds the three requests that were accepted");
+        Check(App.Session.Batch.Count == 4, "the batch holds the four requests that were accepted");
 
         window.Navigate("batch");
         await Task.Delay(500);
@@ -163,11 +172,15 @@ internal static partial class SmokeTest
         batch.Configure(RequestBatchExecutionType.SerialRealtime, haltOnFailure: false);
         await batch.SendForSmokeTest();
         Check(batch.Problem is null, "the batch was answered");
-        Check(batch.Status.StartsWith("OBS Studio ran 3 of 3 requests, 1 failed", StringComparison.Ordinal), "OBS Studio ran the three requests of the batch, and one of them failed");
+        Check(batch.Status.StartsWith("OBS Studio ran 4 of 4 requests, 1 failed", StringComparison.Ordinal), "OBS Studio ran the four requests of the batch, and one of them failed");
         Check(batch.TypedResult.Contains("31.0.2", StringComparison.Ordinal), "the batch shows what the client returned for GetVersion");
+        Check(batch.TypedResult.Contains("ReplayBuffer.Save", StringComparison.Ordinal), "the batch shows what the client returned for GetHotkeyList");
         Check(batch.TypedResult.Contains("\"codeName\": \"ResourceNotFound\"", StringComparison.Ordinal), "the batch shows the request that OBS Studio refused");
         Check(batch.RawResult.Contains("\"op\": 9", StringComparison.Ordinal), "the batch shows the answer of OBS Studio");
         Check(batch.ComparisonResult.Contains("$.futureField (object)", StringComparison.Ordinal), "the batch compares the data of GetVersion");
+        Check(
+            App.Session.Observations.ToJson(null, null).Contains("\"GetHotkeyList\"", StringComparison.Ordinal),
+            "the shape of a response that came inside a batch was observed");
         await Task.Delay(300);
         await CaptureAsync(window, folder, "live-batch-result");
         batch.SelectResultTab(2);
@@ -177,7 +190,7 @@ internal static partial class SmokeTest
         batch.Configure(RequestBatchExecutionType.SerialRealtime, haltOnFailure: true);
         await batch.SendForSmokeTest();
         Check(
-            batch.Problem is null && batch.Status.StartsWith("OBS Studio ran 2 of 3 requests, 1 failed", StringComparison.Ordinal),
+            batch.Problem is null && batch.Status.StartsWith("OBS Studio ran 2 of 4 requests, 1 failed", StringComparison.Ordinal),
             "OBS Studio stopped at the request that failed, because the client sent haltOnFailure");
     }
 
@@ -279,6 +292,8 @@ internal static partial class SmokeTest
             },
         }),
         "SetCurrentProgramScene" => new Reply(600, "No scene was found by the name of name.", null),
+        "GetStudioModeEnabled" => new Reply(100, null, new { studioModeEnabled = false }),
+        "GetHotkeyList" => new Reply(100, null, new { hotkeys = new[] { "ReplayBuffer.Save", "OBSBasic.StartStreaming" } }),
         _ => new Reply(100, null, null),
     };
 

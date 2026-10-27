@@ -65,7 +65,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetHotkeyList()),
-                (batch, args) => batch.AddGetHotkeyListRequest()),
+                (batch, args) => batch.AddGetHotkeyListRequest(),
+                ResponseField: "hotkeys"),
             new(
                 "TriggerHotkeyByName",
                 "General",
@@ -87,7 +88,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("slotName", ParameterKind.Text, "string", true, "The name of the slot to retrieve data from."),
                 ],
                 (client, args) => Invocation.Of(client.GetPersistentData(args.EnumValue<Realm>("realm"), args.Text("slotName"))),
-                (batch, args) => batch.AddGetPersistentDataRequest(args.EnumValue<Realm>("realm"), args.Text("slotName"))),
+                (batch, args) => batch.AddGetPersistentDataRequest(args.EnumValue<Realm>("realm"), args.Text("slotName")),
+                ResponseField: "slotValue"),
             new(
                 "SetPersistentData",
                 "Config",
@@ -238,7 +240,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetRecordDirectory()),
-                (batch, args) => batch.AddGetRecordDirectoryRequest()),
+                (batch, args) => batch.AddGetRecordDirectoryRequest(),
+                ResponseField: "recordDirectory"),
             new(
                 "SetRecordDirectory",
                 "Config",
@@ -274,7 +277,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the source is in, if the source is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSourceScreenshot(args.Source("source"), args.Text("imageFormat"), args.OptionalInt("imageWidth"), args.OptionalInt("imageHeight"), args.OptionalInt("imageCompressionQuality"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSourceScreenshotRequest(args.Source("source"), args.Text("imageFormat"), args.OptionalInt("imageWidth"), args.OptionalInt("imageHeight"), args.OptionalInt("imageCompressionQuality"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSourceScreenshotRequest(args.Source("source"), args.Text("imageFormat"), args.OptionalInt("imageWidth"), args.OptionalInt("imageHeight"), args.OptionalInt("imageCompressionQuality"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "imageData"),
             new(
                 "SaveSourceScreenshot",
                 "Sources",
@@ -308,7 +312,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetGroupList()),
-                (batch, args) => batch.AddGetGroupListRequest()),
+                (batch, args) => batch.AddGetGroupListRequest(),
+                ResponseField: "groups"),
             new(
                 "GetCurrentProgramScene",
                 "Scenes",
@@ -355,7 +360,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas to create the new scene in. Leave default to assume main canvas."),
                 ],
                 (client, args) => Invocation.Of(client.CreateScene(args.Text("sceneName"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddCreateSceneRequest(args.Text("sceneName"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddCreateSceneRequest(args.Text("sceneName"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneUuid"),
             new(
                 "RemoveScene",
                 "Scenes",
@@ -412,7 +418,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("inputKind", ParameterKind.Text, "string?", false, "Restrict the array to only inputs of the specified kind. If omitted: All kinds included."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputList(args.OptionalText("inputKind"))),
-                (batch, args) => batch.AddGetInputListRequest(args.OptionalText("inputKind"))),
+                (batch, args) => batch.AddGetInputListRequest(args.OptionalText("inputKind")),
+                ResponseField: "inputs"),
             new(
                 "GetInputKindList",
                 "Inputs",
@@ -422,7 +429,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("unversioned", ParameterKind.Boolean, "bool?", false, "True == Return all kinds as unversioned, False == Return with version suffixes (if available) If omitted: false."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputKindList(args.OptionalBool("unversioned"))),
-                (batch, args) => batch.AddGetInputKindListRequest(args.OptionalBool("unversioned"))),
+                (batch, args) => batch.AddGetInputKindListRequest(args.OptionalBool("unversioned")),
+                ResponseField: "inputKinds"),
             new(
                 "GetSpecialInputs",
                 "Inputs",
@@ -476,7 +484,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("inputKind", ParameterKind.Text, "string", true, "Input kind to get the default settings for."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputDefaultSettings(args.Text("inputKind"))),
-                (batch, args) => batch.AddGetInputDefaultSettingsRequest(args.Text("inputKind"))),
+                (batch, args) => batch.AddGetInputDefaultSettingsRequest(args.Text("inputKind")),
+                ResponseField: "defaultInputSettings"),
             new(
                 "GetInputSettings",
                 "Inputs",
@@ -508,7 +517,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input to get the mute state of, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputMute(args.Input("input"))),
-                (batch, args) => batch.AddGetInputMuteRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputMuteRequest(args.Input("input")),
+                ResponseField: "inputMuted"),
             new(
                 "SetInputMute",
                 "Inputs",
@@ -529,7 +539,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input to toggle the mute state of, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.ToggleInputMute(args.Input("input"))),
-                (batch, args) => batch.AddToggleInputMuteRequest(args.Input("input"))),
+                (batch, args) => batch.AddToggleInputMuteRequest(args.Input("input")),
+                ResponseField: "inputMuted"),
             new(
                 "GetInputVolume",
                 "Inputs",
@@ -561,7 +572,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input to get the audio balance of, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputAudioBalance(args.Input("input"))),
-                (batch, args) => batch.AddGetInputAudioBalanceRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputAudioBalanceRequest(args.Input("input")),
+                ResponseField: "inputAudioBalance"),
             new(
                 "SetInputAudioBalance",
                 "Inputs",
@@ -582,7 +594,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input to get the audio sync offset of, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputAudioSyncOffset(args.Input("input"))),
-                (batch, args) => batch.AddGetInputAudioSyncOffsetRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputAudioSyncOffsetRequest(args.Input("input")),
+                ResponseField: "inputAudioSyncOffset"),
             new(
                 "SetInputAudioSyncOffset",
                 "Inputs",
@@ -603,7 +616,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input to get the audio monitor type of, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputAudioMonitorType(args.Input("input"))),
-                (batch, args) => batch.AddGetInputAudioMonitorTypeRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputAudioMonitorTypeRequest(args.Input("input")),
+                ResponseField: "monitorType"),
             new(
                 "SetInputAudioMonitorType",
                 "Inputs",
@@ -624,7 +638,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputAudioTracks(args.Input("input"))),
-                (batch, args) => batch.AddGetInputAudioTracksRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputAudioTracksRequest(args.Input("input")),
+                ResponseField: "inputAudioTracks"),
             new(
                 "SetInputAudioTracks",
                 "Inputs",
@@ -645,7 +660,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputDeinterlaceMode(args.Input("input"))),
-                (batch, args) => batch.AddGetInputDeinterlaceModeRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputDeinterlaceModeRequest(args.Input("input")),
+                ResponseField: "inputDeinterlaceMode"),
             new(
                 "SetInputDeinterlaceMode",
                 "Inputs",
@@ -666,7 +682,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("input", ParameterKind.Input, "InputRef", true, "The input, by name or by UUID."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputDeinterlaceFieldOrder(args.Input("input"))),
-                (batch, args) => batch.AddGetInputDeinterlaceFieldOrderRequest(args.Input("input"))),
+                (batch, args) => batch.AddGetInputDeinterlaceFieldOrderRequest(args.Input("input")),
+                ResponseField: "inputDeinterlaceFieldOrder"),
             new(
                 "SetInputDeinterlaceFieldOrder",
                 "Inputs",
@@ -688,7 +705,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("propertyName", ParameterKind.Text, "string", true, "Name of the list property to get the items of."),
                 ],
                 (client, args) => Invocation.Of(client.GetInputPropertiesListPropertyItems(args.Input("input"), args.Text("propertyName"))),
-                (batch, args) => batch.AddGetInputPropertiesListPropertyItemsRequest(args.Input("input"), args.Text("propertyName"))),
+                (batch, args) => batch.AddGetInputPropertiesListPropertyItemsRequest(args.Input("input"), args.Text("propertyName")),
+                ResponseField: "propertyItems"),
             new(
                 "PressInputPropertiesButton",
                 "Inputs",
@@ -707,7 +725,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetTransitionKindList()),
-                (batch, args) => batch.AddGetTransitionKindListRequest()),
+                (batch, args) => batch.AddGetTransitionKindListRequest(),
+                ResponseField: "transitionKinds"),
             new(
                 "GetSceneTransitionList",
                 "Transitions",
@@ -762,7 +781,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetCurrentSceneTransitionCursor()),
-                (batch, args) => batch.AddGetCurrentSceneTransitionCursorRequest()),
+                (batch, args) => batch.AddGetCurrentSceneTransitionCursorRequest(),
+                ResponseField: "transitionCursor"),
             new(
                 "TriggerStudioModeTransition",
                 "Transitions",
@@ -789,7 +809,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.4.0",
                 [],
                 (client, args) => Invocation.Of(client.GetSourceFilterKindList()),
-                (batch, args) => batch.AddGetSourceFilterKindListRequest()),
+                (batch, args) => batch.AddGetSourceFilterKindListRequest(),
+                ResponseField: "sourceFilterKinds"),
             new(
                 "GetSourceFilterList",
                 "Filters",
@@ -800,7 +821,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the source is in, if the source is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSourceFilterList(args.Source("source"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSourceFilterListRequest(args.Source("source"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSourceFilterListRequest(args.Source("source"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "filters"),
             new(
                 "GetSourceFilterDefaultSettings",
                 "Filters",
@@ -810,7 +832,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("filterKind", ParameterKind.Text, "string", true, "Filter kind to get the default settings for."),
                 ],
                 (client, args) => Invocation.Of(client.GetSourceFilterDefaultSettings(args.Text("filterKind"))),
-                (batch, args) => batch.AddGetSourceFilterDefaultSettingsRequest(args.Text("filterKind"))),
+                (batch, args) => batch.AddGetSourceFilterDefaultSettingsRequest(args.Text("filterKind")),
+                ResponseField: "defaultFilterSettings"),
             new(
                 "CreateSourceFilter",
                 "Filters",
@@ -912,7 +935,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemList(args.Scene("scene"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemListRequest(args.Scene("scene"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemListRequest(args.Scene("scene"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItems"),
             new(
                 "GetGroupSceneItemList",
                 "Scene Items",
@@ -923,7 +947,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the group is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetGroupSceneItemList(args.Scene("scene"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetGroupSceneItemListRequest(args.Scene("scene"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetGroupSceneItemListRequest(args.Scene("scene"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItems"),
             new(
                 "GetSceneItemId",
                 "Scene Items",
@@ -936,7 +961,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene or group is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemId(args.Scene("scene"), args.Text("sourceName"), args.OptionalInt("searchOffset"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemIdRequest(args.Scene("scene"), args.Text("sourceName"), args.OptionalInt("searchOffset"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemIdRequest(args.Scene("scene"), args.Text("sourceName"), args.OptionalInt("searchOffset"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemId"),
             new(
                 "GetSceneItemSource",
                 "Scene Items",
@@ -961,7 +987,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.CreateSceneItem(args.Scene("scene"), args.Source("source"), args.OptionalBool("sceneItemEnabled"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddCreateSceneItemRequest(args.Scene("scene"), args.Source("source"), args.OptionalBool("sceneItemEnabled"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddCreateSceneItemRequest(args.Scene("scene"), args.Source("source"), args.OptionalBool("sceneItemEnabled"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemId"),
             new(
                 "RemoveSceneItem",
                 "Scene Items",
@@ -986,7 +1013,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.DuplicateSceneItem(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalScene("destinationScene"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddDuplicateSceneItemRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalScene("destinationScene"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddDuplicateSceneItemRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalScene("destinationScene"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemId"),
             new(
                 "GetSceneItemTransform",
                 "Scene Items",
@@ -998,7 +1026,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemTransform(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemTransformRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemTransformRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemTransform"),
             new(
                 "SetSceneItemTransform",
                 "Scene Items",
@@ -1023,7 +1052,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemEnabled(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemEnabledRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemEnabledRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemEnabled"),
             new(
                 "SetSceneItemEnabled",
                 "Scene Items",
@@ -1048,7 +1078,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemLocked(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemLockedRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemLockedRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemLocked"),
             new(
                 "SetSceneItemLocked",
                 "Scene Items",
@@ -1073,7 +1104,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemIndex(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemIndexRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemIndexRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemIndex"),
             new(
                 "SetSceneItemIndex",
                 "Scene Items",
@@ -1098,7 +1130,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the scene is in, if the scene is given by name."),
                 ],
                 (client, args) => Invocation.Of(client.GetSceneItemBlendMode(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
-                (batch, args) => batch.AddGetSceneItemBlendModeRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid"))),
+                (batch, args) => batch.AddGetSceneItemBlendModeRequest(args.Scene("scene"), args.Int("sceneItemId"), args.OptionalUuid("canvasUuid")),
+                ResponseField: "sceneItemBlendMode"),
             new(
                 "SetSceneItemBlendMode",
                 "Scene Items",
@@ -1119,7 +1152,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetVirtualCamStatus()),
-                (batch, args) => batch.AddGetVirtualCamStatusRequest()),
+                (batch, args) => batch.AddGetVirtualCamStatusRequest(),
+                ResponseField: "outputActive"),
             new(
                 "ToggleVirtualCam",
                 "Outputs",
@@ -1127,7 +1161,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.ToggleVirtualCam()),
-                (batch, args) => batch.AddToggleVirtualCamRequest()),
+                (batch, args) => batch.AddToggleVirtualCamRequest(),
+                ResponseField: "outputActive"),
             new(
                 "StartVirtualCam",
                 "Outputs",
@@ -1151,7 +1186,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetReplayBufferStatus()),
-                (batch, args) => batch.AddGetReplayBufferStatusRequest()),
+                (batch, args) => batch.AddGetReplayBufferStatusRequest(),
+                ResponseField: "outputActive"),
             new(
                 "ToggleReplayBuffer",
                 "Outputs",
@@ -1159,7 +1195,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.ToggleReplayBuffer()),
-                (batch, args) => batch.AddToggleReplayBufferRequest()),
+                (batch, args) => batch.AddToggleReplayBufferRequest(),
+                ResponseField: "outputActive"),
             new(
                 "StartReplayBuffer",
                 "Outputs",
@@ -1191,7 +1228,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetLastReplayBufferReplay()),
-                (batch, args) => batch.AddGetLastReplayBufferReplayRequest()),
+                (batch, args) => batch.AddGetLastReplayBufferReplayRequest(),
+                ResponseField: "savedReplayPath"),
             new(
                 "GetOutputList",
                 "Outputs",
@@ -1199,7 +1237,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetOutputList()),
-                (batch, args) => batch.AddGetOutputListRequest()),
+                (batch, args) => batch.AddGetOutputListRequest(),
+                ResponseField: "outputs"),
             new(
                 "GetOutputStatus",
                 "Outputs",
@@ -1219,7 +1258,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("outputName", ParameterKind.Text, "string", true, "Output name."),
                 ],
                 (client, args) => Invocation.Of(client.ToggleOutput(args.Text("outputName"))),
-                (batch, args) => batch.AddToggleOutputRequest(args.Text("outputName"))),
+                (batch, args) => batch.AddToggleOutputRequest(args.Text("outputName")),
+                ResponseField: "outputActive"),
             new(
                 "StartOutput",
                 "Outputs",
@@ -1249,7 +1289,8 @@ namespace OBSStudioClient.TestApp.Catalog
                     new("outputName", ParameterKind.Text, "string", true, "Output name."),
                 ],
                 (client, args) => Invocation.Of(client.GetOutputSettings(args.Text("outputName"))),
-                (batch, args) => batch.AddGetOutputSettingsRequest(args.Text("outputName"))),
+                (batch, args) => batch.AddGetOutputSettingsRequest(args.Text("outputName")),
+                ResponseField: "outputSettings"),
             new(
                 "SetOutputSettings",
                 "Outputs",
@@ -1276,7 +1317,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.ToggleStream()),
-                (batch, args) => batch.AddToggleStreamRequest()),
+                (batch, args) => batch.AddToggleStreamRequest(),
+                ResponseField: "outputActive"),
             new(
                 "StartStream",
                 "Stream",
@@ -1318,7 +1360,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.ToggleRecord()),
-                (batch, args) => batch.AddToggleRecordRequest()),
+                (batch, args) => batch.AddToggleRecordRequest(),
+                ResponseField: "outputActive"),
             new(
                 "StartRecord",
                 "Record",
@@ -1334,7 +1377,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.StopRecord()),
-                (batch, args) => batch.AddStopRecordRequest()),
+                (batch, args) => batch.AddStopRecordRequest(),
+                ResponseField: "outputPath"),
             new(
                 "ToggleRecordPause",
                 "Record",
@@ -1342,7 +1386,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.ToggleRecordPause()),
-                (batch, args) => batch.AddToggleRecordPauseRequest()),
+                (batch, args) => batch.AddToggleRecordPauseRequest(),
+                ResponseField: "outputPaused"),
             new(
                 "PauseRecord",
                 "Record",
@@ -1427,7 +1472,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetStudioModeEnabled()),
-                (batch, args) => batch.AddGetStudioModeEnabledRequest()),
+                (batch, args) => batch.AddGetStudioModeEnabledRequest(),
+                ResponseField: "studioModeEnabled"),
             new(
                 "SetStudioModeEnabled",
                 "Ui",
@@ -1475,7 +1521,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.0.0",
                 [],
                 (client, args) => Invocation.Of(client.GetMonitorList()),
-                (batch, args) => batch.AddGetMonitorListRequest()),
+                (batch, args) => batch.AddGetMonitorListRequest(),
+                ResponseField: "monitors"),
             new(
                 "OpenVideoMixProjector",
                 "Ui",
@@ -1508,7 +1555,8 @@ namespace OBSStudioClient.TestApp.Catalog
                 "5.7.0",
                 [],
                 (client, args) => Invocation.Of(client.GetCanvasList()),
-                (batch, args) => batch.AddGetCanvasListRequest()),
+                (batch, args) => batch.AddGetCanvasListRequest(),
+                ResponseField: "canvases"),
         ];
 
         /// <summary>The events of the client.</summary>

@@ -32,7 +32,7 @@ internal static class ManualCatalog
             "5.0.0",
             [
                 new("keyId", ParameterKind.Enum, "ObsKey?", false, "The OBS key ID to use. See https://github.com/obsproject/obs-studio/blob/master/libobs/obs-hotkeys.h", EnumType: typeof(ObsKey)),
-                new("keyModifier", ParameterKind.Enum, "KeyModifier?", false, "Key modifier to apply.", EnumType: typeof(KeyModifier)),
+                new("keyModifier", ParameterKind.Enum, "KeyModifier?", false, "Key modifiers to apply: any combination of Control, Shift, Alt and Command.", EnumType: typeof(KeyModifier)),
             ],
             (client, args) => Invocation.Of(client.TriggerHotkeyByKeySequence(args.OptionalEnumValue<ObsKey>("keyId"), args.OptionalEnumValue<KeyModifier>("keyModifier"))),
             (batch, args) => batch.AddTriggerHotkeyByKeySequenceRequest(args.OptionalEnumValue<ObsKey>("keyId"), args.OptionalEnumValue<KeyModifier>("keyModifier"))),

@@ -9,7 +9,11 @@ namespace OBSStudioClient.TestApp.Services;
 /// <summary>Reading, writing and cleaning up JSON for the screen and for exports.</summary>
 internal static class JsonTools
 {
-    private static readonly Regex LongString = new("\"[^\"]{2000,}\"", RegexOptions.Compiled);
+    private const int LongStringLength = 2000;
+
+    // A JSON string, as a whole: the characters between the quotes, an escaped quote (backslash and quote) included. Found from
+    // the left, one string after the other, so that a string is never taken to start at the quote that ends the previous one.
+    private static readonly Regex JsonString = new(@"""[^""\\]*(?:\\.[^""\\]*)*""", RegexOptions.Compiled);
 
     // The value of a member whose name ends in password, secret, token or key (streamKey, apiKey, ...) or is authentication.
     // The value is read as a JSON string, so that a secret that contains an escaped quote is hidden as a whole.
@@ -65,7 +69,9 @@ internal static class JsonTools
 
     /// <summary>Replaces every very long string (an image, for example) by a note of its length, so that the rest stays readable.</summary>
     public static string Collapse(string text) =>
-        text.Length < 2000 ? text : LongString.Replace(text, match => $"\"<{match.Length - 2:N0} characters left out>\"");
+        text.Length < LongStringLength
+            ? text
+            : JsonString.Replace(text, match => match.Length < LongStringLength + 2 ? match.Value : $"\"<{match.Length - 2:N0} characters left out>\"");
 
     /// <summary>Replaces the values of members that hold secrets (a password, a stream key) by asterisks.</summary>
     public static string Redact(string text) => Secret.Replace(text, "$1\"***\"");

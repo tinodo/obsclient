@@ -310,6 +310,16 @@ class Catalog(unittest.TestCase):
         for event in current.events:
             self.assertIn(f"client.{event.name} +=", text, event.name)
 
+    def test_a_request_whose_response_has_one_field_names_it_in_the_catalog(self):
+        current = pm.Model.load()
+        text = generate.emit_catalog(current)
+        named = [request for request in current.generated_requests() if current.returns(request).field is not None]
+
+        self.assertTrue(named)
+        for request in named:
+            self.assertIn(f'ResponseField: "{current.returns(request).field.name}"),', text, request.name)
+        self.assertEqual(text.count("ResponseField:"), len(named))
+
     def test_the_requests_that_are_written_by_hand_have_a_descriptor(self):
         generate.check_manual_catalog(pm.Model.load())
 

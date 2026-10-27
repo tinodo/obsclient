@@ -76,6 +76,7 @@ internal sealed class ParameterForm : StackPanel
     private ParameterEditor CreateEditor(ParameterDescriptor parameter) => parameter.Kind switch
     {
         ParameterKind.Boolean => new ToggleEditor(parameter),
+        ParameterKind.Enum when parameter.EnumType?.IsDefined(typeof(FlagsAttribute), false) == true => new FlagsEditor(parameter),
         ParameterKind.Enum => new EnumEditor(parameter),
         ParameterKind.Scene => new ReferenceEditor(parameter, () => this._session.Scenes),
         ParameterKind.Input => new ReferenceEditor(parameter, () => this._session.Inputs),
@@ -265,6 +266,64 @@ internal sealed class ParameterForm : StackPanel
             return ((ComboBox)this.Editor).SelectedItem is string name
                 ? Enum.Parse(type, name)
                 : throw this.Problem("choose a value.");
+        }
+    }
+
+    // An enumeration whose members combine (the modifiers of a key): one check box for each member, and the value is the combination.
+    private sealed class FlagsEditor : ParameterEditor
+    {
+        public FlagsEditor(ParameterDescriptor descriptor)
+            : base(descriptor)
+        {
+        }
+
+        private IEnumerable<CheckBox> Boxes => ((StackPanel)this.Editor).Children.OfType<CheckBox>();
+
+        protected override FrameworkElement CreateEditor()
+        {
+            var type = this.Descriptor.EnumType ?? throw new InvalidOperationException($"{this.Descriptor.Name} has no enumeration.");
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 * Fluent.Unit };
+            foreach (var value in Enum.GetValues(type).Cast<object>())
+            {
+                if (Convert.ToInt64(value, CultureInfo.InvariantCulture) == 0)
+                {
+                    continue;
+                }
+
+                var box = new CheckBox { Content = value.ToString(), Tag = value, MinWidth = 0 };
+                AutomationProperties.SetName(box, $"{this.Descriptor.Name}: {value}");
+                panel.Children.Add(box);
+            }
+
+            return panel;
+        }
+
+        protected override void SetEnabled(bool enabled)
+        {
+            foreach (var box in this.Boxes)
+            {
+                box.IsEnabled = enabled;
+            }
+        }
+
+        protected override void Fill()
+        {
+            // Two members, so that a combination is what is tried.
+            foreach (var box in this.Boxes.Take(2))
+            {
+                box.IsChecked = true;
+            }
+        }
+
+        protected override object ReadValue()
+        {
+            long combined = 0;
+            foreach (var box in this.Boxes.Where(box => box.IsChecked == true))
+            {
+                combined |= Convert.ToInt64(box.Tag, CultureInfo.InvariantCulture);
+            }
+
+            return Enum.ToObject(this.Descriptor.EnumType!, combined);
         }
     }
 

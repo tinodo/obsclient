@@ -81,22 +81,13 @@ internal static class JsonShape
 
     /// <summary>
     /// Compares what OBS Studio sent with what the client gives back. A null on either side is "no value", not a difference
-    /// of type. A call that returns the one field of a response gives that value, not an object that holds it: the field is
-    /// compared in that case.
+    /// of type. When a call gives back one member of the response (and not the response itself), pass that member as the
+    /// first argument: what is given is what is compared.
     /// </summary>
-    /// <param name="fromObs">The response data as OBS Studio sent it.</param>
+    /// <param name="fromObs">The response data as OBS Studio sent it, or the member of it that the client gives back.</param>
     /// <param name="fromClient">The value the client gave back, as JSON.</param>
     public static ShapeComparison Compare(JsonElement fromObs, JsonElement fromClient)
     {
-        if (fromObs.ValueKind == JsonValueKind.Object && fromClient.ValueKind != JsonValueKind.Object)
-        {
-            var members = fromObs.EnumerateObject().ToList();
-            if (members.Count == 1)
-            {
-                fromObs = members[0].Value;
-            }
-        }
-
         var onlyInObs = new SortedSet<string>(StringComparer.Ordinal);
         var onlyInClient = new SortedSet<string>(StringComparer.Ordinal);
         var typeDifferences = new SortedSet<string>(StringComparer.Ordinal);

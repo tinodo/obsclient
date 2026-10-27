@@ -24,6 +24,28 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
+        public void Collapse_LeavesAVeryLongStringWithAnEscapedQuoteOut_AsAWhole()
+        {
+            var json = $$"""{"settings":"{{new string('a', 2500)}}\"quoted\"{{new string('b', 600)}}","width":1920}""";
+
+            var collapsed = JsonTools.Collapse(json);
+
+            Assert.Contains("characters left out", collapsed, StringComparison.Ordinal);
+            using var document = JsonDocument.Parse(collapsed);
+            Assert.StartsWith("<", document.RootElement.GetProperty("settings").GetString(), StringComparison.Ordinal);
+            Assert.Equal(1920, document.RootElement.GetProperty("width").GetInt32());
+        }
+
+        [Fact]
+        public void Collapse_LeavesALongStretchWithoutStringsAlone_ThatLiesBetweenTwoShortOnes()
+        {
+            var numbers = string.Join(',', Enumerable.Repeat("0.123456", 400));
+            var json = $$"""{"a":"x","values":[{{numbers}}],"b":"y"}""";
+
+            Assert.Equal(json, JsonTools.Collapse(json));
+        }
+
+        [Fact]
         public void Collapse_LeavesShortTextAlone()
         {
             const string json = """{"a":"short"}""";

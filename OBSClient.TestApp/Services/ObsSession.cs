@@ -28,6 +28,11 @@ internal sealed record SessionStatistics(long BytesSent, long BytesReceived, int
 internal sealed class ObsSession
 {
     private readonly DispatcherQueue _dispatcher;
+
+    // The app has one request in flight at a time. The response to a request is found in the log by its type and by where the
+    // log was when the request started, which tells two requests of the same type apart only if they do not overlap (the
+    // requests that the app sends by itself when it connects would otherwise overlap the first one of the user).
+    private readonly SemaphoreSlim _oneAtATime = new(1, 1);
     private ObsClient? _client;
     private volatile string? _lastClosed;
     private volatile bool _closing;
@@ -172,18 +177,26 @@ internal sealed class ObsSession
     /// <param name="arguments">The values of its parameters.</param>
     public async Task<InvocationResult> InvokeAsync(RequestDescriptor request, ArgumentSet arguments)
     {
-        var start = this.Log.Sequence;
-        var stopwatch = Stopwatch.StartNew();
+        await this._oneAtATime.WaitAsync();
         try
         {
-            var client = this._client ?? throw new InvalidOperationException("Not connected to OBS Studio.");
-            var invoke = request.Invoke ?? throw new InvalidOperationException($"{request.Name} cannot be sent on its own.");
-            var value = await invoke(client, arguments);
-            return new InvocationResult(true, value, stopwatch.Elapsed, null, start);
+            var start = this.Log.Sequence;
+            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                var client = this._client ?? throw new InvalidOperationException("Not connected to OBS Studio.");
+                var invoke = request.Invoke ?? throw new InvalidOperationException($"{request.Name} cannot be sent on its own.");
+                var value = await invoke(client, arguments);
+                return new InvocationResult(true, value, stopwatch.Elapsed, null, start);
+            }
+            catch (Exception exception)
+            {
+                return new InvocationResult(false, null, stopwatch.Elapsed, exception, start);
+            }
         }
-        catch (Exception exception)
+        finally
         {
-            return new InvocationResult(false, null, stopwatch.Elapsed, exception, start);
+            this._oneAtATime.Release();
         }
     }
 
@@ -193,31 +206,52 @@ internal sealed class ObsSession
     /// <param name="timeoutMilliseconds">How long to wait, or null for the default of the client.</param>
     public async Task<BatchResult> SendBatchAsync(RequestBatchExecutionType executionType, bool haltOnFailure, int? timeoutMilliseconds)
     {
-        var start = this.Log.Sequence;
-        var stopwatch = Stopwatch.StartNew();
-        string? requestId = null;
+        await this._oneAtATime.WaitAsync();
         try
         {
-            var client = this._client ?? throw new InvalidOperationException("Not connected to OBS Studio.");
-            var batch = new RequestBatchMessage(haltOnFailure, executionType);
-            requestId = batch.RequestId;
-            foreach (var item in this.Batch)
+            var start = this.Log.Sequence;
+            var stopwatch = Stopwatch.StartNew();
+            string? requestId = null;
+            try
             {
-                var add = item.Request.AddToBatch ?? throw new InvalidOperationException($"{item.Request.Name} cannot be added to a batch.");
-                add(batch, item.Arguments);
-            }
+                var client = this._client ?? throw new InvalidOperationException("Not connected to OBS Studio.");
+                var batch = new RequestBatchMessage(haltOnFailure, executionType);
+                requestId = batch.RequestId;
+                foreach (var item in this.Batch)
+                {
+                    var add = item.Request.AddToBatch ?? throw new InvalidOperationException($"{item.Request.Name} cannot be added to a batch.");
+                    add(batch, item.Arguments);
+                }
 
-            var responses = await client.SendRequestBatchAsync(batch, timeoutMilliseconds);
-            return new BatchResult(true, responses, stopwatch.Elapsed, null, start, requestId);
+                var responses = await client.SendRequestBatchAsync(batch, timeoutMilliseconds);
+                return new BatchResult(true, responses, stopwatch.Elapsed, null, start, requestId);
+            }
+            catch (Exception exception)
+            {
+                return new BatchResult(false, null, stopwatch.Elapsed, exception, start, requestId);
+            }
         }
-        catch (Exception exception)
+        finally
         {
-            return new BatchResult(false, null, stopwatch.Elapsed, exception, start, requestId);
+            this._oneAtATime.Release();
         }
     }
 
     /// <summary>Reads the scenes and inputs of OBS Studio again, for the editors that offer them.</summary>
     public async Task RefreshReferencesAsync()
+    {
+        await this._oneAtATime.WaitAsync();
+        try
+        {
+            await this.ReadReferencesAsync();
+        }
+        finally
+        {
+            this._oneAtATime.Release();
+        }
+    }
+
+    private async Task ReadReferencesAsync()
     {
         var client = this._client;
         if (client is null || !this.IsConnected)
@@ -241,23 +275,31 @@ internal sealed class ObsSession
 
     private async Task OnConnectedAsync(ObsClient client)
     {
+        await this._oneAtATime.WaitAsync();
         try
         {
-            var version = await client.GetVersion();
-            if (ReferenceEquals(client, this._client))
+            try
             {
-                this.ObsVersion = version.ObsVersion;
-                this.ObsWebSocketVersion = version.ObsWebSocketVersion;
-                this.Platform = version.PlatformDescription;
-                this.StateChanged?.Invoke(this, EventArgs.Empty);
+                var version = await client.GetVersion();
+                if (ReferenceEquals(client, this._client))
+                {
+                    this.ObsVersion = version.ObsVersion;
+                    this.ObsWebSocketVersion = version.ObsWebSocketVersion;
+                    this.Platform = version.PlatformDescription;
+                    this.StateChanged?.Invoke(this, EventArgs.Empty);
+                }
             }
-        }
-        catch (Exception exception)
-        {
-            this.Log.Note(LogLevel.Warning, $"The version of OBS Studio could not be read: {exception.Message}");
-        }
+            catch (Exception exception)
+            {
+                this.Log.Note(LogLevel.Warning, $"The version of OBS Studio could not be read: {exception.Message}");
+            }
 
-        await this.RefreshReferencesAsync();
+            await this.ReadReferencesAsync();
+        }
+        finally
+        {
+            this._oneAtATime.Release();
+        }
     }
 
     private void SetState(ConnectionState state)

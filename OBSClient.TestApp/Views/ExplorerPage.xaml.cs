@@ -49,7 +49,7 @@ public sealed partial class ExplorerPage : Page
         return this._form.Collect();
     }
 
-    private static string Compare(InvocationResult result, LogEntry? frame)
+    private static string Compare(RequestDescriptor request, InvocationResult result, LogEntry? frame)
     {
         if (!result.Succeeded)
         {
@@ -74,13 +74,23 @@ public sealed partial class ExplorerPage : Page
                 return "OBS Studio sent no response data.";
             }
 
+            var header = "What OBS Studio sent (responseData), compared with what the client returned." + Environment.NewLine;
+            if (request.ResponseField is { } field)
+            {
+                // The method hands back the value of one member of the response: that member is what the client returned.
+                if (!responseData.TryGetProperty(field, out var member))
+                {
+                    return header + $"OBS Studio sent no member {field} in the response data, which is what the client returns.";
+                }
+
+                responseData = member;
+                header += $"The method returns the member {field} of the response data, so that member is compared with it." + Environment.NewLine;
+            }
+
             using var returned = JsonTools.ToDocument(result.Value)!;
             var comparison = JsonShape.Compare(responseData, returned.RootElement);
 
-            return "What OBS Studio sent (responseData), compared with what the client returned." + Environment.NewLine
-                + ShapeComparison.Legend + Environment.NewLine
-                + Environment.NewLine
-                + comparison.Describe();
+            return header + ShapeComparison.Legend + Environment.NewLine + Environment.NewLine + comparison.Describe();
         }
         catch (JsonException exception)
         {
@@ -162,6 +172,10 @@ public sealed partial class ExplorerPage : Page
     {
         this._busy = busy;
         this.Busy.IsActive = busy;
+
+        // The response is shown with the request it was sent for: another request cannot be chosen meanwhile.
+        this.RequestTree.IsEnabled = !busy;
+        this.SearchBox.IsEnabled = !busy;
         this.UpdateButtons();
     }
 
@@ -275,7 +289,7 @@ public sealed partial class ExplorerPage : Page
             ? result.Value is null ? "(this request returns no data)" : JsonTools.Serialize(result.Value)
             : "(the request failed)");
         this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.Text);
-        this._comparison = this.Render("comparison", () => Compare(result, frame));
+        this._comparison = this.Render("comparison", () => Compare(request, result, frame));
 
         if (result.Error is { } error)
         {

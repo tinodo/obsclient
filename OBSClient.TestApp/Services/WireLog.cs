@@ -140,6 +140,15 @@ internal sealed class WireLog : ILogger<ObsClient>
     private static string? StringOf(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
+    private void ObserveResponse(string requestType, JsonElement responseData)
+    {
+        // A request without response data has none, or a null: that is not a shape.
+        if (responseData.ValueKind != JsonValueKind.Null)
+        {
+            this._observations.ObserveResponse(requestType, responseData);
+        }
+    }
+
     private LogEntry? FindLast(long afterSequence, Func<LogEntry, bool> match)
     {
         lock (this._gate)
@@ -238,7 +247,20 @@ internal sealed class WireLog : ILogger<ObsClient>
                     {
                         if (op == 7 && requestType is not null && data.TryGetProperty("responseData", out var responseData))
                         {
-                            this._observations.ObserveResponse(requestType, responseData);
+                            this.ObserveResponse(requestType, responseData);
+                        }
+                        else if (op == 9 && data.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+                        {
+                            // The responses to the requests of a batch are in the answer to the batch.
+                            foreach (var result in results.EnumerateArray())
+                            {
+                                if (result.ValueKind == JsonValueKind.Object
+                                    && StringOf(result, "requestType") is { } resultType
+                                    && result.TryGetProperty("responseData", out var resultData))
+                                {
+                                    this.ObserveResponse(resultType, resultData);
+                                }
+                            }
                         }
                         else if (op == 5 && eventType is not null && data.TryGetProperty("eventData", out var eventData))
                         {

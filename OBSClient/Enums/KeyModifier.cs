@@ -1,8 +1,9 @@
 ﻿namespace OBSStudioClient.Enums
 {
     /// <summary>
-    /// Key Modifiers
+    /// Key Modifiers. They combine: <c>KeyModifier.Control | KeyModifier.Shift</c> is the modifiers of Ctrl+Shift.
     /// </summary>
+    [Flags]
     public enum KeyModifier
     {
         /// <summary>

@@ -181,6 +181,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   obs-websocket reads `haltOnFailure` and ignores a field it does not know, so a batch always ran on after a failed request
   (found with the Batch page of the test app, and checked in the source of 5.7.6).
 - `ConnectAsync` refused port 65535, which is a valid port; it accepts 1 to 65535.
+- `KeyModifier` is marked `[Flags]`: the client always treated it as a combination of keys (`KeyModifier.Control | KeyModifier.Shift`
+  is the modifiers of Ctrl+Shift, which `TriggerHotkeyByKeySequence` and its batch builder send as one flag for each key), but the
+  type did not say so, so it printed and parsed a combination as a number.
 
 ### Compatibility
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`

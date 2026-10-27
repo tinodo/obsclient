@@ -682,7 +682,13 @@ def emit_catalog(model: Model) -> str:
         else:
             source.add(4, "[],")
         source.add(4, f"(client, args) => Invocation.Of(client.{request.name}({arguments})),")
-        source.add(4, f"(batch, args) => batch.Add{request.name}Request({arguments})),")
+        response_field = model.returns(request).field
+        if response_field is None:
+            source.add(4, f"(batch, args) => batch.Add{request.name}Request({arguments})),")
+        else:
+            # The method hands back the value of the one field of the response: the app compares that field with it.
+            source.add(4, f"(batch, args) => batch.Add{request.name}Request({arguments}),")
+            source.add(4, f"ResponseField: {literal(response_field.name)}),")
     source.add(2, "];")
     source.add()
     source.add(2, "/// <summary>The events of the client.</summary>")

@@ -72,12 +72,22 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
-        public void Compare_ComparesTheOnlyFieldOfAResponse_WithTheValueTheClientGivesBack()
+        public void Compare_ComparesWhatItIsGiven_SoTheCallerPicksTheMemberThatTheClientReturns()
         {
-            Assert.True(JsonShape.Compare(Json("""{"outputActive":true}"""), Json("true")).IsIdentical);
+            var response = Json("""{"sceneItemTransform":{"positionX":1.5,"positionY":2.5}}""");
+            var returned = Json("""{"positionX":1.5,"positionY":2.5}""");
+
+            Assert.True(JsonShape.Compare(response.GetProperty("sceneItemTransform"), returned).IsIdentical);
+            Assert.False(JsonShape.Compare(response, returned).IsIdentical);
+        }
+
+        [Fact]
+        public void Compare_OfAValueTheClientGivesBack_ReportsAnotherKind()
+        {
             Assert.Equal(
                 new[] { "$: OBS Studio sent string, the client gives number" },
-                JsonShape.Compare(Json("""{"name":"x"}"""), Json("5")).TypeDifferences);
+                JsonShape.Compare(Json("\"x\""), Json("5")).TypeDifferences);
+            Assert.True(JsonShape.Compare(Json("true"), Json("false")).IsIdentical);
         }
 
         [Fact]

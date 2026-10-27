@@ -2,6 +2,7 @@ namespace OBSStudioClient.Tests.TestAppTests
 {
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
+    using OBSStudioClient.Tests.Conformance;
     using OBSStudioClient.Tests.TestSupport;
     using OBSStudioClient.TestApp.Catalog;
     using System.Text.Json;
@@ -69,6 +70,20 @@ namespace OBSStudioClient.Tests.TestAppTests
                 Assert.NotNull(request.Invoke);
                 Assert.NotNull(request.AddToBatch);
             });
+        }
+
+        [Fact]
+        public void ARequestWhoseResponseHasOneField_NamesIt_SoThatTheAppCanCompareThatField()
+        {
+            var protocol = ProtocolSnapshot.Current;
+
+            foreach (var request in ProtocolCatalog.Requests)
+            {
+                var fields = protocol.Requests[request.Name].ResponseFields.Where(field => !field.Name.Contains('.', StringComparison.Ordinal)).ToList();
+                var expected = fields.Count == 1 ? fields[0].Name : null;
+
+                Assert.True(expected == request.ResponseField, $"{request.Name}: the response field is {request.ResponseField ?? "(none)"}, the protocol has {expected ?? "none or several"}.");
+            }
         }
 
         [Fact]

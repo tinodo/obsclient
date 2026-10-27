@@ -68,6 +68,7 @@ internal sealed record ParameterDescriptor(
 /// <param name="Invoke">Calls the method; null for a request that cannot be sent on its own.</param>
 /// <param name="AddToBatch">Adds the request to a batch; null for a shortcut of the client, which is a method of its own rather than a request of the protocol.</param>
 /// <param name="WireType">The type of the request that goes over the wire, when it is not <paramref name="Name"/>: a shortcut sends another request.</param>
+/// <param name="ResponseField">The field of the response data that the method hands back, when the response has only one (the method gives its value, not the response); null when the method gives the whole response, or nothing.</param>
 internal sealed record RequestDescriptor(
     string Name,
     string Category,
@@ -76,7 +77,8 @@ internal sealed record RequestDescriptor(
     IReadOnlyList<ParameterDescriptor> Parameters,
     Func<ObsClient, ArgumentSet, Task<object?>>? Invoke,
     Action<RequestBatchMessage, ArgumentSet>? AddToBatch,
-    string? WireType = null)
+    string? WireType = null,
+    string? ResponseField = null)
 {
     /// <summary>Gets the type of the request that goes over the wire, which is how OBS Studio names its response.</summary>
     public string RequestType => this.WireType ?? this.Name;
