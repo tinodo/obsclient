@@ -301,6 +301,7 @@ public sealed partial class BatchPage : Page
         this.ResultCard.Visibility = Visibility.Visible;
         this.ResultTabs.SelectedItem = this.TypedTab;
         this.ShowTab();
+        this.ResultCard.UpdateLayout();
         this.ResultCard.StartBringIntoView();
     }
 
