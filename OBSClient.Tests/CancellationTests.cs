@@ -1,5 +1,7 @@
 namespace OBSStudioClient.Tests
 {
+    using System.Net;
+    using System.Net.Sockets;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
     using OBSStudioClient.Tests.TestSupport;
@@ -238,6 +240,78 @@ namespace OBSStudioClient.Tests
             Assert.True(client.AutoReconnect, $"The call that was cancelled switched AutoReconnect off for the connection that replaced it (round {round}).");
 
             client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ATokenThatTheHandlerOfAFailedAttemptCancels_StillSwitchesAutoReconnectOff()
+        {
+            // Nothing listens on the port, so the attempt fails on its own. The handler that is told about it cancels the token before
+            // ConnectAsync has ended: the call throws, and the client must not go on trying behind the caller's back.
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+
+            using var client = new ObsClient();
+            using var cancellation = new CancellationTokenSource();
+            client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.ConnectionState) && client.ConnectionState == ConnectionState.Disconnected)
+                {
+                    cancellation.Cancel();
+                }
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: port, cancellationToken: cancellation.Token).WithTimeoutAsync(Timeout));
+
+            Assert.False(client.AutoReconnect);
+        }
+
+        [Fact]
+        public async Task ATokenThatIsCancelledAsTheConnectionIsEstablished_EitherEndsTheAttemptOrChangesNothing()
+        {
+            // Whichever comes first decides, and the call never does both: it throws and the connection is gone, or it completes and the
+            // token no longer matters. The handler cancels at the first moment that the connection is established.
+            for (var round = 0; round < 10; round++)
+            {
+                await using var server = new FakeObsWebSocketServer();
+                server.Start();
+                using var client = new ObsClient();
+                using var cancellation = new CancellationTokenSource();
+                client.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(ObsClient.ConnectionState) && client.ConnectionState == ConnectionState.Connected)
+                    {
+                        cancellation.Cancel();
+                    }
+                };
+
+                var connect = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port, cancellationToken: cancellation.Token);
+                await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout);
+
+                bool completed;
+                try
+                {
+                    completed = await connect.WithTimeoutAsync(Timeout);
+                }
+                catch (OperationCanceledException)
+                {
+                    completed = false;
+                }
+
+                if (completed)
+                {
+                    await Task.Delay(100);
+                    Assert.True(client.ConnectionState == ConnectionState.Connected, $"The call completed, and the token ended the connection all the same (round {round}).");
+                }
+                else
+                {
+                    Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Disconnected, Timeout), $"The call threw, and the connection is still there (round {round}).");
+                    Assert.False(client.AutoReconnect, $"The call threw, and AutoReconnect is still on (round {round}).");
+                }
+
+                client.Disconnect();
+            }
         }
 
         [Fact]

@@ -38,6 +38,13 @@
 
         private static readonly TimeSpan _closeTimeout = TimeSpan.FromSeconds(1);
 
+        // What became of an attempt to connect (ConnectionSession.Attempt): decided once.
+        private const int AttemptUndecided = 0;
+
+        private const int AttemptCompleted = 1;
+
+        private const int AttemptCancelled = 2;
+
         private readonly Timer _reconnectTimer;
 
         private readonly ConcurrentDictionary<string, FieldInfo> _eventsMap = new();
@@ -179,24 +186,34 @@
             }
             set
             {
-                lock (_syncRoot)
-                {
-                    if (value)
-                    {
-                        this._reconnectTimer.Change(this._reconnectInterval, this._reconnectInterval);
-                    }
-                    else
-                    {
-                        this._reconnectTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                    }
+                this.SetAutoReconnect(value);
+            }
+        }
 
-                    this._autoReconnect = value;
+        // The setter of AutoReconnect. With a session it only changes the setting while that session is the active one: the check and the
+        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the
+        // setting of the one that replaced it.
+        private void SetAutoReconnect(bool value, ConnectionSession? onlyForSession = null)
+        {
+            lock (_syncRoot)
+            {
+                if (onlyForSession is not null && !ReferenceEquals(this._session, onlyForSession))
+                {
+                    return;
                 }
 
-                // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
-                // property, so a handler must not be able to deadlock the client or break those calls.
-                this.RaisePropertyChangedSafely();
+                // The timer is disposed by Dispose, after it took this lock to set _disposed.
+                if (!this._disposed)
+                {
+                    this._reconnectTimer.Change(value ? this._reconnectInterval : Timeout.Infinite, value ? this._reconnectInterval : Timeout.Infinite);
+                }
+
+                this._autoReconnect = value;
             }
+
+            // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
+            // property, so a handler must not be able to deadlock the client or break those calls.
+            this.RaisePropertyChangedSafely(nameof(AutoReconnect));
         }
 
         /// <summary>
@@ -452,7 +469,7 @@
         /// </remarks>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="port"/> is not between 1 and 65535.</exception>
         /// <exception cref="ArgumentException"><paramref name="hostname"/> is not a valid host name.</exception>
-        /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled before the connection was established (or just after it).</exception>
+        /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled before the call completed: the attempt was ended, and <see cref="AutoReconnect"/> switched off. A token that is cancelled after the call completed has no effect.</exception>
         public async Task<bool> ConnectAsync(bool autoReconnect = false, string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -472,6 +489,9 @@
                 throw new ArgumentException("Invalid hostname.", nameof(hostname));
             }
 
+            // The session is activated before its settings are written, never after: a change that a session that is being replaced still
+            // makes for itself (see ApplyIfActive) is then refused, or overwritten by the settings that follow.
+            var session = this.ActivateNewSession();
             this.AutoReconnect = autoReconnect;
             this._uri = uri;
             this._password = password;
@@ -479,12 +499,7 @@
 
             _logger.LogInformation("Connecting to {Hostname}:{Port}", hostname, port);
 
-            var connected = await this.StartAsync(cancellationToken).ConfigureAwait(false);
-
-            // StartAsync has ended the attempt, and only that attempt, when the token was cancelled: what is left is to tell the caller.
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return connected;
+            return await this.StartAsync(session, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -538,8 +553,11 @@
             ObsMessage message = new(request);
 
             // The events are remembered, so that a reconnect subscribes to the same ones, when the message has been written (in the order in
-            // which messages are written): a call that was cancelled while it waited for its turn, or that failed, changes nothing.
-            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message, cancellationToken, () => this._eventSubscriptions = eventSubscription).ConfigureAwait(false);
+            // which messages are written): a call that was cancelled while it waited for its turn, or that failed, changes nothing. They are
+            // remembered for the session that sent the message, and only while it is the active one: when the continuation of a write runs
+            // late, after a handler started a connection in place of that session, they must not replace what that connection was made with.
+            var session = this._session ?? throw new ObsClientException("Not connected.");
+            await this.SendAsync(session, message, cancellationToken, () => this.ApplyIfActive(session, () => this._eventSubscriptions = eventSubscription)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -579,17 +597,50 @@
             this._eventsMap.Clear();
         }
 
-        private async Task<bool> StartAsync(CancellationToken cancellationToken = default)
+        // Makes a new session the active one. The settings of the connection that it is for are written after this, never before.
+        private ConnectionSession ActivateNewSession()
         {
             var session = new ConnectionSession();
-            this._session = session;
+            lock (this._syncRoot)
+            {
+                this._session = session;
+            }
+
+            return session;
+        }
+
+        // Runs a change that was made for a session, but only while that session is the active one. The check and the change are one step
+        // with respect to activating another session: a session that was replaced cannot change the settings of the one that replaced it.
+        private bool ApplyIfActive(ConnectionSession session, Action change)
+        {
+            lock (this._syncRoot)
+            {
+                if (!ReferenceEquals(this._session, session))
+                {
+                    return false;
+                }
+
+                change();
+                return true;
+            }
+        }
+
+        private async Task<bool> StartAsync(ConnectionSession session, CancellationToken cancellationToken = default)
+        {
             this.ConnectionState = ConnectionState.Connecting;
 
-            // Cancelling the token ends this attempt, the session that was just made, and nothing else: Disconnect() ends whichever session is
-            // active at the moment that the token is cancelled, which can by then be a connection that a handler started in its place. A token
-            // that is cancelled already ends the session before its socket is opened. The registration only lives as long as the attempt:
-            // a token that is cancelled after the connection was established must not close it.
-            using var cancellation = cancellationToken.Register(() => this.EndAttempt(session));
+            // Cancelling the token ends this attempt, the session that was made for it, and nothing else: Disconnect() ends whichever session is
+            // active at the moment that the token is cancelled, which can by then be a connection that a handler started in its place. The
+            // outcome of the attempt is decided once (here by the token, or at the end of this method by the attempt), so that a token that is
+            // cancelled as the attempt completes either ends it, and the call throws, or no longer matters: it cannot do both. A token that is
+            // cancelled already ends the session before its socket is opened. The registration only lives as long as the attempt.
+            using var cancellation = cancellationToken.Register(() =>
+            {
+                if (Interlocked.CompareExchange(ref session.Attempt, AttemptCancelled, AttemptUndecided) == AttemptUndecided)
+                {
+                    this.EndAttempt(session);
+                }
+            });
 
             try
             {
@@ -612,41 +663,29 @@
             else
             {
                 AbandonPendingWork(session);
-                this.SwitchOffAutoReconnectOfEndedAttempt(session);
                 this.SetConnectionState(session, ConnectionState.Disconnected);
                 session.Dispose();
                 connected = false;
             }
 
-            if (cancellationToken.IsCancellationRequested)
+            // The decision: the token got there first and ended the attempt (the registration is disposed when this method ends, which waits
+            // for its callback to finish), or the attempt is over and the token can no longer end anything.
+            if (Interlocked.CompareExchange(ref session.Attempt, AttemptCompleted, AttemptUndecided) != AttemptUndecided)
             {
-                // The token was cancelled as the attempt finished: a connection that it made is not wanted either.
-                this.EndAttempt(session);
+                throw new OperationCanceledException(cancellationToken);
             }
 
             return connected;
         }
 
-        // What Disconnect() does, for the session of one attempt to connect and only for it: the session is cancelled, and marked as ended by
-        // its caller. AutoReconnect is not written from here but when the session has ended (SwitchOffAutoReconnectOfEndedAttempt), so that
-        // a call that runs late can never reach a connection that a handler started in its place: that one cannot start before this session
-        // is Disconnected. Ending a session more than once does no harm.
+        // What Disconnect() does, for the session of one attempt to connect and for nothing else: AutoReconnect is switched off, and the
+        // session is ended. AutoReconnect is only changed while this session is still the active one, so a connection that a handler
+        // started in its place keeps its settings.
         private void EndAttempt(ConnectionSession session)
         {
             _logger.LogInformation("Ending the attempt to connect to OBS Studio");
-            session.EndedByCaller = true;
+            this.SetAutoReconnect(false, session);
             session.Cancellation.Cancel();
-        }
-
-        // Switches AutoReconnect off, as Disconnect() does, for an attempt that its token ended. It is called when the session has ended
-        // and before the state becomes Disconnected, which is what the reconnect timer waits for and what a handler of PropertyChanged may
-        // answer by connecting again, and only for the session that is still the active one.
-        private void SwitchOffAutoReconnectOfEndedAttempt(ConnectionSession session)
-        {
-            if (session.EndedByCaller && ReferenceEquals(this._session, session))
-            {
-                this.AutoReconnect = false;
-            }
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
@@ -1244,7 +1283,6 @@
                 Interlocked.Exchange(ref this._sessionBytesSent, 0);
                 Interlocked.Exchange(ref this._sessionMessagesReceived, 0);
                 Interlocked.Exchange(ref this._sessionMessagesSent, 0);
-                this.SwitchOffAutoReconnectOfEndedAttempt(session);
                 this.ConnectionState = ConnectionState.Disconnected;
             }
 
@@ -1364,7 +1402,7 @@
                 {
                     try
                     {
-                        await this.StartAsync();
+                        await this.StartAsync(this.ActivateNewSession());
                     }
                     catch (Exception ex)
                     {
@@ -1403,8 +1441,8 @@
             /// <summary>1 once the connection has ended and everything that was waiting on it has been failed.</summary>
             public int Closed;
 
-            /// <summary>True when the token of the call that made this session ended it: <see cref="ObsClient.ConnectAsync"/> switches AutoReconnect off for it, as Disconnect() does.</summary>
-            public volatile bool EndedByCaller;
+            /// <summary>What became of the attempt of <see cref="ObsClient.ConnectAsync"/> that made this session: it is decided once, by the token or by the end of the attempt.</summary>
+            public int Attempt;
 
             public void Dispose()
             {
