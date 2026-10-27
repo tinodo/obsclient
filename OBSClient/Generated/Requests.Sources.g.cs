@@ -22,13 +22,17 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="source">The source to get the active state of, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SourceActiveResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>**Compatible with inputs and scenes.**.</para>
         /// </remarks>
-        public async Task<SourceActiveResponse> GetSourceActive(SourceRef source, Guid? canvasUuid = null)
+        public async Task<SourceActiveResponse> GetSourceActive(
+            SourceRef source,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SourceActiveResponse>(RequestType.GetSourceActive, GetSourceActiveRequestData.Create(source, canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<SourceActiveResponse>(RequestType.GetSourceActive, GetSourceActiveRequestData.Create(source, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -40,6 +44,7 @@ namespace OBSStudioClient
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Base64-encoded screenshot.</returns>
         /// <remarks>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>
@@ -51,9 +56,10 @@ namespace OBSStudioClient
             int? imageWidth = null,
             int? imageHeight = null,
             int? imageCompressionQuality = null,
-            Guid? canvasUuid = null)
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<ImageDataResponse>(RequestType.GetSourceScreenshot, GetSourceScreenshotRequestData.Create(source, imageFormat, imageWidth, imageHeight, imageCompressionQuality, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<ImageDataResponse>(RequestType.GetSourceScreenshot, GetSourceScreenshotRequestData.Create(source, imageFormat, imageWidth, imageHeight, imageCompressionQuality, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.ImageData;
         }
 
@@ -67,6 +73,7 @@ namespace OBSStudioClient
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>
         /// <para>**Compatible with inputs and scenes.**.</para>
@@ -78,9 +85,10 @@ namespace OBSStudioClient
             int? imageWidth = null,
             int? imageHeight = null,
             int? imageCompressionQuality = null,
-            Guid? canvasUuid = null)
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SaveSourceScreenshot, SaveSourceScreenshotRequestData.Create(source, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SaveSourceScreenshot, SaveSourceScreenshotRequestData.Create(source, imageFormat, imageFilePath, imageWidth, imageHeight, imageCompressionQuality, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

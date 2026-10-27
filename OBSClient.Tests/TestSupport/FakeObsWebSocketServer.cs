@@ -31,9 +31,20 @@
         private WebSocket? _socket;
         private bool _stopped;
 
-        public FakeObsWebSocketServer()
+        /// <summary>Initializes a new instance of the <see cref="FakeObsWebSocketServer"/> class.</summary>
+        /// <param name="receiveBufferSize">
+        /// The receive buffer of the connections that the server accepts, in bytes, or null for the default. A small one makes the writes
+        /// of a client block soon when nothing reads from this server, which is what the tests of a blocked write need.
+        /// </param>
+        public FakeObsWebSocketServer(int? receiveBufferSize = null)
         {
             _listener = new TcpListener(IPAddress.Loopback, 0);
+            if (receiveBufferSize is { } size)
+            {
+                // Before the listener starts: the connections that it accepts get the same buffer, and so the same small window.
+                _listener.Server.ReceiveBufferSize = size;
+            }
+
             _listener.Start();
             Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         }

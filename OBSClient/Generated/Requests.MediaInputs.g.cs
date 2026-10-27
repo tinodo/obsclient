@@ -21,14 +21,15 @@ namespace OBSStudioClient
         /// Gets the status of a media input.
         /// </summary>
         /// <param name="input">The media input, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="MediaInputStatusResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Media States:.</para>
         /// <para>- <c>OBS_MEDIA_STATE_NONE</c> - <c>OBS_MEDIA_STATE_PLAYING</c> - <c>OBS_MEDIA_STATE_OPENING</c> - <c>OBS_MEDIA_STATE_BUFFERING</c> - <c>OBS_MEDIA_STATE_PAUSED</c> - <c>OBS_MEDIA_STATE_STOPPED</c> - <c>OBS_MEDIA_STATE_ENDED</c> - <c>OBS_MEDIA_STATE_ERROR</c>.</para>
         /// </remarks>
-        public async Task<MediaInputStatusResponse> GetMediaInputStatus(InputRef input)
+        public async Task<MediaInputStatusResponse> GetMediaInputStatus(InputRef input, CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<MediaInputStatusResponse>(RequestType.GetMediaInputStatus, GetMediaInputStatusRequestData.Create(input)).ConfigureAwait(false);
+            return await this.SendRequestAsync<MediaInputStatusResponse>(RequestType.GetMediaInputStatus, GetMediaInputStatusRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -36,12 +37,13 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The media input, by name or by UUID.</param>
         /// <param name="mediaCursor">New cursor position to set. Restrictions: &gt;= 0.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>This request does not perform bounds checking of the cursor position.</para>
         /// </remarks>
-        public async Task SetMediaInputCursor(InputRef input, int mediaCursor)
+        public async Task SetMediaInputCursor(InputRef input, int mediaCursor, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetMediaInputCursor, SetMediaInputCursorRequestData.Create(input, mediaCursor)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetMediaInputCursor, SetMediaInputCursorRequestData.Create(input, mediaCursor), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -49,12 +51,13 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The media input, by name or by UUID.</param>
         /// <param name="mediaCursorOffset">Value to offset the current cursor position by.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>This request does not perform bounds checking of the cursor position.</para>
         /// </remarks>
-        public async Task OffsetMediaInputCursor(InputRef input, int mediaCursorOffset)
+        public async Task OffsetMediaInputCursor(InputRef input, int mediaCursorOffset, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OffsetMediaInputCursor, OffsetMediaInputCursorRequestData.Create(input, mediaCursorOffset)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OffsetMediaInputCursor, OffsetMediaInputCursorRequestData.Create(input, mediaCursorOffset), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -62,9 +65,10 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The media input, by name or by UUID.</param>
         /// <param name="mediaAction">Identifier of the <c>ObsMediaInputAction</c> enum.</param>
-        public async Task TriggerMediaInputAction(InputRef input, ObsMediaInputAction mediaAction)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task TriggerMediaInputAction(InputRef input, ObsMediaInputAction mediaAction, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.TriggerMediaInputAction, TriggerMediaInputActionRequestData.Create(input, mediaAction)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.TriggerMediaInputAction, TriggerMediaInputActionRequestData.Create(input, mediaAction), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }
