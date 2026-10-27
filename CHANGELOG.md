@@ -7,10 +7,12 @@ For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obscli
 
 ## [4.0.0-beta1] - 2026-10-27
 
-The first prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 below. Its public API can still
-change before 4.0.0 is released, so read the *Breaking changes* below to see what you have to change, and report what you find in
-an [issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain `dotnet add package OBSClient`:
-use `dotnet add package OBSClient --version 4.0.0-beta1` (or `--prerelease` for the newest prerelease).
+The first prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 below, except the items that are
+marked *after beta1*. Its public API can still change before 4.0.0 is released, so read the *Breaking changes* below to see what you
+have to change, and report what you find in an [issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a
+plain `dotnet add package OBSClient`: use `dotnet add package OBSClient --version 4.0.0-beta1` (or `--prerelease` for the newest
+prerelease). The [GitHub release](https://github.com/tinodo/obsclient/releases/tag/v4.0.0-beta1) has the package and the test app as
+downloads.
 
 ## [4.0.0] - Unreleased
 
@@ -135,14 +137,15 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   a log of everything that went over the wire that can be exported, together with the shapes of the responses and events that
   were observed. The catalog of requests and events is generated from the protocol like the library is, and CI publishes the
   app as a self-contained download and starts it to check every page, including a run against a simulated OBS Studio that
-  connects, sends requests and a batch, receives events and checks the log (with screenshots as an artifact). It is not part of
-  the NuGet package.
+  connects, sends requests and a batch, receives events and checks the log (with screenshots as an artifact). Every release has it
+  as a zip (from 4.0.0-beta1 on). It is not part of the NuGet package.
 - The client logs every message it **sends** at the debug level (`Sending: …`), as it already logged what it receives
   (`Received: …`); the answer to the authentication challenge is left out. The two `Debug.WriteLine` calls that did the same
   (in debug builds only) are gone.
 - CI: a cross-platform build and test matrix, CodeQL analysis, GitHub Copilot code review of every pull request (which
   replaces SonarCloud, now removed), and a tag-triggered publish pipeline to nuget.org (Trusted Publishing) and GitHub Packages.
-- **Documentation**: a site at <https://tinodo.github.io/obsclient/> with guides (getting started, connecting, requests, batches, events,
+  *After beta1*: Dependabot proposes updates of the GitHub Actions and of the NuGet packages every week (see CONTRIBUTING).
+- **Documentation** *(after beta1)*: a site at <https://tinodo.github.io/obsclient/> with guides (getting started, connecting, requests, batches, events,
   moving from 3.x, troubleshooting), a page about the test app, and an API reference that is generated from the XML documentation of the
   library. The Docs workflow builds it, checks its links and publishes it on every change of `main`; `python tools/docs/build.py` builds it
   locally (see CONTRIBUTING). The project URL of the package is the site now. The XML documentation that the site exposes was corrected
@@ -196,7 +199,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   no longer throws during deserialization; it maps to `EventType.Unknown` and is ignored
   ([#12](https://github.com/tinodo/obsclient/issues/12) was the same class of bug for an event type that was misnamed).
 - `ConnectionClosed` did not fire after a deliberate `Disconnect()`.
-- **`AutoReconnect` reconnected a client that was kicked.** obs-websocket ends a session with the close code `SessionInvalidated` (4011)
+- **`AutoReconnect` reconnected a client that was kicked** *(after beta1)*. obs-websocket ends a session with the close code `SessionInvalidated` (4011)
   when a user presses the Kick button of its session list, and documents that a client must not reconnect automatically after it. The client
   now sets `AutoReconnect` to `false` and stays `Disconnected` (`ConnectionClosed` is raised as before); call `ConnectAsync` to connect again.
   Found while writing the documentation of the reconnect behavior.
