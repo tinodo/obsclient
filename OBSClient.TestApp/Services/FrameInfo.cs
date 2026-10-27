@@ -12,7 +12,7 @@ namespace OBSStudioClient.TestApp.Services;
 /// <param name="RequestType">The type of the request that the message is about.</param>
 /// <param name="RequestId">The identifier of the request that the message is about.</param>
 /// <param name="EventType">The type of the event that the message carries.</param>
-/// <param name="Failed">Whether the message is the response to a request that failed.</param>
+/// <param name="Failed">Whether the message is the response to a request that failed, or to a batch in which a request failed.</param>
 /// <param name="Status">What went wrong, for the title of a response that failed.</param>
 internal sealed record FrameInfo(int? OpCode, string? RequestType, string? RequestId, string? EventType, bool Failed, string Status)
 {
@@ -30,7 +30,7 @@ internal sealed record FrameInfo(int? OpCode, string? RequestType, string? Reque
         6 => $"Request {this.RequestType}",
         7 => $"Response {this.RequestType}{this.Status}",
         8 => "Request batch",
-        9 => "Request batch response",
+        9 => $"Request batch response{this.Status}",
         _ => "Message",
     };
 
@@ -78,6 +78,16 @@ internal sealed record FrameInfo(int? OpCode, string? RequestType, string? Reque
                 status = $" failed ({code}){(string.IsNullOrEmpty(comment) ? string.Empty : ": " + comment)}";
             }
         }
+        else if (op == 9 && data.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            // A batch is answered with a message that succeeded; what failed is in its results.
+            var failures = CountFailures(results, out var total);
+            if (failures > 0)
+            {
+                failed = true;
+                status = $" ({failures} of {total} failed)";
+            }
+        }
 
         return new FrameInfo(op, StringOf(data, "requestType"), StringOf(data, "requestId"), StringOf(data, "eventType"), failed, status);
     }
@@ -91,4 +101,25 @@ internal sealed record FrameInfo(int? OpCode, string? RequestType, string? Reque
 
     private static int? IntOf(JsonElement element) =>
         element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value) ? value : null;
+
+    // The results of a batch are read as defensively as the rest: only a status whose result is the JSON value false counts.
+    private static int CountFailures(JsonElement results, out int total)
+    {
+        total = 0;
+        var failures = 0;
+        foreach (var item in results.EnumerateArray())
+        {
+            total++;
+            if (item.ValueKind == JsonValueKind.Object
+                && item.TryGetProperty("requestStatus", out var itemStatus)
+                && itemStatus.ValueKind == JsonValueKind.Object
+                && itemStatus.TryGetProperty("result", out var itemResult)
+                && itemResult.ValueKind == JsonValueKind.False)
+            {
+                failures++;
+            }
+        }
+
+        return failures;
+    }
 }

@@ -79,34 +79,45 @@ public sealed partial class LogPage : Page
 
     private void OnAdded(object? sender, IReadOnlyList<LogEntry> entries)
     {
-        if (this.PauseButton.IsChecked == true)
+        if (this.PauseButton.IsChecked != true)
         {
-            return;
+            // The entries that a rebuild has already put in the list may still be on their way here: the log hands them over in
+            // batches, and a rebuild reads everything that has been logged, the entries that were not handed over yet included.
+            foreach (var entry in entries.Where(candidate => candidate.Sequence > this._shownThrough && this.Matches(candidate)))
+            {
+                this.Visible.Add(entry);
+            }
+
+            if (entries.Count > 0)
+            {
+                this._shownThrough = Math.Max(this._shownThrough, entries[entries.Count - 1].Sequence);
+            }
+
+            while (this.Visible.Count > MaxShown)
+            {
+                this.Visible.RemoveAt(0);
+            }
         }
 
-        // The entries that a rebuild has already put in the list may still be on their way here: the log hands them over in
-        // batches, and a rebuild reads everything that has been logged, the entries that were not handed over yet included.
-        foreach (var entry in entries.Where(candidate => candidate.Sequence > this._shownThrough && this.Matches(candidate)))
-        {
-            this.Visible.Add(entry);
-        }
+        // The log lets go of its oldest entries to stay within its budget (the message of a screenshot is megabytes of text): the
+        // rows must not keep alive what the log let go of, whether the page is paused or not.
+        this.DropEvicted();
 
-        if (entries.Count > 0)
-        {
-            this._shownThrough = Math.Max(this._shownThrough, entries[entries.Count - 1].Sequence);
-        }
-
-        while (this.Visible.Count > MaxShown)
-        {
-            this.Visible.RemoveAt(0);
-        }
-
-        if (this.FollowButton.IsChecked == true && this.EntryList.SelectedItem is null && this.Visible.Count > 0)
+        if (this.PauseButton.IsChecked != true && this.FollowButton.IsChecked == true && this.EntryList.SelectedItem is null && this.Visible.Count > 0)
         {
             this.EntryList.ScrollIntoView(this.Visible[this.Visible.Count - 1]);
         }
 
         this.ShowCount();
+    }
+
+    private void DropEvicted()
+    {
+        var oldest = this._session.Log.OldestSequence;
+        while (this.Visible.Count > 0 && this.Visible[0].Sequence < oldest)
+        {
+            this.Visible.RemoveAt(0);
+        }
     }
 
     private void Rebuild()

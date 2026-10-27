@@ -10,6 +10,11 @@ import os
 import re
 import sys
 
+# What replaces what identifies the machine.
+RECORD_DIRECTORY = "C:\\Users\\user\\Videos"
+MONITOR_NAME = "Display {}({})"
+MONITOR_NAME_PATTERN = r"Display \d+\(\d+\)"
+
 source = sys.argv[1]
 target = sys.argv[2]
 
@@ -26,10 +31,10 @@ for name in sorted(os.listdir(source)):
     if d["requestType"] == "GetVersion":
         version = data
     if d["requestType"] == "GetRecordDirectory":
-        data["recordDirectory"] = "C:\\Users\\user\\Videos"
+        data["recordDirectory"] = RECORD_DIRECTORY
     if d["requestType"] == "GetMonitorList":
         for index, monitor in enumerate(data["monitors"]):
-            monitor["monitorName"] = f"Display {index + 1}({index})"
+            monitor["monitorName"] = MONITOR_NAME.format(index + 1, index)
     entry = {"requestType": d["requestType"]}
     if label:
         entry["label"] = label
@@ -64,9 +69,15 @@ fixture = {
     "events": events,
 }
 text = json.dumps(fixture, indent=2, ensure_ascii=False)
+
+# The name of the user must not be left in what was captured. What this script wrote itself (the note, the replacements above)
+# is not looked at: on an account that is called User, the fixture would otherwise always be refused.
+captured = json.dumps({"responses": responses, "events": events}, ensure_ascii=False)
+captured = captured.replace(json.dumps(RECORD_DIRECTORY, ensure_ascii=False)[1:-1], "")
+captured = re.sub(MONITOR_NAME_PATTERN, "", captured)
 user = os.environ.get("USERNAME") or os.environ.get("USER")
-if user and re.search(re.escape(user), text, re.I):
-    sys.exit(f"The fixture still holds the name of the user ({user}): replace it in this script.")
+if user and re.search(re.escape(user), captured, re.I):
+    sys.exit(f"The capture still holds the name of the user ({user}): replace it in this script.")
 with open(target, "w", encoding="utf-8", newline="\n") as file:
     file.write(text + "\n")
 print(f"{len(responses)} responses and {len(events)} events written to {target}")

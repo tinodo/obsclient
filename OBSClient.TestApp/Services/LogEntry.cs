@@ -57,7 +57,7 @@ public sealed class LogEntry
     /// <summary>Gets the type of the event that a message carries.</summary>
     public string? EventType { get; internal set; }
 
-    /// <summary>Gets a value indicating whether the message is the response to a request that failed.</summary>
+    /// <summary>Gets a value indicating whether the message is the response to a request that failed, or to a batch in which a request failed.</summary>
     public bool Failed { get; internal set; }
 
     /// <summary>Gets a value indicating whether the entry deserves attention.</summary>

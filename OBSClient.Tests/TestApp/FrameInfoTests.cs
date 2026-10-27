@@ -31,6 +31,38 @@ namespace OBSStudioClient.Tests.TestAppTests
             Assert.Equal("Response SetCurrentProgramScene failed (600): No scene.", info.Title);
         }
 
+        [Fact]
+        public void AResponseToABatch_InWhichRequestsFailed_IsAFailure()
+        {
+            var info = FrameInfo.Read("""{"op":9,"d":{"requestId":"b1","results":[{"requestType":"GetVersion","requestStatus":{"result":true,"code":100}},{"requestType":"GetInputMute","requestStatus":{"result":false,"code":600}},{"requestType":"GetStats","requestStatus":{"result":false,"code":604}}]}}""");
+
+            Assert.Equal(9, info.OpCode);
+            Assert.Equal("b1", info.RequestId);
+            Assert.True(info.Failed);
+            Assert.Equal("Request batch response (2 of 3 failed)", info.Title);
+        }
+
+        [Fact]
+        public void AResponseToABatch_InWhichNothingFailed_IsNotAFailure()
+        {
+            var info = FrameInfo.Read("""{"op":9,"d":{"requestId":"b2","results":[{"requestType":"GetVersion","requestStatus":{"result":true,"code":100}}]}}""");
+
+            Assert.False(info.Failed);
+            Assert.Equal("Request batch response", info.Title);
+        }
+
+        [Theory]
+        [InlineData("""{"op":9,"d":{"requestId":"b3"}}""")]
+        [InlineData("""{"op":9,"d":{"requestId":"b3","results":"none"}}""")]
+        [InlineData("""{"op":9,"d":{"requestId":"b3","results":[1,"two",null,[3],{"requestStatus":5},{"requestStatus":{"result":"no"}},{"requestStatus":{"result":null}}]}}""")]
+        public void AResponseToABatchThatIsNotWhatTheProtocolSays_IsNotAFailure(string json)
+        {
+            var info = FrameInfo.Read(json);
+
+            Assert.False(info.Failed);
+            Assert.Equal("Request batch response", info.Title);
+        }
+
         [Theory]
         [InlineData("""{"op":7,"d":{"requestType":"GetVersion","requestStatus":{"result":false,"code":"600","comment":"No scene."}}}""")]
         [InlineData("""{"op":7,"d":{"requestType":"GetVersion","requestStatus":{"result":false,"code":null}}}""")]

@@ -55,6 +55,18 @@ internal sealed class WireLog : ILogger<ObsClient>
         }
     }
 
+    /// <summary>Gets the position of the oldest entry that the log still holds, or of the next entry when it holds none.</summary>
+    public long OldestSequence
+    {
+        get
+        {
+            lock (this._gate)
+            {
+                return this._entries.Count > 0 ? this._entries[0].Sequence : this._sequence + 1;
+            }
+        }
+    }
+
     /// <inheritdoc/>
     public IDisposable? BeginScope<TState>(TState state)
         where TState : notnull => null;
