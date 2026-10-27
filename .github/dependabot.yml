@@ -3,7 +3,7 @@
 # gets a pull request of its own. CI checks them like any other pull request, and CONTRIBUTING.md, "Dependency updates", says
 # what to look at before one is merged.
 #
-# A release waits a week (the cooldown) before it is proposed, so that a package that was published by mistake, or with
+# A package release waits a week (the cooldown) before it is proposed, so that a package that was published by mistake, or with
 # malicious code, is usually withdrawn before it can reach this repository. Security updates are not delayed.
 version: 2
 updates:
@@ -15,8 +15,12 @@ updates:
       day: monday
       time: "06:00"
       timezone: Europe/Amsterdam
+    # Three days, not the week of the packages. The workflows use the moving major tag of an action (@v4), so a release within a
+    # major version reaches them at once, and the cooldown only holds back the step to the next major version. A week would
+    # skip that step for an action that is released about every week, like github/codeql-action: the tag of its newest major
+    # version is almost always younger than that when Dependabot looks.
     cooldown:
-      default-days: 7
+      default-days: 3
     groups:
       actions:
         patterns:
