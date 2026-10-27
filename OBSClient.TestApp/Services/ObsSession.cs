@@ -410,7 +410,9 @@ internal sealed class ObsSession
         var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, clientLog.ClaimEvent(name, typed)?.Text);
         this._dispatcher.TryEnqueue(() =>
         {
-            if (!this._closing)
+            // Checked again here, on the thread of the user interface, where the client is replaced: an event of a client that was replaced
+            // between the check above and this action must not be added to the history.
+            if (!this._closing && ReferenceEquals(client, this._client))
             {
                 this.RaiseEvent(entry);
             }

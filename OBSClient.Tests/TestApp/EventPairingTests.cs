@@ -153,6 +153,39 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
+        public void AnEventWhoseMessageWasDroppedInABurst_GetsNone_AndDoesNotTakeTheMessageOfALaterEvent()
+        {
+            // The pairing keeps 256 messages of a type. In a burst of more, the oldest are dropped, and the events that belong to them are
+            // raised first: they must not take the messages of the events behind them, which would put every later pair off by one.
+            const int count = 300;
+            const int kept = 256;
+            var pairing = new EventPairing();
+            var messages = Enumerable.Range(0, count)
+                .Select(index => Message("InputActiveStateChanged", new { inputName = $"Input {index}", inputUuid = $"uuid-{index}", videoActive = true }))
+                .ToArray();
+            foreach (var message in messages)
+            {
+                pairing.Received(message);
+            }
+
+            for (var index = 0; index < count; index++)
+            {
+                var claimed = pairing.Match(
+                    "InputActiveStateChanged",
+                    JsonSerializer.Serialize(new { InputName = $"Input {index}", InputUuid = $"uuid-{index}", VideoActive = true }));
+
+                if (index < count - kept)
+                {
+                    Assert.Null(claimed);
+                }
+                else
+                {
+                    Assert.Same(messages[index], claimed);
+                }
+            }
+        }
+
+        [Fact]
         public void TheMessagesThatAReplacedClientLeftBehind_AreNotMatchedWithTheEventsOfTheNewOne()
         {
             // The app connects again with a new client and keeps its log. A message whose event the old client did not get to raise (it was

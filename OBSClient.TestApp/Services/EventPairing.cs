@@ -82,6 +82,14 @@ internal sealed class EventPairing
                             chosen = index;
                         }
                     }
+
+                    // When there is a choice and even the best message disagrees more than it agrees, the message of this event is not among
+                    // them (it was dropped to keep the pairing from growing, in a burst): the event gets none, and does not take the message
+                    // of a later event, which would put every later pair off by one.
+                    if (best < 0)
+                    {
+                        return null;
+                    }
                 }
             }
 
