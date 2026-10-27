@@ -1,0 +1,97 @@
+# Builds the documentation site and publishes it to GitHub Pages: https://tinodo.github.io/obsclient/
+# The articles are in docs/, the API reference is generated from the XML documentation in the source of the library, and
+# tools/docs/build.py does the work (so a contributor builds the site the same way: see CONTRIBUTING.md).
+#
+# A pull request builds the site, checks its links and uploads it as the artifact "docs-site", to look at. A push to main
+# publishes it. This needs Pages to deploy from GitHub Actions: Settings > Pages > Build and deployment > Source.
+name: Docs
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'docs/**'
+      - 'OBSClient/**'
+      - 'CHANGELOG.md'
+      - 'tools/docs/**'
+      - '.config/dotnet-tools.json'
+      - '.github/workflows/docs.yml'
+  # Not a required check of main (see build.yml): a path filter would leave a required check pending forever on a pull
+  # request that does not match it.
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'OBSClient/**'
+      - 'CHANGELOG.md'
+      - 'tools/docs/**'
+      - '.config/dotnet-tools.json'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The library targets net8.0 and net10.0; restoring it needs the 10.0 SDK. DocFX runs on either.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # Restores DocFX (the version is pinned in .config/dotnet-tools.json), builds the site, and checks its links.
+      # A DocFX warning fails the build.
+      - name: Build the site
+        env:
+          # The "View source" links of the API reference point to this branch, whatever is checked out.
+          DOCFX_SOURCE_BRANCH_NAME: main
+        run: python3 tools/docs/build.py
+
+      - name: Upload the site, to look at
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site
+          path: docs/_site
+          retention-days: 7
+
+      - name: Upload the site, for GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # One deployment at a time, and never cancel one that is running.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

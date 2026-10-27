@@ -142,6 +142,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   (in debug builds only) are gone.
 - CI: a cross-platform build and test matrix, CodeQL analysis, GitHub Copilot code review of every pull request (which
   replaces SonarCloud, now removed), and a tag-triggered publish pipeline to nuget.org (Trusted Publishing) and GitHub Packages.
+- **Documentation**: a site at <https://tinodo.github.io/obsclient/> with guides (getting started, connecting, requests, batches, events,
+  moving from 3.x, troubleshooting), a page about the test app, and an API reference that is generated from the XML documentation of the
+  library. The Docs workflow builds it, checks its links and publishes it on every change of `main`; `python tools/docs/build.py` builds it
+  locally (see CONTRIBUTING). The project URL of the package is the site now. The XML documentation that the site exposes was corrected
+  where it was wrong: `ConnectAsync` said that authentication was handled asynchronously, while it waits for the handshake; the `Connected`
+  member of `ConnectionState` was described as "Connecting"; and the documentation of `AutoReconnect` ended in stray characters.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:

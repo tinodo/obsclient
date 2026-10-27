@@ -1,0 +1,125 @@
+---
+title: Handling events
+---
+
+# Handling events
+
+OBS Studio tells you when something happens: the scene changed, an input was muted, the stream started. Each event of the protocol is a
+.NET event of [`ObsClient`](xref:OBSStudioClient.ObsClient) with the name of the event, and its arguments carry the fields of the event:
+
+```csharp
+client.CurrentProgramSceneChanged += (_, e) =>
+    Console.WriteLine($"On air: {e.SceneName} ({e.SceneUuid})");
+
+client.InputMuteStateChanged += (_, e) =>
+    Console.WriteLine($"{e.InputName} is {(e.InputMuted ? "muted" : "live")}");
+
+client.StreamStateChanged += (_, e) =>
+    Console.WriteLine($"Streaming: {e.OutputActive} ({e.OutputState})");
+```
+
+The argument types live in the `OBSStudioClient.Events` namespace. Events that carry the same fields share a type: `SceneNameEventArgs`
+for `CurrentProgramSceneChanged` and `CurrentPreviewSceneChanged`, `OutputStateChangedEventArgs` for `StreamStateChanged`,
+`ReplayBufferStateChanged` and `VirtualcamStateChanged`. An event without data, `ExitStarted`, is a plain `EventHandler`.
+
+## Choosing the events you receive
+
+OBS Studio only sends the events that a connection subscribed to. You choose them with an
+[`EventSubscriptions`](xref:OBSStudioClient.Enums.EventSubscriptions) value, in `ConnectAsync`, and change the choice of an open
+connection with `ReidentifyAsync`. The default is `All`.
+
+```csharp
+// Only what happens to scenes and inputs:
+await client.ConnectAsync(
+    password: "your-password",
+    eventSubscription: EventSubscriptions.Scenes | EventSubscriptions.Inputs);
+
+// Later, add the outputs (stream, recording, ...). The new value replaces the
+// old one, so name everything you want:
+await client.ReidentifyAsync(
+    EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.Outputs);
+```
+
+| Subscription | Events |
+| --- | --- |
+| `General` | `ExitStarted`, `CustomEvent` |
+| `Config` | `CurrentSceneCollectionChanging`, `CurrentSceneCollectionChanged`, `SceneCollectionListChanged`, `CurrentProfileChanging`, `CurrentProfileChanged`, `ProfileListChanged` |
+| `Scenes` | `SceneCreated`, `SceneRemoved`, `SceneNameChanged`, `CurrentProgramSceneChanged`, `CurrentPreviewSceneChanged`, `SceneListChanged` |
+| `Inputs` | `InputCreated`, `InputRemoved`, `InputNameChanged`, `InputSettingsChanged`, `InputMuteStateChanged`, `InputVolumeChanged`, `InputAudioBalanceChanged`, `InputAudioSyncOffsetChanged`, `InputAudioTracksChanged`, `InputAudioMonitorTypeChanged` |
+| `Transitions` | `CurrentSceneTransitionChanged`, `CurrentSceneTransitionDurationChanged`, `SceneTransitionStarted`, `SceneTransitionEnded`, `SceneTransitionVideoEnded` |
+| `Filters` | `SourceFilterListReindexed`, `SourceFilterCreated`, `SourceFilterRemoved`, `SourceFilterNameChanged`, `SourceFilterSettingsChanged`, `SourceFilterEnableStateChanged` |
+| `Outputs` | `StreamStateChanged`, `RecordStateChanged`, `RecordFileChanged`, `ReplayBufferStateChanged`, `VirtualcamStateChanged`, `ReplayBufferSaved` |
+| `SceneItems` | `SceneItemCreated`, `SceneItemRemoved`, `SceneItemListReindexed`, `SceneItemEnableStateChanged`, `SceneItemLockStateChanged`, `SceneItemSelected` |
+| `MediaInputs` | `MediaInputPlaybackStarted`, `MediaInputPlaybackEnded`, `MediaInputActionTriggered` |
+| `Vendors` | `VendorEvent` |
+| `Ui` | `StudioModeStateChanged`, `ScreenshotSaved` |
+| `Canvases` | `CanvasCreated`, `CanvasRemoved`, `CanvasNameChanged` |
+| `InputVolumeMeters`, `InputActiveStateChanged`, `InputShowStateChanged`, `SceneItemTransformChanged` | The event with the same name: see [High-volume events](#high-volume-events). |
+
+## High-volume events
+
+OBS Studio sends four events so often that they are not part of `All`: `InputVolumeMeters`, `InputActiveStateChanged`,
+`InputShowStateChanged` and `SceneItemTransformChanged`. Ask for them by name:
+
+```csharp
+await client.ReidentifyAsync(
+    EventSubscriptions.All | EventSubscriptions.InputVolumeMeters);
+
+client.InputVolumeMeters += (_, e) =>
+{
+    foreach (var input in e.Inputs)
+    {
+        Console.WriteLine($"{input.InputName}: {input.GetLevelDb(0):0.0} dB");
+    }
+};
+```
+
+`InputVolumeMeters` is a stream of samples of the levels of every input, so the client raises at most one every 100 milliseconds and
+skips the ones in between. The other three events each describe a change of one input or scene item, so none of them is skipped.
+
+## Rules for handlers
+
+- **Handlers run on the thread that reads from the socket**, one after the other, in the order in which the events arrived. A slow handler
+  delays everything behind it, the responses to your requests included.
+- **Never wait for a response inside a handler.** `client.GetSceneList().Result` (or `.Wait()`) blocks the very thread that has to read the response, so
+  the request can only end in a timeout. Use an `async` handler, which gives the thread back at the first `await`:
+
+  ```csharp
+  client.CurrentProgramSceneChanged += async (_, e) =>
+  {
+      try
+      {
+          SceneItem[] items = await client.GetSceneItemList(e.SceneUuid);
+          Console.WriteLine($"{e.SceneName} has {items.Length} items.");
+      }
+      catch (Exception ex)
+      {
+          // An exception that leaves an async handler is not seen by
+          // the client, and ends the process.
+          Console.WriteLine($"Could not read the items: {ex.Message}");
+      }
+  };
+  ```
+
+- **An exception in a handler does not harm the connection.** The client logs it and goes on with the other handlers and the next
+  event. (The `try`/`catch` above is for the part of an `async` handler after its first `await`, which the client cannot see.)
+- **A user interface has its own thread.** Hand the work over to it (`Dispatcher.Invoke`, `DispatcherQueue.TryEnqueue`,
+  `SynchronizationContext.Post`) before you touch a control.
+- An event that this version of the library does not know, for example one of a newer obs-websocket, is ignored.
+
+## Custom and vendor events
+
+`BroadcastCustomEvent` sends your data to every client that subscribed to `General`, which receives it as a `CustomEvent`. The data is
+what you gave to `BroadcastCustomEvent`, as it was sent:
+
+```csharp
+using System.Text.Json;
+
+client.CustomEvent += (_, e) => Console.WriteLine($"Custom event: {e.EventData}");
+
+var data = JsonSerializer.SerializeToElement(new { message = "hello" });
+await client.BroadcastCustomEvent(data);
+```
+
+A plugin that registered with obs-websocket raises its own events as a `VendorEvent`, with the `VendorName`, the `EventType` and the
+`EventData` of the plugin. It needs the `Vendors` subscription.

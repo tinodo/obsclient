@@ -351,3 +351,10 @@ MigrationBackup/
 
 # A capture of a real OBS Studio (tools/capture/obs-capture.ps1): it holds your scenes and your machine
 obs-capture/
+
+# The documentation site (tools/docs/build.py): the built site, and what DocFX generates from the source and the changelog
+docs/_site/
+docs/api/*.yml
+docs/api/.manifest
+docs/obj/
+docs/changelog.md

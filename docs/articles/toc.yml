@@ -1,0 +1,18 @@
+- name: Getting started
+  href: getting-started.md
+- name: Connecting to OBS Studio
+  href: connecting.md
+- name: Calling requests
+  href: requests.md
+- name: Request batches
+  href: batches.md
+- name: Handling events
+  href: events.md
+- name: Moving from 3.x to 4.0
+  href: migrating-to-4.md
+- name: The test app
+  href: test-app.md
+- name: Troubleshooting
+  href: troubleshooting.md
+- name: Staying in sync with obs-websocket
+  href: protocol-sync.md

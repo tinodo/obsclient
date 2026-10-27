@@ -1,0 +1,217 @@
+/* The OBSClient look on top of the DocFX modern template: a brand colour and the building blocks of the home page. */
+
+:root,
+[data-bs-theme="light"] {
+  --oc-brand: #5b4bdb;
+  --oc-brand-strong: #4a3bc7;
+  --oc-brand-soft: rgba(91, 75, 219, 0.1);
+  --oc-brand-contrast: #ffffff;
+  --oc-radius: 0.875rem;
+  --bs-primary: #5b4bdb;
+  --bs-primary-rgb: 91, 75, 219;
+}
+
+[data-bs-theme="dark"] {
+  --oc-brand: #8b7bff;
+  --oc-brand-strong: #a99cff;
+  --oc-brand-soft: rgba(139, 123, 255, 0.16);
+  --oc-brand-contrast: #15112f;
+  --bs-primary: #8b7bff;
+  --bs-primary-rgb: 139, 123, 255;
+}
+
+/* The template sets its link colours on the body, so they have to be overridden there. */
+body {
+  --bs-link-color: #5b4bdb !important;
+  --bs-link-hover-color: #4a3bc7 !important;
+  --bs-link-color-rgb: 91, 75, 219 !important;
+  --bs-link-hover-color-rgb: 74, 59, 199 !important;
+  --bs-code-color: #5b4bdb !important;
+}
+
+[data-bs-theme="dark"] body {
+  --bs-link-color: #a99cff !important;
+  --bs-link-hover-color: #c7beff !important;
+  --bs-link-color-rgb: 169, 156, 255 !important;
+  --bs-link-hover-color-rgb: 199, 190, 255 !important;
+  --bs-code-color: #c7beff !important;
+}
+
+.navbar-brand img {
+  margin-right: 0.5rem;
+}
+
+.btn-primary {
+  --bs-btn-color: var(--oc-brand-contrast);
+  --bs-btn-bg: var(--oc-brand);
+  --bs-btn-border-color: var(--oc-brand);
+  --bs-btn-hover-color: var(--oc-brand-contrast);
+  --bs-btn-hover-bg: var(--oc-brand-strong);
+  --bs-btn-hover-border-color: var(--oc-brand-strong);
+  --bs-btn-active-color: var(--oc-brand-contrast);
+  --bs-btn-active-bg: var(--oc-brand-strong);
+  --bs-btn-active-border-color: var(--oc-brand-strong);
+  --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+
+/* The home page */
+
+body[data-layout="landing"] main {
+  background: radial-gradient(60rem 28rem at 85% -8%, var(--oc-brand-soft), transparent 65%);
+}
+
+.oc-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: center;
+  padding: 3.5rem 0 2.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .oc-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 2rem 0 1.5rem;
+  }
+}
+
+.oc-eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--oc-brand);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.oc-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 4.6vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.oc-hero-text > p:not(.oc-eyebrow) {
+  max-width: 38rem;
+  font-size: 1.1rem;
+  color: var(--bs-secondary-color);
+}
+
+.oc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1.25rem;
+}
+
+.oc-hero pre {
+  margin: 0;
+}
+
+.oc-hero-code pre {
+  border-radius: var(--oc-radius);
+  box-shadow: 0 1.5rem 3rem -1.25rem rgba(0, 0, 0, 0.45);
+}
+
+.oc-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0 0 2rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid var(--oc-brand);
+  border-radius: 0.5rem;
+  background: var(--oc-brand-soft);
+}
+
+.oc-banner > i {
+  color: var(--oc-brand);
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.oc-section {
+  margin: 2.75rem 0;
+}
+
+.oc-section > h2 {
+  margin-bottom: 1.25rem;
+  font-size: 1.6rem;
+  font-weight: 650;
+}
+
+.oc-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .oc-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .oc-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .oc-cards.oc-cards-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.oc-card {
+  display: block;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--oc-radius);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.oc-card > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin-bottom: 0.8rem;
+  border-radius: 0.6rem;
+  background: var(--oc-brand-soft);
+  color: var(--oc-brand);
+  font-size: 1.2rem;
+}
+
+.oc-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.oc-card p {
+  margin: 0;
+  color: var(--bs-secondary-color);
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+
+a.oc-card:hover {
+  border-color: var(--oc-brand);
+  box-shadow: 0 0.5rem 1.5rem -0.9rem var(--oc-brand);
+  color: var(--bs-body-color);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oc-card {
+    transition: none;
+  }
+
+  a.oc-card:hover {
+    transform: none;
+  }
+}

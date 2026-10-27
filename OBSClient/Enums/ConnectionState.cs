@@ -9,27 +9,27 @@
     public enum ConnectionState
     {
         /// <summary>
-        /// Disconnected
+        /// There is no connection to OBS Studio.
         /// </summary>
         Disconnected,
 
         /// <summary>
-        /// Connecting
+        /// The connection to OBS Studio is being opened.
         /// </summary>
         Connecting,
 
         /// <summary>
-        /// Authenticating
+        /// The connection is open and the handshake with OBS Studio, which includes the authentication, is in progress.
         /// </summary>
         Authenticating,
 
         /// <summary>
-        /// Connecting
+        /// OBS Studio has accepted the session: requests can be sent and events are received.
         /// </summary>
         Connected,
 
         /// <summary>
-        /// Disconnecting
+        /// The connection is being closed.
         /// </summary>
         Disconnecting,
     }

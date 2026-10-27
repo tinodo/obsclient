@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../OBSClient",
+          "files": [ "OBSClient.csproj" ]
+        }
+      ],
+      "dest": "api",
+      "properties": { "TargetFramework": "net8.0" },
+      "memberLayout": "separatePages",
+      "namespaceLayout": "nested",
+      "enumSortOrder": "declaringOrder",
+      "filter": "filter.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": [ "api/**.yml", "api/index.md" ] },
+      { "files": [ "articles/**.md", "articles/**/toc.yml", "toc.yml", "index.md", "changelog.md" ] }
+    ],
+    "resource": [
+      { "files": [ "images/**", "404.html" ] }
+    ],
+    "output": "_site",
+    "template": [ "default", "modern", "template" ],
+    "sitemap": {
+      "baseUrl": "https://tinodo.github.io/obsclient",
+      "priority": 0.5,
+      "changefreq": "weekly"
+    },
+    "globalMetadata": {
+      "_appName": "OBSClient",
+      "_appTitle": "OBSClient",
+      "_appLogoPath": "images/logo.svg",
+      "_appFaviconPath": "images/favicon.svg",
+      "_appFooter": "<span>OBSClient is an independent, MIT licensed open source project. It is not affiliated with or endorsed by the OBS Project.</span>",
+      "_enableSearch": true,
+      "_lang": "en",
+      "_description": "A complete cross-platform .NET WebSocket client for OBS Studio 28 and up, implementing obs-websocket 5.7.6.",
+      "_gitContribute": {
+        "repo": "https://github.com/tinodo/obsclient",
+        "branch": "main"
+      }
+    },
+    "fileMetadata": {
+      "_disableContribution": {
+        "index.md": true,
+        "changelog.md": true,
+        "api/**": true
+      }
+    }
+  },
+  "rules": {
+    "UidNotFound": "error",
+    "InvalidCref": "error",
+    "InvalidFileLink": "error"
+  }
+}

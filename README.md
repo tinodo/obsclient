@@ -2,7 +2,8 @@
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
 Currently implementing: [**obs-websocket 5.7.6 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md) (including multi-canvas support added in 5.7.0)  
 Targets `net8.0` and `net10.0`.  
-Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.
+Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.  
+**Documentation, guides and the API reference: [tinodo.github.io/obsclient](https://tinodo.github.io/obsclient/)**
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
@@ -13,7 +14,7 @@ From the command line: `dotnet add package OBSClient --version 4.0.0-beta1`
 `dotnet add package OBSClient` keeps installing the latest stable release, so name the version (or add `--prerelease`) to get it.
 Please report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
 
-Upgrading from 3.x? See the *Breaking changes* in the [CHANGELOG](CHANGELOG.md).
+Upgrading from 3.x? See [Moving from 3.x to 4.0](https://tinodo.github.io/obsclient/articles/migrating-to-4.html), and the *Breaking changes* in the [CHANGELOG](CHANGELOG.md).
 
 ## Sample usage
 
@@ -117,6 +118,7 @@ events, responses and enum values too.
 
 [![Build and Test](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/tinodo/obsclient/actions/workflows/build.yml)
 [![CodeQL](https://github.com/tinodo/obsclient/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tinodo/obsclient/actions/workflows/codeql.yml)
+[![Docs](https://github.com/tinodo/obsclient/actions/workflows/docs.yml/badge.svg?branch=main)](https://tinodo.github.io/obsclient/)
 [![NuGet](https://img.shields.io/nuget/v/obsclient.svg?style=flat)](https://www.nuget.org/packages/obsclient)  
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and contribute, and [CHANGELOG.md](CHANGELOG.md) for release history.
