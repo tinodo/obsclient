@@ -1354,9 +1354,10 @@
 
                 return await tcs.Task.ConfigureAwait(false);
             }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                // Only the timeout cancels the task otherwise: a cancelled token of the caller is an OperationCanceledException.
+                // Only the timeout cancels anything otherwise (the response that is waited for, or the wait for the turn to write, which can end
+                // with an OperationCanceledException that is not a TaskCanceledException): a cancelled token of the caller is a cancellation.
                 throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
             }
             finally

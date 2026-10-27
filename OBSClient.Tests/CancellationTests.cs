@@ -380,6 +380,13 @@ namespace OBSStudioClient.Tests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => large.WithTimeoutAsync(Timeout));
             Assert.Equal(ConnectionState.Connected, client.ConnectionState);
 
+            // A request that waits for its turn behind that write runs out of time: it throws the TimeoutException, and it is never written.
+            client.RequestTimeout = 300;
+            await Assert.ThrowsAsync<TimeoutException>(() => client.GetStudioModeEnabled());
+            client.RequestTimeout = 5000;
+
+            // A request that follows is written after the large one, once the server reads. If the one that timed out had been written
+            // after all, the server would read that one first, and answering it would not answer this one.
             var next = client.GetStudioModeEnabled();
             var (firstType, _, _) = await server.ReceiveRequestAsync(Timeout);
             Assert.Equal("CallVendorRequest", firstType);
