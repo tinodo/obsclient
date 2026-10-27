@@ -11,8 +11,10 @@ internal static class JsonTools
 {
     private static readonly Regex LongString = new("\"[^\"]{2000,}\"", RegexOptions.Compiled);
 
+    // The value of a member whose name ends in password, secret, token or key (streamKey, apiKey, ...) or is authentication.
+    // The value is read as a JSON string, so that a secret that contains an escaped quote is hidden as a whole.
     private static readonly Regex Secret = new(
-        "(\"(?:authentication|password|key|streamKey|secret|token)\"\\s*:\\s*)\"[^\"]*\"",
+        @"(""(?:[^""\\]*(?:password|secret|token|key)|authentication)""\s*:\s*)""(?:[^""\\]|\\.)*""",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly JsonWriterOptions IndentedWriter = new() { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -22,6 +24,7 @@ internal static class JsonTools
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
         Converters = { new JsonStringEnumConverter() },
     };
 
@@ -29,6 +32,7 @@ internal static class JsonTools
     public static JsonSerializerOptions Plain { get; } = new()
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
     /// <summary>Shows a value the way a call of the client returned it.</summary>

@@ -72,6 +72,20 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
+        public void EveryShortcut_NamesTheRequestItSends_AndCannotBeBatched()
+        {
+            var shortcuts = RequestCatalog.All.Where(request => request.Category == "Shortcuts").ToList();
+
+            Assert.NotEmpty(shortcuts);
+            foreach (var shortcut in shortcuts)
+            {
+                Assert.NotNull(shortcut.WireType);
+                Assert.Contains(shortcut.WireType, Enum.GetNames<RequestType>());
+                Assert.Null(shortcut.AddToBatch);
+            }
+        }
+
+        [Fact]
         public async Task EveryRequest_IsSent_AsItself_WithTheValuesOfItsEditors()
         {
             await using var server = new FakeObsWebSocketServer();
@@ -86,14 +100,7 @@ namespace OBSStudioClient.Tests.TestAppTests
                 var call = request.Invoke!(client, ArgumentsFor(request));
                 var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
 
-                if (request.Category == "Shortcuts")
-                {
-                    Assert.StartsWith(requestType, request.Name, StringComparison.Ordinal);
-                }
-                else
-                {
-                    Assert.Equal(request.Name, requestType);
-                }
+                Assert.Equal(request.RequestType, requestType);
 
                 await server.SendRequestSuccessAsync(requestType, requestId);
                 try

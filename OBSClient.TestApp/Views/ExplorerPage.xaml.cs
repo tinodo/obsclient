@@ -1,13 +1,12 @@
-using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using OBSStudioClient.Exceptions;
+using OBSStudioClient.Messages;
 using OBSStudioClient.TestApp.Analysis;
 using OBSStudioClient.TestApp.Catalog;
 using OBSStudioClient.TestApp.Controls;
 using OBSStudioClient.TestApp.Services;
-using Windows.ApplicationModel.DataTransfer;
 
 namespace OBSStudioClient.TestApp.Views;
 
@@ -78,41 +77,15 @@ public sealed partial class ExplorerPage : Page
             using var returned = JsonTools.ToDocument(result.Value)!;
             var comparison = JsonShape.Compare(responseData, returned.RootElement);
 
-            var text = new StringBuilder();
-            text.AppendLine("What OBS Studio sent (responseData), compared with what the client returned.");
-            text.AppendLine("A path starts with $, the response data. [] stands for every item of an array.");
-            text.AppendLine();
-            if (comparison.IsIdentical)
-            {
-                text.AppendLine("Identical: the client returns every member OBS Studio sent, as the same kind of value, and nothing else.");
-                return text.ToString();
-            }
-
-            Section(text, "OBS Studio sent these, and the client does not return them", comparison.OnlyInObs);
-            Section(text, "The client returns these, and OBS Studio did not send them", comparison.OnlyInClient);
-            Section(text, "These are another kind of value", comparison.TypeDifferences);
-            return text.ToString();
+            return "What OBS Studio sent (responseData), compared with what the client returned." + Environment.NewLine
+                + ShapeComparison.Legend + Environment.NewLine
+                + Environment.NewLine
+                + comparison.Describe();
         }
         catch (JsonException exception)
         {
             return $"The messages could not be compared: {exception.Message}";
         }
-    }
-
-    private static void Section(StringBuilder text, string title, IReadOnlyList<string> lines)
-    {
-        if (lines.Count == 0)
-        {
-            return;
-        }
-
-        text.AppendLine($"{title} ({lines.Count}):");
-        foreach (var line in lines)
-        {
-            text.AppendLine("  " + line);
-        }
-
-        text.AppendLine();
     }
 
     private void BuildTree(string filter)
@@ -141,6 +114,8 @@ public sealed partial class ExplorerPage : Page
 
             this.RequestTree.RootNodes.Add(node);
         }
+
+        this.NoMatchText.Visibility = this.RequestTree.RootNodes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Show(RequestDescriptor request)
@@ -158,6 +133,11 @@ public sealed partial class ExplorerPage : Page
         this.ProblemBar.IsOpen = false;
         this.ResultCard.Visibility = Visibility.Collapsed;
         this.StatusLine.Text = string.Empty;
+        ToolTipService.SetToolTip(
+            this.BatchButton,
+            request.AddToBatch is null
+                ? "Only the requests of the protocol can be put in a batch; this is a shortcut of the client."
+                : "Puts the request in the batch, to send it with others from the Batch page.");
         this.UpdateButtons();
     }
 
@@ -165,6 +145,7 @@ public sealed partial class ExplorerPage : Page
     {
         var request = this._current;
         this.InvokeButton.IsEnabled = request?.Invoke is not null && this._session.IsConnected && !this._busy;
+        this.BatchButton.IsEnabled = request?.AddToBatch is not null && !this._busy;
         this.RefreshButton.IsEnabled = this._session.IsConnected && !this._busy;
 
         if (request is null || this._busy || this.ResultCard.Visibility == Visibility.Visible)
@@ -184,28 +165,27 @@ public sealed partial class ExplorerPage : Page
         this.UpdateButtons();
     }
 
-    private void ShowFailure(Exception error)
-    {
-        this.ProblemBar.Severity = error is ObsResponseException ? InfoBarSeverity.Warning : InfoBarSeverity.Error;
-        this.ProblemBar.Title = error switch
-        {
-            ObsResponseException => "OBS Studio refused the request",
-            ObsClientException => "The client could not complete the request",
-            ArgumentException => "The client refused the arguments",
-            _ => error.GetType().Name,
-        };
-        this.ProblemBar.Message = error is ObsResponseException response
-            ? $"{response.ErrorCode} ({(int)response.ErrorCode}): {response.ErrorMessage ?? "no further explanation"}"
-            : error.Message;
-        this.ProblemBar.IsOpen = true;
-    }
-
     private void ShowTab()
     {
         var selected = this.ResultTabs.SelectedItem;
-        this.ResultBox.Text = ReferenceEquals(selected, this.RawTab)
-            ? this._raw
-            : ReferenceEquals(selected, this.ComparisonTab) ? this._comparison : this._typed;
+        var comparison = ReferenceEquals(selected, this.ComparisonTab);
+        if (ReferenceEquals(selected, this.RawTab))
+        {
+            this.ResultBox.Text = this._raw;
+            this.TabCaption.Text = "The response exactly as OBS Studio sent it.";
+        }
+        else if (comparison)
+        {
+            this.ResultBox.Text = this._comparison;
+            this.TabCaption.Text = "What OBS Studio sent, compared with what the client returned.";
+        }
+        else
+        {
+            this.ResultBox.Text = this._typed;
+            this.TabCaption.Text = "What the method of the client returned, as JSON.";
+        }
+
+        this.ResultBox.TextWrapping = comparison ? TextWrapping.Wrap : TextWrapping.NoWrap;
     }
 
     private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -281,10 +261,7 @@ public sealed partial class ExplorerPage : Page
         }
         catch (FormatException exception)
         {
-            this.ProblemBar.Severity = InfoBarSeverity.Warning;
-            this.ProblemBar.Title = "Check the parameters";
-            this.ProblemBar.Message = exception.Message;
-            this.ProblemBar.IsOpen = true;
+            Fluent.ShowWarning(this.ProblemBar, "Check the parameters", exception.Message);
             return;
         }
 
@@ -293,30 +270,92 @@ public sealed partial class ExplorerPage : Page
         var result = await this._session.InvokeAsync(request, arguments);
         this.SetBusy(false);
 
-        var frame = this._session.Log.FindResponse(request.Name, result.StartSequence);
-        this._typed = result.Succeeded
+        var frame = this._session.Log.FindResponse(request.RequestType, result.StartSequence);
+        this._typed = this.Render("result", () => result.Succeeded
             ? result.Value is null ? "(this request returns no data)" : JsonTools.Serialize(result.Value)
-            : "(the request failed)";
+            : "(the request failed)");
         this._raw = frame is null ? "(the response of OBS Studio was not found in the log)" : JsonTools.Pretty(frame.Text);
-        this._comparison = Compare(result, frame);
+        this._comparison = this.Render("comparison", () => Compare(result, frame));
 
         if (result.Error is { } error)
         {
-            this.ShowFailure(error);
+            Fluent.ShowFailure(this.ProblemBar, error);
         }
 
         this.StatusLine.Text = $"{request.Name}({arguments}) \u2192 {(result.Succeeded ? "succeeded" : "failed")} in {result.Elapsed.TotalMilliseconds:N0} ms";
         this.ResultCard.Visibility = Visibility.Visible;
-        this.ResultTabs.SelectedItem = this.TypedTab;
+        this.ResultTabs.SelectedItem = !result.Succeeded && frame is not null ? this.RawTab : this.TypedTab;
         this.ShowTab();
+    }
+
+    private string Render(string what, Func<string> produce)
+    {
+        try
+        {
+            return produce();
+        }
+        catch (Exception exception)
+        {
+            this._session.Log.Note(LogLevel.Warning, $"The {what} of {this._current?.Name} could not be shown: {exception.Message}");
+            return $"(the {what} could not be shown: {exception.Message})";
+        }
+    }
+
+    private void BatchButton_Click(object sender, RoutedEventArgs e) => this.AddCurrentToBatch();
+
+    /// <summary>Shows a request, fills in its parameters and puts it in the batch, as the user would; for the smoke test.</summary>
+    /// <param name="request">The request.</param>
+    /// <param name="optional">The optional parameters to give a value; all of them when empty.</param>
+    /// <returns>Whether the request was added.</returns>
+    internal bool AddToBatchForSmokeTest(RequestDescriptor request, params string[] optional)
+    {
+        this.Show(request);
+        Func<ParameterDescriptor, bool>? chosen = null;
+        if (optional.Length > 0)
+        {
+            chosen = parameter => optional.Contains(parameter.Name);
+        }
+
+        this._form.FillForSmokeTest(chosen);
+        return this.AddCurrentToBatch();
+    }
+
+    private bool AddCurrentToBatch()
+    {
+        if (this._current is not { } request || request.AddToBatch is not { } add)
+        {
+            return false;
+        }
+
+        ArgumentSet arguments;
+        try
+        {
+            arguments = this._form.Collect();
+        }
+        catch (FormatException exception)
+        {
+            Fluent.ShowWarning(this.ProblemBar, "Check the parameters", exception.Message);
+            return false;
+        }
+
+        try
+        {
+            // The session builds the batch when it is sent; building one here tells the user at once if the client refuses the values.
+            add(new RequestBatchMessage(), arguments);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or InvalidOperationException)
+        {
+            Fluent.ShowFailure(this.ProblemBar, exception);
+            return false;
+        }
+
+        this.ProblemBar.IsOpen = false;
+        this._session.Batch.Add(new BatchItem(request, arguments));
+        this.StatusLine.Text = $"{request.Name} was put in the batch, which now has {this._session.Batch.Count} {(this._session.Batch.Count == 1 ? "request" : "requests")}.";
+        return true;
     }
 
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => this.ShowTab();
 
-    private void CopyButton_Click(object sender, RoutedEventArgs e)
-    {
-        var package = new DataPackage();
-        package.SetText(this.ResultBox.Text);
-        Clipboard.SetContent(package);
-    }
+    private async void CopyButton_Click(object sender, RoutedEventArgs e) => await ClipboardHelper.CopyAsync(this.CopyButton, this.ResultBox.Text);
 }

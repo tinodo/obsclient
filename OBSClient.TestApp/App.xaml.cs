@@ -33,6 +33,7 @@ public partial class App : Application
 
         if (SmokeTest.IsRequested(out var path))
         {
+            AppSettings.Persist = false;
             _ = SmokeTest.RunAsync(MainWindow, path);
         }
     }

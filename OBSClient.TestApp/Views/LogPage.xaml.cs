@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using OBSStudioClient.TestApp.Controls;
 using OBSStudioClient.TestApp.Services;
-using Windows.ApplicationModel.DataTransfer;
 
 namespace OBSStudioClient.TestApp.Views;
 
@@ -91,7 +91,7 @@ public sealed partial class LogPage : Page
             this.Visible.RemoveAt(0);
         }
 
-        if (this.EntryList.SelectedItem is null && this.Visible.Count > 0)
+        if (this.FollowButton.IsChecked == true && this.EntryList.SelectedItem is null && this.Visible.Count > 0)
         {
             this.EntryList.ScrollIntoView(this.Visible[this.Visible.Count - 1]);
         }
@@ -110,7 +110,11 @@ public sealed partial class LogPage : Page
         this.ShowCount();
     }
 
-    private void ShowCount() => this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._session.Log.Sequence:N0} in total";
+    private void ShowCount()
+    {
+        this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._session.Log.Sequence:N0} in total" + (this.PauseButton.IsChecked == true ? " \u00b7 paused" : string.Empty);
+        this.EmptyText.Visibility = this.Visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void ShowDetail()
     {
@@ -155,15 +159,20 @@ public sealed partial class LogPage : Page
 
     private void PauseButton_Click(object sender, RoutedEventArgs e)
     {
-        var paused = this.PauseButton.IsChecked == true;
-        this.PauseButton.Content = paused ? "Resume" : "Pause";
-        if (!paused)
+        if (this.PauseButton.IsChecked != true)
         {
             this.Rebuild();
         }
+        else
+        {
+            this.ShowCount();
+        }
     }
 
-    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    private void ClearButton_Click(object sender, RoutedEventArgs e) => this.Reset();
+
+    /// <summary>Forgets the log, here and in the session.</summary>
+    internal void Reset()
     {
         this._session.Log.Clear();
         this.Visible.Clear();
@@ -201,10 +210,5 @@ public sealed partial class LogPage : Page
 
     private void ShowInFolderButton_Click(object sender, RoutedEventArgs e) => SessionExporter.ShowInFolder(this._lastExport);
 
-    private void CopyButton_Click(object sender, RoutedEventArgs e)
-    {
-        var package = new DataPackage();
-        package.SetText(this.DetailBox.Text);
-        Clipboard.SetContent(package);
-    }
+    private async void CopyButton_Click(object sender, RoutedEventArgs e) => await ClipboardHelper.CopyAsync(this.CopyButton, this.DetailBox.Text);
 }

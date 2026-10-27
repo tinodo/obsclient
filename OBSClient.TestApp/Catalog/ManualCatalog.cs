@@ -46,7 +46,8 @@ internal static class ManualCatalog
                 new("inputVolumeMul", ParameterKind.Number, "float", true, "Volume setting in mul (between 0 and 20)."),
             ],
             (client, args) => Invocation.Of(client.SetInputVolumeMul(args.Input("input"), args.Float("inputVolumeMul"))),
-            null),
+            null,
+            WireType: "SetInputVolume"),
         new(
             "SetInputVolumeDb",
             "Shortcuts",
@@ -57,7 +58,8 @@ internal static class ManualCatalog
                 new("inputVolumeDb", ParameterKind.Number, "float", true, "Volume setting in dB (between -100 and 26)."),
             ],
             (client, args) => Invocation.Of(client.SetInputVolumeDb(args.Input("input"), args.Float("inputVolumeDb"))),
-            null),
+            null,
+            WireType: "SetInputVolume"),
         new(
             "OpenVideoMixProjectorOnMonitor",
             "Shortcuts",
@@ -68,7 +70,8 @@ internal static class ManualCatalog
                 new("monitorIndex", ParameterKind.Integer, "int", true, "Monitor index, use GetMonitorList to obtain it. Use -1 for windowed mode."),
             ],
             (client, args) => Invocation.Of(client.OpenVideoMixProjectorOnMonitor(args.EnumValue<MixType>("videoMixType"), args.Int("monitorIndex"))),
-            null),
+            null,
+            WireType: "OpenVideoMixProjector"),
         new(
             "OpenVideoMixProjectorWindow",
             "Shortcuts",
@@ -79,7 +82,8 @@ internal static class ManualCatalog
                 new("projectorGeometry", ParameterKind.Text, "string", true, "Size and position data for a windowed projector, in Qt Base64 encoded format. See ObsClient.GetGeometry."),
             ],
             (client, args) => Invocation.Of(client.OpenVideoMixProjectorWindow(args.EnumValue<MixType>("videoMixType"), args.Text("projectorGeometry"))),
-            null),
+            null,
+            WireType: "OpenVideoMixProjector"),
         new(
             "OpenSourceProjectorOnMonitor",
             "Shortcuts",
@@ -91,7 +95,8 @@ internal static class ManualCatalog
                 new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the source is in, if the source is given by name."),
             ],
             (client, args) => Invocation.Of(client.OpenSourceProjectorOnMonitor(args.Source("source"), args.Int("monitorIndex"), args.OptionalUuid("canvasUuid"))),
-            null),
+            null,
+            WireType: "OpenSourceProjector"),
         new(
             "OpenSourceProjectorWindow",
             "Shortcuts",
@@ -103,6 +108,7 @@ internal static class ManualCatalog
                 new("canvasUuid", ParameterKind.Guid, "Guid?", false, "UUID of the canvas the source is in, if the source is given by name."),
             ],
             (client, args) => Invocation.Of(client.OpenSourceProjectorWindow(args.Source("source"), args.Text("projectorGeometry"), args.OptionalUuid("canvasUuid"))),
-            null),
+            null,
+            WireType: "OpenSourceProjector"),
     ];
 }

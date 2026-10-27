@@ -1,8 +1,10 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using OBSStudioClient.Enums;
+using OBSStudioClient.Messages;
 using OBSStudioClient.TestApp.Catalog;
 
 namespace OBSStudioClient.TestApp.Services;
@@ -80,6 +82,9 @@ internal sealed class ObsSession
 
     /// <summary>Gets the inputs of OBS Studio.</summary>
     public IReadOnlyList<NamedReference> Inputs { get; private set; } = [];
+
+    /// <summary>Gets the requests that are waiting to be sent as a batch.</summary>
+    public ObservableCollection<BatchItem> Batch { get; } = [];
 
     /// <summary>Gets what the client counted of the session, or null when there is no client.</summary>
     public SessionStatistics? GetStatistics() => this._client is { } client
@@ -170,6 +175,35 @@ internal sealed class ObsSession
         catch (Exception exception)
         {
             return new InvocationResult(false, null, stopwatch.Elapsed, exception, start);
+        }
+    }
+
+    /// <summary>Sends the requests of <see cref="Batch"/> as one batch and waits for the responses.</summary>
+    /// <param name="executionType">How OBS Studio runs the requests.</param>
+    /// <param name="haltOnFailure">Whether OBS Studio stops at the first request that fails.</param>
+    /// <param name="timeoutMilliseconds">How long to wait, or null for the default of the client.</param>
+    public async Task<BatchResult> SendBatchAsync(RequestBatchExecutionType executionType, bool haltOnFailure, int? timeoutMilliseconds)
+    {
+        var start = this.Log.Sequence;
+        var stopwatch = Stopwatch.StartNew();
+        string? requestId = null;
+        try
+        {
+            var client = this._client ?? throw new InvalidOperationException("Not connected to OBS Studio.");
+            var batch = new RequestBatchMessage(haltOnFailure, executionType);
+            requestId = batch.RequestId;
+            foreach (var item in this.Batch)
+            {
+                var add = item.Request.AddToBatch ?? throw new InvalidOperationException($"{item.Request.Name} cannot be added to a batch.");
+                add(batch, item.Arguments);
+            }
+
+            var responses = await client.SendRequestBatchAsync(batch, timeoutMilliseconds);
+            return new BatchResult(true, responses, stopwatch.Elapsed, null, start, requestId);
+        }
+        catch (Exception exception)
+        {
+            return new BatchResult(false, null, stopwatch.Elapsed, exception, start, requestId);
         }
     }
 
@@ -284,9 +318,10 @@ internal sealed class ObsSession
         {
             typed = arguments is null ? "(the event has no data)" : JsonTools.Serialize(arguments);
         }
-        catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException)
+        catch (Exception exception)
         {
             typed = $"(the event arguments could not be shown: {exception.Message})";
+            this.Log.Note(LogLevel.Warning, $"The arguments of the event {name} could not be shown: {exception.Message}");
         }
 
         var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, this.Log.LatestEvent(name)?.Text);

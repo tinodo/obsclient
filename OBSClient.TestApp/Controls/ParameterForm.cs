@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using OBSStudioClient.TestApp.Catalog;
 using OBSStudioClient.TestApp.Services;
@@ -63,11 +64,12 @@ internal sealed class ParameterForm : StackPanel
     }
 
     /// <summary>Gives every parameter a value, the optional ones included; for the smoke test.</summary>
-    internal void FillForSmokeTest()
+    /// <param name="optional">Chooses the optional parameters that get a value; all of them, when null.</param>
+    internal void FillForSmokeTest(Func<ParameterDescriptor, bool>? optional = null)
     {
         foreach (var editor in this._editors)
         {
-            editor.FillForSmokeTest();
+            editor.FillForSmokeTest(optional is null || optional(editor.Descriptor));
         }
     }
 
@@ -90,6 +92,7 @@ internal sealed class ParameterForm : StackPanel
         {
             this.Descriptor = descriptor;
             this.Editor = this.CreateEditor();
+            AutomationProperties.SetName(this.Editor, descriptor.Name);
 
             var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 * Fluent.Unit };
             header.Children.Add(Fluent.Text(descriptor.Name, "BodyStrongTextBlockStyle", wrap: false));
@@ -109,6 +112,7 @@ internal sealed class ParameterForm : StackPanel
                     Content = descriptor.SendsNullWhenOmitted ? "Provide a value (unchecked sends null)" : "Send this parameter",
                     IsChecked = false,
                 };
+                AutomationProperties.SetName(this._include, $"Send {descriptor.Name}");
                 this._include.Checked += (_, _) => this.SetEnabled(true);
                 this._include.Unchecked += (_, _) => this.SetEnabled(false);
                 this.SetEnabled(false);
@@ -139,11 +143,15 @@ internal sealed class ParameterForm : StackPanel
         {
         }
 
-        public void FillForSmokeTest()
+        public void FillForSmokeTest(bool includeOptional)
         {
             if (this._include is not null)
             {
-                this._include.IsChecked = true;
+                this._include.IsChecked = includeOptional;
+                if (!includeOptional)
+                {
+                    return;
+                }
             }
 
             this.Fill();
@@ -285,12 +293,15 @@ internal sealed class ParameterForm : StackPanel
         protected override FrameworkElement CreateEditor()
         {
             var panel = new StackPanel { Spacing = Fluent.Unit };
-            panel.Children.Add(new ComboBox
+            var combo = new ComboBox
             {
                 IsEditable = true,
                 PlaceholderText = "name or UUID: pick one of OBS Studio's, or type",
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-            });
+            };
+            AutomationProperties.SetName(combo, this.Descriptor.Name);
+            AutomationProperties.SetName(this._asUuid, $"Send the UUID of {this.Descriptor.Name} instead of its name");
+            panel.Children.Add(combo);
             panel.Children.Add(this._asUuid);
             return panel;
         }

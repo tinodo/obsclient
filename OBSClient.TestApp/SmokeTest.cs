@@ -45,6 +45,26 @@ internal static partial class SmokeTest
         var folder = Path.GetDirectoryName(Path.GetFullPath(path.Length > 0 ? path : "smoke-test.log")) ?? ".";
         try
         {
+            Directory.CreateDirectory(folder);
+        }
+        catch (Exception exception)
+        {
+            Record($"The folder of the log could not be made: {exception.Message}", isProblem: true);
+        }
+
+        // A smoke test that hangs would hold up CI for hours: it ends itself, as a failure.
+        var watchdog = window.DispatcherQueue.CreateTimer();
+        watchdog.Interval = TimeSpan.FromMinutes(4);
+        watchdog.IsRepeating = false;
+        watchdog.Tick += (_, _) =>
+        {
+            Record("The smoke test did not finish in four minutes.", isProblem: true);
+            Finish(path);
+        };
+        watchdog.Start();
+
+        try
+        {
             await Task.Delay(1500);
             await ShowAsync(window, "connection", typeof(ConnectionPage), folder);
 
@@ -56,7 +76,16 @@ internal static partial class SmokeTest
             if (window.CurrentPage is ExplorerPage explorer)
             {
                 CheckEditors(explorer);
-                foreach (var (name, picture) in new[] { ("SetInputSettings", "explorer-input"), ("SetSceneItemTransform", "explorer-transform"), ("GetVersion", "explorer-no-parameters") })
+                var forms = new[]
+                {
+                    ("SetInputSettings", "explorer-input"),
+                    ("SetSceneItemTransform", "explorer-transform"),
+                    ("SetInputMute", "explorer-boolean"),
+                    ("TriggerHotkeyByKeySequence", "explorer-enum"),
+                    ("OpenSourceProjectorOnMonitor", "explorer-source"),
+                    ("GetVersion", "explorer-no-parameters"),
+                };
+                foreach (var (name, picture) in forms)
                 {
                     if (RequestCatalog.Find(name) is { } request)
                     {
@@ -64,8 +93,14 @@ internal static partial class SmokeTest
                         await Task.Delay(400);
                         await CaptureAsync(window, folder, picture);
                     }
+                    else
+                    {
+                        Record($"{name} is not in the catalog.", isProblem: true);
+                    }
                 }
             }
+
+            await ShowAsync(window, "batch", typeof(BatchPage), folder);
 
             await EndToEndAsync(window, folder);
         }
@@ -74,6 +109,7 @@ internal static partial class SmokeTest
             Record(exception.ToString(), isProblem: true);
         }
 
+        watchdog.Stop();
         Finish(path);
     }
 
@@ -121,10 +157,21 @@ internal static partial class SmokeTest
 
     private static async Task CaptureAsync(MainWindow window, string folder, string name)
     {
+        var root = window.Content as Microsoft.UI.Xaml.Controls.Panel;
+        var original = root?.Background;
         try
         {
             if (window.Content is UIElement content)
             {
+                // The picture holds what the app paints, and what the Mica backdrop shows is not painted by the app: without a
+                // background the picture would be transparent there.
+                if (root is not null
+                    && Application.Current.Resources.TryGetValue("SolidBackgroundFillColorBaseBrush", out var brush)
+                    && brush is Microsoft.UI.Xaml.Media.Brush solid)
+                {
+                    root.Background = solid;
+                }
+
                 await ScreenCapture.SaveAsync(content, Path.Combine(folder, $"smoke-test-{name}.png"));
                 Record($"took a picture of {name}");
             }
@@ -133,6 +180,13 @@ internal static partial class SmokeTest
         {
             // A picture is a convenience: its failure is reported, but does not fail the smoke test.
             Record($"no picture of {name}: {exception.GetType().Name}: {exception.Message}");
+        }
+        finally
+        {
+            if (root is not null)
+            {
+                root.Background = original;
+            }
         }
     }
 
@@ -180,12 +234,21 @@ internal static partial class SmokeTest
             failed = hasProblem;
         }
 
-        if (path.Length > 0)
+        try
         {
-            File.WriteAllText(path, text + (failed ? "FAILED" : "OK") + Environment.NewLine);
+            if (path.Length > 0)
+            {
+                File.WriteAllText(path, text + (failed ? "FAILED" : "OK") + Environment.NewLine);
+            }
         }
-
-        Environment.ExitCode = failed ? 1 : 0;
-        Application.Current.Exit();
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            failed = true;
+        }
+        finally
+        {
+            Environment.ExitCode = failed ? 1 : 0;
+            Application.Current.Exit();
+        }
     }
 }

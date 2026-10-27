@@ -110,10 +110,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - **A test app** (`OBSClient.TestApp`), a WinUI 3 application with a Fluent 2 design that replaces the WinForms sample. Its only
   purpose is to try every request and event of the library by hand against a real OBS Studio: it offers an editor for every
   parameter, shows each result as the client returned it, as OBS Studio sent it, and as a comparison of the two (which finds
-  nested members that the client does not know), lists every event, and keeps a log of everything that went over the wire that can
-  be exported, together with the shapes of the responses and events that were observed. The catalog of requests and events is
-  generated from the protocol like the library is, and CI publishes the app as a self-contained download and starts it to check
-  every page. It is not part of the NuGet package.
+  nested members that the client does not know), puts requests in a batch to send them together, lists every event, and keeps
+  a log of everything that went over the wire that can be exported, together with the shapes of the responses and events that
+  were observed. The catalog of requests and events is generated from the protocol like the library is, and CI publishes the
+  app as a self-contained download and starts it to check every page, including a run against a simulated OBS Studio that
+  connects, sends requests and a batch, receives events and checks the log (with screenshots as an artifact). It is not part of
+  the NuGet package.
 - The client logs every message it **sends** at the debug level (`Sending: …`), as it already logged what it receives
   (`Received: …`); the answer to the authentication challenge is left out. The two `Debug.WriteLine` calls that did the same
   (in debug builds only) are gone.
@@ -175,6 +177,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   transform as it was read, including a bounds width and height of 0, which obs-websocket refuses (they must be at
   least 1; checked in the source of 5.7.6). Only the members that are meant to change are sent now, and a
   `SceneItemTransform` is converted so that the bounds of an item without bounds are left out.
+- **`haltOnFailure` of a request batch never took effect.** `SendRequestBatchAsync` sent the field as `HaltOnFailure`;
+  obs-websocket reads `haltOnFailure` and ignores a field it does not know, so a batch always ran on after a failed request
+  (found with the Batch page of the test app, and checked in the source of 5.7.6).
+- `ConnectAsync` refused port 65535, which is a valid port; it accepts 1 to 65535.
 
 ### Compatibility
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`

@@ -101,30 +101,18 @@ internal sealed class WireLog : ILogger<ObsClient>
     }
 
     /// <summary>Finds the response to a request that was sent after a given point of the log.</summary>
-    /// <param name="requestType">The type of the request.</param>
+    /// <param name="requestType">The type of the request, as OBS Studio names it.</param>
     /// <param name="afterSequence">Only entries after this position count.</param>
     /// <returns>The last response of that type, or null.</returns>
-    public LogEntry? FindResponse(string requestType, long afterSequence)
-    {
-        lock (this._gate)
-        {
-            for (var index = this._entries.Count - 1; index >= 0; index--)
-            {
-                var entry = this._entries[index];
-                if (entry.Sequence <= afterSequence)
-                {
-                    break;
-                }
+    public LogEntry? FindResponse(string requestType, long afterSequence) =>
+        this.FindLast(afterSequence, entry => entry.OpCode == 7 && entry.RequestType == requestType);
 
-                if (entry.Kind == LogKind.Received && entry.OpCode == 7 && entry.RequestType == requestType)
-                {
-                    return entry;
-                }
-            }
-
-            return null;
-        }
-    }
+    /// <summary>Finds the response to a request batch that was sent after a given point of the log.</summary>
+    /// <param name="requestId">The identifier of the batch.</param>
+    /// <param name="afterSequence">Only entries after this position count.</param>
+    /// <returns>The response of that batch, or null.</returns>
+    public LogEntry? FindBatchResponse(string requestId, long afterSequence) =>
+        this.FindLast(afterSequence, entry => entry.OpCode == 9 && entry.RequestId == requestId);
 
     /// <summary>Finds the message in which OBS Studio sent the event that the client has just raised.</summary>
     /// <param name="eventType">The type of the event.</param>
@@ -148,6 +136,28 @@ internal sealed class WireLog : ILogger<ObsClient>
 
     private static string? StringOf(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    private LogEntry? FindLast(long afterSequence, Func<LogEntry, bool> match)
+    {
+        lock (this._gate)
+        {
+            for (var index = this._entries.Count - 1; index >= 0; index--)
+            {
+                var entry = this._entries[index];
+                if (entry.Sequence <= afterSequence)
+                {
+                    break;
+                }
+
+                if (entry.Kind == LogKind.Received && match(entry))
+                {
+                    return entry;
+                }
+            }
+
+            return null;
+        }
+    }
 
     private void OnTick(DispatcherQueueTimer sender, object args)
     {

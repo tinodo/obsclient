@@ -2,8 +2,8 @@
 <Page
     x:Class="OBSStudioClient.TestApp.Views.EventsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:svc="using:OBSStudioClient.TestApp.Services">
+    xmlns:svc="using:OBSStudioClient.TestApp.Services"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Padding="24,16,24,24" RowSpacing="12">
         <Grid.RowDefinitions>
@@ -16,7 +16,7 @@
             <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Events" />
             <TextBlock
                 Style="{StaticResource SecondaryBodyStyle}"
-                Text="Every event of OBS Studio as the client raises it, with what the client made of it and what OBS Studio sent. Choose the events to receive on the Connection page." />
+                Text="Every event of OBS Studio as the client raises it: Client is what the client made of it, OBS Studio is what OBS Studio sent. Choose the events to receive on the Connection page." />
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="8">
@@ -25,24 +25,34 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <AutoSuggestBox
                 x:Name="FilterBox"
+                AutomationProperties.Name="Filter the events"
                 PlaceholderText="Filter by name, category or content"
                 QueryIcon="Find"
                 TextChanged="FilterBox_TextChanged" />
             <ToggleButton
-                x:Name="PauseButton"
+                x:Name="FollowButton"
                 Grid.Column="1"
-                Content="Pause"
-                Click="PauseButton_Click" />
-            <Button
+                AutomationProperties.Name="Follow the newest event"
+                Content="Follow"
+                IsChecked="True"
+                ToolTipService.ToolTip="Scrolls to the newest event as it arrives, as long as no event is selected" />
+            <ToggleButton
+                x:Name="PauseButton"
                 Grid.Column="2"
+                AutomationProperties.Name="Pause receiving events"
+                Click="PauseButton_Click"
+                Content="Pause" />
+            <Button
+                Grid.Column="3"
                 Click="ClearButton_Click"
                 Content="Clear" />
             <TextBlock
                 x:Name="CountText"
-                Grid.Column="3"
+                Grid.Column="4"
                 VerticalAlignment="Center"
                 Style="{StaticResource SecondaryCaptionStyle}" />
         </Grid>
@@ -53,39 +63,56 @@
                 <ColumnDefinition Width="2*" />
             </Grid.ColumnDefinitions>
 
-            <Border Style="{StaticResource CardStyle}" Padding="0">
-                <ListView
-                    x:Name="EventList"
-                    ItemsSource="{x:Bind Visible}"
-                    SelectionChanged="EventList_SelectionChanged"
-                    SelectionMode="Single">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="svc:SessionEvent">
-                            <Grid Padding="0,4" ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="92" />
-                                    <ColumnDefinition Width="230" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock
-                                    FontFamily="{StaticResource CodeFontFamily}"
-                                    Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="{x:Bind TimeText}" />
-                                <TextBlock
-                                    Grid.Column="1"
-                                    Style="{StaticResource BodyStrongTextBlockStyle}"
-                                    Text="{x:Bind Name}"
-                                    TextTrimming="CharacterEllipsis" />
-                                <TextBlock
-                                    Grid.Column="2"
-                                    Style="{StaticResource SecondaryCaptionStyle}"
-                                    Text="{x:Bind Summary}"
-                                    TextTrimming="CharacterEllipsis"
-                                    TextWrapping="NoWrap" />
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+            <Border Padding="0" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <ListView
+                        x:Name="EventList"
+                        AutomationProperties.Name="Events"
+                        ItemsSource="{x:Bind Visible}"
+                        SelectionChanged="EventList_SelectionChanged"
+                        SelectionMode="Single">
+                        <ListView.ItemContainerStyle>
+                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                <Setter Property="MinHeight" Value="28" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="svc:SessionEvent">
+                                <Grid Padding="0,2" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="92" />
+                                        <ColumnDefinition Width="Auto" MinWidth="230" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        FontFamily="{StaticResource CodeFontFamily}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind TimeText}" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        Text="{x:Bind Name}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        Style="{StaticResource SecondaryCaptionStyle}"
+                                        Text="{x:Bind Summary}"
+                                        TextTrimming="CharacterEllipsis"
+                                        TextWrapping="NoWrap" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        x:Name="EmptyText"
+                        Margin="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Style="{StaticResource SecondaryBodyStyle}"
+                        Text="No events yet. Connect to OBS Studio and choose the events to receive on the Connection page; they appear here as they happen."
+                        TextAlignment="Center" />
+                </Grid>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource CardStyle}">
@@ -100,7 +127,10 @@
                         x:Name="DetailTitle"
                         Style="{StaticResource BodyStrongTextBlockStyle}"
                         Text="Select an event" />
-                    <SelectorBar x:Name="DetailTabs" Grid.Row="1" SelectionChanged="DetailTabs_SelectionChanged">
+                    <SelectorBar
+                        x:Name="DetailTabs"
+                        Grid.Row="1"
+                        SelectionChanged="DetailTabs_SelectionChanged">
                         <SelectorBarItem
                             x:Name="TypedTab"
                             IsSelected="True"
@@ -110,9 +140,11 @@
                     <TextBox
                         x:Name="DetailBox"
                         Grid.Row="2"
+                        AutomationProperties.Name="Event data"
                         IsReadOnly="True"
                         Style="{StaticResource CodeTextBoxStyle}" />
                     <Button
+                        x:Name="CopyButton"
                         Grid.Row="3"
                         HorizontalAlignment="Left"
                         Click="CopyButton_Click"

@@ -75,7 +75,8 @@ sample, and it is not part of the NuGet package.
 | Page | What it does |
 | --- | --- |
 | Connection | Host, port, password and the events to receive (a Reidentify applies a change while connected). Shows the version of OBS Studio and the traffic of the session. |
-| Explorer | Every request of the protocol (and the hand-written ones and the shortcuts), grouped like the protocol documentation, with an editor per parameter that suits its type (scenes and inputs are offered from OBS Studio, by name or by UUID). The result is shown three ways: as the client returned it, as OBS Studio sent it, and a **comparison** of the two that lists what OBS Studio sent and the client does not return (a nested member the client does not know, for example), what the client returns and OBS Studio did not send, and members that are another kind of value. |
+| Explorer | Every request of the protocol (and the hand-written ones and the shortcuts), grouped like the protocol documentation, with an editor per parameter that suits its type (scenes and inputs are offered from OBS Studio, by name or by UUID). The result is shown three ways: as the client returned it, as OBS Studio sent it, and a **comparison** of the two that lists what OBS Studio sent and the client does not return (a nested member the client does not know, for example), what the client returns and OBS Studio did not send, and members that are another kind of value. A request can also be put in the batch (Ctrl+Enter sends it). |
+| Batch | The requests that were put in the batch from the Explorer, in the order they will run (move, remove). Choose how OBS Studio runs them (serial in real time, serial per frame, parallel) and whether it stops at the first failure, send the batch, and see the response of each request the same three ways: as the client returned it, as OBS Studio sent it, and compared. |
 | Events | Every event as the client raises it, with the raw message of OBS Studio next to it. |
 | Log | Every message that went over the wire (the client logs them at the debug level) and everything else the client reports; export as JSON lines, and export the **observed shapes**: for each response and event, which members were seen and what kind of value each was. |
 
@@ -85,8 +86,11 @@ keys are hidden in them unless you say otherwise, but check a file before you sh
 
 Build and run it on Windows with the .NET 10 SDK: `dotnet run --project OBSClient.TestApp -p:Platform=x64`. Every build of CI
 publishes it as the artifact `OBSClient.TestApp-win-x64` (unpackaged and self-contained: unzip it and start `OBSClient.TestApp.exe`;
-nothing else has to be installed). CI also starts the app with `--smoke-test <log>`, which opens every page and builds, fills in and
-reads the editor of every request, because the XAML of an app is only read when it runs.
+nothing else has to be installed). CI also starts the app with `--smoke-test <log>`, because the XAML of an app is only read when it
+runs: the app opens every page, builds, fills in and reads the editor of every request, and then goes the whole way against a
+simulated OBS Studio (the fake server of the tests): it connects through its own Connection page, sends requests through the
+Explorer, sends a batch, receives events and checks the Log. The pictures it takes of the pages are the artifact
+`test-app-smoke-test`, which is how the design can be looked at without running the app.
 
 The requests and events of the app come from `OBSClient.TestApp/Generated/ProtocolCatalog.g.cs`, which the generator writes (see
 above), so a new request of a new protocol version shows up in the app by itself. The parts of the app that do not depend on WinUI

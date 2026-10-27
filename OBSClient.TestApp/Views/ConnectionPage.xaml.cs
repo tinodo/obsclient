@@ -111,9 +111,9 @@ public sealed partial class ConnectionPage : Page
             return false;
         }
 
-        if (!int.TryParse(this.PortBox.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var port) || port is < 1 or > 65534)
+        if (!int.TryParse(this.PortBox.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var port) || port is < 1 or > 65535)
         {
-            problem = "The port is a number between 1 and 65534; OBS Studio uses 4455 by default.";
+            problem = "The port is a number between 1 and 65535; OBS Studio uses 4455 by default.";
             return false;
         }
 

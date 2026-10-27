@@ -1,4 +1,6 @@
 using System.Net.WebSockets;
+using System.Text.Json;
+using OBSStudioClient.Enums;
 using OBSStudioClient.Tests.TestSupport;
 using OBSStudioClient.TestApp.Catalog;
 using OBSStudioClient.TestApp.Views;
@@ -7,8 +9,9 @@ namespace OBSStudioClient.TestApp;
 
 /// <summary>
 /// The part of the smoke test that goes the whole way: the app connects, through its own Connection page, to a simulated OBS
-/// Studio (the fake server of the tests, linked into the app for this), sends requests through the Explorer, receives events and
-/// shows everything that happened in the Log. It is what shows that the pages, the session, the client and the wire work together.
+/// Studio (the fake server of the tests, linked into the app for this), sends requests through the Explorer, sends a batch,
+/// receives events and shows everything that happened in the Log. It is what shows that the pages, the session, the client and
+/// the wire work together.
 /// </summary>
 internal static partial class SmokeTest
 {
@@ -28,6 +31,19 @@ internal static partial class SmokeTest
 
         try
         {
+            // The pages were shown with sample events and log entries on them: start the real test from a clean slate, so that
+            // what it checks is what the connection produced.
+            App.Session.Log.Clear();
+            App.Session.Observations.Clear();
+            App.Session.Batch.Clear();
+            foreach (var tag in new[] { "events", "log" })
+            {
+                window.Navigate(tag);
+                await Task.Delay(300);
+                (window.CurrentPage as EventsPage)?.Reset();
+                (window.CurrentPage as LogPage)?.Reset();
+            }
+
             window.Navigate("connection");
             await Task.Delay(300);
             if (window.CurrentPage is not ConnectionPage connection)
@@ -53,6 +69,7 @@ internal static partial class SmokeTest
             if (window.CurrentPage is ExplorerPage explorer)
             {
                 await ExploreAsync(window, explorer, folder);
+                await BatchAsync(window, explorer, folder);
             }
 
             window.Navigate("events");
@@ -123,6 +140,47 @@ internal static partial class SmokeTest
         Check(explorer.ComparisonResult.StartsWith("What OBS Studio sent", StringComparison.Ordinal), "the comparison of GetSceneList was made");
     }
 
+    private static async Task BatchAsync(MainWindow window, ExplorerPage explorer, string folder)
+    {
+        // Three requests, the second of which OBS Studio refuses.
+        Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("GetVersion")!), "GetVersion was put in the batch");
+        Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("SetCurrentProgramScene")!), "SetCurrentProgramScene was put in the batch");
+        Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("Sleep")!, "sleepMillis"), "a Sleep was put in the batch");
+        Check(!explorer.AddToBatchForSmokeTest(RequestCatalog.Find("SetInputVolumeDb")!), "a shortcut of the client cannot be put in the batch");
+        Check(explorer.AddToBatchForSmokeTest(RequestCatalog.Find("Sleep")!) is false && explorer.Problem is not null, "a Sleep of both milliseconds and frames is refused");
+        Check(App.Session.Batch.Count == 3, "the batch holds the three requests that were accepted");
+
+        window.Navigate("batch");
+        await Task.Delay(500);
+        if (window.CurrentPage is not BatchPage batch)
+        {
+            Record("The batch page was not shown.", isProblem: true);
+            return;
+        }
+
+        await CaptureAsync(window, folder, "live-batch");
+
+        batch.Configure(RequestBatchExecutionType.SerialRealtime, haltOnFailure: false);
+        await batch.SendForSmokeTest();
+        Check(batch.Problem is null, "the batch was answered");
+        Check(batch.Status.StartsWith("OBS Studio ran 3 of 3 requests, 1 failed", StringComparison.Ordinal), "OBS Studio ran the three requests of the batch, and one of them failed");
+        Check(batch.TypedResult.Contains("31.0.2", StringComparison.Ordinal), "the batch shows what the client returned for GetVersion");
+        Check(batch.TypedResult.Contains("\"codeName\": \"ResourceNotFound\"", StringComparison.Ordinal), "the batch shows the request that OBS Studio refused");
+        Check(batch.RawResult.Contains("\"op\": 9", StringComparison.Ordinal), "the batch shows the answer of OBS Studio");
+        Check(batch.ComparisonResult.Contains("$.futureField (object)", StringComparison.Ordinal), "the batch compares the data of GetVersion");
+        await Task.Delay(300);
+        await CaptureAsync(window, folder, "live-batch-result");
+        batch.SelectResultTab(2);
+        await Task.Delay(300);
+        await CaptureAsync(window, folder, "live-batch-comparison");
+
+        batch.Configure(RequestBatchExecutionType.SerialRealtime, haltOnFailure: true);
+        await batch.SendForSmokeTest();
+        Check(
+            batch.Problem is null && batch.Status.StartsWith("OBS Studio ran 2 of 3 requests, 1 failed", StringComparison.Ordinal),
+            "OBS Studio stopped at the request that failed, because the client sent haltOnFailure");
+    }
+
     private static void Check(bool condition, string what) => Record(condition ? $"ok: {what}" : $"FAILED: {what}", isProblem: !condition);
 
     private static async Task<bool> WaitUntilAsync(Func<bool> condition)
@@ -148,15 +206,19 @@ internal static partial class SmokeTest
             {
                 using var message = await server.ReceiveJsonAsync(TimeSpan.FromSeconds(120));
                 var root = message.RootElement;
-                if (root.GetProperty("op").GetInt32() != 6)
+                var op = root.GetProperty("op").GetInt32();
+                if (op == 6)
                 {
-                    continue;
+                    var data = root.GetProperty("d");
+                    var requestType = data.GetProperty("requestType").GetString()!;
+                    var requestId = data.GetProperty("requestId").GetString()!;
+                    await Serialized(() => RespondAsync(server, requestType, requestId));
                 }
-
-                var data = root.GetProperty("d");
-                var requestType = data.GetProperty("requestType").GetString()!;
-                var requestId = data.GetProperty("requestId").GetString()!;
-                await Serialized(() => RespondAsync(server, requestType, requestId));
+                else if (op == 8)
+                {
+                    var batch = root.GetProperty("d");
+                    await Serialized(() => RespondToBatchAsync(server, batch));
+                }
             }
         }
         catch (Exception exception) when (stopping() || exception is OperationCanceledException or InvalidOperationException or WebSocketException)
@@ -178,9 +240,15 @@ internal static partial class SmokeTest
         }
     }
 
-    private static Task RespondAsync(FakeObsWebSocketServer server, string requestType, string requestId) => requestType switch
+    // What the simulated OBS Studio answers to a request: a status code (100 is success), a comment, and the response data.
+    private sealed record Reply(int Code, string? Comment, object? Data)
     {
-        "GetVersion" => server.SendRequestSuccessAsync(requestType, requestId, new
+        public bool Succeeded => this.Code == 100;
+    }
+
+    private static Reply ReplyTo(string requestType) => requestType switch
+    {
+        "GetVersion" => new Reply(100, null, new
         {
             obsVersion = "31.0.2",
             obsWebSocketVersion = "5.7.6",
@@ -191,7 +259,7 @@ internal static partial class SmokeTest
             platformDescription = "Windows 11 Version 24H2",
             futureField = new { nested = 1 },
         }),
-        "GetSceneList" => server.SendRequestSuccessAsync(requestType, requestId, new
+        "GetSceneList" => new Reply(100, null, new
         {
             currentProgramSceneName = "Game",
             currentProgramSceneUuid = GameScene,
@@ -203,14 +271,48 @@ internal static partial class SmokeTest
                 new { sceneIndex = 0, sceneName = "Game", sceneUuid = GameScene },
             },
         }),
-        "GetInputList" => server.SendRequestSuccessAsync(requestType, requestId, new
+        "GetInputList" => new Reply(100, null, new
         {
             inputs = new[]
             {
                 new { inputKind = "wasapi_input_capture", inputName = "Mic/Aux", inputUuid = Microphone, unversionedInputKind = "wasapi_input_capture" },
             },
         }),
-        "SetCurrentProgramScene" => server.SendRequestErrorAsync(requestType, requestId, 600, "No scene was found by the name of name."),
-        _ => server.SendRequestSuccessAsync(requestType, requestId),
+        "SetCurrentProgramScene" => new Reply(600, "No scene was found by the name of name.", null),
+        _ => new Reply(100, null, null),
     };
+
+    private static Task RespondAsync(FakeObsWebSocketServer server, string requestType, string requestId)
+    {
+        var reply = ReplyTo(requestType);
+        return reply.Succeeded
+            ? server.SendRequestSuccessAsync(requestType, requestId, reply.Data)
+            : server.SendRequestErrorAsync(requestType, requestId, reply.Code, reply.Comment);
+    }
+
+    // Like obs-websocket: the requests run in order, and with haltOnFailure the batch stops at the first one that fails, so that
+    // the answer holds only the requests that ran.
+    private static Task RespondToBatchAsync(FakeObsWebSocketServer server, JsonElement batch)
+    {
+        var haltOnFailure = batch.TryGetProperty("haltOnFailure", out var halt) && halt.ValueKind == JsonValueKind.True;
+        var results = new List<object>();
+        foreach (var request in batch.GetProperty("requests").EnumerateArray())
+        {
+            var requestType = request.GetProperty("requestType").GetString()!;
+            var reply = ReplyTo(requestType);
+            results.Add(new
+            {
+                requestType,
+                requestId = request.GetProperty("requestId").GetString(),
+                requestStatus = new { result = reply.Succeeded, code = reply.Code, comment = reply.Comment },
+                responseData = reply.Data,
+            });
+            if (haltOnFailure && !reply.Succeeded)
+            {
+                break;
+            }
+        }
+
+        return server.SendRawAsync(JsonSerializer.Serialize(new { op = 9, d = new { requestId = batch.GetProperty("requestId").GetString(), results } }));
+    }
 }

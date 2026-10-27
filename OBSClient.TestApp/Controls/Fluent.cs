@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using OBSStudioClient.Exceptions;
 
 namespace OBSStudioClient.TestApp.Controls;
 
@@ -41,5 +42,31 @@ internal static class Fluent
         }
 
         return card;
+    }
+
+    /// <summary>Shows on an info bar that something has to be corrected before a request can be sent.</summary>
+    public static void ShowWarning(InfoBar bar, string title, string message)
+    {
+        bar.Severity = InfoBarSeverity.Warning;
+        bar.Title = title;
+        bar.Message = message;
+        bar.IsOpen = true;
+    }
+
+    /// <summary>Shows on an info bar why a request or a batch did not succeed, in the words of the one who refused it.</summary>
+    public static void ShowFailure(InfoBar bar, Exception error)
+    {
+        bar.Severity = error is ObsResponseException ? InfoBarSeverity.Warning : InfoBarSeverity.Error;
+        bar.Title = error switch
+        {
+            ObsResponseException => "OBS Studio refused the request",
+            ObsClientException => "The client could not complete the request",
+            ArgumentException or NotSupportedException => "The client refused the arguments",
+            _ => error.GetType().Name,
+        };
+        bar.Message = error is ObsResponseException response
+            ? $"{response.ErrorCode} ({(int)response.ErrorCode}): {response.ErrorMessage ?? "no further explanation"}"
+            : error.Message;
+        bar.IsOpen = true;
     }
 }

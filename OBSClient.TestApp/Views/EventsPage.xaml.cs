@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using OBSStudioClient.TestApp.Controls;
 using OBSStudioClient.TestApp.Services;
-using Windows.ApplicationModel.DataTransfer;
 
 namespace OBSStudioClient.TestApp.Views;
 
@@ -69,12 +69,21 @@ public sealed partial class EventsPage : Page
             {
                 this.Visible.RemoveAt(0);
             }
+
+            if (this.FollowButton.IsChecked == true && this.EventList.SelectedItem is null)
+            {
+                this.EventList.ScrollIntoView(entry);
+            }
         }
 
         this.ShowCount();
     }
 
-    private void ShowCount() => this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._received:N0} received";
+    private void ShowCount()
+    {
+        this.CountText.Text = $"{this.Visible.Count:N0} shown, {this._received:N0} received" + (this.PauseButton.IsChecked == true ? " \u00b7 paused" : string.Empty);
+        this.EmptyText.Visibility = this.Visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void Rebuild()
     {
@@ -110,9 +119,12 @@ public sealed partial class EventsPage : Page
         }
     }
 
-    private void PauseButton_Click(object sender, RoutedEventArgs e) => this.PauseButton.Content = this.PauseButton.IsChecked == true ? "Resume" : "Pause";
+    private void PauseButton_Click(object sender, RoutedEventArgs e) => this.ShowCount();
 
-    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    private void ClearButton_Click(object sender, RoutedEventArgs e) => this.Reset();
+
+    /// <summary>Forgets the events that were received.</summary>
+    internal void Reset()
     {
         this._all.Clear();
         this._received = 0;
@@ -125,10 +137,5 @@ public sealed partial class EventsPage : Page
 
     private void DetailTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => this.ShowDetail();
 
-    private void CopyButton_Click(object sender, RoutedEventArgs e)
-    {
-        var package = new DataPackage();
-        package.SetText(this.DetailBox.Text);
-        Clipboard.SetContent(package);
-    }
+    private async void CopyButton_Click(object sender, RoutedEventArgs e) => await ClipboardHelper.CopyAsync(this.CopyButton, this.DetailBox.Text);
 }

@@ -447,9 +447,9 @@
                 return true;
             }
 
-            if (port is < 1 or > 65534)
+            if (port is < 1 or > 65535)
             {
-                throw new ArgumentOutOfRangeException(nameof(port), "Port number must be between 1 and 65534.");
+                throw new ArgumentOutOfRangeException(nameof(port), "Port number must be between 1 and 65535.");
             }
 
             if (!Uri.TryCreate($"ws://{hostname}:{port}", UriKind.Absolute, out Uri? uri))
@@ -491,7 +491,7 @@
             var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
             var requestId = requestBatchMessage.RequestId;
             var requests = requestBatchMessage.Requests.ToArray();
-            var d = new { requestId, requestBatchMessage.HaltOnFailure, executionType, requests };
+            var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
             var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds).ConfigureAwait(false);

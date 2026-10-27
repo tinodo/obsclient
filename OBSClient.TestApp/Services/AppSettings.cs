@@ -26,6 +26,9 @@ internal sealed class AppSettings
     /// <summary>Gets or sets the request that was selected last.</summary>
     public string? LastRequest { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether <see cref="Save"/> writes the file; the smoke test must not touch the settings of the user.</summary>
+    public static bool Persist { get; set; } = true;
+
     /// <summary>Gets the folder where the app keeps its settings.</summary>
     public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OBSClient.TestApp");
 
@@ -50,6 +53,11 @@ internal sealed class AppSettings
     /// <summary>Writes the settings; a failure is not worth bothering the user with.</summary>
     public void Save()
     {
+        if (!Persist)
+        {
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(Folder);

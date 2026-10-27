@@ -35,7 +35,10 @@ namespace OBSStudioClient.Tests.TestAppTests
         [InlineData("""{"authentication":"abc123","rpcVersion":1}""", """{"authentication":"***","rpcVersion":1}""")]
         [InlineData("""{"streamServiceSettings":{"key":"live_123","server":"rtmp://x"}}""", """{"streamServiceSettings":{"key":"***","server":"rtmp://x"}}""")]
         [InlineData("""{"password": "hunter2"}""", """{"password":"***"}""")]
-        public void Redact_HidesTheValuesOfSecrets(string json, string expected)
+        [InlineData("""{"apiKey":"a","stream_key":"b","bearerToken":"c","clientSecret":"d"}""", """{"apiKey":"***","stream_key":"***","bearerToken":"***","clientSecret":"***"}""")]
+        [InlineData("""{"password":"say \"hi\" to me","after":1}""", """{"password":"***","after":1}""")]
+        [InlineData("""{"keyId":"OBS_KEY_A","hotkeyName":"Start","keyModifiers":{"shift":true}}""", """{"keyId":"OBS_KEY_A","hotkeyName":"Start","keyModifiers":{"shift":true}}""")]
+        public void Redact_HidesTheValuesOfSecrets_AndOnlyThose(string json, string expected)
         {
             Assert.Equal(expected.Replace(" ", string.Empty, StringComparison.Ordinal), JsonTools.Redact(json).Replace(" ", string.Empty, StringComparison.Ordinal));
         }

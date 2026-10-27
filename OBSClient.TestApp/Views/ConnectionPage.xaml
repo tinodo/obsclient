@@ -36,16 +36,19 @@
                         </Grid.ColumnDefinitions>
                         <TextBox
                             x:Name="HostBox"
+                            AutomationProperties.Name="Host"
                             Header="Host"
                             PlaceholderText="localhost" />
                         <TextBox
                             x:Name="PortBox"
                             Grid.Column="1"
+                            AutomationProperties.Name="Port"
                             Header="Port"
                             PlaceholderText="4455" />
                         <TextBox
                             x:Name="TimeoutBox"
                             Grid.Column="2"
+                            AutomationProperties.Name="Request timeout in milliseconds"
                             Header="Request timeout (ms)"
                             PlaceholderText="5000" />
                     </Grid>
@@ -68,6 +71,7 @@
                             x:Name="Busy"
                             Width="20"
                             Height="20"
+                            AutomationProperties.Name="Connecting"
                             IsActive="False" />
                     </StackPanel>
                 </StackPanel>

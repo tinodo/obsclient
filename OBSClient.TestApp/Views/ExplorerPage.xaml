@@ -17,14 +17,26 @@
             </Grid.RowDefinitions>
             <AutoSuggestBox
                 x:Name="SearchBox"
+                AutomationProperties.Name="Search the requests"
                 PlaceholderText="Search the requests"
                 QueryIcon="Find"
                 TextChanged="SearchBox_TextChanged" />
-            <TreeView
-                x:Name="RequestTree"
-                Grid.Row="1"
-                ItemInvoked="RequestTree_ItemInvoked"
-                SelectionMode="Single" />
+            <Grid Grid.Row="1">
+                <TreeView
+                    x:Name="RequestTree"
+                    AutomationProperties.Name="Requests of the protocol, by category"
+                    ItemInvoked="RequestTree_ItemInvoked"
+                    SelectionMode="Single" />
+                <TextBlock
+                    x:Name="NoMatchText"
+                    Margin="8,16"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Style="{StaticResource SecondaryBodyStyle}"
+                    Text="No request matches the search. The search looks at the names and the descriptions."
+                    TextAlignment="Center"
+                    Visibility="Collapsed" />
+            </Grid>
         </Grid>
 
         <ScrollViewer Grid.Column="1">
@@ -38,7 +50,7 @@
                     <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Explorer" />
                     <TextBlock
                         Style="{StaticResource SecondaryBodyStyle}"
-                        Text="Choose a request on the left to fill in its parameters and send it to OBS Studio. The result is shown as the client returns it, next to what OBS Studio sent, and compared." />
+                        Text="Choose a request on the left to fill in its parameters and send it to OBS Studio. The result is shown as the client returns it, next to what OBS Studio sent, and compared. Requests can also be put in a batch, to send them together from the Batch page." />
                 </StackPanel>
 
                 <StackPanel
@@ -81,22 +93,33 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button
                             x:Name="InvokeButton"
                             Click="InvokeButton_Click"
                             Content="Send request"
-                            Style="{StaticResource AccentButtonStyle}" />
+                            Style="{StaticResource AccentButtonStyle}">
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Enter" Modifiers="Control" />
+                            </Button.KeyboardAccelerators>
+                        </Button>
+                        <Button
+                            x:Name="BatchButton"
+                            Grid.Column="1"
+                            Click="BatchButton_Click"
+                            Content="Add to batch" />
                         <ProgressRing
                             x:Name="Busy"
-                            Grid.Column="1"
+                            Grid.Column="2"
                             Width="20"
                             Height="20"
+                            AutomationProperties.Name="Waiting for OBS Studio"
                             IsActive="False" />
                         <TextBlock
                             x:Name="StatusLine"
-                            Grid.Column="2"
+                            Grid.Column="3"
                             VerticalAlignment="Center"
                             Style="{StaticResource SecondaryBodyStyle}" />
                     </Grid>
@@ -115,14 +138,16 @@
                                 <SelectorBarItem
                                     x:Name="TypedTab"
                                     IsSelected="True"
-                                    Text="Returned by the client" />
-                                <SelectorBarItem x:Name="RawTab" Text="Sent by OBS Studio" />
+                                    Text="Client" />
+                                <SelectorBarItem x:Name="RawTab" Text="OBS Studio" />
                                 <SelectorBarItem x:Name="ComparisonTab" Text="Comparison" />
                             </SelectorBar>
+                            <TextBlock x:Name="TabCaption" Style="{StaticResource SecondaryCaptionStyle}" />
                             <TextBox
                                 x:Name="ResultBox"
                                 MinHeight="280"
                                 MaxHeight="520"
+                                AutomationProperties.Name="Result"
                                 IsReadOnly="True"
                                 Style="{StaticResource CodeTextBoxStyle}" />
                             <Button

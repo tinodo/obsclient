@@ -81,6 +81,39 @@ namespace OBSStudioClient.Tests.TestAppTests
         }
 
         [Fact]
+        public void Describe_SaysSoWhenTheShapesAreIdentical()
+        {
+            var comparison = JsonShape.Compare(Json("""{"a":1}"""), Json("""{"a":2}"""));
+
+            Assert.StartsWith("Identical:", comparison.Describe(), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void Describe_ListsTheDifferencesInASectionForEachKind_WithTheirNumber()
+        {
+            var comparison = JsonShape.Compare(Json("""{"a":"1","extra":{"x":true}}"""), Json("""{"a":1,"computed":"x"}"""));
+
+            var description = comparison.Describe();
+
+            Assert.Contains("OBS Studio sent these, and the client does not return them (1):", description, StringComparison.Ordinal);
+            Assert.Contains("  $.extra (object)", description, StringComparison.Ordinal);
+            Assert.Contains("The client returns these, and OBS Studio did not send them (1):", description, StringComparison.Ordinal);
+            Assert.Contains("  $.computed (string)", description, StringComparison.Ordinal);
+            Assert.Contains("These are another kind of value (1):", description, StringComparison.Ordinal);
+            Assert.Contains("  $.a: OBS Studio sent string, the client gives number", description, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void Describe_StartsEveryLineWithTheIndent()
+        {
+            var comparison = JsonShape.Compare(Json("""{"extra":1}"""), Json("{}"));
+
+            var lines = comparison.Describe("> ").Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+
+            Assert.Equal(new[] { "> OBS Studio sent these, and the client does not return them (1):", ">   $.extra (number)" }, lines);
+        }
+
+        [Fact]
         public void Observe_RecordsEveryPathWithTheKindsOfValueThatWereSeen()
         {
             var observations = new SortedDictionary<string, PathObservation>(StringComparer.Ordinal);

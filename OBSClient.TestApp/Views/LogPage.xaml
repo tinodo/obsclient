@@ -10,9 +10,9 @@
         <DataTemplate x:Key="EntryTemplate" x:DataType="svc:LogEntry">
             <Grid Padding="0,2" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="92" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="Auto" MinWidth="92" />
+                    <ColumnDefinition Width="Auto" MinWidth="20" />
+                    <ColumnDefinition Width="Auto" MinWidth="36" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
@@ -34,9 +34,9 @@
         <DataTemplate x:Key="ProblemTemplate" x:DataType="svc:LogEntry">
             <Grid Padding="0,2" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="92" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="Auto" MinWidth="92" />
+                    <ColumnDefinition Width="Auto" MinWidth="20" />
+                    <ColumnDefinition Width="Auto" MinWidth="36" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
@@ -86,37 +86,50 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <AutoSuggestBox
                 x:Name="FilterBox"
+                AutomationProperties.Name="Filter the log"
                 PlaceholderText="Filter by title or content"
                 QueryIcon="Find"
                 TextChanged="FilterBox_TextChanged" />
             <ToggleButton
                 x:Name="SentButton"
                 Grid.Column="1"
+                AutomationProperties.Name="Show the messages that were sent"
                 Click="Filter_Click"
                 Content="Sent"
                 IsChecked="True" />
             <ToggleButton
                 x:Name="ReceivedButton"
                 Grid.Column="2"
+                AutomationProperties.Name="Show the messages that were received"
                 Click="Filter_Click"
                 Content="Received"
                 IsChecked="True" />
             <ToggleButton
                 x:Name="ClientButton"
                 Grid.Column="3"
+                AutomationProperties.Name="Show what the client reported"
                 Click="Filter_Click"
                 Content="Client"
                 IsChecked="True" />
             <ToggleButton
-                x:Name="PauseButton"
+                x:Name="FollowButton"
                 Grid.Column="4"
+                AutomationProperties.Name="Follow the newest entry"
+                Content="Follow"
+                IsChecked="True"
+                ToolTipService.ToolTip="Scrolls to the newest entry as it arrives, as long as no entry is selected" />
+            <ToggleButton
+                x:Name="PauseButton"
+                Grid.Column="5"
+                AutomationProperties.Name="Pause the log"
                 Click="PauseButton_Click"
                 Content="Pause" />
             <Button
-                Grid.Column="5"
+                Grid.Column="6"
                 Click="ClearButton_Click"
                 Content="Clear" />
         </Grid>
@@ -173,12 +186,30 @@
                 Grid.Row="1"
                 Padding="0"
                 Style="{StaticResource CardStyle}">
-                <ListView
-                    x:Name="EntryList"
-                    ItemTemplateSelector="{StaticResource EntrySelector}"
-                    ItemsSource="{x:Bind Visible}"
-                    SelectionChanged="EntryList_SelectionChanged"
-                    SelectionMode="Single" />
+                <Grid>
+                    <ListView
+                        x:Name="EntryList"
+                        AutomationProperties.Name="Log entries"
+                        ItemTemplateSelector="{StaticResource EntrySelector}"
+                        ItemsSource="{x:Bind Visible}"
+                        SelectionChanged="EntryList_SelectionChanged"
+                        SelectionMode="Single">
+                        <ListView.ItemContainerStyle>
+                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                <Setter Property="MinHeight" Value="28" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                    </ListView>
+                    <TextBlock
+                        x:Name="EmptyText"
+                        Margin="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Style="{StaticResource SecondaryBodyStyle}"
+                        Text="Nothing to show. Connect to OBS Studio and send a request; every message appears here."
+                        TextAlignment="Center" />
+                </Grid>
             </Border>
 
             <Border
@@ -198,9 +229,11 @@
                     <TextBox
                         x:Name="DetailBox"
                         Grid.Row="1"
+                        AutomationProperties.Name="Entry data"
                         IsReadOnly="True"
                         Style="{StaticResource CodeTextBoxStyle}" />
                     <Button
+                        x:Name="CopyButton"
                         Grid.Row="2"
                         HorizontalAlignment="Left"
                         Click="CopyButton_Click"

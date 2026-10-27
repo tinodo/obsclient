@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace OBSStudioClient.TestApp.Analysis;
@@ -14,8 +15,43 @@ internal sealed record ShapeComparison(
     IReadOnlyList<string> OnlyInClient,
     IReadOnlyList<string> TypeDifferences)
 {
+    /// <summary>Explains how to read the paths of a comparison.</summary>
+    public const string Legend = "A path starts with $, the response data. [] stands for every item of an array.";
+
     /// <summary>Gets a value indicating whether the client gives back exactly the shape that OBS Studio sent.</summary>
     public bool IsIdentical => this.OnlyInObs.Count == 0 && this.OnlyInClient.Count == 0 && this.TypeDifferences.Count == 0;
+
+    /// <summary>Describes the differences, a section for each kind, or says that there are none.</summary>
+    /// <param name="indent">What every line starts with.</param>
+    public string Describe(string indent = "")
+    {
+        if (this.IsIdentical)
+        {
+            return indent + "Identical: the client returns every member OBS Studio sent, as the same kind of value, and nothing else." + Environment.NewLine;
+        }
+
+        var text = new StringBuilder();
+        Section(text, indent, "OBS Studio sent these, and the client does not return them", this.OnlyInObs);
+        Section(text, indent, "The client returns these, and OBS Studio did not send them", this.OnlyInClient);
+        Section(text, indent, "These are another kind of value", this.TypeDifferences);
+        return text.ToString();
+    }
+
+    private static void Section(StringBuilder text, string indent, string title, IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        text.AppendLine($"{indent}{title} ({lines.Count}):");
+        foreach (var line in lines)
+        {
+            text.AppendLine($"{indent}  {line}");
+        }
+
+        text.AppendLine();
+    }
 }
 
 /// <summary>What has been seen at one path of a JSON document, over any number of documents.</summary>
