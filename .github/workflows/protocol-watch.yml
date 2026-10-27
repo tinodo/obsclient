@@ -63,6 +63,7 @@ jobs:
         run: |
           python tools/protocol/update.py --tag "$LATEST"
           git diff --shortstat > trial-diffstat.txt
+          python -m unittest discover -s tools/protocol -p "test_*.py"
           dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release
 
       - name: Open an issue

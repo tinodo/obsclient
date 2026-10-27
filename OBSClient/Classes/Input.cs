@@ -50,8 +50,10 @@
         /// </summary>
         /// <remarks>
         /// Introduced in obs-websocket 5.6.0; <see langword="null"/> when OBS Studio does not send it.
+        /// A flags value of 32 bits, which is why it is an unsigned number (and not CLS-compliant).
         /// </remarks>
         [JsonPropertyName("inputKindCaps")]
+        [CLSCompliant(false)]
         public uint? InputKindCaps { get; init; }
     }
 }

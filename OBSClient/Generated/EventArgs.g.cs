@@ -327,6 +327,7 @@ namespace OBSStudioClient.Events
         /// Not a constructor parameter, so that the constructor of the type stays what it was before this property was added.
         /// </remarks>
         [JsonPropertyName("inputKindCaps")]
+        [CLSCompliant(false)]
         public uint? InputKindCaps { get; init; }
     }
 
