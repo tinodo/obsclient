@@ -89,7 +89,6 @@ so keep a handler short and do not block it.
 With `AutoReconnect` set to `true` the client tries to connect again, every 3 seconds, as long as it is `Disconnected`:
 
 - when OBS Studio closed the connection, or OBS Studio itself closed,
-- when you were kicked,
 - when a message of yours was refused, or the password was wrong,
 - when the first attempt of `ConnectAsync` did not succeed.
 
@@ -99,6 +98,10 @@ client.AutoReconnect = true;    // can be switched on at any time
 
 The events you chose are subscribed to again each time. `Disconnect()` sets `AutoReconnect` to `false`; set it to `true` again to
 have the client reconnect.
+
+An OBS Studio user can end your session with the **Kick** button of the session list. The connection then closes with
+`WebSocketCloseCode.SessionInvalidated`, and obs-websocket requires that a client does not reconnect automatically after that, so the
+client sets `AutoReconnect` to `false` and stays `Disconnected`. Connect again yourself when you want to.
 
 ## Choosing the events
 

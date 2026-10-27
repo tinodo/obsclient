@@ -149,6 +149,59 @@
         }
 
         [Fact]
+        public async Task SessionInvalidated_WithAutoReconnectEnabled_DoesNotReconnect()
+        {
+            // obs-websocket documents that a client must not reconnect automatically after close code 4011 (the Kick
+            // button of the session list of OBS Studio), so AutoReconnect is switched off and the client stays disconnected.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+            var closedAwaiter = new EventAwaiter<ConnectionClosedEventArgs>();
+            client.ConnectionClosed += closedAwaiter.Handler;
+
+            var connectTask = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            await connectTask.WithTimeoutAsync(Timeout);
+            Assert.True(client.AutoReconnect);
+
+            await server.CloseWithCodeAsync(4011, "SessionInvalidated").WithTimeoutAsync(Timeout);
+
+            var args = await closedAwaiter.Task.WithTimeoutAsync(Timeout, "ConnectionClosed did not fire after the session was invalidated.");
+            Assert.Equal(WebSocketCloseCode.SessionInvalidated, args.WebSocketCloseCode);
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Disconnected, Timeout));
+            Assert.False(client.AutoReconnect);
+
+            // The reconnect timer ticks every 3 seconds: waiting longer than that shows that no attempt is made.
+            await Assert.ThrowsAsync<TimeoutException>(() => server.WaitForConnectionAsync(TimeSpan.FromSeconds(4)));
+            Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
+        }
+
+        [Fact]
+        public async Task ClosedByObsStudioWithAnotherCode_WithAutoReconnectEnabled_StillReconnects()
+        {
+            // Only the Kick button ends the reconnecting: an OBS Studio that goes away (1001) can come back, and the client follows.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+
+            var connectTask = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            await connectTask.WithTimeoutAsync(Timeout);
+
+            await server.CloseWithCodeAsync(1001, "Going away").WithTimeoutAsync(Timeout);
+
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Disconnected, Timeout));
+            Assert.True(client.AutoReconnect);
+
+            await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "Client did not attempt to reconnect in time.");
+            Assert.True(
+                await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Connected, Timeout),
+                "Client did not reach Connected again after AutoReconnect kicked in.");
+
+            client.Disconnect();
+        }
+
+        [Fact]
         public async Task ConnectionLostDuringTheHandshake_ConnectAsyncReturnsFalse_InsteadOfHanging()
         {
             // Nothing completed the authentication task when the connection ended before OBS Studio said

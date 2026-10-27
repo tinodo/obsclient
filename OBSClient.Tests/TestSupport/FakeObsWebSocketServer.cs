@@ -298,6 +298,15 @@
         }
 
         /// <summary>
+        /// Ends the connection with a WebSocket close frame that carries one of obs-websocket's own close codes, the way
+        /// OBS Studio does when it ends a session: 4009 when the password is wrong, 4011 for the Kick button of its session list.
+        /// </summary>
+        public Task CloseWithCodeAsync(int closeStatus, string description)
+        {
+            return SendCloseAsync(closeStatus, description);
+        }
+
+        /// <summary>
         /// Kills the connection without performing a WebSocket close handshake, simulating a crashed OBS process
         /// or an interrupted network link. See https://github.com/tinodo/obsclient/issues/17.
         /// </summary>
