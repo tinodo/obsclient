@@ -59,7 +59,7 @@ namespace OBSStudioClient.Tests.Conformance
                         continue;
                     }
 
-                    problems.AddRange(Check(name, argumentType, delivered.Task.Result, fields, sample, properties));
+                    problems.AddRange(Check(name, argumentType, await delivered.Task, fields, sample, properties));
                 }
                 finally
                 {

@@ -344,23 +344,31 @@ class Model:
         """The parameters of the methods of a request: required ones first, then the ones that can be left out.
 
         An <x>Name and an <x>Uuid field together identify an object and are one parameter <x>, of a ref type that holds
-        either (SceneRef, InputRef or SourceRef). The canvasUuid field is a parameter of its own, and the last one.
+        either (SceneRef, InputRef or SourceRef), whichever of the two the protocol lists first. The canvasUuid field is a
+        parameter of its own, and the last one. Every field of the request ends up in exactly one parameter, or this fails.
         """
         fields = request.plain_request_fields
         by_name = {f.name: f for f in fields}
         optional_refs = set(self.overlay.get("refs", {}).get("optional", []))
         always_sent = set(self.overlay.get("request_nulls", {}).get("fields", []))
+
+        uuid_of: dict[str, Field] = {}  # the <x>Name field of each pair -> its <x>Uuid field
+        for f in fields:
+            uuid = by_name.get(f.name[:-4] + "Uuid") if f.name.endswith("Name") and len(f.name) > 4 else None
+            if uuid is not None and f.vtype == "String" and uuid.vtype == "String":
+                uuid_of[f.name] = uuid
+        taken_with_their_name = {uuid.name for uuid in uuid_of.values()}
+
         positional: list[Param] = []
         defaulted: list[Param] = []
         canvas: list[Param] = []
-        consumed: set[str] = set()
 
         for f in fields:
-            if f.name in consumed:
+            if f.name in taken_with_their_name:
                 continue
-            base = f.name[:-4] if f.name.endswith("Name") else ""
-            uuid = by_name.get(base + "Uuid") if base else None
-            if uuid is not None and f.vtype == "String" and uuid.vtype == "String":
+            uuid = uuid_of.get(f.name)
+            if uuid is not None:
+                base = f.name[:-4]
                 kind = self.ref_kinds.get(last_word(base))
                 if kind is None:
                     raise ModelError(
@@ -369,7 +377,6 @@ class Model:
                     )
                 if self.request_type(request.name, uuid).name != "Guid":
                     raise ModelError(f"{request.name}: '{uuid.name}' is not a Guid, so it cannot be half of a {kind}.")
-                consumed |= {f.name, uuid.name}
                 optional = f"{request.name}.{base}" in optional_refs
                 param = Param(identifier(base), self._clr(kind, optional), (f, uuid), ref=True, has_default=optional)
                 (defaulted if optional else positional).append(param)
@@ -391,6 +398,8 @@ class Model:
         names = [p.name for p in params]
         if len(set(names)) != len(names):
             raise ModelError(f"{request.name}: the parameters {sorted(n for n in names if names.count(n) > 1)} have the same name.")
+        if sorted(f.name for p in params for f in p.fields) != sorted(f.name for f in fields):
+            raise ModelError(f"{request.name}: the parameters {names} do not account for each field of the request exactly once.")
         return params
 
     def returns(self, request: Request) -> Returns:

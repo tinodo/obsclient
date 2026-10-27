@@ -28,11 +28,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   `Scene` or `SceneItem` that OBS Studio reported convert implicitly, so `SetCurrentProgramScene("Game")`,
   `SetCurrentProgramScene(sceneUuid)` and `SetCurrentProgramScene(scene)` still read the same, and an input or scene
   that is passed as an object is identified by its UUID, which does not change when it is renamed. Every public overload
-  of 3.0.1 was compared with the new signatures: all of them still compile, except the ones that took a wrong type for
-  their settings (see below). What does break is **named arguments** (`inputName:` and `inputUuid:` are now `input:`,
-  `sceneName:` and `sceneUuid:` are `scene:`, `sourceName:` and `sourceUuid:` are `source:`) and, as for every signature
-  change, code that was compiled against 3.x has to be recompiled. The same goes for the batch builders of
-  `RequestBatchMessage`. `canvasUuid` is a trailing optional parameter (`GetSceneItemList("Scene", canvasUuid: id)`).
+  of 3.0.1 (221 methods of `ObsClient` and 141 builders of `RequestBatchMessage`) was compared with the new signature of
+  its request, with a throwaway script that is not part of the repository: a call that compiled against 3.0.1 still
+  compiles, except for seven overloads: `CreateInput` and `SetCurrentSceneTransitionSettings` and their builders, which took
+  a wrong type for their settings, and `CreateRecordChapter`, whose return type changed (all three are listed below). What
+  does break is **named arguments** (`inputName:` and `inputUuid:` are now `input:`, `sceneName:` and `sceneUuid:` are
+  `scene:`, `sourceName:` and `sourceUuid:` are `source:`); a **method group** converted to a delegate type
+  (`Func<string, Task<bool>> mute = client.GetInputMute;` no longer converts, because the implicit conversion from `string`
+  to `InputRef` applies to a call, not to a method group); and, as for every signature change, code that was compiled
+  against 3.x has to be recompiled. The same goes for the batch builders of `RequestBatchMessage`. `canvasUuid` is a
+  trailing optional parameter (`GetSceneItemList("Scene", canvasUuid: id)`).
 - `CreateInput` (and `RequestBatchMessage.AddCreateInputRequest`) take `Dictionary<string, object>? inputSettings` instead
   of `Input? inputSettings`, and `SetCurrentSceneTransitionSettings` (and its builder) takes `Dictionary<string, object>`
   instead of a `TransitionResponse?`. `Input` describes an entry of the input list (kind and name) and `TransitionResponse`
@@ -165,8 +170,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
 - The response and event types are what they were in 3.0.1 (the same constructors and properties, checked field by field),
-  except for the ones listed above and the new canvas types; a list in a response is empty instead of null when OBS Studio
-  sends none.
+  except for `CreateRecordChapterResponse` and `MonitorTypeResponse` (removed, see above) and the new canvas types; a list in
+  a response is empty instead of null when OBS Studio sends none.
 - The new `InputKindCaps`, `CropToBounds`, `InputUuid` and `SourceUuid` are `init` properties, so no existing constructor changed.
 - Optional arguments that are not given are left out of the request instead of being sent as `null`. obs-websocket treats
   the two alike (`Request::Contains` ignores a null), except for the three fields where it gives a null a meaning: it

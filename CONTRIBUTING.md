@@ -34,7 +34,8 @@ Most of the client is generated from obs-websocket's own protocol definition, so
 
 The generated files are committed and compiled into `OBSClient.dll`; **do not edit them**, change the inputs and run
 `python tools/protocol/generate.py` (Python 3.11 or later, standard library only). CI runs it with `--check` and fails when a
-generated file is not what the generator produces. The definition, the overlay and the generator are inputs of the build: none
+generated file is not what the generator produces, and runs the tests of the conventions it follows
+(`python -m unittest discover -s tools/protocol -p "test_*.py"`). The definition, the overlay and the generator are inputs of the build: none
 of them is part of the NuGet package, which stays a single assembly (`tools/verify-package.py` and `PackagingTests` check that).
 
 The tests in `OBSClient.Tests/Conformance` call every request method of `ObsClient` and every batch builder of

@@ -45,6 +45,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: python3 tools/protocol/generate.py --check
 
+      - name: Test the generator
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 -m unittest discover -s tools/protocol -p "test_*.py" -v
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
