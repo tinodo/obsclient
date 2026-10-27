@@ -21,7 +21,7 @@ namespace OBSStudioClient
         /// Gets a list of all scene items in a scene.
         /// </summary>
         /// <param name="scene">The scene to get the items of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Array of scene items in the scene.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
@@ -36,7 +36,7 @@ namespace OBSStudioClient
         /// Basically GetSceneItemList, but for groups.
         /// </summary>
         /// <param name="scene">The group to get the items of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the group is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the group is in, if the scene is given by name.</param>
         /// <returns>Array of scene items in the group.</returns>
         /// <remarks>
         /// <para>Using groups at all in OBS is discouraged, as they are very broken under the hood. Please use nested scenes instead.</para>
@@ -54,7 +54,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene or group to search in, by name or by UUID.</param>
         /// <param name="sourceName">Name of the source to find.</param>
         /// <param name="searchOffset">Number of matches to skip during search. &gt;= 0 means first forward. -1 means last (top) item. Restrictions: &gt;= -1. If omitted: 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene or group is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene or group is in, if the scene is given by name.</param>
         /// <returns>Numeric ID of the scene item.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
@@ -70,7 +70,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>A <see cref="SceneItemSourceResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Introduced in obs-websocket 5.4.0.</para>
@@ -86,7 +86,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene to create the new item in, by name or by UUID.</param>
         /// <param name="source">The source to add to the scene, by name or by UUID.</param>
         /// <param name="sceneItemEnabled">Enable state to apply to the scene item on creation. If omitted: True.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Numeric ID of the scene item.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
@@ -102,7 +102,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Scenes only.</para>
         /// </remarks>
@@ -117,7 +117,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="destinationScene">The scene to create the duplicated item in, by name or by UUID. If omitted: From scene is assumed.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Numeric ID of the duplicated scene item.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
@@ -133,7 +133,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Object containing scene item transform info.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
@@ -150,7 +150,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemTransform">Object containing scene item transform info to update.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         public async Task SetSceneItemTransform(SceneRef scene, int sceneItemId, SceneItemTransformUpdate sceneItemTransform, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSceneItemTransform, SetSceneItemTransformRequestData.Create(scene, sceneItemId, sceneItemTransform, canvasUuid)).ConfigureAwait(false);
@@ -161,7 +161,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Whether the scene item is enabled. <c>true</c> for enabled, <c>false</c> for disabled.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
@@ -178,7 +178,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemEnabled">New enable state of the scene item.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
@@ -192,7 +192,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Whether the scene item is locked. <c>true</c> for locked, <c>false</c> for unlocked.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
@@ -209,7 +209,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemLocked">New lock state of the scene item.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Scenes and Group.</para>
         /// </remarks>
@@ -223,7 +223,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Index position of the scene item.</returns>
         /// <remarks>
         /// <para>An index of 0 is at the bottom of the source list in the UI.</para>
@@ -241,7 +241,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemIndex">New index position of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
@@ -255,7 +255,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>Current blend mode.</returns>
         /// <remarks>
         /// <para>Blend modes:.</para>
@@ -274,7 +274,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemBlendMode">New blend mode.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
@@ -299,7 +299,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>GetSceneItemList</c> request to the batch.
         /// </summary>
         /// <param name="scene">The scene to get the items of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets a list of all scene items in a scene.</para>
         /// <para>Scenes only.</para>
@@ -313,7 +313,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>GetGroupSceneItemList</c> request to the batch.
         /// </summary>
         /// <param name="scene">The group to get the items of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the group is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the group is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Basically GetSceneItemList, but for groups.</para>
         /// <para>Using groups at all in OBS is discouraged, as they are very broken under the hood. Please use nested scenes instead.</para>
@@ -330,7 +330,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene or group to search in, by name or by UUID.</param>
         /// <param name="sourceName">Name of the source to find.</param>
         /// <param name="searchOffset">Number of matches to skip during search. &gt;= 0 means first forward. -1 means last (top) item. Restrictions: &gt;= -1. If omitted: 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene or group is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene or group is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Searches a scene for a source, and returns its id.</para>
         /// <para>Scenes and Groups.</para>
@@ -345,7 +345,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the source associated with a scene item.</para>
         /// <para>Introduced in obs-websocket 5.4.0.</para>
@@ -361,7 +361,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene to create the new item in, by name or by UUID.</param>
         /// <param name="source">The source to add to the scene, by name or by UUID.</param>
         /// <param name="sceneItemEnabled">Enable state to apply to the scene item on creation. If omitted: True.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Creates a new scene item using a source.</para>
         /// <para>Scenes only.</para>
@@ -376,7 +376,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Removes a scene item from a scene.</para>
         /// <para>Scenes only.</para>
@@ -392,7 +392,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="destinationScene">The scene to create the duplicated item in, by name or by UUID. If omitted: From scene is assumed.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Duplicates a scene item, copying all transform and crop info.</para>
         /// <para>Scenes only.</para>
@@ -407,7 +407,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the transform and crop info of a scene item.</para>
         /// <para>Scenes and Groups.</para>
@@ -423,7 +423,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemTransform">Object containing scene item transform info to update.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the transform and crop info of a scene item.</para>
         /// </remarks>
@@ -441,7 +441,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the enable state of a scene item.</para>
         /// <para>Scenes and Groups.</para>
@@ -457,7 +457,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemEnabled">New enable state of the scene item.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the enable state of a scene item.</para>
         /// <para>Scenes and Groups.</para>
@@ -472,7 +472,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the lock state of a scene item.</para>
         /// <para>Scenes and Groups.</para>
@@ -488,7 +488,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemLocked">New lock state of the scene item.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the lock state of a scene item.</para>
         /// <para>Scenes and Group.</para>
@@ -503,7 +503,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the index position of a scene item in a scene.</para>
         /// <para>An index of 0 is at the bottom of the source list in the UI.</para>
@@ -520,7 +520,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemIndex">New index position of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the index position of a scene item in a scene.</para>
         /// <para>Scenes and Groups.</para>
@@ -535,7 +535,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the blend mode of a scene item.</para>
         /// <para>Blend modes:.</para>
@@ -553,7 +553,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemBlendMode">New blend mode.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the blend mode of a scene item.</para>
         /// <para>Scenes and Groups.</para>

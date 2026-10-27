@@ -391,7 +391,8 @@ def param_text(p: pm.Param) -> str:
         text = f"{what[0].upper()}{what[1:]}, by name or by UUID."
         extra = [p.fields[0].behavior] if p.has_default else []
     else:
-        text = sentence(p.field.description)
+        # "if using the sceneName field" is about the protocol's fields; the caller of the method gives the scene by name or by UUID.
+        text = sentence(re.sub(r"if using (?:the )?(\w+?)Name field", r"if the \1 is given by name", p.field.description))
         extra = []
         if p.field.restrictions:
             text += f" Restrictions: {p.field.restrictions}."

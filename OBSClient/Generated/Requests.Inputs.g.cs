@@ -56,7 +56,7 @@ namespace OBSStudioClient
         /// <param name="inputKind">The kind of input to be created.</param>
         /// <param name="inputSettings">Settings object to initialize the input with. If omitted: Default settings used.</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled. If omitted: True.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>A <see cref="CreateInputResponse"/> with the response data.</returns>
         public async Task<CreateInputResponse> CreateInput(
             SceneRef scene,
@@ -417,7 +417,7 @@ namespace OBSStudioClient.Messages
         /// <param name="inputKind">The kind of input to be created.</param>
         /// <param name="inputSettings">Settings object to initialize the input with. If omitted: Default settings used.</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled. If omitted: True.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Creates a new input, adding it as a scene item to the specified scene.</para>
         /// </remarks>

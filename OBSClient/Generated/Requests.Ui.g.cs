@@ -95,7 +95,7 @@ namespace OBSStudioClient
         /// <param name="source">The source to open a projector for, by name or by UUID.</param>
         /// <param name="monitorIndex">Monitor index, use <c>GetMonitorList</c> to obtain index. If omitted: -1: Opens projector in windowed mode.</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with <c>monitorIndex</c>.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</para>
         /// </remarks>
@@ -209,7 +209,7 @@ namespace OBSStudioClient.Messages
         /// <param name="source">The source to open a projector for, by name or by UUID.</param>
         /// <param name="monitorIndex">Monitor index, use <c>GetMonitorList</c> to obtain index. If omitted: -1: Opens projector in windowed mode.</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with <c>monitorIndex</c>.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Opens a projector for a source.</para>
         /// <para>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</para>

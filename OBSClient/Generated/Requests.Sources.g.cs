@@ -21,7 +21,7 @@ namespace OBSStudioClient
         /// Gets the active and show state of a source.
         /// </summary>
         /// <param name="source">The source to get the active state of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <returns>A <see cref="SourceActiveResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>**Compatible with inputs and scenes.**.</para>
@@ -39,7 +39,7 @@ namespace OBSStudioClient
         /// <param name="imageWidth">Width to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <returns>Base64-encoded screenshot.</returns>
         /// <remarks>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>
@@ -66,7 +66,7 @@ namespace OBSStudioClient
         /// <param name="imageWidth">Width to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>
         /// <para>**Compatible with inputs and scenes.**.</para>
@@ -99,7 +99,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>GetSourceActive</c> request to the batch.
         /// </summary>
         /// <param name="source">The source to get the active state of, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Gets the active and show state of a source.</para>
         /// <para>**Compatible with inputs and scenes.**.</para>
@@ -117,7 +117,7 @@ namespace OBSStudioClient.Messages
         /// <param name="imageWidth">Width to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Gets a Base64-encoded screenshot of a source.</para>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>
@@ -143,7 +143,7 @@ namespace OBSStudioClient.Messages
         /// <param name="imageWidth">Width to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageHeight">Height to scale the screenshot to. Restrictions: &gt;= 8, &lt;= 4096. If omitted: Source value is used.</param>
         /// <param name="imageCompressionQuality">Compression quality to use. 0 for high compression, 100 for uncompressed. -1 to use "default" (whatever that means, idk) Restrictions: &gt;= -1, &lt;= 100. If omitted: -1.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Saves a screenshot of a source to the filesystem.</para>
         /// <para>The <c>imageWidth</c> and <c>imageHeight</c> parameters are treated as "scale to inner", meaning the smallest ratio will be used and the aspect ratio of the original resolution is kept. If <c>imageWidth</c> and <c>imageHeight</c> are not specified, the compressed image will use the full resolution of the source.</para>

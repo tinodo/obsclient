@@ -35,7 +35,7 @@ namespace OBSStudioClient
         /// Gets an array of all of a source's filters.
         /// </summary>
         /// <param name="source">The source, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <returns>Array of filters.</returns>
         public async Task<Filter[]> GetSourceFilterList(SourceRef source, Guid? canvasUuid = null)
         {
@@ -61,7 +61,7 @@ namespace OBSStudioClient
         /// <param name="filterName">Name of the new filter to be created.</param>
         /// <param name="filterKind">The kind of filter to be created.</param>
         /// <param name="filterSettings">Settings object to initialize the filter with. If omitted: Default settings used.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task CreateSourceFilter(
             SourceRef source,
             string filterName,
@@ -77,7 +77,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter to remove.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task RemoveSourceFilter(SourceRef source, string filterName, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.RemoveSourceFilter, RemoveSourceFilterRequestData.Create(source, filterName, canvasUuid)).ConfigureAwait(false);
@@ -89,7 +89,7 @@ namespace OBSStudioClient
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Current name of the filter.</param>
         /// <param name="newFilterName">New name for the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task SetSourceFilterName(SourceRef source, string filterName, string newFilterName, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSourceFilterName, SetSourceFilterNameRequestData.Create(source, filterName, newFilterName, canvasUuid)).ConfigureAwait(false);
@@ -100,7 +100,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="source">The source, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <returns>A <see cref="SourceFilterResponse"/> with the response data.</returns>
         public async Task<SourceFilterResponse> GetSourceFilter(SourceRef source, string filterName, Guid? canvasUuid = null)
         {
@@ -113,7 +113,7 @@ namespace OBSStudioClient
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterIndex">New index position of the filter. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task SetSourceFilterIndex(SourceRef source, string filterName, int filterIndex, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSourceFilterIndex, SetSourceFilterIndexRequestData.Create(source, filterName, filterIndex, canvasUuid)).ConfigureAwait(false);
@@ -126,7 +126,7 @@ namespace OBSStudioClient
         /// <param name="filterName">Name of the filter to set the settings of.</param>
         /// <param name="filterSettings">Object of settings to apply.</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings. If omitted: true.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task SetSourceFilterSettings(
             SourceRef source,
             string filterName,
@@ -143,7 +143,7 @@ namespace OBSStudioClient
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterEnabled">New enable state of the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         public async Task SetSourceFilterEnabled(SourceRef source, string filterName, bool filterEnabled, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSourceFilterEnabled, SetSourceFilterEnabledRequestData.Create(source, filterName, filterEnabled, canvasUuid)).ConfigureAwait(false);
@@ -178,7 +178,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>GetSourceFilterList</c> request to the batch.
         /// </summary>
         /// <param name="source">The source, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Gets an array of all of a source's filters.</para>
         /// </remarks>
@@ -206,7 +206,7 @@ namespace OBSStudioClient.Messages
         /// <param name="filterName">Name of the new filter to be created.</param>
         /// <param name="filterKind">The kind of filter to be created.</param>
         /// <param name="filterSettings">Settings object to initialize the filter with. If omitted: Default settings used.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Creates a new filter, adding it to the specified source.</para>
         /// </remarks>
@@ -225,7 +225,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter to remove.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Removes a filter from a source.</para>
         /// </remarks>
@@ -240,7 +240,7 @@ namespace OBSStudioClient.Messages
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Current name of the filter.</param>
         /// <param name="newFilterName">New name for the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Sets the name of a source filter (rename).</para>
         /// </remarks>
@@ -254,7 +254,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="source">The source, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Gets the info for a specific source filter.</para>
         /// </remarks>
@@ -269,7 +269,7 @@ namespace OBSStudioClient.Messages
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterIndex">New index position of the filter. Restrictions: &gt;= 0.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Sets the index position of a filter on a source.</para>
         /// </remarks>
@@ -285,7 +285,7 @@ namespace OBSStudioClient.Messages
         /// <param name="filterName">Name of the filter to set the settings of.</param>
         /// <param name="filterSettings">Object of settings to apply.</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings. If omitted: true.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Sets the settings of a source filter.</para>
         /// </remarks>
@@ -305,7 +305,7 @@ namespace OBSStudioClient.Messages
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterEnabled">New enable state of the filter.</param>
-        /// <param name="canvasUuid">UUID of the canvas the source is in, if using the sourceName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
         /// <remarks>
         /// <para>Sets the enable state of a source filter.</para>
         /// </remarks>

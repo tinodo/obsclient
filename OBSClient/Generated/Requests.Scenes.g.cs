@@ -103,7 +103,7 @@ namespace OBSStudioClient
         /// Removes a scene from OBS.
         /// </summary>
         /// <param name="scene">The scene to remove, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         public async Task RemoveScene(SceneRef scene, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.RemoveScene, RemoveSceneRequestData.Create(scene, canvasUuid)).ConfigureAwait(false);
@@ -114,7 +114,7 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene to be renamed, by name or by UUID.</param>
         /// <param name="newSceneName">New name for the scene.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         public async Task SetSceneName(SceneRef scene, string newSceneName, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSceneName, SetSceneNameRequestData.Create(scene, newSceneName, canvasUuid)).ConfigureAwait(false);
@@ -124,7 +124,7 @@ namespace OBSStudioClient
         /// Gets the scene transition overridden for a scene.
         /// </summary>
         /// <param name="scene">The scene, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <returns>A <see cref="SceneTransitionResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Note: A transition UUID response field is not currently able to be implemented as of 2024-1-18.</para>
@@ -140,7 +140,7 @@ namespace OBSStudioClient
         /// <param name="scene">The scene, by name or by UUID.</param>
         /// <param name="transitionName">Name of the scene transition to use as override. Specify <c>null</c> to remove.</param>
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify <c>null</c> to remove. Restrictions: &gt;= 50, &lt;= 20000.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         public async Task SetSceneSceneTransitionOverride(SceneRef scene, string? transitionName, int? transitionDuration, Guid? canvasUuid = null)
         {
             await this.SendRequestAsync(RequestType.SetSceneSceneTransitionOverride, SetSceneSceneTransitionOverrideRequestData.Create(scene, transitionName, transitionDuration, canvasUuid)).ConfigureAwait(false);
@@ -250,7 +250,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>RemoveScene</c> request to the batch.
         /// </summary>
         /// <param name="scene">The scene to remove, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Removes a scene from OBS.</para>
         /// </remarks>
@@ -264,7 +264,7 @@ namespace OBSStudioClient.Messages
         /// </summary>
         /// <param name="scene">The scene to be renamed, by name or by UUID.</param>
         /// <param name="newSceneName">New name for the scene.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the name of a scene (rename).</para>
         /// </remarks>
@@ -277,7 +277,7 @@ namespace OBSStudioClient.Messages
         /// Adds a <c>GetSceneSceneTransitionOverride</c> request to the batch.
         /// </summary>
         /// <param name="scene">The scene, by name or by UUID.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Gets the scene transition overridden for a scene.</para>
         /// <para>Note: A transition UUID response field is not currently able to be implemented as of 2024-1-18.</para>
@@ -293,7 +293,7 @@ namespace OBSStudioClient.Messages
         /// <param name="scene">The scene, by name or by UUID.</param>
         /// <param name="transitionName">Name of the scene transition to use as override. Specify <c>null</c> to remove.</param>
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify <c>null</c> to remove. Restrictions: &gt;= 50, &lt;= 20000.</param>
-        /// <param name="canvasUuid">UUID of the canvas the scene is in, if using the sceneName field.</param>
+        /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
         /// <remarks>
         /// <para>Sets the scene transition overridden for a scene.</para>
         /// </remarks>
