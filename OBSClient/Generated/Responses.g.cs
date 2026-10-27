@@ -127,6 +127,20 @@ namespace OBSStudioClient.Responses
         /// </summary>
         [JsonPropertyName("sceneUuid")]
         public Guid SceneUuid { get; } = sceneUuid;
+
+        /// <summary>
+        /// Current preview scene name.
+        /// </summary>
+        [Obsolete("Use SceneName instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public string CurrentPreviewSceneName => this.SceneName;
+
+        /// <summary>
+        /// Current preview scene UUID.
+        /// </summary>
+        [Obsolete("Use SceneUuid instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public Guid CurrentPreviewSceneUuid => this.SceneUuid;
     }
 
     /// <summary>
@@ -151,6 +165,20 @@ namespace OBSStudioClient.Responses
         /// </summary>
         [JsonPropertyName("sceneUuid")]
         public Guid SceneUuid { get; } = sceneUuid;
+
+        /// <summary>
+        /// Current program scene name.
+        /// </summary>
+        [Obsolete("Use SceneName instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public string CurrentProgramSceneName => this.SceneName;
+
+        /// <summary>
+        /// Current program scene UUID.
+        /// </summary>
+        [Obsolete("Use SceneUuid instead. This property will be removed in future versions.")]
+        [JsonIgnore]
+        public Guid CurrentProgramSceneUuid => this.SceneUuid;
     }
 
     /// <summary>

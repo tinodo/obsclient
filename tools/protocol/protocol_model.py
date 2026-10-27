@@ -437,6 +437,7 @@ class Dto:
     descriptions: list[str]
     since: str
     fields: list[DtoField]
+    aliases: list[tuple[str, DtoField]]  # obsolete properties that stay as aliases of a field: (name, the field)
 
 
 def _merge_dto(model: Model, name: str, base: str, users: list[tuple[str, str, str, list[Field]]]) -> Dto:
@@ -457,6 +458,19 @@ def _merge_dto(model: Model, name: str, base: str, users: list[tuple[str, str, s
     stale = sorted(key for key in init_fields if key.startswith(name + ".") and key[len(name) + 1:] not in merged)
     if stale:
         raise ModelError(f"overlay.toml [init_properties] has {stale}, which {name} does not have (remove it).")
+
+    by_property = {pascal(f.field.name): f for f in fields}
+    aliases: list[tuple[str, DtoField]] = []
+    for key, target in model.overlay.get("obsolete_aliases", {}).items():
+        owner, _, alias = key.partition(".")
+        if owner != name:
+            continue
+        if target not in by_property:
+            raise ModelError(f"overlay.toml [obsolete_aliases] has '{key}' = '{target}', but {name} has no property '{target}' (remove it).")
+        if alias in by_property:
+            raise ModelError(f"overlay.toml [obsolete_aliases] has '{key}', but {name} has a property '{alias}' of its own now (remove it).")
+        aliases.append((alias, by_property[target]))
+
     return Dto(
         name=name,
         base=base,
@@ -464,7 +478,22 @@ def _merge_dto(model: Model, name: str, base: str, users: list[tuple[str, str, s
         descriptions=[u[1] for u in users],
         since=min((u[2] for u in users), key=lambda v: tuple(int(p) for p in v.split("."))),
         fields=fields,
+        aliases=aliases,
     )
+
+
+def check_dto_overlay(model: Model, dtos: list[Dto]) -> None:
+    """An overlay entry about a type that is not generated (any more) is stale: fail, so that it gets removed."""
+    names = {dto.name for dto in dtos}
+    entries = {
+        "init_properties": model.overlay.get("init_properties", {}).get("fields", []),
+        "obsolete_aliases": list(model.overlay.get("obsolete_aliases", {})),
+    }
+    for table, keys in entries.items():
+        for key in keys:
+            owner = key.partition(".")[0]
+            if owner not in names:
+                raise ModelError(f"overlay.toml [{table}] has '{key}', but {owner} is not a generated type (remove it).")
 
 
 def response_dtos(model: Model) -> list[Dto]:

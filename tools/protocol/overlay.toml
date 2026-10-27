@@ -20,7 +20,8 @@ version = "5.7.6"
 [patches.response.ToggleRecordPause]
 add = [{ name = "outputPaused", type = "Boolean", description = "Whether the output is paused" }]
 
-# Deprecated copies of sceneName/sceneUuid. The response types expose sceneName and sceneUuid only.
+# Deprecated copies of sceneName/sceneUuid. The response types have sceneName and sceneUuid; the deprecated names stay as
+# obsolete aliases of those two (see [obsolete_aliases] below), as they were in 3.0.1.
 [patches.response.GetCurrentProgramScene]
 omit = ["currentProgramSceneName", "currentProgramSceneUuid"]
 
@@ -608,6 +609,16 @@ fields = [
 # constructor parameters, so that the constructor of the released type stays what it was: <Type>.<field>.
 [init_properties]
 fields = ["InputCreatedEventArgs.inputKindCaps"]
+
+# Properties of a released type that another property replaced. The type keeps them as obsolete aliases, so that code that
+# was compiled against the released version still compiles (3.0.1 had these, computed from sceneName and sceneUuid; the
+# protocol still sends the deprecated currentProgramScene* and currentPreviewScene* fields, which the patches above leave out).
+# <Type>.<alias> = "<the property it is an alias of>", both as C# names. Remove an entry in a major version.
+[obsolete_aliases]
+"CurrentProgramSceneNameResponse.CurrentProgramSceneName" = "SceneName"
+"CurrentProgramSceneNameResponse.CurrentProgramSceneUuid" = "SceneUuid"
+"CurrentPreviewSceneNameResponse.CurrentPreviewSceneName" = "SceneName"
+"CurrentPreviewSceneNameResponse.CurrentPreviewSceneUuid" = "SceneUuid"
 
 # ---------------------------------------------------------------------------------------------------------------
 # Requests. A request has a method on ObsClient and a builder on RequestBatchMessage, with the fields of the request

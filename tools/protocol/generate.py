@@ -154,6 +154,13 @@ def emit_dto(source: Source, dto: Dto, noun: str) -> None:
         if f.type.is_collection and not f.type.nullable:
             initializer += " ?? []"
         source.add(2, f"public {f.type.text} {pm.pascal(f.field.name)} {{ get; }} = {initializer};")
+    for alias, target in dto.aliases:
+        # A property of a released version that another property replaced: kept, so that code compiled against that version still compiles.
+        source.add()
+        source.summary(2, sentence(target.field.description))
+        source.add(2, f'[Obsolete("Use {pm.pascal(target.field.name)} instead. This property will be removed in future versions.")]')
+        source.add(2, "[JsonIgnore]")
+        source.add(2, f"public {target.type.text} {alias} => this.{pm.pascal(target.field.name)};")
     source.add(1, "}")
 
 
@@ -619,8 +626,12 @@ def generate(model: Model) -> dict[Path, str]:
     descriptions = {r.name: (r.description, r.since) for r in model.requests}
     event_descriptions = {e.name: (e.description, e.since) for e in model.events}
 
-    files[GENERATED / "Responses.g.cs"] = emit_dtos(model, "OBSStudioClient.Responses", pm.response_dtos(model), "response")
-    files[GENERATED / "EventArgs.g.cs"] = emit_dtos(model, "OBSStudioClient.Events", pm.event_dtos(model), "event")
+    response_types = pm.response_dtos(model)
+    event_types = pm.event_dtos(model)
+    pm.check_dto_overlay(model, response_types + event_types)
+
+    files[GENERATED / "Responses.g.cs"] = emit_dtos(model, "OBSStudioClient.Responses", response_types, "response")
+    files[GENERATED / "EventArgs.g.cs"] = emit_dtos(model, "OBSStudioClient.Events", event_types, "event")
     files[GENERATED / "RequestResponseMessage.g.cs"] = emit_response_registry(model)
     files[GENERATED / "EventMessage.g.cs"] = emit_event_registry(model)
     files[GENERATED / "ObsClient.Events.g.cs"] = emit_events(model)

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import generate  # noqa: E402
 import protocol_model as pm  # noqa: E402
 
 OVERLAY = {"refs": {"kinds": {"scene": "SceneRef", "input": "InputRef", "source": "SourceRef"}}}
@@ -156,6 +157,54 @@ class Returns(unittest.TestCase):
         returns = m.returns(m.request("GetThing"))
 
         self.assertEqual((returns.kind, returns.type), ("dto", "GetThingResponse"))
+
+
+class ObsoleteAliases(unittest.TestCase):
+    """A property of a released type that another one replaced stays as an obsolete alias."""
+
+    @staticmethod
+    def aliased(entries: dict[str, str]) -> pm.Model:
+        return model(("GetThing", [], [field("sceneName"), field("sceneUuid")]), overlay=dict(OVERLAY, obsolete_aliases=entries))
+
+    def test_an_alias_is_part_of_its_type(self):
+        m = self.aliased({"GetThingResponse.CurrentSceneName": "SceneName"})
+
+        (dto,) = pm.response_dtos(m)
+
+        self.assertEqual([(alias, target.field.name) for alias, target in dto.aliases], [("CurrentSceneName", "sceneName")])
+
+    def test_an_alias_is_written_as_an_obsolete_computed_property(self):
+        m = self.aliased({"GetThingResponse.CurrentSceneName": "SceneName"})
+
+        text = generate.emit_dtos(m, "Test", pm.response_dtos(m), "response")
+
+        self.assertIn('[Obsolete("Use SceneName instead. This property will be removed in future versions.")]', text)
+        self.assertIn("public string CurrentSceneName => this.SceneName;", text)
+        self.assertIn("[JsonIgnore]", text)
+
+    def test_an_alias_of_a_property_the_type_does_not_have_is_reported(self):
+        m = self.aliased({"GetThingResponse.CurrentSceneName": "NoSuchProperty"})
+
+        with self.assertRaises(pm.ModelError):
+            pm.response_dtos(m)
+
+    def test_an_alias_that_the_type_has_a_property_for_itself_is_reported(self):
+        m = self.aliased({"GetThingResponse.SceneUuid": "SceneName"})
+
+        with self.assertRaises(pm.ModelError):
+            pm.response_dtos(m)
+
+    def test_an_alias_of_a_type_that_is_not_generated_is_reported(self):
+        m = self.aliased({"GoneResponse.CurrentSceneName": "SceneName"})
+
+        with self.assertRaises(pm.ModelError):
+            pm.check_dto_overlay(m, pm.response_dtos(m))
+
+    def test_an_init_property_of_a_type_that_is_not_generated_is_reported(self):
+        m = model(("GetThing", [], [field("first"), field("second")]), overlay=dict(OVERLAY, init_properties={"fields": ["GoneResponse.first"]}))
+
+        with self.assertRaises(pm.ModelError):
+            pm.check_dto_overlay(m, pm.response_dtos(m))
 
 
 class CurrentProtocol(unittest.TestCase):
