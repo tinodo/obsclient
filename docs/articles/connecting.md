@@ -133,8 +133,9 @@ using var loggerFactory = LoggerFactory.Create(builder => builder
 using var client = new ObsClient(loggerFactory.CreateLogger<ObsClient>());
 ```
 
-(`AddConsole` comes from the `Microsoft.Extensions.Logging.Console` package.) With dependency injection, register the client and
-the container supplies the logger:
+(`LoggerFactory` is in the `Microsoft.Extensions.Logging` package, and `AddConsole` in `Microsoft.Extensions.Logging.Console`, which brings the
+other one with it; the client itself only depends on `Microsoft.Extensions.Logging.Abstractions`, for the `ILogger` interface.) With
+dependency injection, register the client and the container supplies the logger:
 
 ```csharp
 builder.Services.AddSingleton<ObsClient>();

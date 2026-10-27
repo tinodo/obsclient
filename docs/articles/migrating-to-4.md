@@ -97,6 +97,7 @@ what you set, which is what obs-websocket supports. See [Calling requests](reque
 | `AddOpenSourceProjectorRequest`, `AddOpenVideoMixProjectorRequest` | Threw an `ArgumentException` for an invalid combination of monitor and geometry | Send what they are given and leave the check to obs-websocket, which answers an error. |
 | `MonitorTypeResponse` | Existed, but no request returned it | Removed (`GetInputAudioMonitorType` returns the `MonitorType`). |
 | The constructors of `RequestMessage` that took a `dynamic` | `protected internal` | Removed. |
+| The package dependency | `Microsoft.Extensions.Logging` 9.0.9 | `Microsoft.Extensions.Logging.Abstractions` 8.0.0, which has the `ILogger` that the client uses. An application that makes its own logger with `LoggerFactory` references `Microsoft.Extensions.Logging` itself; one that gets its logger from dependency injection has it already. |
 
 ## What behaves differently
 

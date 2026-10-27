@@ -15,7 +15,7 @@ import zipfile
 
 ASSEMBLY_NAME = "OBSClient"
 REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
-ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging", "Microsoft.Extensions.Logging.Abstractions"}
+ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
 # Plumbing that every NuGet package has, plus the files this package is meant to carry.
 ALLOWED_FILES = [

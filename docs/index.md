@@ -164,7 +164,7 @@ await client.SetSceneItemTransform(
 | **Protocol** | [obs-websocket 5.7.6](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md), including the multi-canvas requests and events of 5.7.0. |
 | **Target frameworks** | `net8.0` and `net10.0`. |
 | **Platforms** | Windows, Linux and macOS: the client only uses `System.Net.WebSockets`, and its tests run on all three in CI. |
-| **Dependencies** | `Microsoft.Extensions.Logging`. |
+| **Dependencies** | `Microsoft.Extensions.Logging.Abstractions` (8.0.0 and up), which has the `ILogger` that the client logs to. |
 | **License** | [MIT](https://github.com/tinodo/obsclient/blob/main/LICENSE) |
 
 </div>
