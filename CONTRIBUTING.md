@@ -81,7 +81,44 @@ number) and `EnumStabilityTests` guards them; when you add a member to another p
 
 ## Releasing (maintainers)
 
-1. Bump `<Version>` in `OBSClient/OBSClient.csproj`.
-2. Merge to `main`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` — this triggers `.github/workflows/publish.yml`, which packs once
-   and publishes that package to both nuget.org (via Trusted Publishing) and GitHub Packages.
+Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It packs **once**, checks that
+the package is a single assembly, and pushes that same `.nupkg` to nuget.org and to GitHub Packages.
+
+**Trusted Publishing, in short.** No NuGet API key is stored anywhere. When the nuget.org job runs, GitHub signs a token that says
+"this is the workflow `publish.yml` of `tinodo/obsclient`, running in the environment `release`". nuget.org checks that against a
+*policy* that the package owner created, and answers with an API key that is valid for one hour. Anything else (another
+repository, another workflow, another environment) gets nothing.
+
+### One-time setup
+
+| Where | What | State |
+| --- | --- | --- |
+| GitHub: Settings, Environments, `release` | Required reviewer (you approve each publish), deployments only from `v*` tags and from `main` | done |
+| GitHub: environment secret `NUGET_USER` | The nuget.org **profile name** of the package owner: `tinod`. Not the GitHub name `tinodo`, and not an e-mail address | done |
+| nuget.org: Account, Trusted Publishing, Add policy | Repository Owner `tinodo`, Repository `obsclient`, Workflow File `publish.yml` (file name only, not the path), Environment `release`. Allow pushing new versions of existing packages, for the package `OBSClient` only | **only the package owner can do this** |
+
+A policy for a public repository is active at once. The package ID `OBSClient` is already yours, so nothing has to be reserved.
+
+### Each release
+
+1. Bump `<Version>` in `OBSClient/OBSClient.csproj`, add the CHANGELOG entry, and merge to `main` with a pull request.
+2. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
+3. Open the run in the Actions tab. The *Pack* job checks the tag, builds, packs and uploads the package as the artifact
+   `nuget-package`; download it if you want to look at it. The *Publish to NuGet.org* job then waits for you: **Review
+   deployments**, **Approve and deploy**. GitHub Packages does not wait.
+4. nuget.org validates the package before it is listed; the version shows up after a few minutes.
+
+### When it fails
+
+Re-run the failed jobs in the Actions tab; it runs the workflow as it was at the tag. Never delete and re-tag.
+
+| Symptom | Cause |
+| --- | --- |
+| `NuGet/login` fails with 403 | The job lacks `id-token: write` (it has it), or `NUGET_USER` is wrong: it must be the profile name `tinod` |
+| No matching policy | The policy on nuget.org differs from the workflow: owner, repository, file name (`publish.yml`) or environment (`release`) |
+| Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
+| The job never starts | It is waiting for your approval |
+| The pack job refuses the tag | The tag is not `vX.Y.Z`, differs from `<Version>`, or is not on `main` |
+
+A published version is **permanent**: nuget.org lets you unlist or deprecate it, never delete or replace it. If a release is wrong,
+publish a fixed one.

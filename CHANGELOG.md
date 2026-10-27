@@ -107,8 +107,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   and are **not** part of the package, which stays one assembly (`tools/verify-package.py` checks the package in CI, and a
   test checks the assembly). A scheduled workflow opens an issue as soon as obs-websocket publishes a new version, with
   the differences and the outcome of trying the update.
-- CI: a cross-platform build and test matrix, CodeQL analysis, and a tag-triggered publish pipeline to nuget.org
-  (Trusted Publishing) and GitHub Packages.
+- CI: a cross-platform build and test matrix, CodeQL analysis, GitHub Copilot code review of every pull request (which
+  replaces SonarCloud, now removed), and a tag-triggered publish pipeline to nuget.org (Trusted Publishing) and GitHub Packages.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:

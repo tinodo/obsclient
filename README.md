@@ -103,9 +103,8 @@ trying the update; `python tools/protocol/update.py --latest` applies it. The te
 request method and batch builder and compare what is sent, field by field, with a snapshot of the definition, and verify the
 events, responses and enum values too.
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tinodo_obsclient&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tinodo_obsclient)
-![Build and Test](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)
-![CodeQL](https://github.com/tinodo/obsclient/actions/workflows/codeql.yml/badge.svg?branch=main)
+[![Build and Test](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/tinodo/obsclient/actions/workflows/build.yml)
+[![CodeQL](https://github.com/tinodo/obsclient/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tinodo/obsclient/actions/workflows/codeql.yml)
 [![NuGet](https://img.shields.io/nuget/v/obsclient.svg?style=flat)](https://www.nuget.org/packages/obsclient)  
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and contribute, and [CHANGELOG.md](CHANGELOG.md) for release history.
