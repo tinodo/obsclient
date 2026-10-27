@@ -1,6 +1,7 @@
 # Keeps the dependencies of this repository up to date (https://docs.github.com/code-security/dependabot).
-# Dependabot opens at most one pull request a week for each ecosystem, and CI checks it like any other pull request.
-# CONTRIBUTING.md, "Dependency updates", says what to look at before one is merged.
+# Every Monday Dependabot proposes the routine updates of each ecosystem in one pull request; a major update of a NuGet package
+# gets a pull request of its own. CI checks them like any other pull request, and CONTRIBUTING.md, "Dependency updates", says
+# what to look at before one is merged.
 #
 # A release waits a week (the cooldown) before it is proposed, so that a package that was published by mistake, or with
 # malicious code, is usually withdrawn before it can reach this repository. Security updates are not delayed.
