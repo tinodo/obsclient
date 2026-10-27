@@ -30,7 +30,7 @@ client.ConnectionClosed += (_, e) =>
 | `NormalClosure` | The connection was closed on purpose, for example by `Disconnect()`. |
 | `EndpointUnavailable` | OBS Studio is going away. |
 | `AuthenticationFailed` | The password is wrong. |
-| `SessionInvalidated` | The session was ended in OBS Studio (the **Kick** button of the session list). `AutoReconnect` is switched off: obs-websocket requires that a client does not reconnect automatically after this. |
+| `SessionInvalidated` | The session was ended in OBS Studio (the **Kick** button of the session list). `AutoReconnect` is switched off: obs-websocket requires that a client does not reconnect automatically after this. (Up to and including 4.0.0-beta1 the client reconnected anyway.) |
 | `NotIdentified`, `MessageDecodeError`, `InvalidDataFieldValue`, ... | OBS Studio refused a message of the client. This should not happen: please [open an issue](https://github.com/tinodo/obsclient/issues) with the debug log. |
 
 ## A request throws `TimeoutException`

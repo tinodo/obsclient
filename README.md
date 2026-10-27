@@ -99,8 +99,9 @@ client.Dispose();
 ## Try it: the test app
 
 [`OBSClient.TestApp`](OBSClient.TestApp) is a Windows (WinUI 3) application to try every request and event of this library by hand
-against your own OBS Studio, and to compare what OBS Studio sends with what the client returns. Every CI run publishes it as an
-artifact (`OBSClient.TestApp-win-x64`: unzip it, start `OBSClient.TestApp.exe`); see [CONTRIBUTING.md](CONTRIBUTING.md#the-test-app).
+against your own OBS Studio, and to compare what OBS Studio sends with what the client returns. Every
+[release](https://github.com/tinodo/obsclient/releases) has it as a download (`OBSClient.TestApp-<version>-win-x64.zip`: unzip it, start
+`OBSClient.TestApp.exe`), and every CI run publishes it as an artifact; see [CONTRIBUTING.md](CONTRIBUTING.md#the-test-app).
 
 ## Staying in sync with obs-websocket
 

@@ -1,0 +1,49 @@
+# Keeps the dependencies of this repository up to date (https://docs.github.com/code-security/dependabot).
+# Every Monday Dependabot proposes the routine updates of each ecosystem in one pull request; a major update of a NuGet package
+# gets a pull request of its own. CI checks them like any other pull request, and CONTRIBUTING.md, "Dependency updates", says
+# what to look at before one is merged.
+#
+# A release waits a week (the cooldown) before it is proposed, so that a package that was published by mistake, or with
+# malicious code, is usually withdrawn before it can reach this repository. Security updates are not delayed.
+version: 2
+updates:
+  # The actions that the workflows in .github/workflows use, in one pull request.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # The NuGet packages of the three projects of OBSClient.sln (it is expanded into its projects) and the dotnet tool that
+  # builds the documentation (DocFX, .config/dotnet-tools.json). The minor and patch updates come together; a major update
+  # gets a pull request of its own, which is to be read before it is merged.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    cooldown:
+      default-days: 7
+    groups:
+      nuget:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # The one dependency of the library is part of what its users get with it. Moving to another major version of it is a
+      # decision about the target frameworks that people have to make, so no pull request is opened for it.
+      - dependency-name: Microsoft.Extensions.*
+        update-types:
+          - version-update:semver-major

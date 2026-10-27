@@ -87,9 +87,10 @@ included (up to 40 million characters; the oldest entries go first): the screen 
 length, the export and the comparison use the whole message. The events of the session are kept from the moment the app starts, so the
 Events page has them when it is opened after they were raised.
 
-Build and run it on Windows with the .NET 10 SDK: `dotnet run --project OBSClient.TestApp -p:Platform=x64`. Every build of CI
-publishes it as the artifact `OBSClient.TestApp-win-x64` (unpackaged and self-contained: unzip it and start `OBSClient.TestApp.exe`;
-nothing else has to be installed). CI also starts the app with `--smoke-test <log>`, because the XAML of an app is only read when it
+Build and run it on Windows with the .NET 10 SDK: `dotnet run --project OBSClient.TestApp -p:Platform=x64`. Every release has it as a
+download (`OBSClient.TestApp-<version>-win-x64.zip`), and every build of CI publishes it as the artifact `OBSClient.TestApp-win-x64`
+(kept for two weeks). Both are unpackaged and self-contained: unzip it and start `OBSClient.TestApp.exe`; nothing else has to be
+installed. CI also starts the app with `--smoke-test <log>`, because the XAML of an app is only read when it
 runs: the app opens every page, builds, fills in and reads the editor of every request, and then goes the whole way against a
 simulated OBS Studio (the fake server of the tests): it connects through its own Connection page, sends requests through the
 Explorer, sends a batch, receives events and checks the Log. The pictures it takes of the pages are the artifact
@@ -161,6 +162,23 @@ overlay or the generator. When a change alters how the library is used, update t
 - GitHub Copilot automatically reviews pull requests in this repository; please address or respond to its comments.
 - Describe what changed and why; link the related issue if any.
 
+## Dependency updates
+
+Dependabot (`.github/dependabot.yml`) looks at the GitHub Actions of the workflows and at the NuGet packages (the three projects of
+`OBSClient.sln` and the DocFX tool of the documentation) every Monday morning. The routine updates of each ecosystem come in one pull
+request: all the actions together, and all the minor and patch updates of the packages together. A major update of a package gets a pull
+request of its own, so that it can be read before it is merged; the default limit of five open pull requests per ecosystem is not changed,
+because a lower one would let an unmerged major update hold back the routine ones. A release has to be a week old before it is proposed
+(the *cooldown*), which keeps a package that was published by mistake, or with malicious code, out of the repository in most cases;
+security updates are not delayed. Dependabot alerts and security updates are on.
+
+These are pull requests like any other: CI builds and tests them, and the Docs workflow builds the site when DocFX is updated. Read the
+release notes of a major update before you merge it, and be careful with the actions of `publish.yml`: a change to that workflow is only
+exercised when a version tag is pushed.
+
+The one dependency of the library, `Microsoft.Extensions.Logging`, is part of what its users get with it. No pull request is opened for a
+new major version of `Microsoft.Extensions.*`: moving to one is a decision about the target frameworks, made by hand.
+
 ## Releasing (maintainers)
 
 Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It packs **once**, checks that
@@ -189,6 +207,19 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
    `nuget-package`; download it if you want to look at it. The *Publish to NuGet.org* job then waits for you: **Review
    deployments**, **Approve and deploy**. GitHub Packages does not wait.
 4. nuget.org validates the package before it is listed; the version shows up after a few minutes.
+5. Create the GitHub release. This step is manual. The release is titled with the tag, is a prerelease when the version has a suffix, and has
+   the notes (what is new, what breaks, and the SHA-256 of both assets) and two assets: the package that was published (the artifact
+   `nuget-package` of the Publish run) and the test app as `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the artifact `OBSClient.TestApp-win-x64`
+   of the Build and Test run of the tagged commit on `main`, which is kept for 14 days; the artifact has some 400 files in its root, so zip
+   them again in a folder of that name). Create it as a draft, look at it, and publish it:
+
+   ```shell
+   gh release create vX.Y.Z --draft --prerelease --verify-tag --title vX.Y.Z --notes-file notes.md OBSClient.X.Y.Z.nupkg OBSClient.TestApp-X.Y.Z-win-x64.zip
+   gh release view vX.Y.Z
+   gh release edit vX.Y.Z --draft=false
+   ```
+
+   (`--prerelease` only when the version has a suffix.)
 
 **Prereleases.** A version with a suffix (`4.0.0-beta1`, tag `v4.0.0-beta1`) goes through the same workflow. nuget.org lists it as a
 prerelease, which `dotnet add package OBSClient` and the NuGet UI skip unless they are asked to include prereleases, so what people

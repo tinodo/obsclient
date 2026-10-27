@@ -14,14 +14,17 @@ before you write any code. It is not part of the NuGet package.
 
 ## Get it
 
-Every build of the `main` branch publishes the app as the artifact **`OBSClient.TestApp-win-x64`** of the
-[Build and Test workflow](https://github.com/tinodo/obsclient/actions/workflows/build.yml): open the newest successful run on `main`, and
-download the artifact (GitHub asks you to sign in to download artifacts, and keeps them for two weeks). Unzip it and start
-`OBSClient.TestApp.exe`. The app is self-contained, so nothing else has to be installed. It is built for Windows 10 version 1809 and later,
-and the artifact is for x64.
+Every [release](https://github.com/tinodo/obsclient/releases) has the app as a download, from 4.0.0-beta1 on: under *Assets*, take
+**`OBSClient.TestApp-<version>-win-x64.zip`**, unzip it, and start `OBSClient.TestApp.exe`. The app is self-contained, so nothing else
+has to be installed. It is built for Windows 10 version 1809 and later, and the download is for x64.
 
 > [!NOTE]
-> The app is not code signed, so Windows may warn that the publisher is unknown.
+> The app is not code signed, so Windows may warn that the publisher is unknown. The notes of each release list the SHA-256 of the zip,
+> so that you can check what you downloaded.
+
+The newest build of the `main` branch is also published as the artifact **`OBSClient.TestApp-win-x64`** of the
+[Build and Test workflow](https://github.com/tinodo/obsclient/actions/workflows/build.yml): open the newest successful run on `main`, and
+download the artifact (GitHub asks you to sign in to download artifacts, and keeps them for two weeks).
 
 To build and run it from the source you need Windows and the .NET 10 SDK:
 
