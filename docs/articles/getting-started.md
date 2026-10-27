@@ -49,12 +49,13 @@ using var client = new ObsClient();
 // True when OBS Studio has accepted the connection and the password.
 if (!await client.ConnectAsync(password: "your-password"))
 {
-    Console.WriteLine("Could not connect. Is OBS Studio running, with the WebSocket server enabled?");
+    Console.WriteLine("Could not connect. Is the WebSocket server enabled?");
     return;
 }
 
 var version = await client.GetVersion();
-Console.WriteLine($"Connected to OBS Studio {version.ObsVersion} (obs-websocket {version.ObsWebSocketVersion}).");
+Console.WriteLine($"OBS Studio {version.ObsVersion}");
+Console.WriteLine($"obs-websocket {version.ObsWebSocketVersion}");
 
 var current = await client.GetCurrentProgramScene();
 Console.WriteLine($"On air: {current.SceneName}");
@@ -69,7 +70,8 @@ foreach (var scene in scenes.Scenes)
 Run it with `dotnet run`, while OBS Studio is running:
 
 ```text
-Connected to OBS Studio 33.0.0 (obs-websocket 5.7.6).
+OBS Studio 33.0.0
+obs-websocket 5.7.6
 On air: Gaming Scene
 - Gaming Scene
 - Starting Soon
@@ -79,7 +81,7 @@ On air: Gaming Scene
 These requests only read. When you are ready to change something, remember that OBS Studio may be live:
 
 ```csharp
-await client.SetCurrentProgramScene("Starting Soon");     // switches the program scene
+await client.SetCurrentProgramScene("Starting Soon");   // switches the scene
 bool muted = await client.ToggleInputMute("Microphone");  // returns the new state
 ```
 

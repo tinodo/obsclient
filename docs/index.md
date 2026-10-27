@@ -16,8 +16,8 @@ Linux or macOS. Every request, event and enum of the obs-websocket protocol is a
 protocol on every build.
 
 <div class="oc-actions">
-<a class="btn btn-primary btn-lg" href="articles/getting-started.html">Get started</a>
-<a class="btn btn-outline-secondary btn-lg" href="api/OBSStudioClient.ObsClient.html">API reference</a>
+<a class="btn btn-primary btn-lg" href="articles/getting-started.md">Get started</a>
+<a class="btn btn-outline-secondary btn-lg" href="api/index.md">API reference</a>
 <a class="btn btn-outline-secondary btn-lg" href="https://github.com/tinodo/obsclient"><i class="bi bi-github"></i> GitHub</a>
 </div>
 
@@ -50,7 +50,7 @@ if (await client.ConnectAsync(password: "secret"))
 <i class="bi bi-info-circle"></i>
 <div>
 <strong>4.0 is in beta.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6.
-Using 3.x? <a href="articles/migrating-to-4.html">Moving from 3.x to 4.0</a> lists what changes.
+Using 3.x? <a href="articles/migrating-to-4.md">Moving from 3.x to 4.0</a> lists what changes.
 </div>
 </div>
 
@@ -111,9 +111,9 @@ using OBSStudioClient;
 using var client = new ObsClient();
 if (!await client.ConnectAsync(password: "secret")) return;
 
-await client.SetCurrentProgramScene("Gaming Scene");       // by name
-await client.SetCurrentProgramScene(sceneUuid);            // or by UUID, which survives a rename
-bool muted = await client.ToggleInputMute("Microphone");   // returns the new state
+await client.SetCurrentProgramScene("Gaming Scene");      // by name
+await client.SetCurrentProgramScene(sceneUuid);           // by UUID: survives a rename
+bool muted = await client.ToggleInputMute("Microphone");  // returns the new state
 await client.StartStream();
 ```
 
@@ -135,16 +135,19 @@ batch.AddSetCurrentProgramSceneRequest("Starting Soon");
 batch.AddSleepRequest(5000, null);
 batch.AddSetCurrentProgramSceneRequest("Gaming Scene");
 
-RequestResponseMessage[] results = await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 6000);
+RequestResponseMessage[] results =
+    await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 6000);
 ```
 
 #### [Move a scene item](#tab/transform)
 
 ```csharp
-SceneItemTransform current = await client.GetSceneItemTransform("Gaming Scene", sceneItemId);
+SceneItemTransform current =
+    await client.GetSceneItemTransform("Gaming Scene", sceneItemId);
 
 // Change what you need; the rest is left as it is.
-await client.SetSceneItemTransform("Gaming Scene", sceneItemId, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });
+await client.SetSceneItemTransform(
+    "Gaming Scene", sceneItemId, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });
 ```
 
 ---
@@ -170,27 +173,27 @@ await client.SetSceneItemTransform("Gaming Scene", sceneItemId, current.ToUpdate
 
 ## Where next
 
-<div class="oc-cards">
+<div class="oc-cards oc-cards-4">
 
-<a class="oc-card oc-card-link" href="articles/getting-started.html">
+<a class="oc-card oc-card-link" href="articles/getting-started.md">
 <i class="bi bi-rocket-takeoff"></i>
 <h3>Getting started</h3>
 <p>Enable the WebSocket server, install the package and send your first request.</p>
 </a>
 
-<a class="oc-card oc-card-link" href="articles/requests.html">
+<a class="oc-card oc-card-link" href="articles/requests.md">
 <i class="bi bi-send"></i>
 <h3>Calling requests</h3>
 <p>Names and UUIDs, canvases, settings, errors and timeouts.</p>
 </a>
 
-<a class="oc-card oc-card-link" href="articles/test-app.html">
+<a class="oc-card oc-card-link" href="articles/test-app.md">
 <i class="bi bi-window-stack"></i>
 <h3>The test app</h3>
 <p>A Windows app to try every request and event by hand against your own OBS Studio.</p>
 </a>
 
-<a class="oc-card oc-card-link" href="api/OBSStudioClient.html">
+<a class="oc-card oc-card-link" href="api/index.md">
 <i class="bi bi-book"></i>
 <h3>API reference</h3>
 <p>Every type and member of the library, generated from the source.</p>

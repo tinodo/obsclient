@@ -34,8 +34,10 @@ await client.ConnectAsync(
     password: "your-password",
     eventSubscription: EventSubscriptions.Scenes | EventSubscriptions.Inputs);
 
-// Later, add the outputs (stream, recording, ...). The new value replaces the old one, so name everything you want:
-await client.ReidentifyAsync(EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.Outputs);
+// Later, add the outputs (stream, recording, ...). The new value replaces the
+// old one, so name everything you want:
+await client.ReidentifyAsync(
+    EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.Outputs);
 ```
 
 | Subscription | Events |
@@ -60,7 +62,8 @@ OBS Studio sends four events so often that they are not part of `All`: `InputVol
 `InputShowStateChanged` and `SceneItemTransformChanged`. Ask for them by name:
 
 ```csharp
-await client.ReidentifyAsync(EventSubscriptions.All | EventSubscriptions.InputVolumeMeters);
+await client.ReidentifyAsync(
+    EventSubscriptions.All | EventSubscriptions.InputVolumeMeters);
 
 client.InputVolumeMeters += (_, e) =>
 {
@@ -91,7 +94,8 @@ skips the ones in between. The other three events each describe a change of one 
       }
       catch (Exception ex)
       {
-          // An exception that leaves an async handler is not seen by the client, and ends the process.
+          // An exception that leaves an async handler is not seen by
+          // the client, and ends the process.
           Console.WriteLine($"Could not read the items: {ex.Message}");
       }
   };
@@ -113,7 +117,8 @@ using System.Text.Json;
 
 client.CustomEvent += (_, e) => Console.WriteLine($"Custom event: {e.EventData}");
 
-await client.BroadcastCustomEvent(JsonSerializer.SerializeToElement(new { message = "hello" }));
+var data = JsonSerializer.SerializeToElement(new { message = "hello" });
+await client.BroadcastCustomEvent(data);
 ```
 
 A plugin that registered with obs-websocket raises its own events as a `VendorEvent`, with the `VendorName`, the `EventType` and the

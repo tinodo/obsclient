@@ -18,11 +18,12 @@ it and returns the result of each request:
 var batch = new RequestBatchMessage(haltOnFailure: true);
 batch.AddSetCurrentProgramSceneRequest("Starting Soon");
 batch.AddSetInputMuteRequest("Microphone", true);
-batch.AddSleepRequest(5000, null);                          // OBS Studio waits 5 seconds
+batch.AddSleepRequest(5000, null);                   // OBS Studio waits 5 seconds
 batch.AddSetInputMuteRequest("Microphone", false);
 batch.AddSetCurrentProgramSceneRequest("Gaming Scene");
 
-RequestResponseMessage[] results = await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 7000);
+RequestResponseMessage[] results =
+    await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 7000);
 ```
 
 The scenes and inputs of a batch are given like those of a [request](requests.md#scenes-inputs-and-sources-names-or-uuids): by name,
@@ -79,12 +80,14 @@ The second argument of the constructor is the [execution type](xref:OBSStudioCli
 An animation that moves a scene item by 10 pixels per frame:
 
 ```csharp
-var batch = new RequestBatchMessage(requestBatchExecutionType: RequestBatchExecutionType.SerialFrame);
+var batch = new RequestBatchMessage(
+    requestBatchExecutionType: RequestBatchExecutionType.SerialFrame);
 
 for (int step = 1; step <= 30; step++)
 {
-    batch.AddSetSceneItemTransformRequest("Gaming Scene", sceneItemId, new SceneItemTransformUpdate { PositionX = step * 10 });
-    batch.AddSleepRequest(null, 1);                          // wait one frame
+    var move = new SceneItemTransformUpdate { PositionX = step * 10 };
+    batch.AddSetSceneItemTransformRequest("Gaming Scene", sceneItemId, move);
+    batch.AddSleepRequest(null, 1);                      // wait one frame
 }
 
 await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 5000);

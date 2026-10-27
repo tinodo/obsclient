@@ -54,6 +54,7 @@ jobs:
             10.0.x
 
       # Restores DocFX (the version is pinned in .config/dotnet-tools.json), builds the site, and checks its links.
+      # A DocFX warning fails the build.
       - name: Build the site
         env:
           # The "View source" links of the API reference point to this branch, whatever is checked out.

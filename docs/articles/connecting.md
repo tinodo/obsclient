@@ -77,7 +77,7 @@ client.PropertyChanged += (_, e) =>
 };
 
 client.ConnectionClosed += (_, e) =>
-    Console.WriteLine($"Closed: {e.WebSocketCloseCode} ({e.WebSocketCloseDescription})");
+    Console.WriteLine($"Closed: {e.WebSocketCloseCode} {e.WebSocketCloseDescription}");
 ```
 
 A request that is waiting for its response when the connection ends fails at once with an `ObsClientException`; it does not
@@ -142,7 +142,8 @@ Use the host name or the IP address of the machine that runs OBS Studio, and mak
 default) is open in the firewall of that machine.
 
 ```csharp
-await client.ConnectAsync(password: "your-password", hostname: "streaming-pc.local", port: 4455);
+await client.ConnectAsync(
+    password: "your-password", hostname: "streaming-pc.local", port: 4455);
 ```
 
 There is no encryption between the client and OBS Studio, so connect across a network that you trust, or through a tunnel.

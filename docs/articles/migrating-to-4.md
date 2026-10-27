@@ -64,7 +64,12 @@ of the old types is a settings object, so 3.x had no way to give a new input its
 ```csharp
 await client.CreateInput(
     "Gaming Scene", "Overlay", "browser_source",
-    new Dictionary<string, object> { ["url"] = "https://example.com", ["width"] = 800, ["height"] = 600 });
+    new Dictionary<string, object>
+    {
+        ["url"] = "https://example.com",
+        ["width"] = 800,
+        ["height"] = 600
+    });
 ```
 
 Passing `null` to `CreateInput` still works.

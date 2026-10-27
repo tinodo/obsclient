@@ -22,13 +22,23 @@
 
 /* The template sets its link colours on the body, so they have to be overridden there. */
 body {
+  --bs-link-color: #5b4bdb !important;
+  --bs-link-hover-color: #4a3bc7 !important;
   --bs-link-color-rgb: 91, 75, 219 !important;
   --bs-link-hover-color-rgb: 74, 59, 199 !important;
+  --bs-code-color: #5b4bdb !important;
 }
 
 [data-bs-theme="dark"] body {
+  --bs-link-color: #a99cff !important;
+  --bs-link-hover-color: #c7beff !important;
   --bs-link-color-rgb: 169, 156, 255 !important;
   --bs-link-hover-color-rgb: 199, 190, 255 !important;
+  --bs-code-color: #c7beff !important;
+}
+
+.navbar-brand img {
+  margin-right: 0.5rem;
 }
 
 .btn-primary {
@@ -131,8 +141,24 @@ body[data-layout="landing"] main {
 
 .oc-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .oc-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .oc-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .oc-cards.oc-cards-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .oc-card {

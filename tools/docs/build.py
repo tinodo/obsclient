@@ -9,7 +9,8 @@ What it does:
 1. restores DocFX, which is pinned in .config/dotnet-tools.json, and the library project (DocFX reads the
    XML documentation from the source through MSBuild, which needs a restored project);
 2. copies CHANGELOG.md to docs/changelog.md (the copy is not committed), so that the changelog is a page of the site;
-3. runs DocFX: the API reference from the source of OBSClient, and the articles from docs/;
+3. runs DocFX, which fails on a warning (an unresolved xref, a link to a file that does not exist, ...): the API reference from the
+   source of OBSClient, and the articles from docs/;
 4. checks the links of the result (tools/docs/check-links.py).
 
 Needs the .NET SDK 8.0 or later (the library targets net8.0 and net10.0, so a restore needs the 10.0 SDK).
@@ -37,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--serve", action="store_true", help="serve the site after it is built")
     parser.add_argument("--no-restore", action="store_true", help="skip the restore of DocFX and of the library")
-    parser.add_argument("--warnings-as-errors", action="store_true", help="let DocFX fail on a warning")
+    parser.add_argument("--allow-warnings", action="store_true", help="do not let DocFX fail on a warning")
     args = parser.parse_args()
 
     if shutil.which("dotnet") is None:
@@ -50,7 +51,7 @@ def main():
     shutil.copyfile(ROOT / "CHANGELOG.md", DOCS / "changelog.md")
 
     docfx = ["dotnet", "docfx", "docs/docfx.json"]
-    if args.warnings_as_errors:
+    if not args.allow_warnings:
         docfx.append("--warningsAsErrors")
     run(*docfx)
 

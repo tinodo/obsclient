@@ -38,14 +38,15 @@ so a program that keeps a reference should keep the UUID. Whichever you use, the
 gave you convert to it implicitly, so there is nothing to wrap:
 
 ```csharp
-await client.SetCurrentProgramScene("Gaming Scene");     // by name
-await client.SetCurrentProgramScene(sceneUuid);          // by UUID, which survives a rename
-await client.SetCurrentProgramScene(scene);              // a Scene from GetSceneList: identified by its UUID
+await client.SetCurrentProgramScene("Gaming Scene");   // by name
+await client.SetCurrentProgramScene(sceneUuid);        // by UUID: survives a rename
+await client.SetCurrentProgramScene(scene);            // a Scene from GetSceneList
 
 bool muted = await client.GetInputMute("Microphone");
 
 // When you need to say which it is, or the type cannot be inferred:
-await client.SetSceneItemEnabled(SceneRef.FromName("Gaming Scene"), item.SceneItemId, true);
+await client.SetSceneItemEnabled(
+    SceneRef.FromName("Gaming Scene"), item.SceneItemId, true);
 ```
 
 A reference that identifies nothing (`default`), and a required argument that is `null`, are refused with an `ArgumentException`
@@ -65,7 +66,8 @@ foreach (Canvas canvas in canvases)
     SceneListResponse scenes = await client.GetSceneList(canvas.CanvasUuid);
 }
 
-SceneItem[] items = await client.GetSceneItemList("Scene", canvasUuid: canvases[0].CanvasUuid);
+Guid canvasUuid = canvases[0].CanvasUuid;
+SceneItem[] items = await client.GetSceneItemList("Scene", canvasUuid: canvasUuid);
 ```
 
 A UUID is unique to the whole of OBS Studio, so it needs no canvas.
@@ -95,12 +97,15 @@ has a nullable member for each part of the transform, and a member that is `null
 `ToUpdate()` turns what you read into an update that you adjust with a `with` expression:
 
 ```csharp
-SceneItemTransform current = await client.GetSceneItemTransform("Gaming Scene", sceneItemId);
+SceneItemTransform current =
+    await client.GetSceneItemTransform("Gaming Scene", sceneItemId);
 
-await client.SetSceneItemTransform("Gaming Scene", sceneItemId, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });
+await client.SetSceneItemTransform(
+    "Gaming Scene", sceneItemId, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });
 
 // Or only what you want to change:
-await client.SetSceneItemTransform("Gaming Scene", sceneItemId, new SceneItemTransformUpdate { PositionX = 100, PositionY = 50 });
+var move = new SceneItemTransformUpdate { PositionX = 100, PositionY = 50 };
+await client.SetSceneItemTransform("Gaming Scene", sceneItemId, move);
 ```
 
 A `SceneItemTransform` also converts to an update implicitly.
@@ -119,13 +124,14 @@ try
 {
     await client.SetCurrentProgramScene("No such scene");
 }
-catch (ObsResponseException ex) when (ex.ErrorCode == RequestStatusCode.ResourceNotFound)
+catch (ObsResponseException ex)
+    when (ex.ErrorCode == RequestStatusCode.ResourceNotFound)
 {
     Console.WriteLine("That scene does not exist.");
 }
 catch (ObsResponseException ex)
 {
-    Console.WriteLine($"OBS Studio refused the request: {ex.ErrorCode}, {ex.ErrorMessage}");
+    Console.WriteLine($"Refused: {ex.ErrorCode}, {ex.ErrorMessage}");
 }
 catch (TimeoutException)
 {
@@ -157,7 +163,8 @@ using System.Text.Json;
 CallVendorResponse response = await client.CallVendorRequest(
     "my-plugin", "my-request", JsonSerializer.SerializeToElement(new { value = 1 }));
 
-await client.BroadcastCustomEvent(JsonSerializer.SerializeToElement(new { message = "hello" }));
+var data = JsonSerializer.SerializeToElement(new { message = "hello" });
+await client.BroadcastCustomEvent(data);
 ```
 
 ## Shortcuts

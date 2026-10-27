@@ -138,7 +138,8 @@ Build it, and look at it, on any platform with the .NET SDKs (8.0 and 10.0) and 
 python tools/docs/build.py --serve     # builds docs/_site, checks its links, and serves it at http://localhost:8080
 ```
 
-The build fails on a link that leads nowhere and on an `xref:` that cannot be resolved. A pull request that changes `docs/`, the library, the
+The build fails on a DocFX warning (such as an `xref:` that cannot be resolved or a link to a file that does not exist) and on a link of the
+result that leads nowhere. A pull request that changes `docs/`, the library, the
 changelog or the tooling runs the **Docs** workflow, which builds the site and uploads it as the artifact `docs-site`; a push to `main`
 publishes it to GitHub Pages (Settings → Pages is set to deploy from GitHub Actions).
 
