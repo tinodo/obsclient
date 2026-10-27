@@ -122,7 +122,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   that is cancelled before the call stops it before anything is sent. A request that runs out of time still throws a
   `TimeoutException`. The token also ends the wait between the retries of a request that OBS Studio is not ready for. Cancelling
   `ConnectAsync` ends the attempt as `Disconnect()` does (it closes the connection that is being opened and switches `AutoReconnect`
-  off) and throws an `OperationCanceledException`, where a failed attempt returns `false`.
+  off, for that attempt only: a connection that a handler started in its place keeps its settings) and throws an
+  `OperationCanceledException`, where a failed attempt returns `false`. A `ReidentifyAsync` that was cancelled, or that failed, leaves
+  the events that a reconnect subscribes to as they were: they are remembered when the message has been written.
 - `net10.0` as an additional target framework, next to `net8.0`.
 - **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
   event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch

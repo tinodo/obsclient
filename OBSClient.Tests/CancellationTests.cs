@@ -15,10 +15,10 @@ namespace OBSStudioClient.Tests
     {
         private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
-        private static async Task<ObsClient> ConnectAsync(FakeObsWebSocketServer server)
+        private static async Task<ObsClient> ConnectAsync(FakeObsWebSocketServer server, ListLogger? log = null)
         {
             server.Start();
-            var client = new ObsClient { RequestTimeout = 5000 };
+            var client = new ObsClient(log) { RequestTimeout = 5000 };
             var connect = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
             await server.HandshakeAsync().WithTimeoutAsync(Timeout);
             await connect.WithTimeoutAsync(Timeout);
@@ -105,18 +105,27 @@ namespace OBSStudioClient.Tests
         public async Task TheWaitBetweenTheRetriesOfARequestThatIsNotReady_CanBeCancelled()
         {
             // OBS Studio answers NotReady (207) when it has just started; the client asks again after RequestRetryInterval, up to ten times.
+            var log = new ListLogger();
             await using var server = new FakeObsWebSocketServer();
-            using var client = await ConnectAsync(server);
+            using var client = await ConnectAsync(server, log);
+            client.RequestRetryInterval = 60_000; // far longer than this test waits: a wait that ignores the token cannot end in time
             using var cancellation = new CancellationTokenSource();
 
             var request = client.GetStudioModeEnabled(cancellation.Token);
             var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
             await server.SendRequestErrorAsync(requestType, requestId, (int)RequestStatusCode.NotReady, "Not ready");
+
+            // The client logs the answer when it reads it, and then needs a moment to get to the wait for its next attempt.
+            Assert.True(
+                await AsyncTestHelpers.WaitUntilAsync(() => log.Entries.Any(entry => entry.Message.Contains("\"code\":207", StringComparison.Ordinal)), Timeout),
+                "The client did not read the answer of OBS Studio.");
+            await Task.Delay(300);
             cancellation.Cancel();
 
-            // Cancelling ends the call, whether the client is waiting for the answer or for the next attempt; it does not
-            // give up with the error of OBS Studio, and it does not go through all the retries.
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request.WithTimeoutAsync(Timeout));
+            // Cancelling ends the call at once. It does not end with the error of OBS Studio, and a wait that ignored the token would take a minute.
+            var finished = await Task.WhenAny(request, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.Same(request, finished);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         }
 
         [Fact]
@@ -184,6 +193,83 @@ namespace OBSStudioClient.Tests
 
             // Cancelling ends the attempt the way Disconnect() does, so the client does not go on trying behind the caller's back.
             Assert.False(client.AutoReconnect);
+        }
+
+        [Fact]
+        public async Task ACancelledConnectAsync_DoesNotDisturbAConnectionThatAHandlerStartedInItsPlace()
+        {
+            // A handler of ConnectionState that connects again as soon as the connection is gone starts a new connection, while the
+            // call that was cancelled is still on its way out: that call must end its own attempt, and nothing of the new one.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+            using var cancellation = new CancellationTokenSource();
+            Task<bool>? replacement = null;
+            client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.ConnectionState) && client.ConnectionState == ConnectionState.Disconnected && replacement is null)
+                {
+                    replacement = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port);
+                }
+            };
+
+            var first = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port, cancellationToken: cancellation.Token);
+            await server.WaitForConnectionAsync(Timeout); // open, and the server says nothing: the client waits for its Hello
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
+
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => replacement is not null, Timeout), "The handler did not connect again.");
+            await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "The connection that the handler started did not get its handshake.");
+            Assert.True(await replacement!.WithTimeoutAsync(Timeout));
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // The setting of the new connection is its own: the call that was cancelled did not switch it off.
+            Assert.True(client.AutoReconnect);
+
+            client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ReidentifyAsync_ThatIsCancelled_DoesNotChangeWhatAReconnectSubscribesTo()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient { RequestTimeout = 5000 };
+            var connect = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port, eventSubscription: EventSubscriptions.Scenes);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            await connect.WithTimeoutAsync(Timeout);
+
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.ReidentifyAsync(EventSubscriptions.None, cancellation.Token));
+
+            // The reconnect sends what the client was asked to subscribe to when it connected: a call that did not happen changed nothing.
+            server.AbortConnection();
+            using var identify = await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "The client did not reconnect.");
+            Assert.Equal((int)EventSubscriptions.Scenes, identify.RootElement.GetProperty("d").GetProperty("eventSubscriptions").GetInt32());
+
+            client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ReidentifyAsync_ThatWasSent_ChangesWhatAReconnectSubscribesTo()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient { RequestTimeout = 5000 };
+            var connect = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port, eventSubscription: EventSubscriptions.Scenes);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            await connect.WithTimeoutAsync(Timeout);
+
+            await client.ReidentifyAsync(EventSubscriptions.Inputs).WithTimeoutAsync(Timeout);
+            using var reidentify = await server.ReceiveJsonAsync(Timeout);
+            Assert.Equal((int)EventSubscriptions.Inputs, reidentify.RootElement.GetProperty("d").GetProperty("eventSubscriptions").GetInt32());
+
+            server.AbortConnection();
+            using var identify = await server.HandshakeAsync(timeout: Timeout).WithTimeoutAsync(Timeout, "The client did not reconnect.");
+            Assert.Equal((int)EventSubscriptions.Inputs, identify.RootElement.GetProperty("d").GetProperty("eventSubscriptions").GetInt32());
+
+            client.Disconnect();
         }
 
         [Fact]

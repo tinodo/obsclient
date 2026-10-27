@@ -479,17 +479,10 @@
 
             _logger.LogInformation("Connecting to {Hostname}:{Port}", hostname, port);
 
-            // Cancelling ends the attempt the way Disconnect() does. The registration only lives as long as this call: a token that is
-            // cancelled after the connection was established must not close it.
-            using var cancellation = cancellationToken.Register(this.Disconnect);
-            var connected = await this.StartAsync().ConfigureAwait(false);
+            var connected = await this.StartAsync(cancellationToken).ConfigureAwait(false);
 
-            if (cancellationToken.IsCancellationRequested)
-            {
-                // The registration did this already, unless the token was cancelled before the connection attempt had a session to end.
-                this.Disconnect();
-                throw new OperationCanceledException(cancellationToken);
-            }
+            // StartAsync has ended the attempt, and only that attempt, when the token was cancelled: what is left is to tell the caller.
+            cancellationToken.ThrowIfCancellationRequested();
 
             return connected;
         }
@@ -541,10 +534,12 @@
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            this._eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
-            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message, cancellationToken).ConfigureAwait(false);
+
+            // The events are remembered, so that a reconnect subscribes to the same ones, when the message has been written (in the order in
+            // which messages are written): a call that was cancelled while it waited for its turn, or that failed, changes nothing.
+            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message, cancellationToken, () => this._eventSubscriptions = eventSubscription).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -584,11 +579,17 @@
             this._eventsMap.Clear();
         }
 
-        private async Task<bool> StartAsync()
+        private async Task<bool> StartAsync(CancellationToken cancellationToken = default)
         {
             var session = new ConnectionSession();
             this._session = session;
             this.ConnectionState = ConnectionState.Connecting;
+
+            // Cancelling the token ends this attempt, the session that was just made, and nothing else: Disconnect() ends whichever session is
+            // active at the moment that the token is cancelled, which can by then be a connection that a handler started in its place. A token
+            // that is cancelled already ends the session before its socket is opened. The registration only lives as long as the attempt:
+            // a token that is cancelled after the connection was established must not close it.
+            using var cancellation = cancellationToken.Register(() => this.EndAttempt(session));
 
             try
             {
@@ -602,18 +603,40 @@
                 _logger.LogDebug(ex, "Could not connect to OBS Studio at {Uri}", this._uri);
             }
 
+            bool connected;
             if (session.Socket.State == WebSocketState.Open)
             {    
                 _ = Task.Run(() => this.ReceiverAsync(session));
-                return await this.WaitForAuthenticationAsync(session).ConfigureAwait(false);
+                connected = await this.WaitForAuthenticationAsync(session).ConfigureAwait(false);
             }
             else
             {
                 AbandonPendingWork(session);
                 this.SetConnectionState(session, ConnectionState.Disconnected);
                 session.Dispose();
-                return false;
+                connected = false;
             }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // The token was cancelled as the attempt finished: a connection that it made is not wanted either.
+                this.EndAttempt(session);
+            }
+
+            return connected;
+        }
+
+        // What Disconnect() does, for the session of one attempt to connect: it is ended, and AutoReconnect is switched off only when that
+        // session is still the active one, so that a connection that was started in its place keeps its settings.
+        private void EndAttempt(ConnectionSession session)
+        {
+            _logger.LogInformation("Ending the attempt to connect to OBS Studio");
+            if (ReferenceEquals(this._session, session))
+            {
+                this.AutoReconnect = false;
+            }
+
+            session.Cancellation.Cancel();
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
@@ -938,7 +961,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -973,6 +996,9 @@
                 }
 
                 await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
+
+                // Still holding the turn: whatever depends on the message having been written is done in the order of the messages.
+                written?.Invoke();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
