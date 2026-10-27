@@ -783,7 +783,6 @@
 
             var response = responseBuilder.ToString();
             _logger.LogDebug("Received: {Response}", response);
-            Debug.WriteLine($"Received: {response}");
 
             ObsMessage? message;
             try
@@ -894,6 +893,21 @@
             }
         }
 
+        private static string RedactAuthentication(string json)
+        {
+            // The answer to the challenge of OBS Studio is not the password, but it is derived from it: it stays out of the log.
+            const string marker = "\"authentication\":\"";
+            var start = json.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                return json;
+            }
+
+            start += marker.Length;
+            var end = json.IndexOf('"', start);
+            return end < 0 ? json : json[..start] + "***" + json[end..];
+        }
+
         private async Task SendAsync(ConnectionSession session, object request)
         {
             var socket = session.Socket;
@@ -902,8 +916,12 @@
                 throw new ObsClientException("Not connected.");
             }
 
-            Debug.WriteLine($"Sending: {JsonSerializer.Serialize(request)}");
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
+            }
+
             var sendBuffer = new ArraySegment<byte>(bytes);
             var lockTaken = false;
             try

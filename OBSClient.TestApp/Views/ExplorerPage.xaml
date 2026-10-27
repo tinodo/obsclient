@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="OBSStudioClient.TestApp.Views.ExplorerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Padding="16,16,8,16" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <AutoSuggestBox
+                x:Name="SearchBox"
+                PlaceholderText="Search the requests"
+                QueryIcon="Find"
+                TextChanged="SearchBox_TextChanged" />
+            <TreeView
+                x:Name="RequestTree"
+                Grid.Row="1"
+                ItemInvoked="RequestTree_ItemInvoked"
+                SelectionMode="Single" />
+        </Grid>
+
+        <ScrollViewer Grid.Column="1">
+            <StackPanel
+                MaxWidth="1000"
+                Padding="8,16,24,24"
+                HorizontalAlignment="Left"
+                Spacing="16">
+
+                <StackPanel x:Name="WelcomePanel" Spacing="4">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Explorer" />
+                    <TextBlock
+                        Style="{StaticResource SecondaryBodyStyle}"
+                        Text="Choose a request on the left to fill in its parameters and send it to OBS Studio. The result is shown as the client returns it, next to what OBS Studio sent, and compared." />
+                </StackPanel>
+
+                <StackPanel
+                    x:Name="DetailPanel"
+                    Spacing="16"
+                    Visibility="Collapsed">
+
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="RequestTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                        <TextBlock x:Name="RequestMeta" Style="{StaticResource SecondaryCaptionStyle}" />
+                        <TextBlock x:Name="RequestDescription" Style="{StaticResource SecondaryBodyStyle}" />
+                    </StackPanel>
+
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="16">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="Parameters" />
+                                <Button
+                                    x:Name="RefreshButton"
+                                    Grid.Column="1"
+                                    Click="RefreshButton_Click"
+                                    Content="Refresh scenes and inputs" />
+                            </Grid>
+                            <TextBlock
+                                x:Name="NoParameters"
+                                Style="{StaticResource SecondaryBodyStyle}"
+                                Text="This request has no parameters." />
+                            <StackPanel x:Name="FormHost" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button
+                            x:Name="InvokeButton"
+                            Click="InvokeButton_Click"
+                            Content="Send request"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <ProgressRing
+                            x:Name="Busy"
+                            Width="20"
+                            Height="20"
+                            IsActive="False" />
+                        <TextBlock
+                            x:Name="StatusLine"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource SecondaryBodyStyle}" />
+                    </StackPanel>
+
+                    <InfoBar
+                        x:Name="ProblemBar"
+                        IsOpen="False"
+                        Severity="Warning" />
+
+                    <Border
+                        x:Name="ResultCard"
+                        Style="{StaticResource CardStyle}"
+                        Visibility="Collapsed">
+                        <StackPanel Spacing="12">
+                            <SelectorBar x:Name="ResultTabs" SelectionChanged="ResultTabs_SelectionChanged">
+                                <SelectorBarItem
+                                    x:Name="TypedTab"
+                                    IsSelected="True"
+                                    Text="Returned by the client" />
+                                <SelectorBarItem x:Name="RawTab" Text="Sent by OBS Studio" />
+                                <SelectorBarItem x:Name="ComparisonTab" Text="Comparison" />
+                            </SelectorBar>
+                            <TextBox
+                                x:Name="ResultBox"
+                                MinHeight="280"
+                                MaxHeight="520"
+                                IsReadOnly="True"
+                                Style="{StaticResource CodeTextBoxStyle}" />
+                            <Button
+                                x:Name="CopyButton"
+                                HorizontalAlignment="Left"
+                                Click="CopyButton_Click"
+                                Content="Copy" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -1,5 +1,5 @@
 ---
-applyTo: "OBSClient/Generated/**,OBSClient.Tests/Protocol/**"
+applyTo: "OBSClient/Generated/**,OBSClient.TestApp/Generated/**,OBSClient.Tests/Protocol/**"
 ---
 These files are written by `tools/protocol/generate.py` from `tools/protocol/obs-websocket-protocol.json` (obs-websocket's own
 protocol definition) and `tools/protocol/overlay.toml`. CI fails when they are not exactly what the generator produces

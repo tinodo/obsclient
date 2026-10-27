@@ -1,5 +1,5 @@
 # Builds and tests OBSClient on every push/PR to main.
-# The library and its tests are cross-platform; the WinForms sample is Windows-only and is built separately.
+# The library and its tests are cross-platform; the WinUI 3 test app is Windows-only and is built separately.
 name: Build and Test
 
 on:
@@ -121,8 +121,10 @@ jobs:
           path: ./artifacts/*.nupkg
           retention-days: 14
 
-  build-sample:
-    name: Build WinForms Sample
+  # The test app is a WinUI 3 application: it only builds on Windows. It is published unpackaged and self-contained, so the
+  # artifact is a folder that runs on any Windows 10 (1809) or later machine, with nothing to install.
+  build-test-app:
+    name: Build Test App (WinUI 3)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -131,10 +133,51 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-      - name: Restore
-        run: dotnet restore SampleWindowsAppliation/SampleWindowsAppliation.csproj
+      - name: Publish
+        run: >
+          dotnet publish OBSClient.TestApp/OBSClient.TestApp.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:Platform=x64
+          --output ./artifacts/OBSClient.TestApp-win-x64
 
-      - name: Build
-        run: dotnet build SampleWindowsAppliation/SampleWindowsAppliation.csproj --no-restore --configuration Release
+      # Starts the app, which opens every page and builds the editor of every request, and says so in a log. This is what finds
+      # an error in a XAML file (they are only read when the app runs) before anyone has to start the app to find it.
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'artifacts/OBSClient.TestApp-win-x64/OBSClient.TestApp.exe'
+          $log = Join-Path $PWD 'smoke-test.log'
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "`"$log`"" -PassThru
+          if (-not $process.WaitForExit(120000)) {
+            $process.Kill()
+            Write-Host 'The app did not finish within two minutes.'
+            if (Test-Path $log) { Get-Content $log }
+            exit 1
+          }
+          if (Test-Path $log) { Get-Content $log } else { Write-Host 'The app wrote no log.' }
+          if ($process.ExitCode -ne 0) {
+            Write-Host "The app ended with exit code $($process.ExitCode)."
+            exit 1
+          }
+
+      - name: Upload the smoke test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-app-smoke-test-log
+          path: smoke-test.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the test app
+        uses: actions/upload-artifact@v4
+        with:
+          name: OBSClient.TestApp-win-x64
+          path: ./artifacts/OBSClient.TestApp-win-x64
+          retention-days: 14

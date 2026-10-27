@@ -5,7 +5,8 @@
 
 The generated C# is committed under OBSClient/Generated and compiled into OBSClient.dll like any other source. The
 protocol definition, the overlay and this generator are inputs of the build: none of them is part of the package
-(tools/verify-package.py checks that in CI). Only the Python standard library is used.
+(tools/verify-package.py checks that in CI). The test app (OBSClient.TestApp) gets its own catalog of the requests and
+events, generated the same way. Only the Python standard library is used.
 """
 
 from __future__ import annotations
@@ -383,7 +384,12 @@ def paragraphs(text: str) -> list[str]:
 
 
 def param_text(p: pm.Param) -> str:
-    """The documentation of a parameter: what the protocol says about the field, and what it restricts it to."""
+    """The XML documentation of a parameter."""
+    return xml(param_description(p))
+
+
+def param_description(p: pm.Param) -> str:
+    """What the protocol says about the field(s) of a parameter, and what it restricts it to, as plain text."""
     if p.ref:
         named = re.match(r"[Nn]ame of (.+)", p.fields[0].description)
         what = named.group(1) if named else f"the {pm.last_word(p.name)}"
@@ -401,7 +407,7 @@ def param_text(p: pm.Param) -> str:
     for behavior in extra:
         if behavior not in ("Unknown", "N/A"):
             text += f" If omitted: {behavior}."
-    return xml(text)
+    return text
 
 
 def request_docs(source: Source, request: pm.Request, params: list[pm.Param], ret: pm.Returns, batch: bool) -> None:
@@ -568,6 +574,142 @@ def emit_requests(model: Model, requests: list[pm.Request]) -> str:
     return source.text()
 
 
+# -- the catalog of the test app --------------------------------------------------------------------------------------
+
+TESTAPP = pm.ROOT / "OBSClient.TestApp"
+TESTAPP_GENERATED = TESTAPP / "Generated"
+MANUAL_CATALOG = TESTAPP / "Catalog" / "ManualCatalog.cs"
+
+CATALOG_USINGS = (
+    "OBSStudioClient.Classes",
+    "OBSStudioClient.Enums",
+    "OBSStudioClient.Messages",
+)
+
+# For each C# type of a parameter: the kind of editor the test app shows for it, and the ArgumentSet method that hands the
+# value to the call (and the type to read it as, for the methods that are generic). A parameter that accepts null calls
+# the method of the same name that starts with Optional.
+PARAMETER_KINDS = {
+    "string": ("Text", "Text", None),
+    "int": ("Integer", "Int", None),
+    "float": ("Number", "Float", None),
+    "bool": ("Boolean", "Bool", None),
+    "Guid": ("Guid", "Uuid", None),
+    "SceneRef": ("Scene", "Scene", None),
+    "InputRef": ("Input", "Input", None),
+    "SourceRef": ("Source", "Source", None),
+    "Dictionary<string, object>": ("JsonObject", "Map", None),
+    "JsonElement": ("Json", "Element", None),
+    "object": ("Json", "Value", None),
+    "AudioTracks": ("JsonObject", "Json", "AudioTracks"),
+    "SceneItemTransformUpdate": ("JsonObject", "Json", "SceneItemTransformUpdate"),
+}
+
+# What the editor of a JSON parameter starts with, when it should not start empty.
+JSON_EXAMPLES = {
+    "AudioTracks": '{"1": true, "2": true, "3": false, "4": false, "5": false, "6": false}',
+    "SceneItemTransformUpdate": '{"positionX": 0, "positionY": 0}',
+}
+
+
+def literal(text: str) -> str:
+    """A C# string literal."""
+    escapes = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\t": "\\t"}
+    return '"' + "".join(escapes.get(ch) or (f"\\u{ord(ch):04x}" if ord(ch) < 0x20 else ch) for ch in text) + '"'
+
+
+def plain(text: str) -> str:
+    """Protocol text for the screen: one line, without the markdown code marks."""
+    return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
+def catalog_parameter(model: Model, request: pm.Request, p: pm.Param) -> tuple[str, str, list[str]]:
+    """The editor kind of a parameter, the expression that reads its value, and the extra arguments of its descriptor."""
+    name = p.type.name
+    if name in PARAMETER_KINDS:
+        kind, method, generic = PARAMETER_KINDS[name]
+    elif name in model.client_enums:
+        kind, method, generic = "Enum", "EnumValue", name
+    else:
+        raise ModelError(
+            f"{request.name}: the test app has no editor for the parameter '{p.name}' of type {name}. "
+            "Add the type to PARAMETER_KINDS in tools/protocol/generate.py and to OBSClient.TestApp/Catalog/ArgumentSet.cs."
+        )
+    key = p.name.lstrip("@")
+    reader = ("Optional" if p.type.nullable else "") + method + (f"<{generic}>" if generic else "")
+    extra = []
+    if kind == "Enum":
+        extra.append(f"EnumType: typeof({name})")
+    if name in JSON_EXAMPLES:
+        extra.append(f"Example: {literal(JSON_EXAMPLES[name])}")
+    if p.always_sent:
+        extra.append("SendsNullWhenOmitted: true")
+    return kind, f'args.{reader}("{key}")', extra
+
+
+def emit_catalog(model: Model) -> str:
+    """The requests and events as data, with the code that calls or observes each of them, for OBSClient.TestApp."""
+    source = Source(model)
+    source.add(0, "namespace OBSStudioClient.TestApp.Catalog")
+    source.add(0, "{")
+    for using in CATALOG_USINGS:
+        source.add(1, f"using {using};")
+    source.add()
+    source.add(1, f"/// <summary>The requests and events of obs-websocket {model.version} that the test app can send and observe.</summary>")
+    source.add(1, "internal static class ProtocolCatalog")
+    source.add(1, "{")
+    source.add(2, f'public const string ProtocolVersion = "{model.version}";')
+    source.add()
+    source.add(2, "/// <summary>The requests that are not written by hand (see <c>ManualCatalog</c> for the others).</summary>")
+    source.add(2, "public static IReadOnlyList<RequestDescriptor> Requests { get; } =")
+    source.add(2, "[")
+    for request in by_category(model.generated_requests()):
+        params = model.request_params(request)
+        arguments = ", ".join(catalog_parameter(model, request, p)[1] for p in params)
+        source.add(3, "new(")
+        source.add(4, f"{literal(request.name)},")
+        source.add(4, f"{literal(CATEGORY_TITLES.get(request.category, request.category.title()))},")
+        source.add(4, f"{literal(chr(10).join(plain(text) for text in paragraphs(request.description)))},")
+        source.add(4, f"{literal(request.since)},")
+        if params:
+            source.add(4, "[")
+            for p in params:
+                kind, _, extra = catalog_parameter(model, request, p)
+                required = "false" if p.has_default or p.always_sent else "true"
+                fixed = [literal(p.name.lstrip("@")), f"ParameterKind.{kind}", literal(p.type.text), required, literal(plain(param_description(p)))]
+                source.add(5, f"new({', '.join(fixed + extra)}),")
+            source.add(4, "],")
+        else:
+            source.add(4, "[],")
+        source.add(4, f"(client, args) => Invocation.Of(client.{request.name}({arguments})),")
+        source.add(4, f"(batch, args) => batch.Add{request.name}Request({arguments})),")
+    source.add(2, "];")
+    source.add()
+    source.add(2, "/// <summary>The events of the client.</summary>")
+    source.add(2, "public static IReadOnlyList<EventDescriptor> Events { get; } =")
+    source.add(2, "[")
+    for event in by_category(model.events):
+        dto = model.event_dto(event.name)
+        handler = "(_, e)" if dto else "(_, _)"
+        argument = "e" if dto else "null"
+        title = CATEGORY_TITLES.get(event.category, event.category.title())
+        source.add(3, "new(")
+        source.add(4, f"{literal(event.name)}, {literal(title)}, {literal(plain(event.description))}, {literal(event.since)}, EventSubscriptions.{event.subscription},")
+        source.add(4, f"(client, sink) => client.{event.name} += {handler} => sink({literal(event.name)}, {argument})),")
+    source.add(2, "];")
+    source.add(1, "}")
+    source.add(0, "}")
+    return source.text()
+
+
+def check_manual_catalog(model: Model) -> None:
+    """The requests that are written by hand need a descriptor in ManualCatalog.cs, or the test app cannot send them."""
+    text = MANUAL_CATALOG.read_text(encoding="utf-8-sig") if MANUAL_CATALOG.exists() else ""
+    missing = [name for name in model.overlay.get("manual", {}).get("requests", []) if f'"{name}"' not in text]
+    if missing:
+        raise ModelError(f"{MANUAL_CATALOG.relative_to(pm.ROOT)} has no descriptor for the hand-written requests {', '.join(missing)}.")
+
+
 # -- snapshot for the tests -------------------------------------------------------------------------------------------
 
 
@@ -648,11 +790,13 @@ def generate(model: Model) -> dict[Path, str]:
             title = CATEGORY_TITLES.get(category, category.title()).replace(" ", "")
             files[GENERATED / f"Requests.{title}.g.cs"] = emit_requests(model, requests)
     files[SNAPSHOT] = json.dumps(build_snapshot(model), indent=2) + "\n"
+    check_manual_catalog(model)
+    files[TESTAPP_GENERATED / "ProtocolCatalog.g.cs"] = emit_catalog(model)
     return files
 
 
 def existing_generated_files() -> set[Path]:
-    return set(GENERATED.glob("*.g.cs")) if GENERATED.is_dir() else set()
+    return {path for folder in (GENERATED, TESTAPP_GENERATED) if folder.is_dir() for path in folder.glob("*.g.cs")}
 
 
 def main(argv: list[str] | None = None) -> int:

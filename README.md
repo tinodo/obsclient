@@ -88,6 +88,14 @@ client.Dispose();
   `Sleep` requests need a longer timeout; see `SendRequestBatchAsync`).
 - **A lost connection is reported, not hidden.** `ConnectionState` and `ConnectionClosed` tell you when it ends, requests
   that were waiting fail at once with an `ObsClientException`, and `AutoReconnect` brings the connection back.
+- **See what goes over the wire.** The client logs every message it sends and receives at the debug level (`Sending: …`,
+  `Received: …`) to the `ILogger<ObsClient>` you give it. The answer to the authentication challenge is left out of what is sent.
+
+## Try it: the test app
+
+[`OBSClient.TestApp`](OBSClient.TestApp) is a Windows (WinUI 3) application to try every request and event of this library by hand
+against your own OBS Studio, and to compare what OBS Studio sends with what the client returns. Every CI run publishes it as an
+artifact (`OBSClient.TestApp-win-x64`: unzip it, start `OBSClient.TestApp.exe`); see [CONTRIBUTING.md](CONTRIBUTING.md#the-test-app).
 
 ## Staying in sync with obs-websocket
 

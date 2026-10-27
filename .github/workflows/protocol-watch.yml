@@ -89,6 +89,6 @@ jobs:
               echo "**Trial run:** applying the update to a clean checkout did not build or pass the tests as it is, so the hand-written part of the client has work to do (the log is in the [workflow run]($RUN_URL))."
             fi
             echo
-            echo "Apply it with \`python tools/protocol/update.py --tag $LATEST\`, review the diff of \`OBSClient/Generated\` and of \`tools/protocol/overlay.toml\`, then build and run the tests. See CONTRIBUTING.md."
+            echo "Apply it with \`python tools/protocol/update.py --tag $LATEST\`, review the diff of \`OBSClient/Generated\`, \`OBSClient.TestApp/Generated\` and \`tools/protocol/overlay.toml\`, then build and run the tests. See CONTRIBUTING.md."
           } > issue-body.md
           gh issue create --title "$title" --body-file issue-body.md

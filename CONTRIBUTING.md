@@ -16,8 +16,8 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 - .NET SDK 8.0 and 10.0 (the library multi-targets both; see `OBSClient/OBSClient.csproj`).
 - `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` restores and builds the library and runs the tests. It works on
   Windows, Linux and macOS, and is what CI runs on each of them.
-- `dotnet build OBSClient.sln` builds everything, including the WinForms sample (`SampleWindowsAppliation`), so it needs
-  Windows; on Linux and macOS it fails with NETSDK1100. CI builds the sample on its own Windows job.
+- `dotnet build OBSClient.sln` builds everything, including the WinUI 3 test app (`OBSClient.TestApp`, see below), so it needs
+  Windows and the .NET 10 SDK; on Linux and macOS it fails with NETSDK1100. CI builds the test app on its own Windows job.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.
@@ -30,7 +30,7 @@ Most of the client is generated from obs-websocket's own protocol definition, so
 | --- | --- |
 | `obs-websocket-protocol.json` | A copy of obs-websocket's `docs/generated/protocol.json`. |
 | `overlay.toml` | The decisions that the definition cannot make for the client: the names of response and event types, the C# type of a field (the protocol only says `String`, `Number`, `Object`, ...), nullability, patches where upstream's documentation does not match what obs-websocket does (checked in its source), the ordinals of the `RequestType` and `EventType` members, and the few requests that are written by hand. |
-| `generate.py` | Writes the C# under `OBSClient/Generated` (the method of `ObsClient` and the builder of `RequestBatchMessage` for each request, the response and event types, the registries and the two enums) and `OBSClient.Tests/Protocol/protocol.schema.json`, the snapshot the tests compare with. |
+| `generate.py` | Writes the C# under `OBSClient/Generated` (the method of `ObsClient` and the builder of `RequestBatchMessage` for each request, the response and event types, the registries and the two enums), `OBSClient.TestApp/Generated/ProtocolCatalog.g.cs` (every request and event as data, with the code that sends or observes it, for the test app) and `OBSClient.Tests/Protocol/protocol.schema.json`, the snapshot the tests compare with. |
 
 The generated files are committed and compiled into `OBSClient.dll`; **do not edit them**, change the inputs and run
 `python tools/protocol/generate.py` (Python 3.11 or later, standard library only). CI runs it with `--check` and fails when a
@@ -58,12 +58,39 @@ How the methods follow from the definition (see `Model.request_params` in `proto
 are one parameter `<x>` of a `SceneRef`, `InputRef` or `SourceRef`; `canvasUuid` is the last parameter; a field that is optional is
 `T? x = null` and is left out of the request when null; a response with one field is returned as that value and one with
 several as its type. A request that the client offers in another shape (`TriggerHotkeyByKeySequence`, `Sleep`) is listed under
-`[manual]` in the overlay and written by hand in `ObsClient_ManualRequests.cs` and `RequestBatchMessage_ManualRequests.cs`;
+`[manual]` in the overlay and written by hand in `ObsClient_ManualRequests.cs` and `RequestBatchMessage_ManualRequests.cs` (and
+given a descriptor for the test app in `OBSClient.TestApp/Catalog/ManualCatalog.cs`; the generator checks that);
 convenience methods that are not requests of the protocol (`SetInputVolumeDb`, the projector shortcuts) are in `ObsClient_Shortcuts.cs`.
 
 One rule that is easy to forget: the numeric values of the public enums are embedded in assemblies that use them. The generator
 keeps the values of the members of `EventType` and `RequestType` (they are listed in `overlay.toml`; a new member gets the next
 number) and `EnumStabilityTests` guards them; when you add a member to another public enum by hand, add it **at the end**.
+
+### The test app
+
+`OBSClient.TestApp` is a WinUI 3 application (Fluent 2: Mica, a navigation pane, theme colors, the type ramp of Windows 11) whose
+only purpose is to **try every request and event of the library by hand against a real OBS Studio**. It replaces the old WinForms
+sample, and it is not part of the NuGet package.
+
+| Page | What it does |
+| --- | --- |
+| Connection | Host, port, password and the events to receive (a Reidentify applies a change while connected). Shows the version of OBS Studio and the traffic of the session. |
+| Explorer | Every request of the protocol (and the hand-written ones and the shortcuts), grouped like the protocol documentation, with an editor per parameter that suits its type (scenes and inputs are offered from OBS Studio, by name or by UUID). The result is shown three ways: as the client returned it, as OBS Studio sent it, and a **comparison** of the two that lists what OBS Studio sent and the client does not return (a nested member the client does not know, for example), what the client returns and OBS Studio did not send, and members that are another kind of value. |
+| Events | Every event as the client raises it, with the raw message of OBS Studio next to it. |
+| Log | Every message that went over the wire (the client logs them at the debug level) and everything else the client reports; export as JSON lines, and export the **observed shapes**: for each response and event, which members were seen and what kind of value each was. |
+
+What it shows is a sample: a member that was not seen may exist, and a hardware dependent feature (the virtual camera, the replay
+buffer, a streaming service) only answers when OBS Studio has it. Exports go to `Documents\OBSClient Test App`; passwords and stream
+keys are hidden in them unless you say otherwise, but check a file before you share it.
+
+Build and run it on Windows with the .NET 10 SDK: `dotnet run --project OBSClient.TestApp -p:Platform=x64`. Every build of CI
+publishes it as the artifact `OBSClient.TestApp-win-x64` (unpackaged and self-contained: unzip it and start `OBSClient.TestApp.exe`;
+nothing else has to be installed). CI also starts the app with `--smoke-test <log>`, which opens every page and builds, fills in and
+reads the editor of every request, because the XAML of an app is only read when it runs.
+
+The requests and events of the app come from `OBSClient.TestApp/Generated/ProtocolCatalog.g.cs`, which the generator writes (see
+above), so a new request of a new protocol version shows up in the app by itself. The parts of the app that do not depend on WinUI
+(the catalog, the arguments, the comparison of JSON) are also compiled into `OBSClient.Tests`, so they are tested on every platform.
 
 ## Making changes
 

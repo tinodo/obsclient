@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="OBSStudioClient.TestApp.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                Fluent 2 on a 4 px grid: spacing is a multiple of 4, controls have 4 px corners and surfaces 8 px, text uses the
+                type ramp of the Windows App SDK (Segoe UI Variable), and every color is a theme resource, so that the app
+                follows the light, dark and high contrast themes without a line of code.
+            -->
+            <FontFamily x:Key="CodeFontFamily">Cascadia Mono, Consolas, Courier New</FontFamily>
+            <x:Double x:Key="PageMaxWidth">1100</x:Double>
+            <Thickness x:Key="PagePadding">24,16,24,24</Thickness>
+
+            <!-- A surface for a group of related controls. -->
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+
+            <!-- Secondary text in the caption size, for hints and descriptions. -->
+            <Style x:Key="SecondaryCaptionStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <!-- Secondary text in the body size. -->
+            <Style x:Key="SecondaryBodyStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <!-- Monospaced, scrolling text for JSON and logs. -->
+            <Style x:Key="CodeTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="AcceptsReturn" Value="True" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="IsSpellCheckEnabled" Value="False" />
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
+                <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

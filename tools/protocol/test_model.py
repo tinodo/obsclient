@@ -248,6 +248,71 @@ class CurrentProtocol(unittest.TestCase):
                 if p.ref:
                     self.assertIn(p.type.name, self.model.ref_types, f"{request.name}.{p.name}")
 
+    def test_every_parameter_has_an_editor_in_the_test_app(self):
+        for request, params in self.each_request():
+            for p in params:
+                kind, reader, _ = generate.catalog_parameter(self.model, request, p)
+                self.assertIn(f'("{p.name.lstrip("@")}")', reader, f"{request.name}.{p.name}")
+                self.assertEqual(reader.startswith("args.Optional"), p.type.nullable, f"{request.name}.{p.name}")
+                self.assertTrue(kind, f"{request.name}.{p.name}")
+
+
+class Catalog(unittest.TestCase):
+    """The catalog of the test app: what the generator writes for each request and event."""
+
+    def test_a_string_becomes_a_c_sharp_literal(self):
+        self.assertEqual(generate.literal('say "hi"\n\\'), '"say \\"hi\\"\\n\\\\"')
+        self.assertEqual(generate.literal("bell\x07"), '"bell\\u0007"')
+
+    def test_protocol_text_for_the_screen_is_one_line_without_markdown(self):
+        self.assertEqual(generate.plain("Gets the `inputName`\n  of   an input."), "Gets the inputName of an input.")
+
+    def test_a_type_without_an_editor_is_reported(self):
+        m = model(("DoThing", [field("matrix", "Matrix")], []), overlay=dict(OVERLAY, types={"request": {"matrix": "Matrix4x4"}}))
+        request = m.request("DoThing")
+        (param,) = m.request_params(request)
+
+        with self.assertRaises(pm.ModelError) as caught:
+            generate.catalog_parameter(m, request, param)
+
+        self.assertIn("PARAMETER_KINDS", str(caught.exception))
+
+    def test_an_optional_parameter_is_read_as_optional_and_a_required_one_is_not(self):
+        m = model(("DoThing", [field("count", "Number"), field("note", optional=True)], []), overlay=dict(OVERLAY, types={"request": {"count": "int"}}))
+        request = m.request("DoThing")
+        count, note = m.request_params(request)
+
+        self.assertEqual(generate.catalog_parameter(m, request, count)[:2], ("Integer", 'args.Int("count")'))
+        self.assertEqual(generate.catalog_parameter(m, request, note)[:2], ("Text", 'args.OptionalText("note")'))
+
+    def test_a_ref_is_read_as_the_ref_it_is(self):
+        m = model(("DoThing", [field("sceneName", optional=True), field("sceneUuid", optional=True)], []))
+        request = m.request("DoThing")
+        (scene,) = m.request_params(request)
+
+        self.assertEqual(generate.catalog_parameter(m, request, scene)[:2], ("Scene", 'args.Scene("scene")'))
+
+    def test_a_null_that_means_something_is_marked_so_the_editor_can_say_it(self):
+        m = model(("DoThing", [field("value", optional=True)], []), overlay=dict(OVERLAY, request_nulls={"fields": ["DoThing.value"]}))
+        request = m.request("DoThing")
+        (param,) = m.request_params(request)
+
+        self.assertIn("SendsNullWhenOmitted: true", generate.catalog_parameter(m, request, param)[2])
+
+    def test_the_catalog_has_every_request_and_event_of_the_protocol(self):
+        current = pm.Model.load()
+        text = generate.emit_catalog(current)
+
+        for request in current.generated_requests():
+            self.assertIn(f'"{request.name}",', text, request.name)
+            self.assertIn(f"client.{request.name}(", text, request.name)
+            self.assertIn(f"batch.Add{request.name}Request(", text, request.name)
+        for event in current.events:
+            self.assertIn(f"client.{event.name} +=", text, event.name)
+
+    def test_the_requests_that_are_written_by_hand_have_a_descriptor(self):
+        generate.check_manual_catalog(pm.Model.load())
+
 
 if __name__ == "__main__":
     unittest.main()

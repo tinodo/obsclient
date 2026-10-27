@@ -107,6 +107,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   and are **not** part of the package, which stays one assembly (`tools/verify-package.py` checks the package in CI, and a
   test checks the assembly). A scheduled workflow opens an issue as soon as obs-websocket publishes a new version, with
   the differences and the outcome of trying the update.
+- **A test app** (`OBSClient.TestApp`), a WinUI 3 application with a Fluent 2 design that replaces the WinForms sample. Its only
+  purpose is to try every request and event of the library by hand against a real OBS Studio: it offers an editor for every
+  parameter, shows each result as the client returned it, as OBS Studio sent it, and as a comparison of the two (which finds
+  nested members that the client does not know), lists every event, and keeps a log of everything that went over the wire that can
+  be exported, together with the shapes of the responses and events that were observed. The catalog of requests and events is
+  generated from the protocol like the library is, and CI publishes the app as a self-contained download and starts it to check
+  every page. It is not part of the NuGet package.
+- The client logs every message it **sends** at the debug level (`Sending: …`), as it already logged what it receives
+  (`Received: …`); the answer to the authentication challenge is left out. The two `Debug.WriteLine` calls that did the same
+  (in debug builds only) are gone.
 - CI: a cross-platform build and test matrix, CodeQL analysis, GitHub Copilot code review of every pull request (which
   replaces SonarCloud, now removed), and a tag-triggered publish pipeline to nuget.org (Trusted Publishing) and GitHub Packages.
 
