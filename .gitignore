@@ -348,3 +348,6 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# A capture of a real OBS Studio (tools/capture/obs-capture.ps1): it holds your scenes and your machine
+obs-capture/

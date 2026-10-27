@@ -94,7 +94,21 @@ Explorer, sends a batch, receives events and checks the Log. The pictures it tak
 
 The requests and events of the app come from `OBSClient.TestApp/Generated/ProtocolCatalog.g.cs`, which the generator writes (see
 above), so a new request of a new protocol version shows up in the app by itself. The parts of the app that do not depend on WinUI
-(the catalog, the arguments, the comparison of JSON) are also compiled into `OBSClient.Tests`, so they are tested on every platform.
+(the catalog, the arguments, the comparison of JSON, the export) are also compiled into `OBSClient.Tests`, so they are tested on
+every platform.
+
+### Captures of a real OBS Studio
+
+The protocol documents the members of a response, but only describes nested objects in prose. `OBSClient.Tests/Fixtures/obs-capture-*.json`
+hold what a real OBS Studio answered, and `ObsStudioCaptureTests` reads each of them with the client and fails when a member that OBS
+Studio sent is not given back, or became another kind of value. To add a capture (another version of OBS Studio, another platform, a
+scene with more in it: scene items, filters, a media source):
+
+1. Start OBS Studio with the WebSocket server on, and put in it what you want captured.
+2. `pwsh tools/capture/obs-capture.ps1 -Password <password>` sends read-only requests (no stream key, no screenshots) and listens for events
+   for a while. It writes `./obs-capture`, which holds your scenes and your machine and must not be committed (it is in `.gitignore`).
+3. `python tools/capture/make-fixture.py obs-capture OBSClient.Tests/Fixtures/obs-capture-<obs version>-<platform>.json` keeps what was
+   answered with success and replaces what identifies the machine. Read the fixture before you commit it.
 
 ## Making changes
 

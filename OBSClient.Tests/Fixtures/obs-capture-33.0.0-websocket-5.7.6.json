@@ -1,0 +1,967 @@
+{
+  "note": "Responses of a real OBS Studio, captured read-only (Get requests only) with tools/capture/obs-capture.ps1. What identifies the machine (the user name in a path, the names of the monitors) is replaced; the rest is as OBS Studio sent it.",
+  "obsVersion": "33.0.0",
+  "obsWebSocketVersion": "5.7.6",
+  "platform": "windows",
+  "responses": [
+    {
+      "requestType": "GetCanvasList",
+      "responseData": {
+        "canvases": [
+          {
+            "canvasFlags": {
+              "ACTIVATE": true,
+              "EPHEMERAL": false,
+              "MAIN": true,
+              "MIX_AUDIO": true,
+              "SCENE_REF": true
+            },
+            "canvasName": "Main",
+            "canvasUuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
+            "canvasVideoSettings": {
+              "baseHeight": 1080,
+              "baseWidth": 1920,
+              "fpsDenominator": 1,
+              "fpsNumerator": 60,
+              "outputHeight": 1080,
+              "outputWidth": 1920
+            }
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetCurrentProgramScene",
+      "responseData": {
+        "currentProgramSceneName": "Scene",
+        "currentProgramSceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217",
+        "sceneName": "Scene",
+        "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+      }
+    },
+    {
+      "requestType": "GetCurrentSceneTransition",
+      "responseData": {
+        "transitionConfigurable": false,
+        "transitionDuration": 300,
+        "transitionFixed": false,
+        "transitionKind": "fade_transition",
+        "transitionName": "Fade",
+        "transitionSettings": null,
+        "transitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa"
+      }
+    },
+    {
+      "requestType": "GetCurrentSceneTransitionCursor",
+      "responseData": {
+        "transitionCursor": 1.0
+      }
+    },
+    {
+      "requestType": "GetGroupList",
+      "responseData": {
+        "groups": []
+      }
+    },
+    {
+      "requestType": "GetHotkeyList",
+      "responseData": {
+        "hotkeys": [
+          "OBSBasic.StartStreaming",
+          "OBSBasic.StopStreaming",
+          "OBSBasic.ForceStopStreaming",
+          "OBSBasic.StartRecording",
+          "OBSBasic.StopRecording",
+          "OBSBasic.PauseRecording",
+          "OBSBasic.UnpauseRecording",
+          "OBSBasic.SplitFile",
+          "OBSBasic.AddChapterMarker",
+          "OBSBasic.StartReplayBuffer",
+          "OBSBasic.StopReplayBuffer",
+          "OBSBasic.SaveReplayBuffer",
+          "OBSBasic.StartVirtualCam",
+          "OBSBasic.StopVirtualCam",
+          "OBSBasic.EnablePreview",
+          "OBSBasic.DisablePreview",
+          "OBSBasic.EnablePreviewProgram",
+          "OBSBasic.DisablePreviewProgram",
+          "OBSBasic.ShowContextBar",
+          "OBSBasic.HideContextBar",
+          "OBSBasic.Transition",
+          "OBSBasic.ResetStats",
+          "OBSBasic.Screenshot",
+          "OBSBasic.SelectedSourceScreenshot",
+          "OBSBasic.SelectScene",
+          "libobs.mute",
+          "libobs.unmute",
+          "libobs.monitor-on",
+          "libobs.monitor-off",
+          "libobs.push-to-mute",
+          "libobs.push-to-talk",
+          "libobs.mute",
+          "libobs.unmute",
+          "libobs.monitor-on",
+          "libobs.monitor-off",
+          "libobs.push-to-mute",
+          "libobs.push-to-talk"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputAudioBalance",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioBalance": 0.5
+      }
+    },
+    {
+      "requestType": "GetInputAudioBalance",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioBalance": 0.5
+      }
+    },
+    {
+      "requestType": "GetInputAudioMonitorType",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "monitorType": "OBS_MONITORING_TYPE_NONE"
+      }
+    },
+    {
+      "requestType": "GetInputAudioMonitorType",
+      "label": "Mic_Aux",
+      "responseData": {
+        "monitorType": "OBS_MONITORING_TYPE_NONE"
+      }
+    },
+    {
+      "requestType": "GetInputAudioSyncOffset",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioSyncOffset": 0
+      }
+    },
+    {
+      "requestType": "GetInputAudioSyncOffset",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioSyncOffset": 0
+      }
+    },
+    {
+      "requestType": "GetInputAudioTracks",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputAudioTracks",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "browser_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "fps": 30,
+          "fps_custom": false,
+          "height": 600,
+          "reroute_audio": false,
+          "restart_when_active": false,
+          "shutdown": false,
+          "url": "https://obsproject.com/browser-source",
+          "webpage_control_level": 1,
+          "width": 800
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "color_source_v3",
+      "responseData": {
+        "defaultInputSettings": {
+          "color": 4291940817,
+          "height": 1080,
+          "width": 1920
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "dshow_input",
+      "responseData": {
+        "defaultInputSettings": {
+          "active": true,
+          "audio_output_mode": 0,
+          "autorotation": true,
+          "color_range": "default",
+          "color_space": "default",
+          "frame_interval": -1,
+          "hw_decode": false,
+          "res_type": 0,
+          "video_format": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "ffmpeg_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "buffering_mb": 2,
+          "clear_on_media_end": true,
+          "is_local_file": true,
+          "linear_alpha": false,
+          "log_changes": true,
+          "looping": false,
+          "reconnect_delay_sec": 10,
+          "restart_on_activate": true,
+          "speed_percent": 100
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "game_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "allow_transparency": false,
+          "anti_cheat_hook": true,
+          "capture_cursor": true,
+          "capture_mode": "any_fullscreen",
+          "capture_overlays": false,
+          "hook_rate": 1,
+          "limit_framerate": false,
+          "premultiplied_alpha": false,
+          "priority": 2,
+          "rgb10a2_space": "srgb",
+          "sli_compatibility": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "image_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "linear_alpha": false,
+          "unload": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "monitor_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "capture_cursor": true,
+          "force_sdr": false,
+          "method": 0,
+          "monitor_id": "DUMMY",
+          "monitor_wgc": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "slideshow_v2",
+      "responseData": {
+        "defaultInputSettings": {
+          "playback_behavior": "always_play",
+          "playback_mode": "loop",
+          "slide_mode": "mode_auto",
+          "slide_time": 2000,
+          "transition": "fade",
+          "transition_speed": 700,
+          "use_custom_size": "1920x1080"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "text_ft2_source_v2",
+      "responseData": {
+        "defaultInputSettings": {
+          "antialiasing": true,
+          "color1": 4294967295,
+          "color2": 4294967295,
+          "drop_shadow": false,
+          "font": {
+            "face": "Arial",
+            "flags": 0,
+            "size": 256,
+            "style": ""
+          },
+          "log_lines": 6,
+          "outline": false,
+          "word_wrap": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "text_gdiplus_v3",
+      "responseData": {
+        "defaultInputSettings": {
+          "align": "left",
+          "antialiasing": true,
+          "bk_color": 0,
+          "bk_opacity": 0,
+          "chatlog_lines": 6,
+          "color": 16777215,
+          "extents_cx": 100,
+          "extents_cy": 100,
+          "extents_wrap": true,
+          "font": {
+            "face": "Arial",
+            "size": 256
+          },
+          "gradient_color": 16777215,
+          "gradient_dir": 90.0,
+          "gradient_opacity": 100,
+          "opacity": 100,
+          "outline_color": 16777215,
+          "outline_opacity": 100,
+          "outline_size": 2,
+          "transform": 0,
+          "valign": "top"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "vlc_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "loop": true,
+          "network_caching": 400,
+          "playback_behavior": "stop_restart",
+          "shuffle": false,
+          "subtitle": 1,
+          "subtitle_enable": false,
+          "track": 1
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_input_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "device_id": "default",
+          "use_device_timing": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_output_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "device_id": "default",
+          "use_device_timing": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_process_output_capture",
+      "responseData": {
+        "defaultInputSettings": {}
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "window_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "client_area": true,
+          "compatibility": false,
+          "cursor": true,
+          "force_sdr": false,
+          "method": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputKindList",
+      "responseData": {
+        "inputKinds": [
+          "image_source",
+          "color_source_v3",
+          "slideshow_v2",
+          "browser_source",
+          "ffmpeg_source",
+          "text_gdiplus_v3",
+          "text_ft2_source_v2",
+          "vlc_source",
+          "monitor_capture",
+          "window_capture",
+          "game_capture",
+          "dshow_input",
+          "wasapi_input_capture",
+          "wasapi_output_capture",
+          "wasapi_process_output_capture"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputKindList",
+      "label": "unversioned",
+      "responseData": {
+        "inputKinds": [
+          "image_source",
+          "color_source",
+          "slideshow",
+          "browser_source",
+          "ffmpeg_source",
+          "text_gdiplus",
+          "text_ft2_source",
+          "vlc_source",
+          "monitor_capture",
+          "window_capture",
+          "game_capture",
+          "dshow_input",
+          "wasapi_input_capture",
+          "wasapi_output_capture",
+          "wasapi_process_output_capture"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputList",
+      "responseData": {
+        "inputs": [
+          {
+            "inputKind": "wasapi_output_capture",
+            "inputKindCaps": 642,
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4",
+            "unversionedInputKind": "wasapi_output_capture"
+          },
+          {
+            "inputKind": "wasapi_input_capture",
+            "inputKindCaps": 130,
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb",
+            "unversionedInputKind": "wasapi_input_capture"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputMute",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputMuted": false
+      }
+    },
+    {
+      "requestType": "GetInputMute",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputMuted": false
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputKind": "wasapi_output_capture",
+        "inputSettings": {
+          "device_id": "default"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputKind": "wasapi_input_capture",
+        "inputSettings": {
+          "device_id": "default"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputVolume",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputVolumeDb": 0.0,
+        "inputVolumeMul": 1.0
+      }
+    },
+    {
+      "requestType": "GetInputVolume",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputVolumeDb": 0.0,
+        "inputVolumeMul": 1.0
+      }
+    },
+    {
+      "requestType": "GetMonitorList",
+      "responseData": {
+        "monitors": [
+          {
+            "monitorHeight": 1440,
+            "monitorIndex": 0,
+            "monitorName": "Display 1(0)",
+            "monitorPositionX": 0,
+            "monitorPositionY": 0,
+            "monitorWidth": 2560
+          },
+          {
+            "monitorHeight": 1080,
+            "monitorIndex": 1,
+            "monitorName": "Display 2(1)",
+            "monitorPositionX": -2560,
+            "monitorPositionY": 0,
+            "monitorWidth": 2560
+          },
+          {
+            "monitorHeight": 960,
+            "monitorIndex": 2,
+            "monitorName": "Display 3(2)",
+            "monitorPositionX": 3840,
+            "monitorPositionY": 0,
+            "monitorWidth": 1707
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetOutputList",
+      "responseData": {
+        "outputs": [
+          {
+            "outputActive": false,
+            "outputFlags": {
+              "OBS_OUTPUT_AUDIO": true,
+              "OBS_OUTPUT_ENCODED": true,
+              "OBS_OUTPUT_MULTI_TRACK": true,
+              "OBS_OUTPUT_SERVICE": false,
+              "OBS_OUTPUT_VIDEO": true
+            },
+            "outputHeight": 0,
+            "outputKind": "mp4_output",
+            "outputName": "simple_file_output",
+            "outputWidth": 0
+          },
+          {
+            "outputActive": true,
+            "outputFlags": {
+              "OBS_OUTPUT_AUDIO": false,
+              "OBS_OUTPUT_ENCODED": false,
+              "OBS_OUTPUT_MULTI_TRACK": false,
+              "OBS_OUTPUT_SERVICE": false,
+              "OBS_OUTPUT_VIDEO": true
+            },
+            "outputHeight": 1080,
+            "outputKind": "virtualcam_output",
+            "outputName": "virtualcam_output",
+            "outputWidth": 1920
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetProfileList",
+      "responseData": {
+        "currentProfileName": "Untitled",
+        "profiles": [
+          "Untitled"
+        ]
+      }
+    },
+    {
+      "requestType": "GetRecordDirectory",
+      "responseData": {
+        "recordDirectory": "C:\\Users\\user\\Videos"
+      }
+    },
+    {
+      "requestType": "GetRecordStatus",
+      "responseData": {
+        "outputActive": false,
+        "outputBytes": 0,
+        "outputDuration": 0,
+        "outputPaused": false,
+        "outputTimecode": "00:00:00.000"
+      }
+    },
+    {
+      "requestType": "GetSceneCollectionList",
+      "responseData": {
+        "currentSceneCollectionName": "Untitled",
+        "sceneCollections": [
+          "Untitled"
+        ]
+      }
+    },
+    {
+      "requestType": "GetSceneItemList",
+      "label": "Scene",
+      "responseData": {
+        "sceneItems": []
+      }
+    },
+    {
+      "requestType": "GetSceneList",
+      "responseData": {
+        "currentPreviewSceneName": null,
+        "currentPreviewSceneUuid": null,
+        "currentProgramSceneName": "Scene",
+        "currentProgramSceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217",
+        "scenes": [
+          {
+            "sceneIndex": 0,
+            "sceneName": "Scene",
+            "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSceneSceneTransitionOverride",
+      "label": "Scene",
+      "responseData": {
+        "transitionDuration": null,
+        "transitionName": null
+      }
+    },
+    {
+      "requestType": "GetSceneTransitionList",
+      "responseData": {
+        "currentSceneTransitionKind": "fade_transition",
+        "currentSceneTransitionName": "Fade",
+        "currentSceneTransitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa",
+        "transitions": [
+          {
+            "transitionConfigurable": false,
+            "transitionFixed": false,
+            "transitionKind": "fade_transition",
+            "transitionName": "Fade",
+            "transitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa"
+          },
+          {
+            "transitionConfigurable": false,
+            "transitionFixed": true,
+            "transitionKind": "cut_transition",
+            "transitionName": "Cut",
+            "transitionUuid": "bb5482e7-3a9a-4c29-93e0-1a2fa40ff101"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "videoActive": true,
+        "videoShowing": true
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "Mic_Aux",
+      "responseData": {
+        "videoActive": true,
+        "videoShowing": true
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "Mic_Aux",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSpecialInputs",
+      "responseData": {
+        "desktop1": "Desktop Audio",
+        "desktop2": null,
+        "mic1": "Mic/Aux",
+        "mic2": null,
+        "mic3": null,
+        "mic4": null
+      }
+    },
+    {
+      "requestType": "GetStats",
+      "responseData": {
+        "activeFps": 60.0000024000001,
+        "availableDiskSpace": 62308.5234375,
+        "averageFrameRenderTime": 1.493383,
+        "cpuUsage": 1.8841965674894732,
+        "memoryUsage": 619.75390625,
+        "outputSkippedFrames": 0,
+        "outputTotalFrames": 18960,
+        "renderSkippedFrames": 12,
+        "renderTotalFrames": 21531,
+        "webSocketSessionIncomingMessages": 3,
+        "webSocketSessionOutgoingMessages": 3
+      }
+    },
+    {
+      "requestType": "GetStreamStatus",
+      "responseData": {
+        "outputActive": false,
+        "outputBytes": 0,
+        "outputCongestion": 0.0,
+        "outputDuration": 0,
+        "outputReconnecting": false,
+        "outputSkippedFrames": 0,
+        "outputTimecode": "00:00:00.000",
+        "outputTotalFrames": 0
+      }
+    },
+    {
+      "requestType": "GetStudioModeEnabled",
+      "responseData": {
+        "studioModeEnabled": false
+      }
+    },
+    {
+      "requestType": "GetTransitionKindList",
+      "responseData": {
+        "transitionKinds": [
+          "cut_transition",
+          "fade_transition",
+          "swipe_transition",
+          "slide_transition",
+          "obs_stinger_transition",
+          "fade_to_color_transition",
+          "wipe_transition"
+        ]
+      }
+    },
+    {
+      "requestType": "GetVersion",
+      "responseData": {
+        "availableRequests": [
+          "GetHotkeyList",
+          "OpenInputInteractDialog",
+          "SaveSourceScreenshot",
+          "GetVersion",
+          "SetInputName",
+          "SetSceneName",
+          "GetStats",
+          "TriggerStudioModeTransition",
+          "SetInputAudioSyncOffset",
+          "GetSceneCollectionList",
+          "BroadcastCustomEvent",
+          "Sleep",
+          "SetSceneSceneTransitionOverride",
+          "CallVendorRequest",
+          "CreateSceneCollection",
+          "SetStudioModeEnabled",
+          "TriggerHotkeyByName",
+          "OpenVideoMixProjector",
+          "TriggerHotkeyByKeySequence",
+          "GetPersistentData",
+          "SetSceneItemIndex",
+          "SetPersistentData",
+          "SetCurrentSceneCollection",
+          "SetInputMute",
+          "SetCurrentPreviewScene",
+          "SetCurrentProgramScene",
+          "OpenSourceProjector",
+          "GetProfileList",
+          "SetCurrentProfile",
+          "RemoveProfile",
+          "CreateProfile",
+          "GetProfileParameter",
+          "SetProfileParameter",
+          "GetInputAudioBalance",
+          "GetStreamServiceSettings",
+          "GetVideoSettings",
+          "SetVideoSettings",
+          "SetInputAudioBalance",
+          "SetInputVolume",
+          "GetSceneItemSource",
+          "SetStreamServiceSettings",
+          "GetInputDefaultSettings",
+          "GetSpecialInputs",
+          "GetInputKindList",
+          "GetCanvasList",
+          "GetRecordDirectory",
+          "SetSourceFilterEnabled",
+          "SetRecordDirectory",
+          "GetInputList",
+          "GetSceneList",
+          "GetInputMute",
+          "GetCurrentPreviewScene",
+          "GetReplayBufferStatus",
+          "GetSourceActive",
+          "GetSourceScreenshot",
+          "GetSourcePrivateSettings",
+          "SetSourcePrivateSettings",
+          "GetGroupList",
+          "SetInputSettings",
+          "GetCurrentProgramScene",
+          "GetSceneItemId",
+          "RemoveScene",
+          "CreateScene",
+          "GetSceneSceneTransitionOverride",
+          "RemoveInput",
+          "CreateInput",
+          "GetSceneItemLocked",
+          "GetInputSettings",
+          "ToggleInputMute",
+          "SetCurrentSceneTransition",
+          "GetInputVolume",
+          "GetInputAudioSyncOffset",
+          "GetInputAudioMonitorType",
+          "SetInputAudioMonitorType",
+          "StartVirtualCam",
+          "GetInputAudioTracks",
+          "SetInputAudioTracks",
+          "PauseRecord",
+          "GetInputDeinterlaceMode",
+          "SetInputDeinterlaceMode",
+          "GetInputDeinterlaceFieldOrder",
+          "SetInputDeinterlaceFieldOrder",
+          "GetInputPropertiesListPropertyItems",
+          "PressInputPropertiesButton",
+          "GetTransitionKindList",
+          "GetSceneItemTransform",
+          "GetSceneTransitionList",
+          "GetVirtualCamStatus",
+          "GetCurrentSceneTransition",
+          "SetCurrentSceneTransitionDuration",
+          "SetCurrentSceneTransitionSettings",
+          "GetCurrentSceneTransitionCursor",
+          "SetTBarPosition",
+          "GetSourceFilterKindList",
+          "StopOutput",
+          "ToggleOutput",
+          "GetSourceFilterList",
+          "GetSourceFilterDefaultSettings",
+          "CreateSourceFilter",
+          "RemoveSourceFilter",
+          "SetSourceFilterName",
+          "GetSourceFilter",
+          "StopRecord",
+          "ToggleRecord",
+          "SetSourceFilterIndex",
+          "SetSourceFilterSettings",
+          "SetSceneItemTransform",
+          "GetSceneItemList",
+          "GetGroupSceneItemList",
+          "CreateSceneItem",
+          "RemoveSceneItem",
+          "DuplicateSceneItem",
+          "GetSceneItemEnabled",
+          "SetSceneItemEnabled",
+          "SetSceneItemLocked",
+          "GetSceneItemIndex",
+          "StartReplayBuffer",
+          "GetSceneItemBlendMode",
+          "SetSceneItemBlendMode",
+          "GetSceneItemPrivateSettings",
+          "SetSceneItemPrivateSettings",
+          "StopVirtualCam",
+          "ToggleVirtualCam",
+          "StopReplayBuffer",
+          "ToggleReplayBuffer",
+          "SaveReplayBuffer",
+          "GetLastReplayBufferReplay",
+          "GetOutputList",
+          "GetOutputStatus",
+          "StartOutput",
+          "GetOutputSettings",
+          "SetOutputSettings",
+          "GetStreamStatus",
+          "StopStream",
+          "ToggleStream",
+          "StartStream",
+          "SendStreamCaption",
+          "GetRecordStatus",
+          "StartRecord",
+          "ToggleRecordPause",
+          "ResumeRecord",
+          "SplitRecordFile",
+          "CreateRecordChapter",
+          "SetMediaInputCursor",
+          "GetMediaInputStatus",
+          "OffsetMediaInputCursor",
+          "TriggerMediaInputAction",
+          "GetStudioModeEnabled",
+          "OpenInputPropertiesDialog",
+          "OpenInputFiltersDialog",
+          "GetMonitorList"
+        ],
+        "obsVersion": "33.0.0",
+        "obsWebSocketVersion": "5.7.6",
+        "platform": "windows",
+        "platformDescription": "Windows 11 Version 26H2",
+        "rpcVersion": 1,
+        "supportedImageFormats": [
+          "bmp",
+          "cur",
+          "icns",
+          "ico",
+          "jfif",
+          "jpeg",
+          "jpg",
+          "pbm",
+          "pgm",
+          "png",
+          "ppm",
+          "tif",
+          "tiff",
+          "wbmp",
+          "webp",
+          "xbm",
+          "xpm"
+        ]
+      }
+    },
+    {
+      "requestType": "GetVideoSettings",
+      "responseData": {
+        "baseHeight": 1080,
+        "baseWidth": 1920,
+        "fpsDenominator": 1,
+        "fpsNumerator": 60,
+        "outputHeight": 1080,
+        "outputWidth": 1920
+      }
+    },
+    {
+      "requestType": "GetVirtualCamStatus",
+      "responseData": {
+        "outputActive": true
+      }
+    }
+  ]
+}

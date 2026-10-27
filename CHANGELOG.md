@@ -96,7 +96,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   builder, check that each sends the request it is named after and compare what is sent on the wire, field by field,
   with a snapshot of obs-websocket's own protocol definition (`OBSClient.Tests/Protocol`), answer each request with the
   response the protocol documents for it, send every event the way the protocol documents it, and check the numeric
-  values of the enums.
+  values of the enums. They also read **what a real OBS Studio answered** (`OBSClient.Tests/Fixtures`, captured read-only with
+  `tools/capture/obs-capture.ps1`) and fail when a member that OBS Studio sent is not given back, which is how the nested
+  objects, that the protocol only describes in prose, are checked.
 - **The protocol-derived code is generated** from obs-websocket's own machine-readable definition
   (`tools/protocol/obs-websocket-protocol.json`) and `tools/protocol/overlay.toml`, which holds the decisions that the
   definition cannot make (type names, the C# type of a field, patches where upstream's documentation is wrong): the
