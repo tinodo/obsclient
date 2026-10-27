@@ -146,8 +146,9 @@ jobs:
           -p:Platform=x64
           --output ./artifacts/OBSClient.TestApp-win-x64
 
-      # Starts the app, which opens every page and builds the editor of every request, and says so in a log. This is what finds
-      # an error in a XAML file (they are only read when the app runs) before anyone has to start the app to find it.
+      # Starts the app, which opens every page, builds, fills in and reads the editor of every request, and takes a picture of
+      # each page, and says so in a log. This is what finds an error in a XAML file (they are only read when the app runs)
+      # before anyone has to start the app to find it; the pictures show the design.
       - name: Smoke test
         shell: pwsh
         run: |
@@ -166,12 +167,14 @@ jobs:
             exit 1
           }
 
-      - name: Upload the smoke test log
+      - name: Upload the smoke test log and pictures
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-app-smoke-test-log
-          path: smoke-test.log
+          name: test-app-smoke-test
+          path: |
+            smoke-test.log
+            smoke-test-*.png
           if-no-files-found: ignore
           retention-days: 14
 

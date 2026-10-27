@@ -43,6 +43,15 @@ public sealed partial class LogPage : Page
     /// <summary>Gets the entries that match the filters.</summary>
     public ObservableCollection<LogEntry> Visible { get; } = [];
 
+    /// <summary>Selects the first entry that is shown, for the smoke test.</summary>
+    internal void SelectFirst()
+    {
+        if (this.Visible.Count > 0)
+        {
+            this.EntryList.SelectedIndex = 0;
+        }
+    }
+
     private bool Matches(LogEntry entry)
     {
         var shown = entry.Kind switch

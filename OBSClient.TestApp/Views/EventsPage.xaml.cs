@@ -27,6 +27,15 @@ public sealed partial class EventsPage : Page
     /// <summary>Gets the events that match the filter.</summary>
     public ObservableCollection<SessionEvent> Visible { get; } = [];
 
+    /// <summary>Selects the first event, for the smoke test.</summary>
+    internal void SelectFirst()
+    {
+        if (this.Visible.Count > 0)
+        {
+            this.EventList.SelectedIndex = 0;
+        }
+    }
+
     private bool Matches(SessionEvent entry)
     {
         var filter = this.FilterBox.Text.Trim();

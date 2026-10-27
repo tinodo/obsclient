@@ -39,6 +39,9 @@ public sealed partial class ExplorerPage : Page
         }
     }
 
+    /// <summary>Shows a request, as when the user chooses it; for the smoke test.</summary>
+    internal void OpenRequest(RequestDescriptor request) => this.Show(request);
+
     /// <summary>Shows a request, fills in every parameter and reads the values back; for the smoke test.</summary>
     internal ArgumentSet FillAndCollect(RequestDescriptor request)
     {

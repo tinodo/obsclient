@@ -86,6 +86,9 @@ internal sealed class ObsSession
         ? new SessionStatistics(client.SessionBytesSent, client.SessionBytesReceived, client.SessionMessagesSent, client.SessionMessagesReceived)
         : null;
 
+    /// <summary>Raises an event as if the client had raised it; for the smoke test, which shows the pages with something on them.</summary>
+    internal void RaiseForSmokeTest(SessionEvent entry) => this.EventReceived?.Invoke(this, entry);
+
     /// <summary>Connects to OBS Studio and waits until the handshake is done.</summary>
     /// <param name="settings">How to connect.</param>
     /// <returns>Null when connected; otherwise what went wrong.</returns>
