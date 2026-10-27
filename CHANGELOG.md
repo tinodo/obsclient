@@ -66,7 +66,15 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - Fields that obs-websocket documents as `null` in some situation are nullable now (found by reading the responses of a real
   OBS Studio, see *Added*): `SceneTransitionResponse.TransitionName` and `TransitionDuration` (`string?` and `long?`: the
   answer for a scene without a transition override, which the client could not read at all, see *Fixed*),
-  `SceneTransitionListResponse.CurrentSceneTransitionKind` and `RecordStateChangedEventArgs.OutputPath` (`string?`).
+  `SceneTransitionListResponse.CurrentSceneTransitionKind` and `RecordStateChangedEventArgs.OutputPath` (`string?`), and the
+  six names of `SpecialInputsResponse` (`Desktop1` to `Mic4`, `string?`): OBS Studio sends `null` for each one that is not
+  configured, which is the second desktop and the second to fourth microphone by default. `InputVolumeMeterResponse.InputKind`
+  and `UnversionedInputKind` are `string?` too: OBS Studio never sends them (see *Fixed*).
+- `PropertyItem.ItemValue` (the items of `GetInputPropertiesListPropertyItems`) is a `JsonElement?` instead of a `string`, and so
+  is the matching constructor parameter: OBS Studio sends a string, an integer, a floating point number or `null`, depending on
+  the format of the list (see *Fixed*). `item.ItemValue!.Value.GetString()` is what `item.ItemValue` was for a list of strings.
+- `SceneItemListReindexedEventArgs.SceneItems` is an array of the new `BasicSceneItem`, with the `SceneItemId` and the
+  `SceneItemIndex` that OBS Studio sends for each item of a reindexed scene (see *Fixed*), instead of an array of `SceneItem`.
 
 ### Added
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
@@ -100,9 +108,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   builder, check that each sends the request it is named after and compare what is sent on the wire, field by field,
   with a snapshot of obs-websocket's own protocol definition (`OBSClient.Tests/Protocol`), answer each request with the
   response the protocol documents for it, send every event the way the protocol documents it, and check the numeric
-  values of the enums. They also read **what a real OBS Studio answered** (`OBSClient.Tests/Fixtures`, captured read-only with
-  `tools/capture/obs-capture.ps1`) and fail when a member that OBS Studio sent is not given back, which is how the nested
-  objects, that the protocol only describes in prose, are checked.
+  values of the enums. They also read **what a real OBS Studio answered and sent** (`OBSClient.Tests/Fixtures`, captured with
+  `tools/capture/obs-capture.ps1`: the responses to the `Get` requests, and the events) and fail when a member that OBS Studio sent is
+  not given back, which is how the nested objects, that the protocol only describes in prose, are checked.
 - **The protocol-derived code is generated** from obs-websocket's own machine-readable definition
   (`tools/protocol/obs-websocket-protocol.json`) and `tools/protocol/overlay.toml`, which holds the decisions that the
   definition cannot make (type names, the C# type of a field, patches where upstream's documentation is wrong): the
@@ -190,6 +198,20 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - **`GetSceneSceneTransitionOverride` failed for every scene without an override**, which is every scene by default: OBS Studio
   answers with `transitionName` and `transitionDuration` set to `null`, and the client could not convert the null to a number.
   Found by reading the responses of a real OBS Studio (`ObsStudioCaptureTests`).
+- **The data of a `CustomEvent` never arrived** (this was so in 3.0.1 as well): obs-websocket sends the data that another client
+  gave to `BroadcastCustomEvent` as the data of the event itself, and not as a member `eventData` of it (checked in the source of
+  5.7.6, and in the events of a real OBS Studio), which is what its documentation of the event says, so `CustomEventEventArgs.EventData`
+  was always `null`. It is the whole payload now.
+- The entries of the `InputVolumeMeters` event have an `InputUuid` now (`InputVolumeMeterResponse`, an `init` property so that the
+  constructor stays what it was). OBS Studio does not send `inputKind` and `unversionedInputKind` with them, so those two are
+  `string?` now (they were always `null`).
+- **`GetInputPropertiesListPropertyItems` failed for every list of numbers** (this was so in 3.0.1 as well): the value of an item is
+  a string, an integer, a floating point number or `null`, depending on the format of the list (checked in the source of 5.7.6,
+  `ArrayHelper::GetListPropertyItems`), and the client read it as a string. It keeps the kind that OBS Studio sent now (see
+  *Breaking changes*), which matters because a setting that is set from it has to be set as the same kind.
+- The items of a `SceneItemListReindexed` event were read as `SceneItem`, but OBS Studio sends only the `sceneItemId` and the
+  `sceneItemIndex` of each (the *basic* list of obs-websocket), so every other member of the item was a default that looked like
+  data: an item was disabled, locked, and had no name. They are `BasicSceneItem` now (see *Breaking changes*).
 - `KeyModifier` is marked `[Flags]`: the client always treated it as a combination of keys (`KeyModifier.Control | KeyModifier.Shift`
   is the modifiers of Ctrl+Shift, which `TriggerHotkeyByKeySequence` and its batch builder send as one flag for each key), but the
   type did not say so, so it printed and parsed a combination as a number.

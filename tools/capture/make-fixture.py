@@ -39,13 +39,29 @@ for name in sorted(os.listdir(source)):
 if version is None:
     sys.exit("The capture has no answer to GetVersion.")
 
+events = []
+events_path = os.path.join(source, "events.jsonl")
+if os.path.exists(events_path):
+    for line in open(events_path, encoding="utf-8-sig"):
+        line = line.strip()
+        if not line:
+            continue
+        message = json.loads(line)
+        if message.get("op") != 5:
+            continue
+        entry = {"eventType": message["d"]["eventType"], "eventIntent": message["d"].get("eventIntent")}
+        if "eventData" in message["d"]:
+            entry["eventData"] = message["d"]["eventData"]
+        events.append(entry)
+
 fixture = {
-    "note": "Responses of a real OBS Studio, captured read-only (Get requests only) with tools/capture/obs-capture.ps1. "
+    "note": "What a real OBS Studio sent, captured with tools/capture/obs-capture.ps1: the responses to Get requests, and the events. "
             "What identifies the machine (the user name in a path, the names of the monitors) is replaced; the rest is as OBS Studio sent it.",
     "obsVersion": version["obsVersion"],
     "obsWebSocketVersion": version["obsWebSocketVersion"],
     "platform": version["platform"],
     "responses": responses,
+    "events": events,
 }
 text = json.dumps(fixture, indent=2, ensure_ascii=False)
 user = os.environ.get("USERNAME") or os.environ.get("USER")
@@ -53,4 +69,4 @@ if user and re.search(re.escape(user), text, re.I):
     sys.exit(f"The fixture still holds the name of the user ({user}): replace it in this script.")
 with open(target, "w", encoding="utf-8", newline="\n") as file:
     file.write(text + "\n")
-print(f"{len(responses)} responses written to {target}")
+print(f"{len(responses)} responses and {len(events)} events written to {target}")

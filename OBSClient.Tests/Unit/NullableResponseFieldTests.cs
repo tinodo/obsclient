@@ -57,6 +57,30 @@ namespace OBSStudioClient.Tests.Unit
         }
 
         [Fact]
+        public async Task TheSpecialInputs_AreNullForTheOnesThatAreNotConfigured()
+        {
+            var (sent, response) = await ObsClientHarness.QueryAsync(
+                client => client.GetSpecialInputs(),
+                new
+                {
+                    desktop1 = "Desktop Audio",
+                    desktop2 = (string?)null,
+                    mic1 = "Mic/Aux",
+                    mic2 = (string?)null,
+                    mic3 = (string?)null,
+                    mic4 = (string?)null,
+                });
+
+            Assert.Equal("GetSpecialInputs", sent.RequestType);
+            Assert.Equal("Desktop Audio", response.Desktop1);
+            Assert.Null(response.Desktop2);
+            Assert.Equal("Mic/Aux", response.Mic1);
+            Assert.Null(response.Mic2);
+            Assert.Null(response.Mic3);
+            Assert.Null(response.Mic4);
+        }
+
+        [Fact]
         public async Task ARecordThatStarted_HasNoOutputPath()
         {
             await using var server = new FakeObsWebSocketServer();

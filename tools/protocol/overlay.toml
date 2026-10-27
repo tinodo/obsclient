@@ -571,6 +571,7 @@ videoMixType = "MixType"
 # Where a field of one response or event differs from the vocabulary: <Type>.<field>.
 [types.data_exceptions]
 "InputVolumeMetersEventArgs.inputs" = "InputVolumeMeterResponse[]"
+"SceneItemListReindexedEventArgs.sceneItems" = "BasicSceneItem[]"
 "SceneItemSourceResponse.sourceUuid" = "string"
 "TransitionDurationEventArgs.transitionDuration" = "int"
 "TransitionResponse.transitionDuration" = "float"
@@ -584,7 +585,6 @@ videoMixType = "MixType"
 [nullable]
 fields = [
   "CallVendorResponse.responseData",
-  "CustomEventEventArgs.eventData",
   "InputCreatedEventArgs.inputKindCaps",
   "MediaInputStatusResponse.mediaCursor",
   "MediaInputStatusResponse.mediaDuration",
@@ -601,6 +601,12 @@ fields = [
   "SceneTransitionResponse.transitionDuration",
   "SceneTransitionResponse.transitionName",
   "SlotValueResponse.slotValue",
+  "SpecialInputsResponse.desktop1",
+  "SpecialInputsResponse.desktop2",
+  "SpecialInputsResponse.mic1",
+  "SpecialInputsResponse.mic2",
+  "SpecialInputsResponse.mic3",
+  "SpecialInputsResponse.mic4",
   "TransitionResponse.transitionDuration",
   "VendorEventEventArgs.eventData",
 ]
@@ -652,9 +658,11 @@ fields = [
 # Written by hand. These types are registered and used by the generated code, but not generated themselves.
 # ---------------------------------------------------------------------------------------------------------------
 [manual]
+# CustomEventEventArgs: obs-websocket sends the data of a CustomEvent as the data of the event itself (checked in the source of
+# 5.7.6, RequestHandler::BroadcastCustomEvent), not as a member eventData of it, which is what the documentation says.
 # EmptyResponse: the response of every request that returns nothing.
 # TransitionResponse: derives from Transition (GetCurrentSceneTransition returns a transition plus its settings).
-dtos = ["EmptyResponse", "TransitionResponse"]
+dtos = ["CustomEventEventArgs", "EmptyResponse", "TransitionResponse"]
 
 # Requests whose methods are written by hand (OBSClient/ObsClient_ManualRequests.cs and
 # OBSClient/Messages/RequestBatchMessage_ManualRequests.cs), because the client offers them in another shape than the protocol does:

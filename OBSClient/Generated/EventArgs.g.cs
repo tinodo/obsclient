@@ -98,23 +98,6 @@ namespace OBSStudioClient.Events
     }
 
     /// <summary>
-    /// Provides the arguments of the <c>CustomEvent</c> event.
-    /// </summary>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="CustomEventEventArgs"/> class.
-    /// </remarks>
-    /// <param name="eventData">Custom event data.</param>
-    [method: JsonConstructor]
-    public class CustomEventEventArgs(JsonElement? eventData) : EventArgs
-    {
-        /// <summary>
-        /// Custom event data.
-        /// </summary>
-        [JsonPropertyName("eventData")]
-        public JsonElement? EventData { get; } = eventData;
-    }
-
-    /// <summary>
     /// Provides the arguments of the <c>InputActiveStateChanged</c> event.
     /// </summary>
     /// <remarks>
@@ -824,7 +807,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneUuid">UUID of the scene.</param>
     /// <param name="sceneItems">Array of scene item objects.</param>
     [method: JsonConstructor]
-    public class SceneItemListReindexedEventArgs(string sceneName, Guid sceneUuid, SceneItem[] sceneItems) : EventArgs
+    public class SceneItemListReindexedEventArgs(string sceneName, Guid sceneUuid, BasicSceneItem[] sceneItems) : EventArgs
     {
         /// <summary>
         /// Name of the scene.
@@ -842,7 +825,7 @@ namespace OBSStudioClient.Events
         /// Array of scene item objects.
         /// </summary>
         [JsonPropertyName("sceneItems")]
-        public SceneItem[] SceneItems { get; } = sceneItems ?? [];
+        public BasicSceneItem[] SceneItems { get; } = sceneItems ?? [];
     }
 
     /// <summary>

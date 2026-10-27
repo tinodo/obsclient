@@ -1215,43 +1215,43 @@ namespace OBSStudioClient.Responses
     /// <param name="mic3">Name of the Mic/Auxiliary Audio 3 input.</param>
     /// <param name="mic4">Name of the Mic/Auxiliary Audio 4 input.</param>
     [method: JsonConstructor]
-    public class SpecialInputsResponse(string desktop1, string desktop2, string mic1, string mic2, string mic3, string mic4) : IResponse
+    public class SpecialInputsResponse(string? desktop1, string? desktop2, string? mic1, string? mic2, string? mic3, string? mic4) : IResponse
     {
         /// <summary>
         /// Name of the Desktop Audio input.
         /// </summary>
         [JsonPropertyName("desktop1")]
-        public string Desktop1 { get; } = desktop1;
+        public string? Desktop1 { get; } = desktop1;
 
         /// <summary>
         /// Name of the Desktop Audio 2 input.
         /// </summary>
         [JsonPropertyName("desktop2")]
-        public string Desktop2 { get; } = desktop2;
+        public string? Desktop2 { get; } = desktop2;
 
         /// <summary>
         /// Name of the Mic/Auxiliary Audio input.
         /// </summary>
         [JsonPropertyName("mic1")]
-        public string Mic1 { get; } = mic1;
+        public string? Mic1 { get; } = mic1;
 
         /// <summary>
         /// Name of the Mic/Auxiliary Audio 2 input.
         /// </summary>
         [JsonPropertyName("mic2")]
-        public string Mic2 { get; } = mic2;
+        public string? Mic2 { get; } = mic2;
 
         /// <summary>
         /// Name of the Mic/Auxiliary Audio 3 input.
         /// </summary>
         [JsonPropertyName("mic3")]
-        public string Mic3 { get; } = mic3;
+        public string? Mic3 { get; } = mic3;
 
         /// <summary>
         /// Name of the Mic/Auxiliary Audio 4 input.
         /// </summary>
         [JsonPropertyName("mic4")]
-        public string Mic4 { get; } = mic4;
+        public string? Mic4 { get; } = mic4;
     }
 
     /// <summary>
