@@ -366,7 +366,7 @@
         /// <param name="logger">The logger to use.</param>
         public ObsClient(ILogger<ObsClient>? logger = null)
         {
-            this._logger = logger ?? new NullLogger<ObsClient>();
+            this._logger = logger ?? NullLogger<ObsClient>.Instance;
             this._reconnectTimer = new(this.ReconnectTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 
             // Use TryAdd for ConcurrentDictionary

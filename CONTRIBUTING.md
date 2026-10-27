@@ -178,8 +178,10 @@ These are pull requests like any other: CI builds and tests them, and the Docs w
 release notes of a major update before you merge it, and be careful with the actions of `publish.yml`: a change to that workflow is only
 exercised when a version tag is pushed.
 
-The one dependency of the library, `Microsoft.Extensions.Logging`, is part of what its users get with it. No pull request is opened for a
-new major version of `Microsoft.Extensions.*`: moving to one is a decision about the target frameworks, made by hand.
+The one dependency of the library, `Microsoft.Extensions.Logging.Abstractions`, is part of what its users get with it, so it is asked for at
+the oldest version that has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it
+update too. No version update is proposed for it, whatever the version (a security update still is, see `.github/dependabot.yml`);
+raise it by hand when the library needs something that a newer version has.
 
 ## Releasing (maintainers)
 

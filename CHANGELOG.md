@@ -64,6 +64,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   index of 0 or more together with a geometry with an error. They used to throw an `ArgumentException` first, and the
   former defaulted `monitorIndex` to `-1`; leaving it out has the same effect now, because that is obs-websocket's default.
 - `MonitorTypeResponse` was removed: no request returned it (`GetInputAudioMonitorType` returns the `MonitorType`).
+- **The dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0** *(after beta1)*, where it was `Microsoft.Extensions.Logging` 9.0.9. The client
+  only uses the `ILogger<ObsClient>` interface (and `NullLogger`), which the abstractions have, so an application no longer gets the
+  whole logging system with it, and one that stays on the 8.x packages of `Microsoft.Extensions` does not have to move to 9.0.9 (it could
+  not restore: package downgrade, NU1605). An application that makes its own logger with `LoggerFactory` has to reference
+  `Microsoft.Extensions.Logging` itself, as it does for `AddConsole` (`Microsoft.Extensions.Logging.Console` brings it along); one that
+  gets its logger from dependency injection (a generic host, ASP.NET Core) has it already.
 - The constructors of `RequestMessage` that derived the request type from the name of the calling method (`[CallerMemberName]`)
   and took a `dynamic` are gone. They were `protected internal`, so only a class that derived from `RequestMessage` could
   use them from outside the assembly.
