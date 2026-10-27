@@ -380,8 +380,8 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public void AddSetSceneItemTransformRequest(string sceneName, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public void AddSetSceneItemTransformRequest(string sceneName, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             this.AddSetSceneItemTransformRequest(sceneName, null, sceneItemId, sceneItemTransform);
         }
@@ -392,8 +392,8 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public void AddSetSceneItemTransformRequest(string sceneName, Guid canvasUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public void AddSetSceneItemTransformRequest(string sceneName, Guid canvasUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             this.AddSetSceneItemTransformRequest(sceneName, (Guid?)canvasUuid, sceneItemId, sceneItemTransform);
         }
@@ -403,13 +403,13 @@
         /// </summary>
         /// <param name="sceneUuid">UUID of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public void AddSetSceneItemTransformRequest(Guid sceneUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public void AddSetSceneItemTransformRequest(Guid sceneUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             this._requests.Add(new(new { sceneUuid, sceneItemId, sceneItemTransform }));
         }
 
-        private void AddSetSceneItemTransformRequest(string sceneName, Guid? canvasUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        private void AddSetSceneItemTransformRequest(string sceneName, Guid? canvasUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             this._requests.Add(new(new { sceneName, canvasUuid, sceneItemId, sceneItemTransform }));
         }

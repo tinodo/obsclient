@@ -149,5 +149,12 @@
         /// </remarks>
         [JsonPropertyName("cropToBounds")]
         public bool? CropToBounds { get; init; }
+
+        /// <summary>
+        /// Creates the <see cref="SceneItemTransformUpdate"/> that gives a scene item this transform, ready to be changed
+        /// with a <see langword="with"/> expression.
+        /// </summary>
+        /// <returns>The update. The bounds of a transform without bounds are left out of it, because OBS Studio refuses a bounds width or height below 1.</returns>
+        public SceneItemTransformUpdate ToUpdate() => SceneItemTransformUpdate.From(this);
     }
 }

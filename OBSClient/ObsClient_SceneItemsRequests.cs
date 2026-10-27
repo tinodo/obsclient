@@ -415,8 +415,8 @@
         /// </summary>
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public async Task SetSceneItemTransform(string sceneName, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public async Task SetSceneItemTransform(string sceneName, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             await this.SetSceneItemTransform(sceneName, null, null, sceneItemId, sceneItemTransform);
         }
@@ -427,8 +427,8 @@
         /// <param name="sceneName">Name of the scene the item is in</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public async Task SetSceneItemTransform(string sceneName, Guid canvasUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public async Task SetSceneItemTransform(string sceneName, Guid canvasUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             await this.SetSceneItemTransform(sceneName, canvasUuid, null, sceneItemId, sceneItemTransform);
         }
@@ -438,13 +438,13 @@
         /// </summary>
         /// <param name="sceneUuid">Uuid of the scene the item is in</param>
         /// <param name="sceneItemId">Numeric ID of the scene item (>= 0)</param>
-        /// <param name="sceneItemTransform">Object containing scene item transform info to update</param>
-        public async Task SetSceneItemTransform(Guid sceneUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        /// <param name="sceneItemTransform">The members of the transform and crop to change; members that are not set are left as they are. A <see cref="SceneItemTransform"/> converts to this implicitly.</param>
+        public async Task SetSceneItemTransform(Guid sceneUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             await this.SetSceneItemTransform(null, null, sceneUuid, sceneItemId, sceneItemTransform);
         }
 
-        private async Task SetSceneItemTransform(string? sceneName, Guid? canvasUuid, Guid? sceneUuid, int sceneItemId, SceneItemTransform sceneItemTransform)
+        private async Task SetSceneItemTransform(string? sceneName, Guid? canvasUuid, Guid? sceneUuid, int sceneItemId, SceneItemTransformUpdate sceneItemTransform)
         {
             await this.SendRequestAsync(new { sceneName, canvasUuid, sceneUuid, sceneItemId, sceneItemTransform });
         }

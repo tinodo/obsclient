@@ -33,6 +33,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   so there was no way to give a new input any settings (such as the URL of a browser source). Passing `null` still works.
 - `ObsClient.TotalMessagesReceived` and `SessionMessagesReceived` now count messages; they counted WebSocket frames,
   which made a large message count several times.
+- `SetSceneItemTransform` and `RequestBatchMessage.AddSetSceneItemTransformRequest` take a `SceneItemTransformUpdate`
+  instead of a `SceneItemTransform` (see *Added*). A `SceneItemTransform` converts to it implicitly, so calls compile
+  unchanged, but code that was compiled against 3.x has to be recompiled.
 
 ### Added
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
@@ -49,6 +52,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   `AddGetInputDeinterlaceModeRequest`, `AddSetInputDeinterlaceModeRequest`, `AddGetInputDeinterlaceFieldOrderRequest`,
   `AddSetInputDeinterlaceFieldOrderRequest`, `AddGetSceneItemSourceRequest`, `AddGetSourceFilterKindListRequest`,
   `AddSplitRecordFileRequest` and `AddCreateRecordChapterRequest`. `AddTriggerHotkeyByNameRequest` accepts a context name.
+- `SceneItemTransformUpdate`: change some members of the transform of a scene item (position, scale, rotation, crop,
+  bounds, alignment) without having to send the others, which is what obs-websocket supports. `SceneItemTransform.ToUpdate()`
+  turns what was read into a change that can be adjusted with a `with` expression:
+  `await client.SetSceneItemTransform("Scene", id, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });`
 - `net10.0` as an additional target framework, next to `net8.0`.
 - **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
   event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch
@@ -111,6 +118,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   example `pässword`) was silently changed to `?` and could not authenticate. obs-websocket hashes the UTF-8 bytes
   (`Utils::Crypto::GenerateSecret`/`CheckAuthenticationString`), and the client now does the same.
 - `GetSceneList()` keeps sending no request data; the canvas overload sends the `canvasUuid`.
+- The transform of a scene item that has no bounds could not be given back to it: `SetSceneItemTransform` sent the whole
+  transform as it was read, including a bounds width and height of 0, which obs-websocket refuses (they must be at
+  least 1; checked in the source of 5.7.6). Only the members that are meant to change are sent now, and a
+  `SceneItemTransform` is converted so that the bounds of an item without bounds are left out.
 
 ### Compatibility
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
