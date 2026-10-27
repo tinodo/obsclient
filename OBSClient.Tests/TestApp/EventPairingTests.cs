@@ -151,5 +151,28 @@ namespace OBSStudioClient.Tests.TestAppTests
 
             Assert.Null(pairing.Match("ExitStarted", "{}"));
         }
+
+        [Fact]
+        public void TheMessagesThatAReplacedClientLeftBehind_AreNotMatchedWithTheEventsOfTheNewOne()
+        {
+            // The app connects again with a new client and keeps its log. A message whose event the old client did not get to raise (it was
+            // disposed first) stays behind, and of two identical messages the oldest is the one that is taken, so the new client needs a
+            // pairing of its own: in a shared one the event of the new client would be shown with the message of the old connection.
+            var stale = Message("InputMuteStateChanged", new { inputName = "Mic", inputMuted = true });
+            var fresh = Message("InputMuteStateChanged", new { inputName = "Mic", inputMuted = true });
+            const string raised = """{"inputName":"Mic","inputMuted":true}""";
+
+            var shared = new EventPairing();
+            shared.Received(stale);
+            shared.Received(fresh);
+            Assert.Same(stale, shared.Match("InputMuteStateChanged", raised));
+
+            var replaced = new EventPairing();
+            var current = new EventPairing();
+            replaced.Received(stale);
+            current.Received(fresh);
+            Assert.Same(fresh, current.Match("InputMuteStateChanged", raised));
+            Assert.Same(stale, replaced.Match("InputMuteStateChanged", raised));
+        }
     }
 }

@@ -252,5 +252,83 @@ namespace OBSStudioClient.Tests
                 Assert.Equal(new[] { "first" }, raised);
             }
         }
+
+        [Fact]
+        public async Task AConnectionClosedNotificationThatIsUnderWay_DoesNotReachTheNextHandler_WhenTheClientIsDisposed()
+        {
+            // The notification has left the queue, and a handler of it is running: emptying the queue cannot reach it, so it has to look at
+            // the client again before the handler that is next.
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            using var release = new ManualResetEventSlim(false);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.ConnectionClosed += (_, _) =>
+            {
+                entered.TrySetResult();
+                Block(release);
+            };
+            client.ConnectionClosed += (_, _) => next.TrySetResult();
+
+            try
+            {
+                await server.CloseWithCodeAsync(1001, "Going away").WithTimeoutAsync(Timeout);
+                await entered.Task.WithTimeoutAsync(Timeout, "ConnectionClosed was not raised.");
+
+                client.Dispose();
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            await Task.Delay(500);
+            Assert.False(next.Task.IsCompleted, "A ConnectionClosed handler was called after the client was disposed.");
+        }
+
+        [Fact]
+        public async Task AnEventThatIsUnderWay_DoesNotReachTheNextHandler_WhenTheClientIsDisposed()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            using var release = new ManualResetEventSlim(false);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.CurrentProgramSceneChanged += (_, _) =>
+            {
+                entered.TrySetResult();
+                Block(release);
+            };
+            client.CurrentProgramSceneChanged += (_, _) => next.TrySetResult();
+
+            try
+            {
+                await SendSceneChangedAsync(server, "Scene");
+                await entered.Task.WithTimeoutAsync(Timeout, "The event was not raised.");
+
+                client.Dispose();
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            await Task.Delay(500);
+            Assert.False(next.Task.IsCompleted, "An event handler was called after the client was disposed.");
+        }
+
+        [Fact]
+        public async Task AConnectionClosedHandlerThatThrows_DoesNotKeepTheNextHandlerFromBeingCalled()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.ConnectionClosed += (_, _) => throw new InvalidOperationException("handler failure");
+            client.ConnectionClosed += (_, _) => next.TrySetResult();
+
+            await server.CloseWithCodeAsync(1001, "Going away").WithTimeoutAsync(Timeout);
+
+            await next.Task.WithTimeoutAsync(Timeout, "The handler behind the one that threw was not called.");
+        }
     }
 }

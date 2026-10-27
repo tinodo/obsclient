@@ -131,10 +131,11 @@ internal sealed class ObsSession
         this.ObsWebSocketVersion = null;
         this.Platform = null;
 
-        var client = new ObsClient(this.Log) { RequestTimeout = settings.RequestTimeout };
+        var clientLog = this.Log.ForClient();
+        var client = new ObsClient(clientLog) { RequestTimeout = settings.RequestTimeout };
         client.PropertyChanged += this.OnClientPropertyChanged;
         client.ConnectionClosed += this.OnConnectionClosed;
-        RequestCatalog.Subscribe(client, this.OnClientEvent);
+        RequestCatalog.Subscribe(client, (name, arguments) => this.OnClientEvent(client, clientLog, name, arguments));
         this._client = client;
 
         try
@@ -387,9 +388,10 @@ internal sealed class ObsSession
         this.Log.Note(LogLevel.Information, $"The connection was closed: {this._lastClosed}");
     }
 
-    private void OnClientEvent(string name, object? arguments)
+    private void OnClientEvent(ObsClient client, ClientLog clientLog, string name, object? arguments)
     {
-        if (this._closing)
+        // A client that was replaced is disposed, but an event that it had under way can still arrive: it belongs to a connection that is gone.
+        if (this._closing || !ReferenceEquals(client, this._client))
         {
             return;
         }
@@ -405,7 +407,7 @@ internal sealed class ObsSession
             this.Log.Note(LogLevel.Warning, $"The arguments of the event {name} could not be shown: {exception.Message}");
         }
 
-        var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, this.Log.ClaimEvent(name, typed)?.Text);
+        var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, clientLog.ClaimEvent(name, typed)?.Text);
         this._dispatcher.TryEnqueue(() =>
         {
             if (!this._closing)

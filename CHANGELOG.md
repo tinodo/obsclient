@@ -92,8 +92,11 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   client.SetCurrentProgramScene("Game")` can return before `CurrentProgramSceneChanged` was raised for it); (2) events queue up in memory
   while a handler runs, without a limit (dropping one would lose a change), where they used to hold up the receive loop and everything
   behind it, and the client logs a warning when 1000 of them are waiting; (3) `ConnectionClosed` is raised after the events that arrived
-  before the connection ended, and once the client is disposed nothing that was waiting is raised any more. `PropertyChanged` and the
-  statistics events are not changed: they are still raised on the thread that causes the change, which can be the receive thread.
+  before the connection ended, and once `Dispose()` was called nothing that was waiting is raised any more, and a notification that is under
+  way stops before its next handler (a handler that is running is not waited for, so it can still be running when `Dispose()` returns).
+  `ConnectionClosed` is now raised handler by handler, like the events, so a handler that throws no longer keeps the handlers behind it from
+  being called. `PropertyChanged` and the statistics events are not changed: they are still raised on the thread that causes the change,
+  which can be the receive thread.
 
 ### Added
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and

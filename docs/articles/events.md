@@ -105,8 +105,10 @@ skips the ones in between. The other three events each describe a change of one 
   application has to know about; the client logs a warning when 1000 of them are waiting. Keep handlers short, and do the long work
   in a task of your own.
 - **`ConnectionClosed` comes in the same order**: after the events that arrived before the connection ended. Events that are waiting
-  when you call `Disconnect()` are still raised, before `ConnectionClosed`. Once the client is disposed nothing is raised any more, and
-  what was still waiting is dropped.
+  when you call `Disconnect()` are still raised, before `ConnectionClosed`. When you call `Dispose()`, what is still waiting is dropped,
+  and a notification that is being raised stops before its next handler. `Dispose()` does not wait for a handler that is running and does
+  not interrupt it, so a handler can still be running after it returned: a handler that uses something that you dispose together with
+  the client has to check for that itself.
 - **An event is not guaranteed to be raised before the response of the request that caused it.** `await client.SetCurrentProgramScene("Game")`
   can return before `CurrentProgramSceneChanged` was raised for it; the two are on different threads.
 - **Not everything is raised this way.** `PropertyChanged` (for `ConnectionState` and the other properties) and the statistics events

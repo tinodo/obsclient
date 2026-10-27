@@ -88,8 +88,9 @@ Most code does not notice, but:
   to wait for the event instead.
 - **Events queue up while a handler runs**, in memory and without a limit; the client logs a warning when 1000 are waiting. Keep handlers
   short.
-- **`ConnectionClosed` comes after the events that arrived before the connection ended**, and once the client is disposed nothing that was
-  waiting is raised any more.
+- **`ConnectionClosed` comes after the events that arrived before the connection ended**, and once `Dispose()` was called nothing that was
+  waiting is raised any more (a handler that is running is not waited for). It is raised handler by handler, so a handler that throws no
+  longer keeps the others from being called.
 - **`PropertyChanged` and the statistics events are not part of this**: they are raised on the thread that causes the change, which can
   still be the thread that reads from OBS Studio.
 

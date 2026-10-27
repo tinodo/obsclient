@@ -29,7 +29,9 @@
     /// The events of OBS Studio and <see cref="ConnectionClosed"/> are raised by a dispatcher of the client: one at a time, in the
     /// order in which they happened, on a thread of the thread pool that is not the thread that reads from OBS Studio. A handler can
     /// therefore wait for a response to a request, but the events behind it wait while it runs, and they queue up in memory when the
-    /// handlers are slower than OBS Studio is. Once the client is disposed nothing is raised any more.
+    /// handlers are slower than OBS Studio is. Once <see cref="Dispose()"/> was called nothing new is started: what was waiting is dropped,
+    /// and a notification that is under way stops before its next handler. A handler that is running is neither interrupted nor waited
+    /// for, so it can still be running when <see cref="Dispose()"/> returns.
     /// </para>
     /// <para>
     /// <see cref="PropertyChanged"/> and the statistics events (<see cref="TotalBytesSentChanged"/> and the others) are raised on the thread
@@ -334,6 +336,7 @@
         /// </summary>
         /// <remarks>
         /// Raised by the dispatcher of the client, after the events of OBS Studio that arrived before the connection ended.
+        /// A handler that throws is logged, and does not keep the other handlers from being called.
         /// See the remarks of <see cref="ObsClient"/>.
         /// </remarks>
         public event EventHandler<ConnectionClosedEventArgs>? ConnectionClosed;
@@ -791,6 +794,13 @@
             {
                 foreach (var handler in eventDelegate.GetInvocationList())
                 {
+                    // Before every handler, and not once for the event: Dispose does not wait for a handler that is running, so the
+                    // handler that ran while the client was disposed must not be followed by the next one.
+                    if (this._disposed)
+                    {
+                        return;
+                    }
+
                     try
                     {
                         if (eventResponseData.EventData == null)
@@ -816,8 +826,35 @@
             }
         }
 
+        // Like RaiseEvent: the handlers one by one, so that one that throws does not keep the others from being called, and none starts
+        // once the client is disposed.
+        private void RaiseConnectionClosed(ConnectionClosedEventArgs closed)
+        {
+            if (this.ConnectionClosed is not { } handlers)
+            {
+                return;
+            }
+
+            foreach (var handler in handlers.GetInvocationList())
+            {
+                if (this._disposed)
+                {
+                    return;
+                }
+
+                try
+                {
+                    ((EventHandler<ConnectionClosedEventArgs>)handler)(this, closed);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception in a ConnectionClosed handler");
+                }
+            }
+        }
+
         // Adds a notification to the queue, and makes sure that a task is raising the notifications. Once the client is disposed nothing is
-        // raised any more.
+        // queued any more, and the notifications that are waiting are not raised.
         private void Notify(Action notification)
         {
             if (this._disposed)
@@ -1272,17 +1309,7 @@
             // Raised through the queue of notifications: after the events that arrived before the connection ended, and never by this loop,
             // so a handler that connects again, or waits for anything, cannot hold up the cleanup of the connection that just ended.
             var closed = new ConnectionClosedEventArgs(closeCode, closeDescription);
-            this.Notify(() =>
-            {
-                try
-                {
-                    this.ConnectionClosed?.Invoke(this, closed);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Exception in a ConnectionClosed handler");
-                }
-            });
+            this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
         private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null)
