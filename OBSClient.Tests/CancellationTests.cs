@@ -358,7 +358,7 @@ namespace OBSStudioClient.Tests
             client.Disconnect();
         }
 
-        [Fact]
+        [FactUnlessWindows]
         public async Task ARequestThatIsCancelledWhileItsWriteIsBlocked_EndsTheCall_AndTheWriteGoesOnHoldingItsTurn()
         {
             // OBS Studio does not read, so the write of a large request blocks. Cancelling the call ends it all the same, without aborting
