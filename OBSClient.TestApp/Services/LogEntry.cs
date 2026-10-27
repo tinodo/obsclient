@@ -23,34 +23,34 @@ public sealed class LogEntry
     public long Sequence { get; internal set; }
 
     /// <summary>Gets the time the entry was made.</summary>
-    public DateTimeOffset Time { get; init; }
+    public DateTimeOffset Time { get; internal set; }
 
     /// <summary>Gets where the entry comes from.</summary>
-    public LogKind Kind { get; init; }
+    public LogKind Kind { get; internal set; }
 
     /// <summary>Gets the level of the entry.</summary>
-    public LogLevel Level { get; init; }
+    public LogLevel Level { get; internal set; }
 
     /// <summary>Gets what the entry is, in a few words.</summary>
-    public string Title { get; init; } = string.Empty;
+    public string Title { get; internal set; } = string.Empty;
 
     /// <summary>Gets the whole entry: the JSON of a message, or the text of the report.</summary>
-    public string Text { get; init; } = string.Empty;
+    public string Text { get; internal set; } = string.Empty;
 
     /// <summary>Gets the operation code of a message.</summary>
-    public int? OpCode { get; init; }
+    public int? OpCode { get; internal set; }
 
     /// <summary>Gets the type of the request that a message is about.</summary>
-    public string? RequestType { get; init; }
+    public string? RequestType { get; internal set; }
 
     /// <summary>Gets the identifier of the request that a message is about.</summary>
-    public string? RequestId { get; init; }
+    public string? RequestId { get; internal set; }
 
     /// <summary>Gets the type of the event that a message carries.</summary>
-    public string? EventType { get; init; }
+    public string? EventType { get; internal set; }
 
     /// <summary>Gets a value indicating whether the message is the response to a request that failed.</summary>
-    public bool Failed { get; init; }
+    public bool Failed { get; internal set; }
 
     /// <summary>Gets a value indicating whether the entry deserves attention.</summary>
     public bool IsProblem => this.Failed || this.Level >= LogLevel.Warning;
