@@ -168,9 +168,11 @@ Dependabot (`.github/dependabot.yml`) looks at the GitHub Actions of the workflo
 `OBSClient.sln` and the DocFX tool of the documentation) every Monday morning. The routine updates of each ecosystem come in one pull
 request: all the actions together, and all the minor and patch updates of the packages together. A major update of a package gets a pull
 request of its own, so that it can be read before it is merged; the default limit of five open pull requests per ecosystem is not changed,
-because a lower one would let an unmerged major update hold back the routine ones. A release has to be a week old before it is proposed
-(the *cooldown*), which keeps a package that was published by mistake, or with malicious code, out of the repository in most cases;
-security updates are not delayed. Dependabot alerts and security updates are on.
+because a lower one would let an unmerged major update hold back the routine ones. A package release has to be a week old before it is
+proposed (the *cooldown*), which keeps a package that was published by mistake, or with malicious code, out of the repository in most
+cases; for an action it is three days, because the workflows use the moving major tag of an action (`@v4`), so a release within a major
+version reaches them at once and the cooldown only holds back the step to the next major version. Security updates are not delayed.
+Dependabot alerts and security updates are on.
 
 These are pull requests like any other: CI builds and tests them, and the Docs workflow builds the site when DocFX is updated. Read the
 release notes of a major update before you merge it, and be careful with the actions of `publish.yml`: a change to that workflow is only
