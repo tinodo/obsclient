@@ -9,7 +9,7 @@ namespace OBSStudioClient.Tests.Conformance
     internal sealed record ProtocolRequest(IReadOnlyList<ProtocolField> RequestFields, IReadOnlyList<ProtocolField> ResponseFields);
 
     /// <summary>
-    /// A compact snapshot of the obs-websocket protocol (see tools/protocol/update-protocol-snapshot.py), which the
+    /// A compact snapshot of the obs-websocket protocol (written by tools/protocol/generate.py), which the
     /// conformance tests compare the client against so it can no longer silently fall behind the protocol.
     /// </summary>
     internal sealed class ProtocolSnapshot

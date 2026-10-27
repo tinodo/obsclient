@@ -7,21 +7,13 @@ namespace OBSStudioClient.Tests.Conformance
     /// <summary>
     /// Verifies that the client knows every request, event and enum identifier that obs-websocket documents, and
     /// the other way around. These are the things that silently go missing when the protocol evolves and the client
-    /// does not. The reference is the snapshot in Protocol/protocol.schema.json, which is refreshed by
-    /// tools/protocol/update-protocol-snapshot.py (a scheduled workflow proposes that as soon as obs-websocket publishes a new version).
+    /// does not. The reference is the snapshot in Protocol/protocol.schema.json, which tools/protocol/generate.py writes
+    /// (from the protocol definition, with the patches of overlay.toml applied) together with most of the code that is
+    /// checked here: the generated parts hold by construction, so these tests mostly guard the hand-written parts and
+    /// the generator itself.
     /// </summary>
     public class ProtocolCoverageTests
     {
-        // obs-websocket still sends these, but only as copies of sceneName/sceneUuid (marked deprecated upstream for the
-        // program scene), which are the fields the client exposes.
-        private static readonly HashSet<string> LegacyResponseFields = new(StringComparer.Ordinal)
-        {
-            "GetCurrentProgramScene.currentProgramSceneName",
-            "GetCurrentProgramScene.currentProgramSceneUuid",
-            "GetCurrentPreviewScene.currentPreviewSceneName",
-            "GetCurrentPreviewScene.currentPreviewSceneUuid",
-        };
-
         private static ProtocolSnapshot Protocol => ProtocolSnapshot.Current;
 
         [Fact]
@@ -68,7 +60,7 @@ namespace OBSStudioClient.Tests.Conformance
                 var exposed = JsonNames.Of(responseType);
                 foreach (var field in request.ResponseFields)
                 {
-                    if (!exposed.Contains(field.Name) && !LegacyResponseFields.Contains($"{name}.{field.Name}"))
+                    if (!exposed.Contains(field.Name))
                     {
                         problems.Add($"{name}: the response field '{field.Name}' is not exposed by {responseType.Name}");
                     }

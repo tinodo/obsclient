@@ -1,0 +1,6 @@
+# Generated and vendored files are checked out with LF on every platform, so that the output of the code generator
+# (tools/protocol/generate.py) can be compared byte for byte, also on Windows.
+*.g.cs text eol=lf
+tools/protocol/obs-websocket-protocol.json text eol=lf
+tools/protocol/overlay.toml text eol=lf
+OBSClient.Tests/Protocol/protocol.schema.json text eol=lf

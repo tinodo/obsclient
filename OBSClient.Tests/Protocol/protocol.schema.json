@@ -267,14 +267,6 @@
         {
           "name": "sceneUuid",
           "type": "String"
-        },
-        {
-          "name": "currentPreviewSceneName",
-          "type": "String"
-        },
-        {
-          "name": "currentPreviewSceneUuid",
-          "type": "String"
         }
       ]
     },
@@ -287,14 +279,6 @@
         },
         {
           "name": "sceneUuid",
-          "type": "String"
-        },
-        {
-          "name": "currentProgramSceneName",
-          "type": "String"
-        },
-        {
-          "name": "currentProgramSceneUuid",
           "type": "String"
         }
       ]
@@ -2702,7 +2686,12 @@
     },
     "ToggleRecordPause": {
       "request": [],
-      "response": []
+      "response": [
+        {
+          "name": "outputPaused",
+          "type": "Boolean"
+        }
+      ]
     },
     "ToggleReplayBuffer": {
       "request": [],

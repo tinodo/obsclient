@@ -1,0 +1,612 @@
+# Decisions that obs-websocket's protocol.json does not make for the client.
+#
+# tools/protocol/generate.py reads protocol.json (what the protocol says) and this file (what the client makes of it)
+# and writes the protocol-derived code under OBSClient/Generated. Both are inputs of the build and are never shipped:
+# the package stays a single assembly (tools/verify-package.py checks that in CI).
+#
+# What is not listed here follows the conventions in protocol_model.py, so a request, event or field that a new
+# obs-websocket version introduces needs an entry only when the convention is not what you want.
+
+[protocol]
+# The obs-websocket version that obs-websocket-protocol.json was taken from (tools/protocol/update.py keeps it current).
+version = "5.7.6"
+
+# ---------------------------------------------------------------------------------------------------------------
+# Patches: where upstream's protocol.json does not match what obs-websocket really does (checked in its source).
+# They are applied before anything is generated and to the snapshot that the conformance tests use.
+# ---------------------------------------------------------------------------------------------------------------
+
+# ToggleRecordPause returns outputPaused (RequestHandler_Record.cpp), but its documentation comment lacks the field.
+[patches.response.ToggleRecordPause]
+add = [{ name = "outputPaused", type = "Boolean", description = "Whether the output is paused" }]
+
+# Deprecated copies of sceneName/sceneUuid. The response types expose sceneName and sceneUuid only.
+[patches.response.GetCurrentProgramScene]
+omit = ["currentProgramSceneName", "currentProgramSceneUuid"]
+
+[patches.response.GetCurrentPreviewScene]
+omit = ["currentPreviewSceneName", "currentPreviewSceneUuid"]
+
+# ---------------------------------------------------------------------------------------------------------------
+# Ordinals. The numeric value of a member of RequestType and EventType is compiled into the assemblies that use it,
+# so it must never change. New members are appended by generate.py with the next number.
+# ---------------------------------------------------------------------------------------------------------------
+
+[ordinals.RequestType]
+GetVersion = 0
+GetStats = 1
+BroadcastCustomEvent = 2
+CallVendorRequest = 3
+GetHotkeyList = 4
+TriggerHotkeyByName = 5
+TriggerHotkeyByKeySequence = 6
+Sleep = 7
+GetPersistentData = 8
+SetPersistentData = 9
+GetSceneCollectionList = 10
+SetCurrentSceneCollection = 11
+CreateSceneCollection = 12
+GetProfileList = 13
+SetCurrentProfile = 14
+CreateProfile = 15
+RemoveProfile = 16
+GetProfileParameter = 17
+SetProfileParameter = 18
+GetVideoSettings = 19
+SetVideoSettings = 20
+GetStreamServiceSettings = 21
+SetStreamServiceSettings = 22
+GetRecordDirectory = 23
+SetRecordDirectory = 24
+GetSourceActive = 25
+GetSourceScreenshot = 26
+SaveSourceScreenshot = 27
+GetSceneList = 28
+GetGroupList = 29
+GetCurrentProgramScene = 30
+SetCurrentProgramScene = 31
+GetCurrentPreviewScene = 32
+SetCurrentPreviewScene = 33
+CreateScene = 34
+RemoveScene = 35
+SetSceneName = 36
+GetSceneSceneTransitionOverride = 37
+SetSceneSceneTransitionOverride = 38
+GetInputList = 39
+GetInputKindList = 40
+GetSpecialInputs = 41
+CreateInput = 42
+RemoveInput = 43
+SetInputName = 44
+GetInputDefaultSettings = 45
+GetInputSettings = 46
+SetInputSettings = 47
+GetInputMute = 48
+SetInputMute = 49
+ToggleInputMute = 50
+GetInputVolume = 51
+SetInputVolume = 52
+GetInputAudioBalance = 53
+SetInputAudioBalance = 54
+GetInputAudioSyncOffset = 55
+SetInputAudioSyncOffset = 56
+GetInputAudioMonitorType = 57
+SetInputAudioMonitorType = 58
+GetInputAudioTracks = 59
+GetInputDeinterlaceMode = 60
+SetInputDeinterlaceMode = 61
+GetInputDeinterlaceFieldOrder = 62
+SetInputDeinterlaceFieldOrder = 63
+SetInputAudioTracks = 64
+GetInputPropertiesListPropertyItems = 65
+PressInputPropertiesButton = 66
+GetTransitionKindList = 67
+GetSceneTransitionList = 68
+GetCurrentSceneTransition = 69
+SetCurrentSceneTransition = 70
+SetCurrentSceneTransitionDuration = 71
+SetCurrentSceneTransitionSettings = 72
+GetCurrentSceneTransitionCursor = 73
+TriggerStudioModeTransition = 74
+SetTBarPosition = 75
+GetSourceFilterKindList = 76
+GetSourceFilterList = 77
+GetSourceFilterDefaultSettings = 78
+CreateSourceFilter = 79
+RemoveSourceFilter = 80
+SetSourceFilterName = 81
+GetSourceFilter = 82
+SetSourceFilterIndex = 83
+SetSourceFilterSettings = 84
+SetSourceFilterEnabled = 85
+GetSceneItemList = 86
+GetGroupSceneItemList = 87
+GetSceneItemId = 88
+GetSceneItemSource = 89
+CreateSceneItem = 90
+RemoveSceneItem = 91
+DuplicateSceneItem = 92
+GetSceneItemTransform = 93
+SetSceneItemTransform = 94
+GetSceneItemEnabled = 95
+SetSceneItemEnabled = 96
+GetSceneItemLocked = 97
+SetSceneItemLocked = 98
+GetSceneItemIndex = 99
+SetSceneItemIndex = 100
+GetSceneItemBlendMode = 101
+SetSceneItemBlendMode = 102
+GetVirtualCamStatus = 103
+ToggleVirtualCam = 104
+StartVirtualCam = 105
+StopVirtualCam = 106
+GetReplayBufferStatus = 107
+ToggleReplayBuffer = 108
+StartReplayBuffer = 109
+StopReplayBuffer = 110
+SaveReplayBuffer = 111
+GetLastReplayBufferReplay = 112
+GetOutputList = 113
+GetOutputStatus = 114
+ToggleOutput = 115
+StartOutput = 116
+StopOutput = 117
+GetOutputSettings = 118
+SetOutputSettings = 119
+GetStreamStatus = 120
+ToggleStream = 121
+StartStream = 122
+StopStream = 123
+SendStreamCaption = 124
+GetRecordStatus = 125
+ToggleRecord = 126
+StartRecord = 127
+StopRecord = 128
+ToggleRecordPause = 129
+PauseRecord = 130
+ResumeRecord = 131
+SplitRecordFile = 132
+CreateRecordChapter = 133
+GetMediaInputStatus = 134
+SetMediaInputCursor = 135
+OffsetMediaInputCursor = 136
+TriggerMediaInputAction = 137
+GetStudioModeEnabled = 138
+SetStudioModeEnabled = 139
+OpenInputPropertiesDialog = 140
+OpenInputFiltersDialog = 141
+OpenInputInteractDialog = 142
+GetMonitorList = 143
+OpenVideoMixProjector = 144
+OpenSourceProjector = 145
+GetCanvasList = 146
+
+[ordinals.EventType]
+Unknown = -1
+ExitStarted = 0
+VendorEvent = 1
+CustomEvent = 2
+CurrentSceneCollectionChanging = 3
+CurrentSceneCollectionChanged = 4
+SceneCollectionListChanged = 5
+CurrentProfileChanging = 6
+CurrentProfileChanged = 7
+ProfileListChanged = 8
+SceneCreated = 9
+SceneRemoved = 10
+SceneNameChanged = 11
+CurrentProgramSceneChanged = 12
+CurrentPreviewSceneChanged = 13
+SceneListChanged = 14
+InputCreated = 15
+InputRemoved = 16
+InputNameChanged = 17
+InputSettingsChanged = 18
+InputActiveStateChanged = 19
+InputShowStateChanged = 20
+InputMuteStateChanged = 21
+InputVolumeChanged = 22
+InputAudioBalanceChanged = 23
+InputAudioSyncOffsetChanged = 24
+InputAudioTracksChanged = 25
+InputAudioMonitorTypeChanged = 26
+InputVolumeMeters = 27
+CurrentSceneTransitionChanged = 28
+CurrentSceneTransitionDurationChanged = 29
+SceneTransitionStarted = 30
+SceneTransitionEnded = 31
+SceneTransitionVideoEnded = 32
+SourceFilterListReindexed = 33
+SourceFilterCreated = 34
+SourceFilterRemoved = 35
+SourceFilterNameChanged = 36
+SourceFilterSettingsChanged = 37
+SourceFilterEnableStateChanged = 38
+SceneItemCreated = 39
+SceneItemRemoved = 40
+SceneItemListReindexed = 41
+SceneItemEnableStateChanged = 42
+SceneItemLockStateChanged = 43
+SceneItemSelected = 44
+SceneItemTransformChanged = 45
+StreamStateChanged = 46
+RecordFileChanged = 47
+RecordStateChanged = 48
+ReplayBufferStateChanged = 49
+VirtualcamStateChanged = 50
+ReplayBufferSaved = 51
+MediaInputPlaybackStarted = 52
+MediaInputPlaybackEnded = 53
+MediaInputActionTriggered = 54
+StudioModeStateChanged = 55
+ScreenshotSaved = 56
+CanvasCreated = 57
+CanvasRemoved = 58
+CanvasNameChanged = 59
+
+# ---------------------------------------------------------------------------------------------------------------
+# Names of the response and event argument types. Convention for what is not listed: <Request>Response and
+# <Event>EventArgs ('' = the event has no data, so it is raised with EventArgs.Empty).
+# ---------------------------------------------------------------------------------------------------------------
+
+[responses]
+BroadcastCustomEvent = "EmptyResponse"
+CallVendorRequest = "CallVendorResponse"
+CreateInput = "CreateInputResponse"
+CreateProfile = "EmptyResponse"
+CreateRecordChapter = "EmptyResponse"
+CreateScene = "CreateSceneResponse"
+CreateSceneCollection = "EmptyResponse"
+CreateSceneItem = "SceneItemIdResponse"
+CreateSourceFilter = "EmptyResponse"
+DuplicateSceneItem = "SceneItemIdResponse"
+GetCanvasList = "CanvasListResponse"
+GetCurrentPreviewScene = "CurrentPreviewSceneNameResponse"
+GetCurrentProgramScene = "CurrentProgramSceneNameResponse"
+GetCurrentSceneTransition = "TransitionResponse"
+GetCurrentSceneTransitionCursor = "TransitionCursorResponse"
+GetGroupList = "GroupsResponse"
+GetGroupSceneItemList = "SceneItemsResponse"
+GetHotkeyList = "HotkeysResponse"
+GetInputAudioBalance = "InputAudioBalanceResponse"
+GetInputAudioMonitorType = "InputAudioMonitorTypeResponse"
+GetInputAudioSyncOffset = "InputAudioSyncOffsetResponse"
+GetInputAudioTracks = "InputAudioTracksResponse"
+GetInputDefaultSettings = "DefaultInputSettingsResponse"
+GetInputDeinterlaceFieldOrder = "InputDeinterlaceFieldOrderResponse"
+GetInputDeinterlaceMode = "InputDeinterlaceModeResponse"
+GetInputKindList = "InputKindsResponse"
+GetInputList = "InputsResponse"
+GetInputMute = "InputMutedResponse"
+GetInputPropertiesListPropertyItems = "PropertyItemsResponse"
+GetInputSettings = "InputSettingsResponse"
+GetInputVolume = "InputVolumeResponse"
+GetLastReplayBufferReplay = "SavedReplayPathResponse"
+GetMediaInputStatus = "MediaInputStatusResponse"
+GetMonitorList = "MonitorListResponse"
+GetOutputList = "OutputsResponse"
+GetOutputSettings = "OutputSettingsResponse"
+GetOutputStatus = "OutputStatusResponse"
+GetPersistentData = "SlotValueResponse"
+GetProfileList = "ProfileListResponse"
+GetProfileParameter = "ProfileParameterResponse"
+GetRecordDirectory = "RecordDirectoryResponse"
+GetRecordStatus = "RecordStatusResponse"
+GetReplayBufferStatus = "OutputActiveResponse"
+GetSceneCollectionList = "SceneCollectionListResponse"
+GetSceneItemBlendMode = "SceneItemBlendModeResponse"
+GetSceneItemEnabled = "SceneItemEnabledResponse"
+GetSceneItemId = "SceneItemIdResponse"
+GetSceneItemIndex = "SceneItemIndexResponse"
+GetSceneItemList = "SceneItemsResponse"
+GetSceneItemLocked = "SceneItemlockedResponse"
+GetSceneItemSource = "SceneItemSourceResponse"
+GetSceneItemTransform = "SceneItemTransformResponse"
+GetSceneList = "SceneListResponse"
+GetSceneSceneTransitionOverride = "SceneTransitionResponse"
+GetSceneTransitionList = "SceneTransitionListResponse"
+GetSourceActive = "SourceActiveResponse"
+GetSourceFilter = "SourceFilterResponse"
+GetSourceFilterDefaultSettings = "DefaultFilterSettingsResponse"
+GetSourceFilterKindList = "FilterKindListResponse"
+GetSourceFilterList = "FiltersResponse"
+GetSourceScreenshot = "ImageDataResponse"
+GetSpecialInputs = "SpecialInputsResponse"
+GetStats = "StatsResponse"
+GetStreamServiceSettings = "StreamServiceSettingsResponse"
+GetStreamStatus = "OutputStatusResponse"
+GetStudioModeEnabled = "StudioModeEnabledResponse"
+GetTransitionKindList = "TransitionKindsResponse"
+GetVersion = "VersionResponse"
+GetVideoSettings = "VideoSettingsResponse"
+GetVirtualCamStatus = "OutputActiveResponse"
+OffsetMediaInputCursor = "EmptyResponse"
+OpenInputFiltersDialog = "EmptyResponse"
+OpenInputInteractDialog = "EmptyResponse"
+OpenInputPropertiesDialog = "EmptyResponse"
+OpenSourceProjector = "EmptyResponse"
+OpenVideoMixProjector = "EmptyResponse"
+PauseRecord = "EmptyResponse"
+PressInputPropertiesButton = "EmptyResponse"
+RemoveInput = "EmptyResponse"
+RemoveProfile = "EmptyResponse"
+RemoveScene = "EmptyResponse"
+RemoveSceneItem = "EmptyResponse"
+RemoveSourceFilter = "EmptyResponse"
+ResumeRecord = "EmptyResponse"
+SaveReplayBuffer = "EmptyResponse"
+SaveSourceScreenshot = "EmptyResponse"
+SendStreamCaption = "EmptyResponse"
+SetCurrentPreviewScene = "EmptyResponse"
+SetCurrentProfile = "EmptyResponse"
+SetCurrentProgramScene = "EmptyResponse"
+SetCurrentSceneCollection = "EmptyResponse"
+SetCurrentSceneTransition = "EmptyResponse"
+SetCurrentSceneTransitionDuration = "EmptyResponse"
+SetCurrentSceneTransitionSettings = "EmptyResponse"
+SetInputAudioBalance = "EmptyResponse"
+SetInputAudioMonitorType = "EmptyResponse"
+SetInputAudioSyncOffset = "EmptyResponse"
+SetInputAudioTracks = "EmptyResponse"
+SetInputDeinterlaceFieldOrder = "EmptyResponse"
+SetInputDeinterlaceMode = "EmptyResponse"
+SetInputMute = "EmptyResponse"
+SetInputName = "EmptyResponse"
+SetInputSettings = "EmptyResponse"
+SetInputVolume = "EmptyResponse"
+SetMediaInputCursor = "EmptyResponse"
+SetOutputSettings = "EmptyResponse"
+SetPersistentData = "EmptyResponse"
+SetProfileParameter = "EmptyResponse"
+SetRecordDirectory = "EmptyResponse"
+SetSceneItemBlendMode = "EmptyResponse"
+SetSceneItemEnabled = "EmptyResponse"
+SetSceneItemIndex = "EmptyResponse"
+SetSceneItemLocked = "EmptyResponse"
+SetSceneItemTransform = "EmptyResponse"
+SetSceneName = "EmptyResponse"
+SetSceneSceneTransitionOverride = "EmptyResponse"
+SetSourceFilterEnabled = "EmptyResponse"
+SetSourceFilterIndex = "EmptyResponse"
+SetSourceFilterName = "EmptyResponse"
+SetSourceFilterSettings = "EmptyResponse"
+SetStreamServiceSettings = "EmptyResponse"
+SetStudioModeEnabled = "EmptyResponse"
+SetTBarPosition = "EmptyResponse"
+SetVideoSettings = "EmptyResponse"
+Sleep = "EmptyResponse"
+SplitRecordFile = "EmptyResponse"
+StartOutput = "EmptyResponse"
+StartRecord = "EmptyResponse"
+StartReplayBuffer = "EmptyResponse"
+StartStream = "EmptyResponse"
+StartVirtualCam = "EmptyResponse"
+StopOutput = "EmptyResponse"
+StopRecord = "OutputPathResponse"
+StopReplayBuffer = "EmptyResponse"
+StopStream = "EmptyResponse"
+StopVirtualCam = "EmptyResponse"
+ToggleInputMute = "InputMutedResponse"
+ToggleOutput = "OutputActiveResponse"
+ToggleRecord = "OutputActiveResponse"
+ToggleRecordPause = "OutputPausedResponse"
+ToggleReplayBuffer = "OutputActiveResponse"
+ToggleStream = "OutputActiveResponse"
+ToggleVirtualCam = "OutputActiveResponse"
+TriggerHotkeyByKeySequence = "EmptyResponse"
+TriggerHotkeyByName = "EmptyResponse"
+TriggerMediaInputAction = "EmptyResponse"
+TriggerStudioModeTransition = "EmptyResponse"
+
+[events]
+CanvasCreated = "CanvasCreatedEventArgs"
+CanvasNameChanged = "CanvasNameChangedEventArgs"
+CanvasRemoved = "CanvasRemovedEventArgs"
+CurrentPreviewSceneChanged = "SceneNameEventArgs"
+CurrentProfileChanged = "ProfileNameEventArgs"
+CurrentProfileChanging = "ProfileNameEventArgs"
+CurrentProgramSceneChanged = "SceneNameEventArgs"
+CurrentSceneCollectionChanged = "SceneCollectionNameEventArgs"
+CurrentSceneCollectionChanging = "SceneCollectionNameEventArgs"
+CurrentSceneTransitionChanged = "TransitionNameEventArgs"
+CurrentSceneTransitionDurationChanged = "TransitionDurationEventArgs"
+CustomEvent = "CustomEventEventArgs"
+ExitStarted = ""
+InputActiveStateChanged = "InputActiveStateChangedEventArgs"
+InputAudioBalanceChanged = "InputAudioBalanceChangedEventArgs"
+InputAudioMonitorTypeChanged = "InputAudioMonitorTypeChangedEventArgs"
+InputAudioSyncOffsetChanged = "InputAudioSyncOffsetChangedEventArgs"
+InputAudioTracksChanged = "InputAudioTracksChangedEventArgs"
+InputCreated = "InputCreatedEventArgs"
+InputMuteStateChanged = "InputMuteStateChangedEventArgs"
+InputNameChanged = "InputNameChangedEventArgs"
+InputRemoved = "InputNameEventArgs"
+InputSettingsChanged = "InputSettingsChangedEventArgs"
+InputShowStateChanged = "InputShowStateChangedEventArgs"
+InputVolumeChanged = "InputVolumeChangedEventArgs"
+InputVolumeMeters = "InputVolumeMetersEventArgs"
+MediaInputActionTriggered = "MediaInputActionTriggeredEventArgs"
+MediaInputPlaybackEnded = "InputNameEventArgs"
+MediaInputPlaybackStarted = "InputNameEventArgs"
+ProfileListChanged = "ProfileListEventArgs"
+RecordFileChanged = "RecordFileChangedEventArgs"
+RecordStateChanged = "RecordStateChangedEventArgs"
+ReplayBufferSaved = "ReplayBufferSavedEventArgs"
+ReplayBufferStateChanged = "OutputStateChangedEventArgs"
+SceneCollectionListChanged = "SceneCollectionListEventArgs"
+SceneCreated = "SceneModifiedEventArgs"
+SceneItemCreated = "SceneItemCreatedEventArgs"
+SceneItemEnableStateChanged = "SceneItemEnableStateChangedEventArgs"
+SceneItemListReindexed = "SceneItemListReindexedEventArgs"
+SceneItemLockStateChanged = "SceneItemLockStateChangedEventArgs"
+SceneItemRemoved = "SceneItemRemovedEventArgs"
+SceneItemSelected = "SceneItemSelectedEventArgs"
+SceneItemTransformChanged = "SceneItemTransformChangedEventArgs"
+SceneListChanged = "SceneListEventArgs"
+SceneNameChanged = "SceneNameChangedEventArgs"
+SceneRemoved = "SceneModifiedEventArgs"
+SceneTransitionEnded = "TransitionNameEventArgs"
+SceneTransitionStarted = "TransitionNameEventArgs"
+SceneTransitionVideoEnded = "TransitionNameEventArgs"
+ScreenshotSaved = "ScreenshotSavedEventArgs"
+SourceFilterCreated = "SourceFilterCreatedEventArgs"
+SourceFilterEnableStateChanged = "SourceFilterEnableStateChangedEventArgs"
+SourceFilterListReindexed = "SourceFiltersEventArgs"
+SourceFilterNameChanged = "SourceFilterNameChangedEventArgs"
+SourceFilterRemoved = "SourceFilterRemovedEventArgs"
+SourceFilterSettingsChanged = "SourceFilterSettingsChangedEventArgs"
+StreamStateChanged = "OutputStateChangedEventArgs"
+StudioModeStateChanged = "StudioModeStateChangedEventArgs"
+VendorEvent = "VendorEventEventArgs"
+VirtualcamStateChanged = "OutputStateChangedEventArgs"
+
+# ---------------------------------------------------------------------------------------------------------------
+# C# types of fields, by the name of the field (the protocol only says String, Number, Boolean, Object, Array<...>
+# and Any). Convention for what is not listed: String -> string (Guid when the name ends in Uuid), Number -> double,
+# Boolean -> bool, Object -> JsonElement (Dictionary<string, object> in a request), Array<String> -> string[],
+# Array<Object> -> JsonElement[], Any -> JsonElement (object in a request).
+# ---------------------------------------------------------------------------------------------------------------
+
+# Fields of responses and events.
+[types.data]
+activeFps = "float"
+availableDiskSpace = "float"
+averageFrameRenderTime = "float"
+baseHeight = "int"
+baseWidth = "int"
+canvases = "Canvas[]"
+cpuUsage = "float"
+defaultFilterSettings = "Dictionary<string, object>"
+defaultInputSettings = "Dictionary<string, object>"
+filterIndex = "int"
+filterSettings = "Dictionary<string, object>"
+filters = "Filter[]"
+fpsDenominator = "float"
+fpsNumerator = "float"
+inputAudioBalance = "float"
+inputAudioSyncOffset = "int"
+inputAudioTracks = "AudioTracks"
+inputDeinterlaceMode = "DeinterlaceMode"
+inputKindCaps = "uint"
+inputSettings = "Dictionary<string, object>"
+inputVolumeDb = "float"
+inputVolumeMul = "float"
+inputs = "Input[]"
+mediaAction = "ObsMediaInputAction"
+mediaCursor = "long"
+mediaDuration = "long"
+mediaState = "MediaState"
+memoryUsage = "float"
+monitorType = "MonitorType"
+monitors = "Monitor[]"
+outputBytes = "long"
+outputCongestion = "float"
+outputDuration = "long"
+outputHeight = "int"
+outputSettings = "Dictionary<string, object>"
+outputSkippedFrames = "long"
+outputState = "ObsOutputState"
+outputTotalFrames = "long"
+outputWidth = "int"
+outputs = "Output[]"
+propertyItems = "PropertyItem[]"
+renderSkippedFrames = "long"
+renderTotalFrames = "long"
+rpcVersion = "int"
+sceneItemBlendMode = "BlendMode"
+sceneItemId = "int"
+sceneItemIndex = "int"
+sceneItemTransform = "SceneItemTransform"
+sceneItems = "SceneItem[]"
+scenes = "Scene[]"
+slotValue = "object"
+streamServiceSettings = "object"
+transitionCursor = "float"
+transitionDuration = "long"
+transitionSettings = "Dictionary<string, object>"
+transitions = "Transition[]"
+webSocketSessionIncomingMessages = "long"
+webSocketSessionOutgoingMessages = "long"
+
+# Fields (parameters) of requests.
+[types.request]
+baseHeight = "int"
+baseWidth = "int"
+eventData = "JsonElement"
+filterIndex = "int"
+fpsDenominator = "float"
+fpsNumerator = "float"
+imageCompressionQuality = "int"
+imageHeight = "int"
+imageWidth = "int"
+inputAudioBalance = "float"
+inputAudioSyncOffset = "int"
+inputAudioTracks = "AudioTracks"
+inputDeinterlaceMode = "DeinterlaceMode"
+inputVolumeDb = "float"
+inputVolumeMul = "float"
+keyId = "ObsKey"
+mediaAction = "ObsMediaInputAction"
+mediaCursor = "int"
+mediaCursorOffset = "int"
+monitorIndex = "int"
+monitorType = "MonitorType"
+outputHeight = "int"
+outputWidth = "int"
+position = "float"
+realm = "Realm"
+requestData = "JsonElement"
+sceneItemBlendMode = "BlendMode"
+sceneItemId = "int"
+sceneItemIndex = "int"
+sceneItemTransform = "SceneItemTransformUpdate"
+searchOffset = "int"
+sleepFrames = "int"
+sleepMillis = "int"
+streamServiceSettings = "object"
+transitionDuration = "int"
+
+# Where a field of one response or event differs from the vocabulary: <Type>.<field>.
+[types.data_exceptions]
+"InputVolumeMetersEventArgs.inputs" = "InputVolumeMeterResponse[]"
+"SceneItemSourceResponse.sourceUuid" = "string"
+"TransitionDurationEventArgs.transitionDuration" = "int"
+"TransitionResponse.transitionDuration" = "float"
+"VendorEventEventArgs.eventData" = "object"
+
+# Where a parameter of one request differs from the vocabulary: <Request>.<field>.
+[types.request_exceptions]
+"SetCurrentSceneTransitionDuration.transitionDuration" = "float"
+
+# Fields that can be null although the protocol does not say they are optional: <Type>.<field>.
+[nullable]
+fields = [
+  "CallVendorResponse.responseData",
+  "CustomEventEventArgs.eventData",
+  "InputCreatedEventArgs.inputKindCaps",
+  "MediaInputStatusResponse.mediaCursor",
+  "MediaInputStatusResponse.mediaDuration",
+  "ProfileParameterResponse.defaultParameterValue",
+  "ProfileParameterResponse.parameterValue",
+  "SceneListResponse.currentPreviewSceneName",
+  "SceneListResponse.currentPreviewSceneUuid",
+  "SceneListResponse.currentProgramSceneName",
+  "SceneListResponse.currentProgramSceneUuid",
+  "SceneTransitionListResponse.currentSceneTransitionName",
+  "SceneTransitionListResponse.currentSceneTransitionUuid",
+  "SlotValueResponse.slotValue",
+  "TransitionResponse.transitionDuration",
+  "VendorEventEventArgs.eventData",
+]
+
+# Fields that need a JSON converter: <Type>.<field>.
+[converters]
+"OutputStatusResponse.outputCongestion" = "NullableNumberToNumberConverter"
+
+# ---------------------------------------------------------------------------------------------------------------
+# Written by hand. These types are registered and used by the generated code, but not generated themselves.
+# ---------------------------------------------------------------------------------------------------------------
+[manual]
+# EmptyResponse: the response of every request that returns nothing.
+# TransitionResponse: derives from Transition (GetCurrentSceneTransition returns a transition plus its settings).
+dtos = ["EmptyResponse", "TransitionResponse"]
