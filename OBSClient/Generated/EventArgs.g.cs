@@ -279,11 +279,10 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputKind">The kind of the input.</param>
     /// <param name="unversionedInputKind">The unversioned kind of input (aka no <c>_v2</c> stuff)</param>
-    /// <param name="inputKindCaps">Bitflag value for the caps that an input supports. See obs_source_info.output_flags in the libobs docs.</param>
     /// <param name="inputSettings">The settings configured to the input when it was created.</param>
     /// <param name="defaultInputSettings">The default settings for the input.</param>
     [method: JsonConstructor]
-    public class InputCreatedEventArgs(string inputName, Guid inputUuid, string inputKind, string unversionedInputKind, uint? inputKindCaps, Dictionary<string, object> inputSettings, Dictionary<string, object> defaultInputSettings) : EventArgs
+    public class InputCreatedEventArgs(string inputName, Guid inputUuid, string inputKind, string unversionedInputKind, Dictionary<string, object> inputSettings, Dictionary<string, object> defaultInputSettings) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -310,12 +309,6 @@ namespace OBSStudioClient.Events
         public string UnversionedInputKind { get; } = unversionedInputKind;
 
         /// <summary>
-        /// Bitflag value for the caps that an input supports. See obs_source_info.output_flags in the libobs docs.
-        /// </summary>
-        [JsonPropertyName("inputKindCaps")]
-        public uint? InputKindCaps { get; } = inputKindCaps;
-
-        /// <summary>
         /// The settings configured to the input when it was created.
         /// </summary>
         [JsonPropertyName("inputSettings")]
@@ -326,6 +319,15 @@ namespace OBSStudioClient.Events
         /// </summary>
         [JsonPropertyName("defaultInputSettings")]
         public Dictionary<string, object> DefaultInputSettings { get; } = defaultInputSettings ?? [];
+
+        /// <summary>
+        /// Bitflag value for the caps that an input supports. See obs_source_info.output_flags in the libobs docs.
+        /// </summary>
+        /// <remarks>
+        /// Not a constructor parameter, so that the constructor of the type stays what it was before this property was added.
+        /// </remarks>
+        [JsonPropertyName("inputKindCaps")]
+        public uint? InputKindCaps { get; init; }
     }
 
     /// <summary>

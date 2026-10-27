@@ -46,6 +46,23 @@ if (isConnected)
 client.Dispose();
 ```
 
+### Names and UUIDs
+
+Whatever OBS Studio can look up by name or by UUID — a scene, an input, a source — is one argument of a type that holds
+either: a `SceneRef`, an `InputRef` or a `SourceRef`. A name, a `Guid`, and the `Scene`, `Input` or `SceneItem` that OBS Studio
+gave you convert implicitly, so there is nothing to wrap:
+
+```
+await client.SetCurrentProgramScene("Gaming Scene");        // by name
+await client.SetCurrentProgramScene(sceneUuid);             // by UUID, which survives a rename
+await client.SetCurrentProgramScene(scene);                 // a Scene from GetSceneList (identified by its UUID)
+bool muted = await client.GetInputMute("Microphone");
+await client.SetSceneItemEnabled(SceneRef.FromName("Gaming Scene"), item.SceneItemId, true);
+```
+
+Optional arguments are optional (`await client.GetSceneItemList("Scene", canvasUuid: canvas.CanvasUuid)`), and an argument that
+is missing or wrong is refused with an `ArgumentException` before anything is sent.
+
 ### Canvases (obs-websocket 5.7.0+)
 
 ```
@@ -74,11 +91,17 @@ client.Dispose();
 
 ## Staying in sync with obs-websocket
 
-The client is checked against the machine-readable protocol definition of obs-websocket
-([`protocol.json`](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.json)): the tests
-in `OBSClient.Tests/Conformance` call every request method and batch builder and compare what is sent, field by field,
-with a snapshot of it, and verify the events, responses and enum values too. A scheduled workflow opens an issue as soon as
-obs-websocket publishes a new version, with the differences; `tools/protocol/update-protocol-snapshot.py` refreshes the snapshot.
+The requests, the responses, the events and the request and event enums of the client are **generated** from the
+machine-readable protocol definition of obs-websocket
+([`protocol.json`](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.json)) and the
+few decisions that it cannot make for the client (`tools/protocol/overlay.toml`). The generated C# in `OBSClient/Generated`
+is committed and compiled into the library like any other source; the definition, the overlay and the generator are
+inputs of the build under `tools/` and are not part of the package, which is a single assembly.
+
+A scheduled workflow opens an issue as soon as obs-websocket publishes a new version, with the differences and the outcome of
+trying the update; `python tools/protocol/update.py --latest` applies it. The tests in `OBSClient.Tests/Conformance` call every
+request method and batch builder and compare what is sent, field by field, with a snapshot of the definition, and verify the
+events, responses and enum values too.
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=tinodo_obsclient&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tinodo_obsclient)
 ![Build and Test](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg?branch=main)

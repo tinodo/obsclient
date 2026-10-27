@@ -24,32 +24,50 @@ need a running copy of OBS Studio to run or write most tests.
 
 ### Keeping up with obs-websocket
 
-`OBSClient.Tests/Protocol/protocol.schema.json` is a compact snapshot of obs-websocket's own protocol definition
-(`docs/generated/protocol.json`). The tests in `OBSClient.Tests/Conformance` call every request method of `ObsClient` and
-every batch builder of `RequestBatchMessage`, check that each sends the request it is named after and compare what is
-sent with that snapshot, answer each request with the response the snapshot documents for it, and send every event
-the way the snapshot documents it. A missing request, a field that cannot be sent, a mistyped field name, a wrongly
-registered response, a method wired to another request, or a response or event the client cannot read fails the build.
+Most of the client is generated from obs-websocket's own protocol definition, so that it cannot drift from the protocol:
 
-When obs-websocket publishes a new version (a scheduled workflow opens an issue when it does):
+| Input (under `tools/protocol`) | What it is |
+| --- | --- |
+| `obs-websocket-protocol.json` | A copy of obs-websocket's `docs/generated/protocol.json`. |
+| `overlay.toml` | The decisions that the definition cannot make for the client: the names of response and event types, the C# type of a field (the protocol only says `String`, `Number`, `Object`, ...), nullability, patches where upstream's documentation does not match what obs-websocket does (checked in its source), the ordinals of the `RequestType` and `EventType` members, and the few requests that are written by hand. |
+| `generate.py` | Writes the C# under `OBSClient/Generated` (the method of `ObsClient` and the builder of `RequestBatchMessage` for each request, the response and event types, the registries and the two enums) and `OBSClient.Tests/Protocol/protocol.schema.json`, the snapshot the tests compare with. |
 
-1. `python tools/protocol/update-protocol-snapshot.py --latest` refreshes the snapshot and lists the differences.
-2. Run the tests; the conformance tests now fail for everything the client is missing.
-3. Implement it, following the patterns of the neighbouring requests, until they pass.
+The generated files are committed and compiled into `OBSClient.dll`; **do not edit them**, change the inputs and run
+`python tools/protocol/generate.py` (Python 3.11 or later, standard library only). CI runs it with `--check` and fails when a
+generated file is not what the generator produces. The definition, the overlay and the generator are inputs of the build: none
+of them is part of the NuGet package, which stays a single assembly (`tools/verify-package.py` and `PackagingTests` check that).
 
-Two rules that are easy to forget:
+The tests in `OBSClient.Tests/Conformance` call every request method of `ObsClient` and every batch builder of
+`RequestBatchMessage` (an object that is identified by name and by UUID is tried both ways), check that each sends the request it
+is named after and compare what is sent with the snapshot, answer each request with the response the snapshot documents for it, and
+send every event the way the snapshot documents it. A missing request, a field that cannot be sent, a mistyped field name, a wrongly
+registered response, a method wired to another request, or a response or event the client cannot read fails the build; that
+includes the parts that are written by hand.
 
-- The numeric values of the public enums are embedded in assemblies that use them: add new members **at the end**
-  of `EventType`, `RequestType` and similar enums, never in the middle (`EnumStabilityTests` guards this).
-- The request type of a request is derived from the name of the method that sends it (`[CallerMemberName]`), so a
-  method that sends `GetInputMute` has to be called `GetInputMute`, and a batch builder `AddGetInputMuteRequest`.
-  A private overload that all the public overloads call carries the same name for that reason.
+When obs-websocket publishes a new version (a scheduled workflow opens an issue when it does, and tries the update):
+
+1. `python tools/protocol/update.py --latest` fetches the definition, records the version, runs the generator and lists the differences.
+   (`--dry-run` only reports; `--tag 5.8.0` picks a version.)
+2. Build and run the tests. A new request, event or field is already in the client. What the generator cannot decide, it says
+   (it stops with the line to add to `overlay.toml`: for example the C# type of a new kind of field, or a reference type for a
+   new pair of `<x>Name` and `<x>Uuid` fields), and what it has to leave to you fails a test.
+3. Commit the result, together with a line in the CHANGELOG.
+
+How the methods follow from the definition (see `Model.request_params` in `protocol_model.py`): an `<x>Name` field and an `<x>Uuid` field
+are one parameter `<x>` of a `SceneRef`, `InputRef` or `SourceRef`; `canvasUuid` is the last parameter; a field that is optional is
+`T? x = null` and is left out of the request when null; a response with one field is returned as that value and one with
+several as its type. A request that the client offers in another shape (`TriggerHotkeyByKeySequence`, `Sleep`) is listed under
+`[manual]` in the overlay and written by hand in `ObsClient_ManualRequests.cs` and `RequestBatchMessage_ManualRequests.cs`;
+convenience methods that are not requests of the protocol (`SetInputVolumeDb`, the projector shortcuts) are in `ObsClient_Shortcuts.cs`.
+
+One rule that is easy to forget: the numeric values of the public enums are embedded in assemblies that use them. The generator
+keeps the values of the members of `EventType` and `RequestType` (they are listed in `overlay.toml`; a new member gets the next
+number) and `EnumStabilityTests` guards them; when you add a member to another public enum by hand, add it **at the end**.
 
 ## Making changes
 
 - Keep changes focused; avoid unrelated refactors in the same PR.
-- Follow the existing code style (see `.editorconfig`) and the patterns already used in neighboring files
-  (e.g. the `string name` / `Guid uuid` overload pairs used throughout the request classes).
+- Follow the existing code style (see `.editorconfig`) and the patterns already used in neighboring files.
 - Add or update XML doc comments for any public API you touch.
 - Add tests for new behavior and for bug fixes (a regression test that fails before your fix and passes after it).
 - Update `README.md` if you change public API surface or behavior.

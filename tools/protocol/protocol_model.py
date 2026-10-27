@@ -278,13 +278,24 @@ class Model:
     def _clr(self, name: str, nullable: bool) -> ClrType:
         return ClrType(name, nullable, name in VALUE_TYPES or name in self.client_enums or name in self.ref_types)
 
+    def _default_type(self, table: dict[str, str], field: Field, where: str) -> str:
+        if field.vtype == "String" and field.name.endswith("Uuid"):
+            return "Guid"
+        try:
+            return table[field.vtype]
+        except KeyError:
+            raise ModelError(
+                f"The field '{field.name}' has the protocol type '{field.vtype}', for which there is no C# type by convention. "
+                f"Give the field a type in overlay.toml ([{where}])."
+            ) from None
+
     def data_type(self, dto: str, field: Field) -> ClrType:
         """The C# type of a field of a response or an event."""
         types = self.overlay.get("types", {})
         key = f"{dto}.{field.name}"
         name = types.get("data_exceptions", {}).get(key) or types.get("data", {}).get(field.name)
         if not name:
-            name = "Guid" if field.vtype == "String" and field.name.endswith("Uuid") else DEFAULT_DATA_TYPES[field.vtype]
+            name = self._default_type(DEFAULT_DATA_TYPES, field, "types.data")
         nullable = field.optional or key in self.overlay.get("nullable", {}).get("fields", [])
         return self._clr(name, nullable)
 
@@ -294,7 +305,7 @@ class Model:
         key = f"{request_name}.{field.name}"
         name = types.get("request_exceptions", {}).get(key) or types.get("request", {}).get(field.name)
         if not name:
-            name = "Guid" if field.vtype == "String" and field.name.endswith("Uuid") else DEFAULT_REQUEST_TYPES[field.vtype]
+            name = self._default_type(DEFAULT_REQUEST_TYPES, field, "types.request")
         return self._clr(name, field.optional)
 
     def converter(self, dto: str, field: Field) -> str | None:
@@ -406,6 +417,7 @@ class DtoField:
     field: Field
     type: ClrType
     converter: str | None
+    init_only: bool = False  # a property that is set after construction, not a constructor parameter
 
 
 @dataclass
@@ -431,7 +443,11 @@ def _merge_dto(model: Model, name: str, base: str, users: list[tuple[str, str, s
                     f"{name}: '{f.name}' is {known.vtype} for one of its users and {f.vtype} for '{user}'; "
                     "give them types of their own in overlay.toml."
                 )
-    fields = [DtoField(f, model.data_type(name, f), model.converter(name, f)) for f in merged.values()]
+    init_fields = set(model.overlay.get("init_properties", {}).get("fields", []))
+    fields = [DtoField(f, model.data_type(name, f), model.converter(name, f), f"{name}.{f.name}" in init_fields) for f in merged.values()]
+    stale = sorted(key for key in init_fields if key.startswith(name + ".") and key[len(name) + 1:] not in merged)
+    if stale:
+        raise ModelError(f"overlay.toml [init_properties] has {stale}, which {name} does not have (remove it).")
     return Dto(
         name=name,
         base=base,

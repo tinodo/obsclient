@@ -113,7 +113,9 @@ def emit_dto(source: Source, dto: Dto, noun: str) -> None:
         plural = "events" if len(users) > 1 else "event"
         summary = f"Provides the arguments of the {listed} {plural}."
 
-    ctor = ", ".join(f"{f.type.text} {pm.identifier(f.field.name)}" for f in dto.fields)
+    bound = [f for f in dto.fields if not f.init_only]
+    unbound = [f for f in dto.fields if f.init_only]
+    ctor = ", ".join(f"{f.type.text} {pm.identifier(f.field.name)}" for f in bound)
     source.add(1, "/// <summary>")
     source.add(1, "/// " + summary)
     source.add(1, "/// </summary>")
@@ -123,18 +125,26 @@ def emit_dto(source: Source, dto: Dto, noun: str) -> None:
     if remark:
         source.add(1, "/// " + remark)
     source.add(1, "/// </remarks>")
-    for f in dto.fields:
+    for f in bound:
         source.add(1, f'/// <param name="{pm.identifier(f.field.name)}">{xml(sentence(f.field.description))}</param>')
     source.add(1, "[method: JsonConstructor]")
     source.add(1, f"public class {dto.name}({ctor}) : {dto.base}")
     source.add(1, "{")
-    for index, f in enumerate(dto.fields):
+    for index, f in enumerate(bound + unbound):
         if index:
             source.add()
         source.summary(2, sentence(f.field.description))
+        if f.init_only:
+            # Added to the type after it was released: a property rather than a constructor parameter keeps the constructor as it was.
+            source.add(2, "/// <remarks>")
+            source.add(2, "/// Not a constructor parameter, so that the constructor of the type stays what it was before this property was added.")
+            source.add(2, "/// </remarks>")
         source.add(2, f'[JsonPropertyName("{f.field.name}")]')
         if f.converter:
             source.add(2, f"[JsonConverter(typeof({f.converter}))]")
+        if f.init_only:
+            source.add(2, f"public {f.type.text} {pm.pascal(f.field.name)} {{ get; init; }}")
+            continue
         initializer = pm.identifier(f.field.name)
         if f.type.is_collection and not f.type.nullable:
             initializer += " ?? []"

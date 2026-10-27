@@ -382,7 +382,7 @@
         /// <param name="screenWidth">The width of the screen. See <see cref="GetMonitorList"/>.</param>
         /// <returns>A Qt Base64 encoded string with Size/Position data for a windowed projector.</returns>
         /// <remarks>
-        /// Used in <see cref="OpenSourceProjectorWindow(string, string)"/> and <see cref="OpenVideoMixProjectorWindow(MixType, string)"/>
+        /// Used in <see cref="OpenSourceProjectorWindow(Classes.SourceRef, string, Guid?)"/> and <see cref="OpenVideoMixProjectorWindow(MixType, string)"/>
         /// </remarks>
         public static string GetGeometry(int screenNumber, int x, int y, int width, int height, bool maximized, bool fullscreen, int screenWidth)
         {

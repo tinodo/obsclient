@@ -604,6 +604,11 @@ fields = [
 [converters]
 "OutputStatusResponse.outputCongestion" = "NullableNumberToNumberConverter"
 
+# Fields that were added to a type after it was released are properties that are set after construction rather than
+# constructor parameters, so that the constructor of the released type stays what it was: <Type>.<field>.
+[init_properties]
+fields = ["InputCreatedEventArgs.inputKindCaps"]
+
 # ---------------------------------------------------------------------------------------------------------------
 # Requests. A request has a method on ObsClient and a builder on RequestBatchMessage, with the fields of the request
 # as parameters (see Model.request_params): an <x>Name field and an <x>Uuid field that identify the same object
