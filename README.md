@@ -6,8 +6,12 @@ Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client 
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 4.0.0`  
-From the command line: `dotnet add package OBSClient --version 4.0.0`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 4.0.0-beta1`  
+From the command line: `dotnet add package OBSClient --version 4.0.0-beta1`  
+
+**4.0.0-beta1 is a prerelease**: it is meant to be tried, and its public API can still change before 4.0.0. A plain
+`dotnet add package OBSClient` keeps installing the latest stable release, so name the version (or add `--prerelease`) to get it.
+Please report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
 
 Upgrading from 3.x? See the *Breaking changes* in the [CHANGELOG](CHANGELOG.md).
 

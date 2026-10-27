@@ -155,12 +155,16 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
 
 ### Each release
 
-1. Bump `<Version>` in `OBSClient/OBSClient.csproj`, add the CHANGELOG entry, and merge to `main` with a pull request.
+1. Bump `<Version>` in `OBSClient/OBSClient.csproj` (and the version in the *Installation* of the README), add the CHANGELOG entry, and merge to `main` with a pull request.
 2. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
 3. Open the run in the Actions tab. The *Pack* job checks the tag, builds, packs and uploads the package as the artifact
    `nuget-package`; download it if you want to look at it. The *Publish to NuGet.org* job then waits for you: **Review
    deployments**, **Approve and deploy**. GitHub Packages does not wait.
 4. nuget.org validates the package before it is listed; the version shows up after a few minutes.
+
+**Prereleases.** A version with a suffix (`4.0.0-beta1`, tag `v4.0.0-beta1`) goes through the same workflow. nuget.org lists it as a
+prerelease, which `dotnet add package OBSClient` and the NuGet UI skip unless they are asked to include prereleases, so what people
+get by default stays the latest stable version. A version cannot be reused: a fixed beta is `4.0.0-beta2`, and the stable release is `4.0.0`.
 
 ### When it fails
 
@@ -172,7 +176,7 @@ Re-run the failed jobs in the Actions tab; it runs the workflow as it was at the
 | No matching policy | The policy on nuget.org differs from the workflow: owner, repository, file name (`publish.yml`) or environment (`release`) |
 | Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
 | The job never starts | It is waiting for your approval |
-| The pack job refuses the tag | The tag is not `vX.Y.Z`, differs from `<Version>`, or is not on `main` |
+| The pack job refuses the tag | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, or is not on `main` |
 
 A published version is **permanent**: nuget.org lets you unlist or deprecate it, never delete or replace it. If a release is wrong,
 publish a fixed one.

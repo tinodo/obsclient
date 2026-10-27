@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [4.0.0-beta1] - 2026-10-27
+
+The first prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 below. Its public API can still
+change before 4.0.0 is released, so read the *Breaking changes* below to see what you have to change, and report what you find in
+an [issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain `dotnet add package OBSClient`:
+use `dotnet add package OBSClient --version 4.0.0-beta1` (or `--prerelease` for the newest prerelease).
+
 ## [4.0.0] - Unreleased
 
 Brings the client up to **obs-websocket 5.7.6** (the README claimed 5.5.2) and fixes a number of long-standing
