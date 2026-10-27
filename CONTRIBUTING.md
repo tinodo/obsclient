@@ -119,13 +119,40 @@ of it again at the end, also when something fails. It only touches what it creat
 recording), and it says what to remove by hand if OBS Studio stops answering before it is done. The events are subscribed to all, including
 the high-volume ones; `-MaxEventsPerType` (5) limits how many of each type are kept.
 
+### The documentation site
+
+The site at <https://tinodo.github.io/obsclient/> is built with [DocFX](https://dotnet.github.io/docfx/), which is pinned in
+`.config/dotnet-tools.json`.
+
+| Where | What |
+| --- | --- |
+| `docs/index.md` | The home page. |
+| `docs/articles/` | The guides, in Markdown; its `toc.yml` is the table of contents. |
+| `docs/api/index.md` | The introduction of the API reference. The reference itself is **generated** from the XML documentation comments in the source of `OBSClient`; the generated YAML is not committed. |
+| `docs/template/public/` | The theme: `main.css` and `main.js`, on top of the modern template of DocFX. |
+| `CHANGELOG.md` | Copied to the site as its changelog page (the copy, `docs/changelog.md`, is not committed). |
+
+Build it, and look at it, on any platform with the .NET SDKs (8.0 and 10.0) and Python 3:
+
+```shell
+python tools/docs/build.py --serve     # builds docs/_site, checks its links, and serves it at http://localhost:8080
+```
+
+The build fails on a link that leads nowhere and on an `xref:` that cannot be resolved. A pull request that changes `docs/`, the library, the
+changelog or the tooling runs the **Docs** workflow, which builds the site and uploads it as the artifact `docs-site`; a push to `main`
+publishes it to GitHub Pages (Settings → Pages is set to deploy from GitHub Actions).
+
+Documentation comments (`///`) are documentation: they become the API reference. Say what a member does and returns, say when it throws,
+and cross-reference with `<see cref="…"/>`. The comments of the generated code come from the protocol definition; do not edit them, change the
+overlay or the generator. When a change alters how the library is used, update the article that explains it too.
+
 ## Making changes
 
 - Keep changes focused; avoid unrelated refactors in the same PR.
 - Follow the existing code style (see `.editorconfig`) and the patterns already used in neighboring files.
 - Add or update XML doc comments for any public API you touch.
 - Add tests for new behavior and for bug fixes (a regression test that fails before your fix and passes after it).
-- Update `README.md` if you change public API surface or behavior.
+- Update `README.md` if you change public API surface or behavior, and the articles in `docs/` if you change how the library is used.
 
 ## Pull requests
 

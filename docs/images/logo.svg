@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OBSClient">
+  <defs>
+    <linearGradient id="obsclient-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b7bff"/>
+      <stop offset="1" stop-color="#4a3bc7"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#obsclient-gradient)"/>
+  <path d="M14 24h31l-7-7M50 40H19l7 7" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

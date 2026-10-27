@@ -98,7 +98,7 @@
         /// </summary>
         /// <remarks>
         /// The minimum value is 150. Please take into account that when sending Batch Requests, specifically with long Sleep requests, this default value of 500 might not be enough.
-        /// Should a response not be received in time, an Exception will be thrown.
+        /// Should a response not be received in time, a <see cref="TimeoutException"/> is thrown.
         /// </remarks>
         public int RequestTimeout
         {
@@ -157,12 +157,12 @@
         /// Gets or sets the value that indicates whether the <see cref="ObsClient"/> should automatically try to reconnect to OBS Studio.
         /// </summary>
         /// <remarks>
-        /// When the value is True, the client will automatically try to reconnect to OBS Studio when:
+        /// When the value is True, the client will automatically try to reconnect to OBS Studio, every 3 seconds, when:
         /// - The connection was closed by OBS Studio
         /// - You were kicked
         /// - OBS Studio closed
         /// - You sent an invalid message or your password was incorrect.
-        /// When you call <see cref="Disconnect"/>, this setting is automatically set to False."/>
+        /// When you call <see cref="Disconnect"/>, this setting is automatically set to False.
         /// Setting it back to True, after calling <see cref="Disconnect"/>, will automatically try to reconnect.
         /// </remarks>
         public bool AutoReconnect
@@ -439,12 +439,15 @@
         /// <param name="hostname">The hostname of the computer running OBS Studio to connect to. Defaults to "localhost".</param>
         /// <param name="port">The Port on which the OBS Studio WebSocket interface is listenting. Default to 4455.</param>
         /// <param name="eventSubscription">The events to subscribe to. Defaults to All events.</param>
-        /// <returns>True, when the connection was succesfully established, and False otherwise.</returns>
+        /// <returns><see langword="true"/> when OBS Studio accepted the session: the connection is open, the authentication succeeded and <see cref="ConnectionState"/> is <see cref="ConnectionState.Connected"/>. <see langword="false"/> otherwise.</returns>
         /// <remarks>
-        /// When True is returned, this does not mean that authentication has succeeded. Authentication will be handled asynchronously.
-        /// You can use the <see cref="PropertyChanged"/> event to see whether the <see cref="ConnectionState"/> is Connected, which indicates succesfull authenticaiton.
-        /// When the client is already connected, disconnect first.
+        /// The task completes when the handshake with OBS Studio is done, so a request can be sent as soon as <see langword="true"/> is returned.
+        /// It returns <see langword="false"/>, and does not throw, when OBS Studio cannot be reached (within 2 seconds), when the handshake is not completed within 10 seconds,
+        /// when the password is refused, or when <see cref="Disconnect"/> is called in the meantime. With <paramref name="autoReconnect"/> the client keeps trying (see <see cref="AutoReconnect"/>).
+        /// When the client is not <see cref="ConnectionState.Disconnected"/>, nothing is done and <see langword="true"/> is returned: call <see cref="Disconnect"/> first to connect with other settings.
         /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="port"/> is not between 1 and 65535.</exception>
+        /// <exception cref="ArgumentException"><paramref name="hostname"/> is not a valid host name.</exception>
         public async Task<bool> ConnectAsync(bool autoReconnect = false, string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All)
         {
             if (this._connectionState != ConnectionState.Disconnected)
