@@ -1,6 +1,8 @@
 namespace OBSStudioClient.Tests.Conformance
 {
+    using System.Reflection;
     using System.Text.Json;
+    using System.Text.RegularExpressions;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
@@ -16,6 +18,9 @@ namespace OBSStudioClient.Tests.Conformance
     /// </summary>
     public class ObsStudioCaptureTests
     {
+        // A path of a member of the response itself, as the comparison writes it: $.name (kind)
+        private static readonly Regex TopLevelMember = new(@"^\$\.([A-Za-z0-9_]+) \(", RegexOptions.Compiled);
+
         public static IEnumerable<object[]> Captures() =>
             typeof(ObsStudioCaptureTests).Assembly.GetManifestResourceNames()
                 .Where(name => name.StartsWith("obs-capture-", StringComparison.Ordinal))
@@ -71,8 +76,11 @@ namespace OBSStudioClient.Tests.Conformance
 
                 using (returned)
                 {
+                    var responseType = message.ResponseData.GetType();
                     var comparison = JsonShape.Compare(sent, returned.RootElement);
-                    problems.AddRange(comparison.OnlyInObs.Select(path => $"{name}: OBS Studio sent {path}, the client does not give it back"));
+                    problems.AddRange(comparison.OnlyInObs
+                        .Where(path => !IsObsoleteAlias(responseType, path))
+                        .Select(path => $"{name}: OBS Studio sent {path}, the client does not give it back"));
                     problems.AddRange(comparison.TypeDifferences.Select(difference => $"{name}: {difference}"));
                 }
 
@@ -81,6 +89,17 @@ namespace OBSStudioClient.Tests.Conformance
 
             Assert.True(checkedResponses > 0, $"{capture} holds no responses.");
             ConformanceAssert.NoProblems(problems, $"The client does not read what OBS Studio sent in {capture}:");
+        }
+
+        // The deprecated names that obs-websocket still sends (currentProgramSceneName next to sceneName) are kept by the client
+        // as obsolete properties that are computed from the property that replaced them: they are read, but not written back.
+        private static bool IsObsoleteAlias(Type responseType, string path)
+        {
+            var match = TopLevelMember.Match(path);
+            return match.Success
+                && responseType.GetProperties().Any(property =>
+                    property.GetCustomAttribute<ObsoleteAttribute>() is not null
+                    && JsonNamingPolicy.CamelCase.ConvertName(property.Name) == match.Groups[1].Value);
         }
     }
 }

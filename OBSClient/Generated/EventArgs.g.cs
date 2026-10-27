@@ -652,7 +652,7 @@ namespace OBSStudioClient.Events
     /// <param name="outputState">The specific state of the output.</param>
     /// <param name="outputPath">File name for the saved recording, if record stopped. <c>null</c> otherwise.</param>
     [method: JsonConstructor]
-    public class RecordStateChangedEventArgs(bool outputActive, ObsOutputState outputState, string outputPath) : EventArgs
+    public class RecordStateChangedEventArgs(bool outputActive, ObsOutputState outputState, string? outputPath) : EventArgs
     {
         /// <summary>
         /// Whether the output is active.
@@ -670,7 +670,7 @@ namespace OBSStudioClient.Events
         /// File name for the saved recording, if record stopped. <c>null</c> otherwise.
         /// </summary>
         [JsonPropertyName("outputPath")]
-        public string OutputPath { get; } = outputPath;
+        public string? OutputPath { get; } = outputPath;
     }
 
     /// <summary>

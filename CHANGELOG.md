@@ -63,6 +63,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - `SetSceneItemTransform` and `RequestBatchMessage.AddSetSceneItemTransformRequest` take a `SceneItemTransformUpdate`
   instead of a `SceneItemTransform` (see *Added*). A `SceneItemTransform` converts to it implicitly, so calls compile
   unchanged, but code that was compiled against 3.x has to be recompiled.
+- Fields that obs-websocket documents as `null` in some situation are nullable now (found by reading the responses of a real
+  OBS Studio, see *Added*): `SceneTransitionResponse.TransitionName` and `TransitionDuration` (`string?` and `long?`: the
+  answer for a scene without a transition override, which the client could not read at all, see *Fixed*),
+  `SceneTransitionListResponse.CurrentSceneTransitionKind` and `RecordStateChangedEventArgs.OutputPath` (`string?`).
 
 ### Added
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
@@ -183,6 +187,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   obs-websocket reads `haltOnFailure` and ignores a field it does not know, so a batch always ran on after a failed request
   (found with the Batch page of the test app, and checked in the source of 5.7.6).
 - `ConnectAsync` refused port 65535, which is a valid port; it accepts 1 to 65535.
+- **`GetSceneSceneTransitionOverride` failed for every scene without an override**, which is every scene by default: OBS Studio
+  answers with `transitionName` and `transitionDuration` set to `null`, and the client could not convert the null to a number.
+  Found by reading the responses of a real OBS Studio (`ObsStudioCaptureTests`).
 - `KeyModifier` is marked `[Flags]`: the client always treated it as a combination of keys (`KeyModifier.Control | KeyModifier.Shift`
   is the modifiers of Ctrl+Shift, which `TriggerHotkeyByKeySequence` and its batch builder send as one flag for each key), but the
   type did not say so, so it printed and parsed a combination as a number.

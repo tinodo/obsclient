@@ -1072,7 +1072,7 @@ namespace OBSStudioClient.Responses
     /// <param name="currentSceneTransitionKind">Kind of the current scene transition. Can be null.</param>
     /// <param name="transitions">Array of transitions.</param>
     [method: JsonConstructor]
-    public class SceneTransitionListResponse(string? currentSceneTransitionName, Guid? currentSceneTransitionUuid, string currentSceneTransitionKind, Transition[] transitions) : IResponse
+    public class SceneTransitionListResponse(string? currentSceneTransitionName, Guid? currentSceneTransitionUuid, string? currentSceneTransitionKind, Transition[] transitions) : IResponse
     {
         /// <summary>
         /// Name of the current scene transition. Can be null.
@@ -1090,7 +1090,7 @@ namespace OBSStudioClient.Responses
         /// Kind of the current scene transition. Can be null.
         /// </summary>
         [JsonPropertyName("currentSceneTransitionKind")]
-        public string CurrentSceneTransitionKind { get; } = currentSceneTransitionKind;
+        public string? CurrentSceneTransitionKind { get; } = currentSceneTransitionKind;
 
         /// <summary>
         /// Array of transitions.
@@ -1108,19 +1108,19 @@ namespace OBSStudioClient.Responses
     /// <param name="transitionName">Name of the overridden scene transition, else <c>null</c>.</param>
     /// <param name="transitionDuration">Duration of the overridden scene transition, else <c>null</c>.</param>
     [method: JsonConstructor]
-    public class SceneTransitionResponse(string transitionName, long transitionDuration) : IResponse
+    public class SceneTransitionResponse(string? transitionName, long? transitionDuration) : IResponse
     {
         /// <summary>
         /// Name of the overridden scene transition, else <c>null</c>.
         /// </summary>
         [JsonPropertyName("transitionName")]
-        public string TransitionName { get; } = transitionName;
+        public string? TransitionName { get; } = transitionName;
 
         /// <summary>
         /// Duration of the overridden scene transition, else <c>null</c>.
         /// </summary>
         [JsonPropertyName("transitionDuration")]
-        public long TransitionDuration { get; } = transitionDuration;
+        public long? TransitionDuration { get; } = transitionDuration;
     }
 
     /// <summary>
