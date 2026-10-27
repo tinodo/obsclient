@@ -9,9 +9,9 @@ on:
       - 'docs/**'
       - '**.md'
   # No path filter on pull requests: main requires the CodeQL check, and a workflow that is skipped by a path filter
-  # leaves its required check pending forever, which would block every docs-only pull request.
+  # leaves its required check pending forever, which would block every docs-only pull request. No branch filter
+  # either, so that a pull request that is stacked on another one gets analyzed too.
   pull_request:
-    branches: [ "main" ]
   schedule:
     - cron: '27 3 * * 1'
   workflow_dispatch:

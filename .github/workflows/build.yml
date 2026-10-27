@@ -9,9 +9,9 @@ on:
       - 'docs/**'
       - '**.md'
   # No path filter on pull requests: main requires these checks, and a workflow that is skipped by a path filter
-  # leaves its required checks pending forever, which would block every docs-only pull request.
+  # leaves its required checks pending forever, which would block every docs-only pull request. No branch filter
+  # either, so that a pull request that is stacked on another one gets the same checks.
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -55,9 +55,9 @@ jobs:
           --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
 
-      - name: Check the protocol snapshot tooling compiles
+      - name: Check the tooling compiles
         if: matrix.os == 'ubuntu-latest'
-        run: python3 -m py_compile tools/protocol/update-protocol-snapshot.py
+        run: python3 -m py_compile tools/verify-package.py tools/protocol/update-protocol-snapshot.py
 
       - name: Upload test results
         if: always()
@@ -73,6 +73,41 @@ jobs:
         with:
           name: coverage-${{ matrix.os }}
           path: TestResults/**/coverage.cobertura.xml
+          retention-days: 14
+
+  package:
+    name: Pack (single assembly)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore OBSClient/OBSClient.csproj
+
+      - name: Build
+        run: dotnet build OBSClient/OBSClient.csproj --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build --output ./artifacts
+
+      # The package has to stay one thing: the library, its XML documentation, the README and the license. The protocol
+      # definition and the code generator are inputs of the build, they are never shipped (not even embedded).
+      - name: Verify the package is a single assembly
+        run: python3 tools/verify-package.py ./artifacts/*.nupkg
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package-preview
+          path: ./artifacts/*.nupkg
           retention-days: 14
 
   build-sample:

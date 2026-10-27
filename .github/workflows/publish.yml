@@ -79,6 +79,11 @@ jobs:
       - name: Pack
         run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build -o ./artifacts
 
+      # Never publish anything but the library: the protocol definition and the code generator are build inputs.
+      - name: Verify the package is a single assembly
+        shell: bash
+        run: python tools/verify-package.py ./artifacts/*.nupkg
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
