@@ -27,6 +27,9 @@ public sealed partial class EventsPage : Page
     /// <summary>Gets the events that match the filter.</summary>
     public ObservableCollection<SessionEvent> Visible { get; } = [];
 
+    /// <summary>Gets the events that are shown; for the smoke test.</summary>
+    internal IReadOnlyList<SessionEvent> Shown => this.Visible;
+
     /// <summary>Selects the first event, for the smoke test.</summary>
     internal void SelectFirst()
     {

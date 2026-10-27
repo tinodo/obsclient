@@ -233,7 +233,41 @@ public sealed partial class ExplorerPage : Page
         this.StatusLine.Text = $"{this._session.Scenes.Count} scenes and {this._session.Inputs.Count} inputs read.";
     }
 
-    private async void InvokeButton_Click(object sender, RoutedEventArgs e)
+    private async void InvokeButton_Click(object sender, RoutedEventArgs e) => await this.InvokeAsync();
+
+    /// <summary>Shows a request, fills in its parameters and sends it, as the user would; for the smoke test.</summary>
+    internal async Task SendForSmokeTest(RequestDescriptor request)
+    {
+        this.Show(request);
+        this._form.FillForSmokeTest();
+        await this.InvokeAsync();
+    }
+
+    /// <summary>Gets what the last request returned, as the client returned it; for the smoke test.</summary>
+    internal string TypedResult => this._typed;
+
+    /// <summary>Gets what OBS Studio sent as the response to the last request; for the smoke test.</summary>
+    internal string RawResult => this._raw;
+
+    /// <summary>Gets the comparison of the two; for the smoke test.</summary>
+    internal string ComparisonResult => this._comparison;
+
+    /// <summary>Gets what the page says about a request that failed, or null; for the smoke test.</summary>
+    internal string? Problem => this.ProblemBar.IsOpen ? $"{this.ProblemBar.Title}: {this.ProblemBar.Message}" : null;
+
+    /// <summary>Shows one of the three views of the result (0, 1 or 2); for the smoke test.</summary>
+    internal void SelectResultTab(int index)
+    {
+        this.ResultTabs.SelectedItem = index switch
+        {
+            1 => this.RawTab,
+            2 => this.ComparisonTab,
+            _ => this.TypedTab,
+        };
+        this.ShowTab();
+    }
+
+    private async Task InvokeAsync()
     {
         if (this._current is not { } request)
         {

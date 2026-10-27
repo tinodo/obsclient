@@ -173,8 +173,21 @@ public sealed partial class ConnectionPage : Page
             : $"Sent {statistics.MessagesSent:N0} messages ({FormatBytes(statistics.BytesSent)}); received {statistics.MessagesReceived:N0} ({FormatBytes(statistics.BytesReceived)}).";
     }
 
-    private async void ConnectButton_Click(object sender, RoutedEventArgs e)
+    private async void ConnectButton_Click(object sender, RoutedEventArgs e) => await this.ConnectAsync();
+
+    /// <summary>Connects as the user would, optionally to another host and port; for the smoke test.</summary>
+    internal async Task ConnectAsync(string? host = null, int? port = null)
     {
+        if (host is not null)
+        {
+            this.HostBox.Text = host;
+        }
+
+        if (port is not null)
+        {
+            this.PortBox.Text = port.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
         if (!this.TryReadSettings(out var settings, out var problem))
         {
             this._error = problem;

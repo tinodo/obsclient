@@ -104,8 +104,8 @@
                         <SelectorBarItem
                             x:Name="TypedTab"
                             IsSelected="True"
-                            Text="Returned by the client" />
-                        <SelectorBarItem x:Name="RawTab" Text="Sent by OBS Studio" />
+                            Text="Client" />
+                        <SelectorBarItem x:Name="RawTab" Text="OBS Studio" />
                     </SelectorBar>
                     <TextBox
                         x:Name="DetailBox"

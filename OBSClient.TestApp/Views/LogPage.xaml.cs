@@ -43,6 +43,9 @@ public sealed partial class LogPage : Page
     /// <summary>Gets the entries that match the filters.</summary>
     public ObservableCollection<LogEntry> Visible { get; } = [];
 
+    /// <summary>Gets the entries that are shown; for the smoke test.</summary>
+    internal IReadOnlyList<LogEntry> Shown => this.Visible;
+
     /// <summary>Selects the first entry that is shown, for the smoke test.</summary>
     internal void SelectFirst()
     {

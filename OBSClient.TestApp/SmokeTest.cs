@@ -14,7 +14,7 @@ namespace OBSStudioClient.TestApp;
 /// code 0 (or 1 when something went wrong). CI runs it after every build: the XAML of an app is only read when the app runs, so
 /// this is where a mistake in it shows, and the pictures are how the design can be looked at without running the app.
 /// </summary>
-internal static class SmokeTest
+internal static partial class SmokeTest
 {
     private static readonly StringBuilder Report = new();
     private static bool hasProblem;
@@ -48,17 +48,9 @@ internal static class SmokeTest
             await Task.Delay(1500);
             await ShowAsync(window, "connection", typeof(ConnectionPage), folder);
 
-            await ShowAsync(window, "events", typeof(EventsPage), folder, () =>
-            {
-                RaiseSampleEvents();
-                (window.CurrentPage as EventsPage)?.SelectFirst();
-            });
+            await ShowAsync(window, "events", typeof(EventsPage), folder, prepare: RaiseSampleEvents, inspect: () => (window.CurrentPage as EventsPage)?.SelectFirst());
 
-            await ShowAsync(window, "log", typeof(LogPage), folder, () =>
-            {
-                WriteSampleLog();
-                (window.CurrentPage as LogPage)?.SelectFirst();
-            });
+            await ShowAsync(window, "log", typeof(LogPage), folder, prepare: WriteSampleLog, inspect: () => (window.CurrentPage as LogPage)?.SelectFirst());
 
             await ShowAsync(window, "explorer", typeof(ExplorerPage), folder);
             if (window.CurrentPage is ExplorerPage explorer)
@@ -74,6 +66,8 @@ internal static class SmokeTest
                     }
                 }
             }
+
+            await EndToEndAsync(window, folder);
         }
         catch (Exception exception)
         {
@@ -83,7 +77,7 @@ internal static class SmokeTest
         Finish(path);
     }
 
-    private static async Task ShowAsync(MainWindow window, string tag, Type page, string folder, Action? prepare = null)
+    private static async Task ShowAsync(MainWindow window, string tag, Type page, string folder, Action? prepare = null, Action? inspect = null)
     {
         window.Navigate(tag);
         await Task.Delay(500);
@@ -96,6 +90,8 @@ internal static class SmokeTest
         Record($"opened the {tag} page");
         prepare?.Invoke();
         await Task.Delay(500);
+        inspect?.Invoke();
+        await Task.Delay(300);
         await CaptureAsync(window, folder, tag);
     }
 

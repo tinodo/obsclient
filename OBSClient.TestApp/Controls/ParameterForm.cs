@@ -243,7 +243,7 @@ internal sealed class ParameterForm : StackPanel
         {
             ItemsSource = Enum.GetNames(this.Descriptor.EnumType ?? throw new InvalidOperationException($"{this.Descriptor.Name} has no enumeration.")),
             SelectedIndex = 0,
-            MinWidth = 320,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
         protected override void Fill()
@@ -289,7 +289,7 @@ internal sealed class ParameterForm : StackPanel
             {
                 IsEditable = true,
                 PlaceholderText = "name or UUID: pick one of OBS Studio's, or type",
-                MinWidth = 420,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
             });
             panel.Children.Add(this._asUuid);
             return panel;
@@ -349,7 +349,6 @@ internal sealed class ParameterForm : StackPanel
                 TextWrapping = TextWrapping.NoWrap,
                 IsSpellCheckEnabled = false,
                 MinHeight = 24 * 4,
-                MinWidth = 420,
             };
             if (Fluent.StyleOf("CodeTextBoxStyle") is { } style)
             {

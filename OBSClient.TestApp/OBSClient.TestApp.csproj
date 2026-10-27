@@ -42,4 +42,10 @@
     <ProjectReference Include="..\OBSClient\OBSClient.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The fake obs-websocket server of the tests: the smoke test (OBSClient.TestApp.exe --smoke-test) connects the app to it,
+         to try the whole way from the pages to the wire and back. Nothing else uses it. -->
+    <Compile Include="..\OBSClient.Tests\TestSupport\FakeObsWebSocketServer.cs" Link="SmokeTest\FakeObsWebSocketServer.cs" />
+  </ItemGroup>
+
 </Project>
