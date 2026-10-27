@@ -196,6 +196,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   no longer throws during deserialization; it maps to `EventType.Unknown` and is ignored
   ([#12](https://github.com/tinodo/obsclient/issues/12) was the same class of bug for an event type that was misnamed).
 - `ConnectionClosed` did not fire after a deliberate `Disconnect()`.
+- **`AutoReconnect` reconnected a client that was kicked.** obs-websocket ends a session with the close code `SessionInvalidated` (4011)
+  when a user presses the Kick button of its session list, and documents that a client must not reconnect automatically after it. The client
+  now sets `AutoReconnect` to `false` and stays `Disconnected` (`ConnectionClosed` is raised as before); call `ConnectAsync` to connect again.
+  Found while writing the documentation of the reconnect behavior.
 - Authentication hashed the password, salt and challenge as ASCII, so a password with a non-ASCII character (for
   example `pässword`) was silently changed to `?` and could not authenticate. obs-websocket hashes the UTF-8 bytes
   (`Utils::Crypto::GenerateSecret`/`CheckAuthenticationString`), and the client now does the same.

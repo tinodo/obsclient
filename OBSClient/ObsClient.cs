@@ -159,11 +159,14 @@
         /// <remarks>
         /// When the value is True, the client will automatically try to reconnect to OBS Studio, every 3 seconds, when:
         /// - The connection was closed by OBS Studio
-        /// - You were kicked
         /// - OBS Studio closed
         /// - You sent an invalid message or your password was incorrect.
+        ///
         /// When you call <see cref="Disconnect"/>, this setting is automatically set to False.
         /// Setting it back to True, after calling <see cref="Disconnect"/>, will automatically try to reconnect.
+        ///
+        /// It is also set to False when OBS Studio ends the session on purpose, with the Kick button of its session list
+        /// (<see cref="WebSocketCloseCode.SessionInvalidated"/>): obs-websocket requires that a client does not reconnect automatically then.
         /// </remarks>
         public bool AutoReconnect
         {
@@ -1128,6 +1131,14 @@
                     // Closed the connection because OBS Studio closed it or the network connection was interrupted.
                     closeCode = socket.CloseStatus.HasValue ? (WebSocketCloseCode)(int)socket.CloseStatus.Value : WebSocketCloseCode.UnknownReason;
                     closeDescription = socket.CloseStatusDescription ?? "Connection lost";
+
+                    if (closeCode == WebSocketCloseCode.SessionInvalidated && ReferenceEquals(this._session, session))
+                    {
+                        // OBS Studio ended the session on purpose (the Kick button of its session list), and obs-websocket
+                        // documents that a client must not reconnect automatically after this close code. This is done before
+                        // the state becomes Disconnected, which is what the reconnect timer waits for.
+                        this.AutoReconnect = false;
+                    }
                 }
 
                 if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
