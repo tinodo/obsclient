@@ -18,6 +18,7 @@ internal static partial class SmokeTest
 {
     private static readonly StringBuilder Report = new();
     private static bool hasProblem;
+    private static string? writtenTo;
 
     /// <summary>Determines whether the app was asked to run the smoke test.</summary>
     /// <param name="path">Where to write the log.</param>
@@ -36,12 +37,29 @@ internal static partial class SmokeTest
         {
             Report.AppendLine(message);
             hasProblem |= isProblem;
+
+            // The log is written when the checks are done: what the app reports while it closes is added to it.
+            if (writtenTo is not null)
+            {
+                try
+                {
+                    File.AppendAllText(writtenTo, "after the checks: " + message + Environment.NewLine);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    // Nothing more can be done about it.
+                }
+            }
         }
     }
 
     /// <summary>Runs the smoke test and ends the app.</summary>
     public static async Task RunAsync(MainWindow window, string path)
     {
+        // A crash while the app closes leaves nothing behind but what these report.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Record($"Unhandled exception in the app domain: {e.ExceptionObject}", isProblem: true);
+        TaskScheduler.UnobservedTaskException += (_, e) => Record($"Unobserved task exception: {e.Exception}");
+
         var folder = Path.GetDirectoryName(Path.GetFullPath(path.Length > 0 ? path : "smoke-test.log")) ?? ".";
         try
         {
@@ -239,6 +257,10 @@ internal static partial class SmokeTest
             if (path.Length > 0)
             {
                 File.WriteAllText(path, text + (failed ? "FAILED" : "OK") + Environment.NewLine);
+                lock (Report)
+                {
+                    writtenTo = path;
+                }
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

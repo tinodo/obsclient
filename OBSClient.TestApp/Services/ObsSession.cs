@@ -30,6 +30,7 @@ internal sealed class ObsSession
     private readonly DispatcherQueue _dispatcher;
     private ObsClient? _client;
     private volatile string? _lastClosed;
+    private volatile bool _closing;
 
     /// <summary>Initializes a new instance of the <see cref="ObsSession"/> class; call it on the thread of the user interface.</summary>
     /// <param name="dispatcher">The dispatcher of the user interface.</param>
@@ -149,6 +150,14 @@ internal sealed class ObsSession
 
     /// <summary>Closes the connection.</summary>
     public void Disconnect() => this._client?.Disconnect();
+
+    /// <summary>Ends the connection for good, as the window closes: nothing is raised to the screen after this.</summary>
+    public void Shutdown()
+    {
+        this._closing = true;
+        this.Log.Stop();
+        this._client?.Disconnect();
+    }
 
     /// <summary>Asks OBS Studio to send another set of events.</summary>
     /// <param name="subscriptions">The events to subscribe to.</param>
@@ -291,14 +300,14 @@ internal sealed class ObsSession
 
     private void OnClientPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (sender is not ObsClient client)
+        if (this._closing || sender is not ObsClient client)
         {
             return;
         }
 
         this._dispatcher.TryEnqueue(() =>
         {
-            if (ReferenceEquals(client, this._client))
+            if (!this._closing && ReferenceEquals(client, this._client))
             {
                 this.SetState(client.ConnectionState);
             }
@@ -307,12 +316,22 @@ internal sealed class ObsSession
 
     private void OnConnectionClosed(object? sender, ConnectionClosedEventArgs e)
     {
+        if (this._closing)
+        {
+            return;
+        }
+
         this._lastClosed = $"{e.WebSocketCloseCode}: {e.WebSocketCloseDescription}";
         this.Log.Note(LogLevel.Information, $"The connection was closed: {this._lastClosed}");
     }
 
     private void OnClientEvent(string name, object? arguments)
     {
+        if (this._closing)
+        {
+            return;
+        }
+
         string typed;
         try
         {
@@ -325,6 +344,12 @@ internal sealed class ObsSession
         }
 
         var entry = new SessionEvent(DateTimeOffset.Now, name, RequestCatalog.CategoryOfEvent(name), typed, this.Log.LatestEvent(name)?.Text);
-        this._dispatcher.TryEnqueue(() => this.EventReceived?.Invoke(this, entry));
+        this._dispatcher.TryEnqueue(() =>
+        {
+            if (!this._closing)
+            {
+                this.EventReceived?.Invoke(this, entry);
+            }
+        });
     }
 }

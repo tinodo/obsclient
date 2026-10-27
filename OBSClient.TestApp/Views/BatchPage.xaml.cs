@@ -30,13 +30,13 @@ public sealed partial class BatchPage : Page
 
         this.ExecutionBox.ItemsSource = Enum.GetNames<RequestBatchExecutionType>().Where(name => name != nameof(RequestBatchExecutionType.None)).ToList();
         this.ExecutionBox.SelectedIndex = 0;
-        this.Items.CollectionChanged += (_, _) => this.UpdateState();
+        this._session.Batch.CollectionChanged += (_, _) => this.Mirror();
         this._session.StateChanged += (_, _) => this.UpdateState();
-        this.UpdateState();
+        this.Mirror();
     }
 
-    /// <summary>Gets the requests of the batch, which the Explorer adds to.</summary>
-    public ObservableCollection<BatchItem> Items => this._session.Batch;
+    /// <summary>Gets the requests of the batch as the list shows them. The batch itself belongs to the session, which the Explorer adds to.</summary>
+    public ObservableCollection<BatchItem> Items { get; } = [];
 
     /// <summary>Gets what the client returned for the last batch, as JSON; for the smoke test.</summary>
     internal string TypedResult => this._typed;
@@ -196,9 +196,20 @@ public sealed partial class BatchPage : Page
         this.ResultBox.TextWrapping = comparison ? TextWrapping.Wrap : TextWrapping.NoWrap;
     }
 
-    private void SelectIndex(int index)
+    private void Mirror()
     {
-        this.ItemList.SelectedIndex = index;
+        var selected = this.ItemList.SelectedItem as BatchItem;
+        this.Items.Clear();
+        foreach (var item in this._session.Batch)
+        {
+            this.Items.Add(item);
+        }
+
+        if (selected is not null && this.Items.Contains(selected))
+        {
+            this.ItemList.SelectedItem = selected;
+        }
+
         this.UpdateState();
     }
 
@@ -207,8 +218,7 @@ public sealed partial class BatchPage : Page
         var index = this.ItemList.SelectedIndex;
         if (index > 0)
         {
-            this.Items.Move(index, index - 1);
-            this.SelectIndex(index - 1);
+            this._session.Batch.Move(index, index - 1);
         }
     }
 
@@ -217,8 +227,7 @@ public sealed partial class BatchPage : Page
         var index = this.ItemList.SelectedIndex;
         if (index >= 0 && index < this.Items.Count - 1)
         {
-            this.Items.Move(index, index + 1);
-            this.SelectIndex(index + 1);
+            this._session.Batch.Move(index, index + 1);
         }
     }
 
@@ -227,12 +236,12 @@ public sealed partial class BatchPage : Page
         var index = this.ItemList.SelectedIndex;
         if (index >= 0)
         {
-            this.Items.RemoveAt(index);
-            this.SelectIndex(Math.Min(index, this.Items.Count - 1));
+            this._session.Batch.RemoveAt(index);
+            this.ItemList.SelectedIndex = Math.Min(index, this.Items.Count - 1);
         }
     }
 
-    private void ClearButton_Click(object sender, RoutedEventArgs e) => this.Items.Clear();
+    private void ClearButton_Click(object sender, RoutedEventArgs e) => this._session.Batch.Clear();
 
     private void ItemList_SelectionChanged(object sender, SelectionChangedEventArgs e) => this.UpdateState();
 
@@ -292,6 +301,7 @@ public sealed partial class BatchPage : Page
         this.ResultCard.Visibility = Visibility.Visible;
         this.ResultTabs.SelectedItem = this.TypedTab;
         this.ShowTab();
+        this.ResultCard.StartBringIntoView();
     }
 
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => this.ShowTab();

@@ -167,6 +167,16 @@ jobs:
             exit 1
           }
 
+      - name: What Windows recorded about the app
+        if: failure()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          # A crash while the app closes leaves no trace in the log of the smoke test; Windows records it.
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-20) } -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProviderName -in '.NET Runtime', 'Application Error', 'Windows Error Reporting' } |
+            ForEach-Object { "[$($_.TimeCreated)] $($_.ProviderName) ($($_.Id))"; $_.Message; '' }
+
       - name: Upload the smoke test log and pictures
         if: always()
         uses: actions/upload-artifact@v4

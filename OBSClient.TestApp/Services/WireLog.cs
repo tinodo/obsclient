@@ -81,6 +81,9 @@ internal sealed class WireLog : ILogger<ObsClient>
     /// <summary>Adds a message of the app itself to the log.</summary>
     public void Note(LogLevel level, string message) => this.Log(level, default, message, null, static (text, _) => text);
 
+    /// <summary>Stops handing entries to the screen, for the end of the app.</summary>
+    public void Stop() => this._timer.Stop();
+
     /// <summary>Gets a copy of the entries.</summary>
     public IReadOnlyList<LogEntry> Snapshot()
     {

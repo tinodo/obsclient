@@ -33,7 +33,7 @@ public sealed partial class MainWindow : Window
         // What the user chose to look at, and how to connect, is remembered; and the connection does not outlive the window.
         this.Closed += (_, _) =>
         {
-            App.Session.Disconnect();
+            App.Session.Shutdown();
             App.Session.Settings.Save();
         };
 

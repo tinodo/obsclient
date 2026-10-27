@@ -286,6 +286,7 @@ public sealed partial class ExplorerPage : Page
         this.ResultCard.Visibility = Visibility.Visible;
         this.ResultTabs.SelectedItem = !result.Succeeded && frame is not null ? this.RawTab : this.TypedTab;
         this.ShowTab();
+        this.ResultCard.StartBringIntoView();
     }
 
     private string Render(string what, Func<string> produce)
