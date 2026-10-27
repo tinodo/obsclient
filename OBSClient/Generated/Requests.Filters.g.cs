@@ -20,14 +20,15 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets an array of all available source filter kinds.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of source filter kinds.</returns>
         /// <remarks>
         /// <para>Similar to <c>GetInputKindList</c>.</para>
         /// <para>Introduced in obs-websocket 5.4.0.</para>
         /// </remarks>
-        public async Task<string[]> GetSourceFilterKindList()
+        public async Task<string[]> GetSourceFilterKindList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<FilterKindListResponse>(RequestType.GetSourceFilterKindList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<FilterKindListResponse>(RequestType.GetSourceFilterKindList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SourceFilterKinds;
         }
 
@@ -36,10 +37,11 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="source">The source, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of filters.</returns>
-        public async Task<Filter[]> GetSourceFilterList(SourceRef source, Guid? canvasUuid = null)
+        public async Task<Filter[]> GetSourceFilterList(SourceRef source, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<FiltersResponse>(RequestType.GetSourceFilterList, GetSourceFilterListRequestData.Create(source, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<FiltersResponse>(RequestType.GetSourceFilterList, GetSourceFilterListRequestData.Create(source, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Filters;
         }
 
@@ -47,10 +49,11 @@ namespace OBSStudioClient
         /// Gets the default settings for a filter kind.
         /// </summary>
         /// <param name="filterKind">Filter kind to get the default settings for.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Object of default settings for the filter kind.</returns>
-        public async Task<Dictionary<string, object>> GetSourceFilterDefaultSettings(string filterKind)
+        public async Task<Dictionary<string, object>> GetSourceFilterDefaultSettings(string filterKind, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<DefaultFilterSettingsResponse>(RequestType.GetSourceFilterDefaultSettings, GetSourceFilterDefaultSettingsRequestData.Create(filterKind)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<DefaultFilterSettingsResponse>(RequestType.GetSourceFilterDefaultSettings, GetSourceFilterDefaultSettingsRequestData.Create(filterKind), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.DefaultFilterSettings;
         }
 
@@ -62,14 +65,16 @@ namespace OBSStudioClient
         /// <param name="filterKind">The kind of filter to be created.</param>
         /// <param name="filterSettings">Settings object to initialize the filter with. If omitted: Default settings used.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         public async Task CreateSourceFilter(
             SourceRef source,
             string filterName,
             string filterKind,
             Dictionary<string, object>? filterSettings = null,
-            Guid? canvasUuid = null)
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.CreateSourceFilter, CreateSourceFilterRequestData.Create(source, filterName, filterKind, filterSettings, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.CreateSourceFilter, CreateSourceFilterRequestData.Create(source, filterName, filterKind, filterSettings, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -78,9 +83,14 @@ namespace OBSStudioClient
         /// <param name="source">The source the filter is on, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter to remove.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
-        public async Task RemoveSourceFilter(SourceRef source, string filterName, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task RemoveSourceFilter(
+            SourceRef source,
+            string filterName,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.RemoveSourceFilter, RemoveSourceFilterRequestData.Create(source, filterName, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.RemoveSourceFilter, RemoveSourceFilterRequestData.Create(source, filterName, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -90,9 +100,15 @@ namespace OBSStudioClient
         /// <param name="filterName">Current name of the filter.</param>
         /// <param name="newFilterName">New name for the filter.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
-        public async Task SetSourceFilterName(SourceRef source, string filterName, string newFilterName, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSourceFilterName(
+            SourceRef source,
+            string filterName,
+            string newFilterName,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSourceFilterName, SetSourceFilterNameRequestData.Create(source, filterName, newFilterName, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSourceFilterName, SetSourceFilterNameRequestData.Create(source, filterName, newFilterName, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -101,10 +117,15 @@ namespace OBSStudioClient
         /// <param name="source">The source, by name or by UUID.</param>
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SourceFilterResponse"/> with the response data.</returns>
-        public async Task<SourceFilterResponse> GetSourceFilter(SourceRef source, string filterName, Guid? canvasUuid = null)
+        public async Task<SourceFilterResponse> GetSourceFilter(
+            SourceRef source,
+            string filterName,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SourceFilterResponse>(RequestType.GetSourceFilter, GetSourceFilterRequestData.Create(source, filterName, canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<SourceFilterResponse>(RequestType.GetSourceFilter, GetSourceFilterRequestData.Create(source, filterName, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -114,9 +135,15 @@ namespace OBSStudioClient
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterIndex">New index position of the filter. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
-        public async Task SetSourceFilterIndex(SourceRef source, string filterName, int filterIndex, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSourceFilterIndex(
+            SourceRef source,
+            string filterName,
+            int filterIndex,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSourceFilterIndex, SetSourceFilterIndexRequestData.Create(source, filterName, filterIndex, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSourceFilterIndex, SetSourceFilterIndexRequestData.Create(source, filterName, filterIndex, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -127,14 +154,16 @@ namespace OBSStudioClient
         /// <param name="filterSettings">Object of settings to apply.</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings. If omitted: true.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         public async Task SetSourceFilterSettings(
             SourceRef source,
             string filterName,
             Dictionary<string, object> filterSettings,
             bool? overlay = null,
-            Guid? canvasUuid = null)
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSourceFilterSettings, SetSourceFilterSettingsRequestData.Create(source, filterName, filterSettings, overlay, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSourceFilterSettings, SetSourceFilterSettingsRequestData.Create(source, filterName, filterSettings, overlay, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -144,9 +173,15 @@ namespace OBSStudioClient
         /// <param name="filterName">Name of the filter.</param>
         /// <param name="filterEnabled">New enable state of the filter.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
-        public async Task SetSourceFilterEnabled(SourceRef source, string filterName, bool filterEnabled, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSourceFilterEnabled(
+            SourceRef source,
+            string filterName,
+            bool filterEnabled,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSourceFilterEnabled, SetSourceFilterEnabledRequestData.Create(source, filterName, filterEnabled, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSourceFilterEnabled, SetSourceFilterEnabledRequestData.Create(source, filterName, filterEnabled, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

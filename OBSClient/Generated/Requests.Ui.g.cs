@@ -20,10 +20,11 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets whether studio is enabled.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether studio mode is enabled.</returns>
-        public async Task<bool> GetStudioModeEnabled()
+        public async Task<bool> GetStudioModeEnabled(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<StudioModeEnabledResponse>(RequestType.GetStudioModeEnabled).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<StudioModeEnabledResponse>(RequestType.GetStudioModeEnabled, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.StudioModeEnabled;
         }
 
@@ -31,45 +32,50 @@ namespace OBSStudioClient
         /// Enables or disables studio mode.
         /// </summary>
         /// <param name="studioModeEnabled">True == Enabled, False == Disabled.</param>
-        public async Task SetStudioModeEnabled(bool studioModeEnabled)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetStudioModeEnabled(bool studioModeEnabled, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetStudioModeEnabled, SetStudioModeEnabledRequestData.Create(studioModeEnabled)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetStudioModeEnabled, SetStudioModeEnabledRequestData.Create(studioModeEnabled), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Opens the properties dialog of an input.
         /// </summary>
         /// <param name="input">The input to open the dialog of, by name or by UUID.</param>
-        public async Task OpenInputPropertiesDialog(InputRef input)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task OpenInputPropertiesDialog(InputRef input, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OpenInputPropertiesDialog, OpenInputPropertiesDialogRequestData.Create(input)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OpenInputPropertiesDialog, OpenInputPropertiesDialogRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Opens the filters dialog of an input.
         /// </summary>
         /// <param name="input">The input to open the dialog of, by name or by UUID.</param>
-        public async Task OpenInputFiltersDialog(InputRef input)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task OpenInputFiltersDialog(InputRef input, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OpenInputFiltersDialog, OpenInputFiltersDialogRequestData.Create(input)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OpenInputFiltersDialog, OpenInputFiltersDialogRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Opens the interact dialog of an input.
         /// </summary>
         /// <param name="input">The input to open the dialog of, by name or by UUID.</param>
-        public async Task OpenInputInteractDialog(InputRef input)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task OpenInputInteractDialog(InputRef input, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OpenInputInteractDialog, OpenInputInteractDialogRequestData.Create(input)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OpenInputInteractDialog, OpenInputInteractDialogRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets a list of connected monitors and information about them.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>a list of detected monitors with some information.</returns>
-        public async Task<Monitor[]> GetMonitorList()
+        public async Task<Monitor[]> GetMonitorList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<MonitorListResponse>(RequestType.GetMonitorList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<MonitorListResponse>(RequestType.GetMonitorList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Monitors;
         }
 
@@ -79,14 +85,19 @@ namespace OBSStudioClient
         /// <param name="videoMixType">Type of mix to open.</param>
         /// <param name="monitorIndex">Monitor index, use <c>GetMonitorList</c> to obtain index. If omitted: -1: Opens projector in windowed mode.</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with <c>monitorIndex</c>.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Mix types:.</para>
         /// <para>- <c>OBS_WEBSOCKET_VIDEO_MIX_TYPE_PREVIEW</c> - <c>OBS_WEBSOCKET_VIDEO_MIX_TYPE_PROGRAM</c> - <c>OBS_WEBSOCKET_VIDEO_MIX_TYPE_MULTIVIEW</c>.</para>
         /// <para>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</para>
         /// </remarks>
-        public async Task OpenVideoMixProjector(MixType videoMixType, int? monitorIndex = null, string? projectorGeometry = null)
+        public async Task OpenVideoMixProjector(
+            MixType videoMixType,
+            int? monitorIndex = null,
+            string? projectorGeometry = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OpenVideoMixProjector, OpenVideoMixProjectorRequestData.Create(videoMixType, monitorIndex, projectorGeometry)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OpenVideoMixProjector, OpenVideoMixProjectorRequestData.Create(videoMixType, monitorIndex, projectorGeometry), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -96,12 +107,18 @@ namespace OBSStudioClient
         /// <param name="monitorIndex">Monitor index, use <c>GetMonitorList</c> to obtain index. If omitted: -1: Opens projector in windowed mode.</param>
         /// <param name="projectorGeometry">Size/Position data for a windowed projector, in Qt Base64 encoded format. Mutually exclusive with <c>monitorIndex</c>.</param>
         /// <param name="canvasUuid">UUID of the canvas the source is in, if the source is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: This request serves to provide feature parity with 4.x. It is very likely to be changed/deprecated in a future release.</para>
         /// </remarks>
-        public async Task OpenSourceProjector(SourceRef source, int? monitorIndex = null, string? projectorGeometry = null, Guid? canvasUuid = null)
+        public async Task OpenSourceProjector(
+            SourceRef source,
+            int? monitorIndex = null,
+            string? projectorGeometry = null,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.OpenSourceProjector, OpenSourceProjectorRequestData.Create(source, monitorIndex, projectorGeometry, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.OpenSourceProjector, OpenSourceProjectorRequestData.Create(source, monitorIndex, projectorGeometry, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

@@ -20,13 +20,14 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets an array of canvases in OBS.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of canvases.</returns>
         /// <remarks>
         /// <para>Introduced in obs-websocket 5.7.0.</para>
         /// </remarks>
-        public async Task<Canvas[]> GetCanvasList()
+        public async Task<Canvas[]> GetCanvasList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<CanvasListResponse>(RequestType.GetCanvasList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<CanvasListResponse>(RequestType.GetCanvasList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Canvases;
         }
     }

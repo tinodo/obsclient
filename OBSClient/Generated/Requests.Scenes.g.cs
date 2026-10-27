@@ -21,70 +21,76 @@ namespace OBSStudioClient
         /// Gets an array of scenes in OBS.
         /// </summary>
         /// <param name="canvasUuid">UUID of the canvas the scenes are in.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SceneListResponse"/> with the response data.</returns>
-        public async Task<SceneListResponse> GetSceneList(Guid? canvasUuid = null)
+        public async Task<SceneListResponse> GetSceneList(Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SceneListResponse>(RequestType.GetSceneList, GetSceneListRequestData.Create(canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<SceneListResponse>(RequestType.GetSceneList, GetSceneListRequestData.Create(canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets an array of all groups in OBS.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of group names.</returns>
         /// <remarks>
         /// <para>Groups in OBS are actually scenes, but renamed and modified. In obs-websocket, we treat them as scenes where we can.</para>
         /// </remarks>
-        public async Task<string[]> GetGroupList()
+        public async Task<string[]> GetGroupList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<GroupsResponse>(RequestType.GetGroupList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<GroupsResponse>(RequestType.GetGroupList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Groups;
         }
 
         /// <summary>
         /// Gets the current program scene.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="CurrentProgramSceneNameResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Note 1: This request is slated to have the <c>currentProgram</c>-prefixed fields removed from in an upcoming RPC version.</para>
         /// <para>Note 2: Canvases do not have any concept of a program or preview scene, so this request does not support canvases.</para>
         /// </remarks>
-        public async Task<CurrentProgramSceneNameResponse> GetCurrentProgramScene()
+        public async Task<CurrentProgramSceneNameResponse> GetCurrentProgramScene(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<CurrentProgramSceneNameResponse>(RequestType.GetCurrentProgramScene).ConfigureAwait(false);
+            return await this.SendRequestAsync<CurrentProgramSceneNameResponse>(RequestType.GetCurrentProgramScene, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Sets the current program scene.
         /// </summary>
         /// <param name="scene">The scene, by name or by UUID.</param>
-        public async Task SetCurrentProgramScene(SceneRef scene)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetCurrentProgramScene(SceneRef scene, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentProgramScene, SetCurrentProgramSceneRequestData.Create(scene)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentProgramScene, SetCurrentProgramSceneRequestData.Create(scene), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the current preview scene.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="CurrentPreviewSceneNameResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Only available when studio mode is enabled.</para>
         /// <para>Note: This request is slated to have the <c>currentPreview</c>-prefixed fields removed from in an upcoming RPC version.</para>
         /// </remarks>
-        public async Task<CurrentPreviewSceneNameResponse> GetCurrentPreviewScene()
+        public async Task<CurrentPreviewSceneNameResponse> GetCurrentPreviewScene(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<CurrentPreviewSceneNameResponse>(RequestType.GetCurrentPreviewScene).ConfigureAwait(false);
+            return await this.SendRequestAsync<CurrentPreviewSceneNameResponse>(RequestType.GetCurrentPreviewScene, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Sets the current preview scene.
         /// </summary>
         /// <param name="scene">The scene, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Only available when studio mode is enabled.</para>
         /// </remarks>
-        public async Task SetCurrentPreviewScene(SceneRef scene)
+        public async Task SetCurrentPreviewScene(SceneRef scene, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentPreviewScene, SetCurrentPreviewSceneRequestData.Create(scene)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentPreviewScene, SetCurrentPreviewSceneRequestData.Create(scene), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -92,10 +98,11 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="sceneName">Name for the new scene.</param>
         /// <param name="canvasUuid">UUID of the canvas to create the new scene in. Leave default to assume main canvas.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>UUID of the created scene.</returns>
-        public async Task<Guid> CreateScene(string sceneName, Guid? canvasUuid = null)
+        public async Task<Guid> CreateScene(string sceneName, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<CreateSceneResponse>(RequestType.CreateScene, CreateSceneRequestData.Create(sceneName, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<CreateSceneResponse>(RequestType.CreateScene, CreateSceneRequestData.Create(sceneName, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneUuid;
         }
 
@@ -104,9 +111,10 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene to remove, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
-        public async Task RemoveScene(SceneRef scene, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task RemoveScene(SceneRef scene, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.RemoveScene, RemoveSceneRequestData.Create(scene, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.RemoveScene, RemoveSceneRequestData.Create(scene, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -115,9 +123,10 @@ namespace OBSStudioClient
         /// <param name="scene">The scene to be renamed, by name or by UUID.</param>
         /// <param name="newSceneName">New name for the scene.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
-        public async Task SetSceneName(SceneRef scene, string newSceneName, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSceneName(SceneRef scene, string newSceneName, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneName, SetSceneNameRequestData.Create(scene, newSceneName, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneName, SetSceneNameRequestData.Create(scene, newSceneName, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -125,13 +134,17 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SceneTransitionResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Note: A transition UUID response field is not currently able to be implemented as of 2024-1-18.</para>
         /// </remarks>
-        public async Task<SceneTransitionResponse> GetSceneSceneTransitionOverride(SceneRef scene, Guid? canvasUuid = null)
+        public async Task<SceneTransitionResponse> GetSceneSceneTransitionOverride(
+            SceneRef scene,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SceneTransitionResponse>(RequestType.GetSceneSceneTransitionOverride, GetSceneSceneTransitionOverrideRequestData.Create(scene, canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<SceneTransitionResponse>(RequestType.GetSceneSceneTransitionOverride, GetSceneSceneTransitionOverrideRequestData.Create(scene, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -141,9 +154,15 @@ namespace OBSStudioClient
         /// <param name="transitionName">Name of the scene transition to use as override. Specify <c>null</c> to remove.</param>
         /// <param name="transitionDuration">Duration to use for any overridden transition. Specify <c>null</c> to remove. Restrictions: &gt;= 50, &lt;= 20000.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
-        public async Task SetSceneSceneTransitionOverride(SceneRef scene, string? transitionName, int? transitionDuration, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSceneSceneTransitionOverride(
+            SceneRef scene,
+            string? transitionName,
+            int? transitionDuration,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneSceneTransitionOverride, SetSceneSceneTransitionOverrideRequestData.Create(scene, transitionName, transitionDuration, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneSceneTransitionOverride, SetSceneSceneTransitionOverrideRequestData.Create(scene, transitionName, transitionDuration, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

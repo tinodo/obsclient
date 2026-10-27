@@ -21,10 +21,11 @@ namespace OBSStudioClient
         /// Gets an array of all inputs in OBS.
         /// </summary>
         /// <param name="inputKind">Restrict the array to only inputs of the specified kind. If omitted: All kinds included.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of inputs.</returns>
-        public async Task<Input[]> GetInputList(string? inputKind = null)
+        public async Task<Input[]> GetInputList(string? inputKind = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputsResponse>(RequestType.GetInputList, GetInputListRequestData.Create(inputKind)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputsResponse>(RequestType.GetInputList, GetInputListRequestData.Create(inputKind), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Inputs;
         }
 
@@ -32,20 +33,22 @@ namespace OBSStudioClient
         /// Gets an array of all available input kinds in OBS.
         /// </summary>
         /// <param name="unversioned">True == Return all kinds as unversioned, False == Return with version suffixes (if available) If omitted: false.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of input kinds.</returns>
-        public async Task<string[]> GetInputKindList(bool? unversioned = null)
+        public async Task<string[]> GetInputKindList(bool? unversioned = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputKindsResponse>(RequestType.GetInputKindList, GetInputKindListRequestData.Create(unversioned)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputKindsResponse>(RequestType.GetInputKindList, GetInputKindListRequestData.Create(unversioned), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputKinds;
         }
 
         /// <summary>
         /// Gets the names of all special inputs.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SpecialInputsResponse"/> with the response data.</returns>
-        public async Task<SpecialInputsResponse> GetSpecialInputs()
+        public async Task<SpecialInputsResponse> GetSpecialInputs(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SpecialInputsResponse>(RequestType.GetSpecialInputs).ConfigureAwait(false);
+            return await this.SendRequestAsync<SpecialInputsResponse>(RequestType.GetSpecialInputs, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -57,6 +60,7 @@ namespace OBSStudioClient
         /// <param name="inputSettings">Settings object to initialize the input with. If omitted: Default settings used.</param>
         /// <param name="sceneItemEnabled">Whether to set the created scene item to enabled or disabled. If omitted: True.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="CreateInputResponse"/> with the response data.</returns>
         public async Task<CreateInputResponse> CreateInput(
             SceneRef scene,
@@ -64,21 +68,23 @@ namespace OBSStudioClient
             string inputKind,
             Dictionary<string, object>? inputSettings = null,
             bool? sceneItemEnabled = null,
-            Guid? canvasUuid = null)
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<CreateInputResponse>(RequestType.CreateInput, CreateInputRequestData.Create(scene, inputName, inputKind, inputSettings, sceneItemEnabled, canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<CreateInputResponse>(RequestType.CreateInput, CreateInputRequestData.Create(scene, inputName, inputKind, inputSettings, sceneItemEnabled, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Removes an existing input.
         /// </summary>
         /// <param name="input">The input to remove, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Will immediately remove all associated scene items.</para>
         /// </remarks>
-        public async Task RemoveInput(InputRef input)
+        public async Task RemoveInput(InputRef input, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.RemoveInput, RemoveInputRequestData.Create(input)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.RemoveInput, RemoveInputRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -86,19 +92,21 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="newInputName">New name for the input.</param>
-        public async Task SetInputName(InputRef input, string newInputName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputName(InputRef input, string newInputName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputName, SetInputNameRequestData.Create(input, newInputName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputName, SetInputNameRequestData.Create(input, newInputName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the default settings for an input kind.
         /// </summary>
         /// <param name="inputKind">Input kind to get the default settings for.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Object of default settings for the input kind.</returns>
-        public async Task<Dictionary<string, object>> GetInputDefaultSettings(string inputKind)
+        public async Task<Dictionary<string, object>> GetInputDefaultSettings(string inputKind, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<DefaultInputSettingsResponse>(RequestType.GetInputDefaultSettings, GetInputDefaultSettingsRequestData.Create(inputKind)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<DefaultInputSettingsResponse>(RequestType.GetInputDefaultSettings, GetInputDefaultSettingsRequestData.Create(inputKind), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.DefaultInputSettings;
         }
 
@@ -106,13 +114,14 @@ namespace OBSStudioClient
         /// Gets the settings of an input.
         /// </summary>
         /// <param name="input">The input to get the settings of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="InputSettingsResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Note: Does not include defaults. To create the entire settings object, overlay <c>inputSettings</c> over the <c>defaultInputSettings</c> provided by <c>GetInputDefaultSettings</c>.</para>
         /// </remarks>
-        public async Task<InputSettingsResponse> GetInputSettings(InputRef input)
+        public async Task<InputSettingsResponse> GetInputSettings(InputRef input, CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<InputSettingsResponse>(RequestType.GetInputSettings, GetInputSettingsRequestData.Create(input)).ConfigureAwait(false);
+            return await this.SendRequestAsync<InputSettingsResponse>(RequestType.GetInputSettings, GetInputSettingsRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -121,19 +130,25 @@ namespace OBSStudioClient
         /// <param name="input">The input to set the settings of, by name or by UUID.</param>
         /// <param name="inputSettings">Object of settings to apply.</param>
         /// <param name="overlay">True == apply the settings on top of existing ones, False == reset the input to its defaults, then apply settings. If omitted: true.</param>
-        public async Task SetInputSettings(InputRef input, Dictionary<string, object> inputSettings, bool? overlay = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputSettings(
+            InputRef input,
+            Dictionary<string, object> inputSettings,
+            bool? overlay = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputSettings, SetInputSettingsRequestData.Create(input, inputSettings, overlay)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputSettings, SetInputSettingsRequestData.Create(input, inputSettings, overlay), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the audio mute state of an input.
         /// </summary>
         /// <param name="input">The input to get the mute state of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the input is muted.</returns>
-        public async Task<bool> GetInputMute(InputRef input)
+        public async Task<bool> GetInputMute(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputMutedResponse>(RequestType.GetInputMute, GetInputMuteRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputMutedResponse>(RequestType.GetInputMute, GetInputMuteRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputMuted;
         }
 
@@ -142,19 +157,21 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input to set the mute state of, by name or by UUID.</param>
         /// <param name="inputMuted">Whether to mute the input or not.</param>
-        public async Task SetInputMute(InputRef input, bool inputMuted)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputMute(InputRef input, bool inputMuted, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputMute, SetInputMuteRequestData.Create(input, inputMuted)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputMute, SetInputMuteRequestData.Create(input, inputMuted), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Toggles the audio mute state of an input.
         /// </summary>
         /// <param name="input">The input to toggle the mute state of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the input has been muted or unmuted.</returns>
-        public async Task<bool> ToggleInputMute(InputRef input)
+        public async Task<bool> ToggleInputMute(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputMutedResponse>(RequestType.ToggleInputMute, ToggleInputMuteRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputMutedResponse>(RequestType.ToggleInputMute, ToggleInputMuteRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputMuted;
         }
 
@@ -162,10 +179,11 @@ namespace OBSStudioClient
         /// Gets the current volume setting of an input.
         /// </summary>
         /// <param name="input">The input to get the volume of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="InputVolumeResponse"/> with the response data.</returns>
-        public async Task<InputVolumeResponse> GetInputVolume(InputRef input)
+        public async Task<InputVolumeResponse> GetInputVolume(InputRef input, CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<InputVolumeResponse>(RequestType.GetInputVolume, GetInputVolumeRequestData.Create(input)).ConfigureAwait(false);
+            return await this.SendRequestAsync<InputVolumeResponse>(RequestType.GetInputVolume, GetInputVolumeRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -174,19 +192,25 @@ namespace OBSStudioClient
         /// <param name="input">The input to set the volume of, by name or by UUID.</param>
         /// <param name="inputVolumeMul">Volume setting in mul. Restrictions: &gt;= 0, &lt;= 20. If omitted: <c>inputVolumeDb</c> should be specified.</param>
         /// <param name="inputVolumeDb">Volume setting in dB. Restrictions: &gt;= -100, &lt;= 26. If omitted: <c>inputVolumeMul</c> should be specified.</param>
-        public async Task SetInputVolume(InputRef input, float? inputVolumeMul = null, float? inputVolumeDb = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputVolume(
+            InputRef input,
+            float? inputVolumeMul = null,
+            float? inputVolumeDb = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputVolume, SetInputVolumeRequestData.Create(input, inputVolumeMul, inputVolumeDb)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputVolume, SetInputVolumeRequestData.Create(input, inputVolumeMul, inputVolumeDb), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the audio balance of an input.
         /// </summary>
         /// <param name="input">The input to get the audio balance of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Audio balance value from 0.0-1.0.</returns>
-        public async Task<float> GetInputAudioBalance(InputRef input)
+        public async Task<float> GetInputAudioBalance(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputAudioBalanceResponse>(RequestType.GetInputAudioBalance, GetInputAudioBalanceRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputAudioBalanceResponse>(RequestType.GetInputAudioBalance, GetInputAudioBalanceRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputAudioBalance;
         }
 
@@ -195,22 +219,24 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input to set the audio balance of, by name or by UUID.</param>
         /// <param name="inputAudioBalance">New audio balance value. Restrictions: &gt;= 0.0, &lt;= 1.0.</param>
-        public async Task SetInputAudioBalance(InputRef input, float inputAudioBalance)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputAudioBalance(InputRef input, float inputAudioBalance, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputAudioBalance, SetInputAudioBalanceRequestData.Create(input, inputAudioBalance)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputAudioBalance, SetInputAudioBalanceRequestData.Create(input, inputAudioBalance), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the audio sync offset of an input.
         /// </summary>
         /// <param name="input">The input to get the audio sync offset of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Audio sync offset in milliseconds.</returns>
         /// <remarks>
         /// <para>Note: The audio sync offset can be negative too!</para>
         /// </remarks>
-        public async Task<int> GetInputAudioSyncOffset(InputRef input)
+        public async Task<int> GetInputAudioSyncOffset(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputAudioSyncOffsetResponse>(RequestType.GetInputAudioSyncOffset, GetInputAudioSyncOffsetRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputAudioSyncOffsetResponse>(RequestType.GetInputAudioSyncOffset, GetInputAudioSyncOffsetRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputAudioSyncOffset;
         }
 
@@ -219,23 +245,25 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input to set the audio sync offset of, by name or by UUID.</param>
         /// <param name="inputAudioSyncOffset">New audio sync offset in milliseconds. Restrictions: &gt;= -950, &lt;= 20000.</param>
-        public async Task SetInputAudioSyncOffset(InputRef input, int inputAudioSyncOffset)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputAudioSyncOffset(InputRef input, int inputAudioSyncOffset, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputAudioSyncOffset, SetInputAudioSyncOffsetRequestData.Create(input, inputAudioSyncOffset)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputAudioSyncOffset, SetInputAudioSyncOffsetRequestData.Create(input, inputAudioSyncOffset), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the audio monitor type of an input.
         /// </summary>
         /// <param name="input">The input to get the audio monitor type of, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Audio monitor type.</returns>
         /// <remarks>
         /// <para>The available audio monitor types are:.</para>
         /// <para>- <c>OBS_MONITORING_TYPE_NONE</c> - <c>OBS_MONITORING_TYPE_MONITOR_ONLY</c> - <c>OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT</c>.</para>
         /// </remarks>
-        public async Task<MonitorType> GetInputAudioMonitorType(InputRef input)
+        public async Task<MonitorType> GetInputAudioMonitorType(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputAudioMonitorTypeResponse>(RequestType.GetInputAudioMonitorType, GetInputAudioMonitorTypeRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputAudioMonitorTypeResponse>(RequestType.GetInputAudioMonitorType, GetInputAudioMonitorTypeRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.MonitorType;
         }
 
@@ -244,19 +272,21 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input to set the audio monitor type of, by name or by UUID.</param>
         /// <param name="monitorType">Audio monitor type.</param>
-        public async Task SetInputAudioMonitorType(InputRef input, MonitorType monitorType)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputAudioMonitorType(InputRef input, MonitorType monitorType, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputAudioMonitorType, SetInputAudioMonitorTypeRequestData.Create(input, monitorType)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputAudioMonitorType, SetInputAudioMonitorTypeRequestData.Create(input, monitorType), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the enable state of all audio tracks of an input.
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Object of audio tracks and associated enable states.</returns>
-        public async Task<AudioTracks> GetInputAudioTracks(InputRef input)
+        public async Task<AudioTracks> GetInputAudioTracks(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputAudioTracksResponse>(RequestType.GetInputAudioTracks, GetInputAudioTracksRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputAudioTracksResponse>(RequestType.GetInputAudioTracks, GetInputAudioTracksRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputAudioTracks;
         }
 
@@ -265,15 +295,17 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="inputAudioTracks">Track settings to apply.</param>
-        public async Task SetInputAudioTracks(InputRef input, AudioTracks inputAudioTracks)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetInputAudioTracks(InputRef input, AudioTracks inputAudioTracks, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputAudioTracks, SetInputAudioTracksRequestData.Create(input, inputAudioTracks)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputAudioTracks, SetInputAudioTracksRequestData.Create(input, inputAudioTracks), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the deinterlace mode of an input.
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Deinterlace mode of the input.</returns>
         /// <remarks>
         /// <para>Deinterlace Modes:.</para>
@@ -281,9 +313,9 @@ namespace OBSStudioClient
         /// <para>Note: Deinterlacing functionality is restricted to async inputs only.</para>
         /// <para>Introduced in obs-websocket 5.6.0.</para>
         /// </remarks>
-        public async Task<DeinterlaceMode> GetInputDeinterlaceMode(InputRef input)
+        public async Task<DeinterlaceMode> GetInputDeinterlaceMode(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputDeinterlaceModeResponse>(RequestType.GetInputDeinterlaceMode, GetInputDeinterlaceModeRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputDeinterlaceModeResponse>(RequestType.GetInputDeinterlaceMode, GetInputDeinterlaceModeRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputDeinterlaceMode;
         }
 
@@ -292,19 +324,21 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="inputDeinterlaceMode">Deinterlace mode for the input.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Deinterlacing functionality is restricted to async inputs only.</para>
         /// <para>Introduced in obs-websocket 5.6.0.</para>
         /// </remarks>
-        public async Task SetInputDeinterlaceMode(InputRef input, DeinterlaceMode inputDeinterlaceMode)
+        public async Task SetInputDeinterlaceMode(InputRef input, DeinterlaceMode inputDeinterlaceMode, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputDeinterlaceMode, SetInputDeinterlaceModeRequestData.Create(input, inputDeinterlaceMode)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputDeinterlaceMode, SetInputDeinterlaceModeRequestData.Create(input, inputDeinterlaceMode), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the deinterlace field order of an input.
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Deinterlace field order of the input.</returns>
         /// <remarks>
         /// <para>Deinterlace Field Orders:.</para>
@@ -312,9 +346,9 @@ namespace OBSStudioClient
         /// <para>Note: Deinterlacing functionality is restricted to async inputs only.</para>
         /// <para>Introduced in obs-websocket 5.6.0.</para>
         /// </remarks>
-        public async Task<string> GetInputDeinterlaceFieldOrder(InputRef input)
+        public async Task<string> GetInputDeinterlaceFieldOrder(InputRef input, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<InputDeinterlaceFieldOrderResponse>(RequestType.GetInputDeinterlaceFieldOrder, GetInputDeinterlaceFieldOrderRequestData.Create(input)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<InputDeinterlaceFieldOrderResponse>(RequestType.GetInputDeinterlaceFieldOrder, GetInputDeinterlaceFieldOrderRequestData.Create(input), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.InputDeinterlaceFieldOrder;
         }
 
@@ -323,13 +357,17 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="inputDeinterlaceFieldOrder">Deinterlace field order for the input.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Deinterlacing functionality is restricted to async inputs only.</para>
         /// <para>Introduced in obs-websocket 5.6.0.</para>
         /// </remarks>
-        public async Task SetInputDeinterlaceFieldOrder(InputRef input, string inputDeinterlaceFieldOrder)
+        public async Task SetInputDeinterlaceFieldOrder(
+            InputRef input,
+            string inputDeinterlaceFieldOrder,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetInputDeinterlaceFieldOrder, SetInputDeinterlaceFieldOrderRequestData.Create(input, inputDeinterlaceFieldOrder)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetInputDeinterlaceFieldOrder, SetInputDeinterlaceFieldOrderRequestData.Create(input, inputDeinterlaceFieldOrder), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -337,13 +375,17 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="propertyName">Name of the list property to get the items of.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of items in the list property.</returns>
         /// <remarks>
         /// <para>Note: Use this in cases where an input provides a dynamic, selectable list of items. For example, display capture, where it provides a list of available displays.</para>
         /// </remarks>
-        public async Task<PropertyItem[]> GetInputPropertiesListPropertyItems(InputRef input, string propertyName)
+        public async Task<PropertyItem[]> GetInputPropertiesListPropertyItems(
+            InputRef input,
+            string propertyName,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<PropertyItemsResponse>(RequestType.GetInputPropertiesListPropertyItems, GetInputPropertiesListPropertyItemsRequestData.Create(input, propertyName)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<PropertyItemsResponse>(RequestType.GetInputPropertiesListPropertyItems, GetInputPropertiesListPropertyItemsRequestData.Create(input, propertyName), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.PropertyItems;
         }
 
@@ -352,14 +394,15 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="input">The input, by name or by UUID.</param>
         /// <param name="propertyName">Name of the button property to press.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Some known <c>propertyName</c> values are:.</para>
         /// <para>- <c>refreshnocache</c> - Browser source reload button.</para>
         /// <para>Note: Use this in cases where there is a button in the properties of an input that cannot be accessed in any other way. For example, browser sources, where there is a refresh button.</para>
         /// </remarks>
-        public async Task PressInputPropertiesButton(InputRef input, string propertyName)
+        public async Task PressInputPropertiesButton(InputRef input, string propertyName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.PressInputPropertiesButton, PressInputPropertiesButtonRequestData.Create(input, propertyName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.PressInputPropertiesButton, PressInputPropertiesButtonRequestData.Create(input, propertyName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

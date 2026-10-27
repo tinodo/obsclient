@@ -20,28 +20,31 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets data about the current plugin and RPC version.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="VersionResponse"/> with the response data.</returns>
-        public async Task<VersionResponse> GetVersion()
+        public async Task<VersionResponse> GetVersion(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<VersionResponse>(RequestType.GetVersion).ConfigureAwait(false);
+            return await this.SendRequestAsync<VersionResponse>(RequestType.GetVersion, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets statistics about OBS, obs-websocket, and the current session.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="StatsResponse"/> with the response data.</returns>
-        public async Task<StatsResponse> GetStats()
+        public async Task<StatsResponse> GetStats(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<StatsResponse>(RequestType.GetStats).ConfigureAwait(false);
+            return await this.SendRequestAsync<StatsResponse>(RequestType.GetStats, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Broadcasts a <c>CustomEvent</c> to all WebSocket clients. Receivers are clients which are identified and subscribed.
         /// </summary>
         /// <param name="eventData">Data payload to emit to all receivers.</param>
-        public async Task BroadcastCustomEvent(JsonElement eventData)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task BroadcastCustomEvent(JsonElement eventData, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.BroadcastCustomEvent, BroadcastCustomEventRequestData.Create(eventData)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.BroadcastCustomEvent, BroadcastCustomEventRequestData.Create(eventData), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -50,25 +53,31 @@ namespace OBSStudioClient
         /// <param name="vendorName">Name of the vendor to use.</param>
         /// <param name="requestType">The request type to call.</param>
         /// <param name="requestData">Object containing appropriate request data. If omitted: {}.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="CallVendorResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>A vendor is a unique name registered by a third-party plugin or script, which allows for custom requests and events to be added to obs-websocket. If a plugin or script implements vendor requests or events, documentation is expected to be provided with them.</para>
         /// </remarks>
-        public async Task<CallVendorResponse> CallVendorRequest(string vendorName, string requestType, JsonElement? requestData = null)
+        public async Task<CallVendorResponse> CallVendorRequest(
+            string vendorName,
+            string requestType,
+            JsonElement? requestData = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<CallVendorResponse>(RequestType.CallVendorRequest, CallVendorRequestRequestData.Create(vendorName, requestType, requestData)).ConfigureAwait(false);
+            return await this.SendRequestAsync<CallVendorResponse>(RequestType.CallVendorRequest, CallVendorRequestRequestData.Create(vendorName, requestType, requestData), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets an array of all hotkey names in OBS.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of hotkey names.</returns>
         /// <remarks>
         /// <para>Note: Hotkey functionality in obs-websocket comes as-is, and we do not guarantee support if things are broken. In 9/10 usages of hotkey requests, there exists a better, more reliable method via other requests.</para>
         /// </remarks>
-        public async Task<string[]> GetHotkeyList()
+        public async Task<string[]> GetHotkeyList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<HotkeysResponse>(RequestType.GetHotkeyList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<HotkeysResponse>(RequestType.GetHotkeyList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Hotkeys;
         }
 
@@ -77,12 +86,13 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="hotkeyName">Name of the hotkey to trigger.</param>
         /// <param name="contextName">Name of context of the hotkey to trigger.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Hotkey functionality in obs-websocket comes as-is, and we do not guarantee support if things are broken. In 9/10 usages of hotkey requests, there exists a better, more reliable method via other requests.</para>
         /// </remarks>
-        public async Task TriggerHotkeyByName(string hotkeyName, string? contextName = null)
+        public async Task TriggerHotkeyByName(string hotkeyName, string? contextName = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.TriggerHotkeyByName, TriggerHotkeyByNameRequestData.Create(hotkeyName, contextName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.TriggerHotkeyByName, TriggerHotkeyByNameRequestData.Create(hotkeyName, contextName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

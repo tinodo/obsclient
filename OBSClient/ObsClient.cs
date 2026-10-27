@@ -442,6 +442,7 @@
         /// <param name="hostname">The hostname of the computer running OBS Studio to connect to. Defaults to "localhost".</param>
         /// <param name="port">The Port on which the OBS Studio WebSocket interface is listenting. Default to 4455.</param>
         /// <param name="eventSubscription">The events to subscribe to. Defaults to All events.</param>
+        /// <param name="cancellationToken">A token that ends the attempt to connect, as <see cref="Disconnect"/> would: the connection that is being opened is closed and <see cref="AutoReconnect"/> is switched off, so the client does not go on trying what the caller no longer wants.</param>
         /// <returns><see langword="true"/> when OBS Studio accepted the session: the connection is open, the authentication succeeded and <see cref="ConnectionState"/> is <see cref="ConnectionState.Connected"/>. <see langword="false"/> otherwise.</returns>
         /// <remarks>
         /// The task completes when the handshake with OBS Studio is done, so a request can be sent as soon as <see langword="true"/> is returned.
@@ -451,8 +452,11 @@
         /// </remarks>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="port"/> is not between 1 and 65535.</exception>
         /// <exception cref="ArgumentException"><paramref name="hostname"/> is not a valid host name.</exception>
-        public async Task<bool> ConnectAsync(bool autoReconnect = false, string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All)
+        /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled before the connection was established (or just after it).</exception>
+        public async Task<bool> ConnectAsync(bool autoReconnect = false, string password = "", string hostname = "localhost", int port = 4455, EventSubscriptions eventSubscription = EventSubscriptions.All, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (this._connectionState != ConnectionState.Disconnected)
             {
                 return true;
@@ -475,7 +479,19 @@
 
             _logger.LogInformation("Connecting to {Hostname}:{Port}", hostname, port);
 
-            return await this.StartAsync().ConfigureAwait(false);
+            // Cancelling ends the attempt the way Disconnect() does. The registration only lives as long as this call: a token that is
+            // cancelled after the connection was established must not close it.
+            using var cancellation = cancellationToken.Register(this.Disconnect);
+            var connected = await this.StartAsync().ConfigureAwait(false);
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // The registration did this already, unless the token was cancelled before the connection attempt had a session to end.
+                this.Disconnect();
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            return connected;
         }
 
         /// <summary>
@@ -493,9 +509,10 @@
         /// </summary>
         /// <param name="requestBatchMessage">The <see cref="RequestBatchMessage"/> to send.</param>
         /// <param name="timeOutInMilliseconds">The timeout for the request. (Defauls to <see cref="RequestTimeout"/>.)</param>
+        /// <param name="cancellationToken">A token that ends the wait for the responses, which makes the method throw an <see cref="OperationCanceledException"/>. A batch that was already sent is not undone: OBS Studio may still run it.</param>
         /// <returns>The responses for the individual requests.</returns>
         /// <remarks>Since batch requests typically take more time than individual request, you have the opportunity here to override the default timeout for this specific call.</remarks>
-        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null)
+        public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default)
         {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
@@ -505,7 +522,7 @@
             var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData.Results;
@@ -518,13 +535,16 @@
         /// Sends a Reidentify request to OBS Studio, typically to subscribe to a different set of events.
         /// </summary>
         /// <param name="eventSubscription">The events to subscribe to.</param>
+        /// <param name="cancellationToken">A token that cancels the call before the message is sent, which makes the method throw an <see cref="OperationCanceledException"/>.</param>
         /// <returns>An awaitable task.</returns>
-        public async Task ReidentifyAsync(EventSubscriptions eventSubscription)
+        public async Task ReidentifyAsync(EventSubscriptions eventSubscription, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             this._eventSubscriptions = eventSubscription;
             ReidentifyMessage request = new(eventSubscription);
             ObsMessage message = new(request);
-            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message).ConfigureAwait(false);
+            await this.SendAsync(this._session ?? throw new ObsClientException("Not connected."), message, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -918,7 +938,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -927,19 +947,36 @@
             }
 
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(request);
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
-            }
 
             var sendBuffer = new ArraySegment<byte>(bytes);
             var lockTaken = false;
+            CancellationTokenSource? waiting = null;
             try
             {
+                // The caller can cancel the wait for a turn. It cannot cancel the writing of the message: a send that is cancelled
+                // halfway aborts the whole WebSocket, so only the end of the session may interrupt that.
+                var turn = session.Cancellation.Token;
+                if (cancellationToken.CanBeCanceled)
+                {
+                    waiting = CancellationTokenSource.CreateLinkedTokenSource(session.Cancellation.Token, cancellationToken);
+                    turn = waiting.Token;
+                }
+
                 // A WebSocket message must be written in one piece, so concurrent callers take turns.
-                await session.SendLock.WaitAsync(session.Cancellation.Token).ConfigureAwait(false);
+                await session.SendLock.WaitAsync(turn).ConfigureAwait(false);
                 lockTaken = true;
+
+                // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
+                }
+
                 await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex) when (ex is ObjectDisposedException or WebSocketException or OperationCanceledException)
             {
@@ -947,6 +984,7 @@
             }
             finally
             {
+                waiting?.Dispose();
                 if (lockTaken)
                 {
                     session.SendLock.Release();
@@ -1189,8 +1227,10 @@
             });
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var session = this._session;
             if (session is null || this._connectionState != ConnectionState.Connected)
             {
@@ -1202,6 +1242,7 @@
             TaskCompletionSource<IMessage> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             using CancellationTokenSource cts = new(timeout ?? this._requestTimeout);
             using var ctr = cts.Token.Register(() => tcs.TrySetCanceled(), false);
+            using var callerCtr = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken), false);
             if (!session.Requests.TryAdd(requestId, tcs))
             {
                 throw new ObsClientException($"Could not add request {requestId} to the request queue.");
@@ -1216,11 +1257,12 @@
                     throw new ObsClientException("Not connected.");
                 }
 
-                await this.SendAsync(session, request).ConfigureAwait(false);
+                await this.SendAsync(session, request, cancellationToken).ConfigureAwait(false);
                 return await tcs.Task.ConfigureAwait(false);
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
+                // Only the timeout cancels the task otherwise: a cancelled token of the caller is an OperationCanceledException.
                 throw new TimeoutException($"Timeout waiting for OBS Studio response to request {requestId}.");
             }
             finally
@@ -1230,18 +1272,18 @@
             }
         }
 
-        private async Task SendRequestAsync(RequestType requestType, object? requestData = null)
+        private async Task SendRequestAsync(RequestType requestType, object? requestData = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
+            await this.SendRequestAndWaitAsync(requestType, requestData, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task<T> SendRequestAsync<T>(RequestType requestType, object? requestData = null) where T : IResponse
+        private async Task<T> SendRequestAsync<T>(RequestType requestType, object? requestData = null, CancellationToken cancellationToken = default) where T : IResponse
         {
-            var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData).ConfigureAwait(false);
+            var requestResponseData = await this.SendRequestAndWaitAsync(requestType, requestData, cancellationToken).ConfigureAwait(false);
             return (T)requestResponseData.ResponseData!;
         }
 
-        private async Task<RequestResponseMessage> SendRequestAndWaitAsync(RequestType requestType, object? requestData)
+        private async Task<RequestResponseMessage> SendRequestAndWaitAsync(RequestType requestType, object? requestData, CancellationToken cancellationToken)
         {
             var payload = RequestPayload.ToElement(requestData);
             int retryCount = 0;
@@ -1250,7 +1292,7 @@
                 var requestId = Guid.NewGuid().ToString();
                 object d = payload is null ? new { requestType, requestId } : new { requestType, requestId, requestData = payload };
                 var op = (int)OpCode.Request;
-                var result = await this.SendAndWaitAsync(requestId, new { d, op }).ConfigureAwait(false);
+                var result = await this.SendAndWaitAsync(requestId, new { d, op }, null, cancellationToken).ConfigureAwait(false);
                 if (result is RequestResponseMessage requestResponseData)
                 {
                     if (requestResponseData.RequestStatus.Result)
@@ -1261,7 +1303,7 @@
                     {
                         if (requestResponseData.RequestStatus.Code == RequestStatusCode.NotReady && retryCount++ < this._maxRequestRetries)
                         {
-                            await Task.Delay(this._requestRetryInterval).ConfigureAwait(false);
+                            await Task.Delay(this._requestRetryInterval, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {

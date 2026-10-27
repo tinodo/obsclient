@@ -27,6 +27,7 @@ bool connected = await client.ConnectAsync(
 | `hostname` | `"localhost"` | The machine that runs OBS Studio. |
 | `port` | `4455` | The port of the WebSocket server, 1 to 65535. |
 | `eventSubscription` | `All` | The events to receive. See [Handling events](events.md#choosing-the-events-you-receive). |
+| `cancellationToken` | none | Ends the attempt. See [Cancelling a connection attempt](#cancelling-a-connection-attempt). |
 
 The client connects over a plain `ws://` connection.
 
@@ -41,7 +42,28 @@ request as soon as it returns.
 | `false` | OBS Studio could not be reached (an attempt is given up after 2 seconds), accepted the connection but did not complete the handshake within 10 seconds, refused the password, or `Disconnect()` was called in the meantime. |
 
 Nothing is thrown for these: check the result. An exception means that an argument cannot be right: an
-`ArgumentOutOfRangeException` when `port` is not between 1 and 65535, an `ArgumentException` when `hostname` is not a valid host name.
+`ArgumentOutOfRangeException` when `port` is not between 1 and 65535, an `ArgumentException` when `hostname` is not a valid host name,
+or that you cancelled the attempt, see below.
+
+### Cancelling a connection attempt
+
+Cancelling the `cancellationToken` ends the attempt as `Disconnect()` would: the connection that is being opened is closed, and
+`AutoReconnect` is switched off, so that the client does not go on trying behind your back. `ConnectAsync` then throws an
+`OperationCanceledException`; it does not return `false`, which is for an attempt that failed. A token that is cancelled after
+`ConnectAsync` returned has no effect on the connection.
+
+```csharp
+using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+try
+{
+    await client.ConnectAsync(autoReconnect: true, cancellationToken: cancellation.Token);
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Gave up connecting.");
+}
+```
 
 > [!NOTE]
 > When the client is not `Disconnected`, `ConnectAsync` does nothing and returns `true`. To connect with other settings,

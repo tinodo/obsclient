@@ -78,6 +78,12 @@ namespace OBSStudioClient.Tests.Conformance
         {
             var underlying = Nullable.GetUnderlyingType(type) ?? type;
 
+            if (underlying == typeof(CancellationToken))
+            {
+                // Not through its constructor: that would make a token that is cancelled, and no request would be sent.
+                return CancellationToken.None;
+            }
+
             if (IsRef(underlying))
             {
                 return refMode == RefMode.Name
