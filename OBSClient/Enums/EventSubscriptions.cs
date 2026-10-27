@@ -67,9 +67,14 @@
         Ui = 1 << 10,
 
         /// <summary>
+        /// Canvases Events
+        /// </summary>
+        Canvases = 1 << 11,
+
+        /// <summary>
         /// All non-high-volume Events
         /// </summary>
-        All = General | Config | Scenes | Inputs | Transitions | Filters | Outputs | SceneItems | MediaInputs | Vendors | Ui,
+        All = General | Config | Scenes | Inputs | Transitions | Filters | Outputs | SceneItems | MediaInputs | Vendors | Ui | Canvases,
 
         /// <summary>
         /// Input Volume Meters Events

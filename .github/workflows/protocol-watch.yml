@@ -1,0 +1,94 @@
+# Keeps the client from silently falling behind obs-websocket.
+# Once a week, compares the newest obs-websocket release with the version the client is generated from. When there is
+# a newer one it tries the update on a clean checkout (regenerates the code, builds, runs the tests) and opens an
+# issue with the differences and the outcome of that trial.
+name: Protocol watch
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check for a new obs-websocket version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare with the newest obs-websocket release
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/obsproject/obs-websocket/tags?per_page=100" --jq '.[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          current=$(jq -r .obsWebSocketVersion OBSClient.Tests/Protocol/protocol.schema.json)
+          echo "Generated from: $current - newest obs-websocket: $latest"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          newest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n 1)
+          if [ -n "$latest" ] && [ "$newest" = "$latest" ] && [ "$latest" != "$current" ]; then
+            echo "outdated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "outdated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Describe the differences
+        if: steps.compare.outputs.outdated == 'true'
+        env:
+          LATEST: ${{ steps.compare.outputs.latest }}
+        run: python tools/protocol/update.py --tag "$LATEST" --dry-run --summary-file protocol-diff.md
+
+      - name: Setup .NET
+        if: steps.compare.outputs.outdated == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # Applies the update to this (throw-away) checkout: regenerates the code, builds it and runs the tests. A failure
+      # is not an error of this workflow: it tells the maintainer that the hand-written part has work to do.
+      - name: Try the update
+        id: trial
+        if: steps.compare.outputs.outdated == 'true'
+        continue-on-error: true
+        env:
+          LATEST: ${{ steps.compare.outputs.latest }}
+        run: |
+          python tools/protocol/update.py --tag "$LATEST"
+          git diff --shortstat > trial-diffstat.txt
+          python -m unittest discover -s tools/protocol -p "test_*.py"
+          dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release
+
+      - name: Open an issue
+        if: steps.compare.outputs.outdated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.compare.outputs.latest }}
+          TRIAL: ${{ steps.trial.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Support obs-websocket $LATEST"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+          if [ "$existing" -gt 0 ]; then
+            echo "An issue for obs-websocket $LATEST is already open."
+            exit 0
+          fi
+          {
+            cat protocol-diff.md
+            echo
+            if [ "$TRIAL" = "success" ]; then
+              echo "**Trial run:** the update was applied to a clean checkout and everything built and passed: $(cat trial-diffstat.txt 2>/dev/null)."
+            else
+              echo "**Trial run:** applying the update to a clean checkout did not build or pass the tests as it is, so the hand-written part of the client has work to do (the log is in the [workflow run]($RUN_URL))."
+            fi
+            echo
+            echo "Apply it with \`python tools/protocol/update.py --tag $LATEST\`, review the diff of \`OBSClient/Generated\`, \`OBSClient.TestApp/Generated\` and \`tools/protocol/overlay.toml\`, then build and run the tests. See CONTRIBUTING.md."
+          } > issue-body.md
+          gh issue create --title "$title" --body-file issue-body.md

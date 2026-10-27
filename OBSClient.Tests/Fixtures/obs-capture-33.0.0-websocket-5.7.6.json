@@ -1,0 +1,3214 @@
+{
+  "note": "What a real OBS Studio sent, captured with tools/capture/obs-capture.ps1: the responses to Get requests, and the events. What identifies the machine (the user name in a path, the names of the monitors) is replaced; the rest is as OBS Studio sent it.",
+  "obsVersion": "33.0.0",
+  "obsWebSocketVersion": "5.7.6",
+  "platform": "windows",
+  "responses": [
+    {
+      "requestType": "GetCanvasList",
+      "responseData": {
+        "canvases": [
+          {
+            "canvasFlags": {
+              "ACTIVATE": true,
+              "EPHEMERAL": false,
+              "MAIN": true,
+              "MIX_AUDIO": true,
+              "SCENE_REF": true
+            },
+            "canvasName": "Main",
+            "canvasUuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
+            "canvasVideoSettings": {
+              "baseHeight": 1080,
+              "baseWidth": 1920,
+              "fpsDenominator": 1,
+              "fpsNumerator": 60,
+              "outputHeight": 1080,
+              "outputWidth": 1920
+            }
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetCurrentProgramScene",
+      "responseData": {
+        "currentProgramSceneName": "Scene",
+        "currentProgramSceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217",
+        "sceneName": "Scene",
+        "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+      }
+    },
+    {
+      "requestType": "GetCurrentSceneTransition",
+      "responseData": {
+        "transitionConfigurable": false,
+        "transitionDuration": 300,
+        "transitionFixed": false,
+        "transitionKind": "fade_transition",
+        "transitionName": "Fade",
+        "transitionSettings": null,
+        "transitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa"
+      }
+    },
+    {
+      "requestType": "GetCurrentSceneTransitionCursor",
+      "responseData": {
+        "transitionCursor": 1.0
+      }
+    },
+    {
+      "requestType": "GetGroupList",
+      "responseData": {
+        "groups": []
+      }
+    },
+    {
+      "requestType": "GetHotkeyList",
+      "responseData": {
+        "hotkeys": [
+          "OBSBasic.StartStreaming",
+          "OBSBasic.StopStreaming",
+          "OBSBasic.ForceStopStreaming",
+          "OBSBasic.StartRecording",
+          "OBSBasic.StopRecording",
+          "OBSBasic.PauseRecording",
+          "OBSBasic.UnpauseRecording",
+          "OBSBasic.SplitFile",
+          "OBSBasic.AddChapterMarker",
+          "OBSBasic.StartReplayBuffer",
+          "OBSBasic.StopReplayBuffer",
+          "OBSBasic.SaveReplayBuffer",
+          "OBSBasic.StartVirtualCam",
+          "OBSBasic.StopVirtualCam",
+          "OBSBasic.EnablePreview",
+          "OBSBasic.DisablePreview",
+          "OBSBasic.EnablePreviewProgram",
+          "OBSBasic.DisablePreviewProgram",
+          "OBSBasic.ShowContextBar",
+          "OBSBasic.HideContextBar",
+          "OBSBasic.Transition",
+          "OBSBasic.ResetStats",
+          "OBSBasic.Screenshot",
+          "OBSBasic.SelectedSourceScreenshot",
+          "OBSBasic.SelectScene",
+          "libobs.mute",
+          "libobs.unmute",
+          "libobs.monitor-on",
+          "libobs.monitor-off",
+          "libobs.push-to-mute",
+          "libobs.push-to-talk",
+          "libobs.mute",
+          "libobs.unmute",
+          "libobs.monitor-on",
+          "libobs.monitor-off",
+          "libobs.push-to-mute",
+          "libobs.push-to-talk",
+          "OBSBasic.SelectScene",
+          "libobs.show_scene_item.1",
+          "libobs.hide_scene_item.1",
+          "libobs.mute",
+          "libobs.unmute",
+          "libobs.monitor-on",
+          "libobs.monitor-off",
+          "libobs.push-to-mute",
+          "libobs.push-to-talk",
+          "MediaSource.Restart",
+          "MediaSource.Play",
+          "MediaSource.Pause",
+          "MediaSource.Stop",
+          "libobs.show_scene_item.2",
+          "libobs.hide_scene_item.2",
+          "libobs.show_scene_item.3",
+          "libobs.hide_scene_item.3",
+          "libobs.show_scene_item.4",
+          "libobs.hide_scene_item.4",
+          "libobs.show_scene_item.5",
+          "libobs.hide_scene_item.5"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputAudioBalance",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioBalance": 0.5
+      }
+    },
+    {
+      "requestType": "GetInputAudioBalance",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioBalance": 0.5
+      }
+    },
+    {
+      "requestType": "GetInputAudioBalance",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputAudioBalance": 0.25
+      }
+    },
+    {
+      "requestType": "GetInputAudioMonitorType",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "monitorType": "OBS_MONITORING_TYPE_NONE"
+      }
+    },
+    {
+      "requestType": "GetInputAudioMonitorType",
+      "label": "Mic_Aux",
+      "responseData": {
+        "monitorType": "OBS_MONITORING_TYPE_NONE"
+      }
+    },
+    {
+      "requestType": "GetInputAudioMonitorType",
+      "label": "obs-capture-media",
+      "responseData": {
+        "monitorType": "OBS_MONITORING_TYPE_NONE"
+      }
+    },
+    {
+      "requestType": "GetInputAudioSyncOffset",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioSyncOffset": 0
+      }
+    },
+    {
+      "requestType": "GetInputAudioSyncOffset",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioSyncOffset": 0
+      }
+    },
+    {
+      "requestType": "GetInputAudioSyncOffset",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputAudioSyncOffset": 150
+      }
+    },
+    {
+      "requestType": "GetInputAudioTracks",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputAudioTracks",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputAudioTracks",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": false,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "browser_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "fps": 30,
+          "fps_custom": false,
+          "height": 600,
+          "reroute_audio": false,
+          "restart_when_active": false,
+          "shutdown": false,
+          "url": "https://obsproject.com/browser-source",
+          "webpage_control_level": 1,
+          "width": 800
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "color_source_v3",
+      "responseData": {
+        "defaultInputSettings": {
+          "color": 4291940817,
+          "height": 1080,
+          "width": 1920
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "dshow_input",
+      "responseData": {
+        "defaultInputSettings": {
+          "active": true,
+          "audio_output_mode": 0,
+          "autorotation": true,
+          "color_range": "default",
+          "color_space": "default",
+          "frame_interval": -1,
+          "hw_decode": false,
+          "res_type": 0,
+          "video_format": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "ffmpeg_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "buffering_mb": 2,
+          "clear_on_media_end": true,
+          "is_local_file": true,
+          "linear_alpha": false,
+          "log_changes": true,
+          "looping": false,
+          "reconnect_delay_sec": 10,
+          "restart_on_activate": true,
+          "speed_percent": 100
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "game_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "allow_transparency": false,
+          "anti_cheat_hook": true,
+          "capture_cursor": true,
+          "capture_mode": "any_fullscreen",
+          "capture_overlays": false,
+          "hook_rate": 1,
+          "limit_framerate": false,
+          "premultiplied_alpha": false,
+          "priority": 2,
+          "rgb10a2_space": "srgb",
+          "sli_compatibility": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "image_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "linear_alpha": false,
+          "unload": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "monitor_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "capture_cursor": true,
+          "force_sdr": false,
+          "method": 0,
+          "monitor_id": "DUMMY",
+          "monitor_wgc": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "slideshow_v2",
+      "responseData": {
+        "defaultInputSettings": {
+          "playback_behavior": "always_play",
+          "playback_mode": "loop",
+          "slide_mode": "mode_auto",
+          "slide_time": 2000,
+          "transition": "fade",
+          "transition_speed": 700,
+          "use_custom_size": "1920x1080"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "text_ft2_source_v2",
+      "responseData": {
+        "defaultInputSettings": {
+          "antialiasing": true,
+          "color1": 4294967295,
+          "color2": 4294967295,
+          "drop_shadow": false,
+          "font": {
+            "face": "Arial",
+            "flags": 0,
+            "size": 256,
+            "style": ""
+          },
+          "log_lines": 6,
+          "outline": false,
+          "word_wrap": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "text_gdiplus_v3",
+      "responseData": {
+        "defaultInputSettings": {
+          "align": "left",
+          "antialiasing": true,
+          "bk_color": 0,
+          "bk_opacity": 0,
+          "chatlog_lines": 6,
+          "color": 16777215,
+          "extents_cx": 100,
+          "extents_cy": 100,
+          "extents_wrap": true,
+          "font": {
+            "face": "Arial",
+            "size": 256
+          },
+          "gradient_color": 16777215,
+          "gradient_dir": 90.0,
+          "gradient_opacity": 100,
+          "opacity": 100,
+          "outline_color": 16777215,
+          "outline_opacity": 100,
+          "outline_size": 2,
+          "transform": 0,
+          "valign": "top"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "vlc_source",
+      "responseData": {
+        "defaultInputSettings": {
+          "loop": true,
+          "network_caching": 400,
+          "playback_behavior": "stop_restart",
+          "shuffle": false,
+          "subtitle": 1,
+          "subtitle_enable": false,
+          "track": 1
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_input_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "device_id": "default",
+          "use_device_timing": false
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_output_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "device_id": "default",
+          "use_device_timing": true
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "wasapi_process_output_capture",
+      "responseData": {
+        "defaultInputSettings": {}
+      }
+    },
+    {
+      "requestType": "GetInputDefaultSettings",
+      "label": "window_capture",
+      "responseData": {
+        "defaultInputSettings": {
+          "client_area": true,
+          "compatibility": false,
+          "cursor": true,
+          "force_sdr": false,
+          "method": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetInputDeinterlaceFieldOrder",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputDeinterlaceFieldOrder": "OBS_DEINTERLACE_FIELD_ORDER_TOP"
+      }
+    },
+    {
+      "requestType": "GetInputDeinterlaceMode",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputDeinterlaceMode": "OBS_DEINTERLACE_MODE_DISABLE"
+      }
+    },
+    {
+      "requestType": "GetInputKindList",
+      "responseData": {
+        "inputKinds": [
+          "image_source",
+          "color_source_v3",
+          "slideshow_v2",
+          "browser_source",
+          "ffmpeg_source",
+          "text_gdiplus_v3",
+          "text_ft2_source_v2",
+          "vlc_source",
+          "monitor_capture",
+          "window_capture",
+          "game_capture",
+          "dshow_input",
+          "wasapi_input_capture",
+          "wasapi_output_capture",
+          "wasapi_process_output_capture"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputKindList",
+      "label": "unversioned",
+      "responseData": {
+        "inputKinds": [
+          "image_source",
+          "color_source",
+          "slideshow",
+          "browser_source",
+          "ffmpeg_source",
+          "text_gdiplus",
+          "text_ft2_source",
+          "vlc_source",
+          "monitor_capture",
+          "window_capture",
+          "game_capture",
+          "dshow_input",
+          "wasapi_input_capture",
+          "wasapi_output_capture",
+          "wasapi_process_output_capture"
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputList",
+      "responseData": {
+        "inputs": [
+          {
+            "inputKind": "wasapi_output_capture",
+            "inputKindCaps": 642,
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4",
+            "unversionedInputKind": "wasapi_output_capture"
+          },
+          {
+            "inputKind": "wasapi_input_capture",
+            "inputKindCaps": 130,
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb",
+            "unversionedInputKind": "wasapi_input_capture"
+          },
+          {
+            "inputKind": "color_source_v3",
+            "inputKindCaps": 32777,
+            "inputName": "obs-capture-color",
+            "inputUuid": "b3934585-2939-49c1-9b1d-cea385c3c973",
+            "unversionedInputKind": "color_source"
+          },
+          {
+            "inputKind": "ffmpeg_source",
+            "inputKindCaps": 8327,
+            "inputName": "obs-capture-media",
+            "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd",
+            "unversionedInputKind": "ffmpeg_source"
+          },
+          {
+            "inputKind": "image_source",
+            "inputKindCaps": 32769,
+            "inputName": "obs-capture-image",
+            "inputUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2",
+            "unversionedInputKind": "image_source"
+          },
+          {
+            "inputKind": "text_gdiplus_v3",
+            "inputKindCaps": 32777,
+            "inputName": "obs-capture-text-renamed",
+            "inputUuid": "77dfa594-d931-432f-bec3-8a1622716a6c",
+            "unversionedInputKind": "text_gdiplus"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputMute",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputMuted": false
+      }
+    },
+    {
+      "requestType": "GetInputMute",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputMuted": false
+      }
+    },
+    {
+      "requestType": "GetInputMute",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputMuted": true
+      }
+    },
+    {
+      "requestType": "GetInputPropertiesListPropertyItems",
+      "label": "obs-capture-text-renamed",
+      "responseData": {
+        "propertyItems": [
+          {
+            "itemEnabled": true,
+            "itemName": "Left",
+            "itemValue": "left"
+          },
+          {
+            "itemEnabled": true,
+            "itemName": "Center",
+            "itemValue": "center"
+          },
+          {
+            "itemEnabled": true,
+            "itemName": "Right",
+            "itemValue": "right"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputKind": "wasapi_output_capture",
+        "inputSettings": {
+          "device_id": "default"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputKind": "wasapi_input_capture",
+        "inputSettings": {
+          "device_id": "default"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "obs-capture-color",
+      "responseData": {
+        "inputKind": "color_source_v3",
+        "inputSettings": {
+          "color": 4294901760,
+          "height": 360,
+          "width": 640
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "obs-capture-image",
+      "responseData": {
+        "inputKind": "image_source",
+        "inputSettings": {
+          "file": ""
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputKind": "ffmpeg_source",
+        "inputSettings": {
+          "is_local_file": true,
+          "local_file": ""
+        }
+      }
+    },
+    {
+      "requestType": "GetInputSettings",
+      "label": "obs-capture-text-renamed",
+      "responseData": {
+        "inputKind": "text_gdiplus_v3",
+        "inputSettings": {
+          "font": {
+            "face": "Arial",
+            "flags": 0,
+            "size": 48,
+            "style": "Regular"
+          },
+          "text": "obs-capture"
+        }
+      }
+    },
+    {
+      "requestType": "GetInputVolume",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "inputVolumeDb": 0.0,
+        "inputVolumeMul": 1.0
+      }
+    },
+    {
+      "requestType": "GetInputVolume",
+      "label": "Mic_Aux",
+      "responseData": {
+        "inputVolumeDb": 0.0,
+        "inputVolumeMul": 1.0
+      }
+    },
+    {
+      "requestType": "GetInputVolume",
+      "label": "obs-capture-media",
+      "responseData": {
+        "inputVolumeDb": -12.5,
+        "inputVolumeMul": 0.23713737726211548
+      }
+    },
+    {
+      "requestType": "GetMediaInputStatus",
+      "label": "obs-capture-media",
+      "responseData": {
+        "mediaCursor": null,
+        "mediaDuration": null,
+        "mediaState": "OBS_MEDIA_STATE_NONE"
+      }
+    },
+    {
+      "requestType": "GetMonitorList",
+      "responseData": {
+        "monitors": [
+          {
+            "monitorHeight": 1440,
+            "monitorIndex": 0,
+            "monitorName": "Display 1(0)",
+            "monitorPositionX": 0,
+            "monitorPositionY": 0,
+            "monitorWidth": 2560
+          },
+          {
+            "monitorHeight": 1080,
+            "monitorIndex": 1,
+            "monitorName": "Display 2(1)",
+            "monitorPositionX": -2560,
+            "monitorPositionY": 0,
+            "monitorWidth": 2560
+          },
+          {
+            "monitorHeight": 960,
+            "monitorIndex": 2,
+            "monitorName": "Display 3(2)",
+            "monitorPositionX": 3840,
+            "monitorPositionY": 0,
+            "monitorWidth": 1707
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetOutputList",
+      "responseData": {
+        "outputs": [
+          {
+            "outputActive": false,
+            "outputFlags": {
+              "OBS_OUTPUT_AUDIO": true,
+              "OBS_OUTPUT_ENCODED": true,
+              "OBS_OUTPUT_MULTI_TRACK": true,
+              "OBS_OUTPUT_SERVICE": false,
+              "OBS_OUTPUT_VIDEO": true
+            },
+            "outputHeight": 0,
+            "outputKind": "mp4_output",
+            "outputName": "simple_file_output",
+            "outputWidth": 0
+          },
+          {
+            "outputActive": true,
+            "outputFlags": {
+              "OBS_OUTPUT_AUDIO": false,
+              "OBS_OUTPUT_ENCODED": false,
+              "OBS_OUTPUT_MULTI_TRACK": false,
+              "OBS_OUTPUT_SERVICE": false,
+              "OBS_OUTPUT_VIDEO": true
+            },
+            "outputHeight": 1080,
+            "outputKind": "virtualcam_output",
+            "outputName": "virtualcam_output",
+            "outputWidth": 1920
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetOutputStatus",
+      "label": "simple_file_output",
+      "responseData": {
+        "outputActive": false,
+        "outputBytes": 0,
+        "outputCongestion": 0.0,
+        "outputDuration": 0,
+        "outputReconnecting": false,
+        "outputSkippedFrames": 0,
+        "outputTimecode": "00:00:00.000",
+        "outputTotalFrames": 0
+      }
+    },
+    {
+      "requestType": "GetOutputStatus",
+      "label": "virtualcam_output",
+      "responseData": {
+        "outputActive": true,
+        "outputBytes": 0,
+        "outputCongestion": 0.0,
+        "outputDuration": 1820983,
+        "outputReconnecting": false,
+        "outputSkippedFrames": 0,
+        "outputTimecode": "00:30:20.983",
+        "outputTotalFrames": 109259
+      }
+    },
+    {
+      "requestType": "GetProfileList",
+      "responseData": {
+        "currentProfileName": "Untitled",
+        "profiles": [
+          "Untitled"
+        ]
+      }
+    },
+    {
+      "requestType": "GetProfileParameter",
+      "label": "Output-Mode",
+      "responseData": {
+        "defaultParameterValue": "Simple",
+        "parameterValue": "Simple"
+      }
+    },
+    {
+      "requestType": "GetProfileParameter",
+      "label": "Video-BaseCX",
+      "responseData": {
+        "defaultParameterValue": "1920",
+        "parameterValue": "1920"
+      }
+    },
+    {
+      "requestType": "GetProfileParameter",
+      "label": "Video-ObsCaptureNoSuchParameter",
+      "responseData": {
+        "defaultParameterValue": null,
+        "parameterValue": null
+      }
+    },
+    {
+      "requestType": "GetRecordDirectory",
+      "responseData": {
+        "recordDirectory": "C:\\Users\\user\\Videos"
+      }
+    },
+    {
+      "requestType": "GetRecordStatus",
+      "responseData": {
+        "outputActive": false,
+        "outputBytes": 0,
+        "outputDuration": 0,
+        "outputPaused": false,
+        "outputTimecode": "00:00:00.000"
+      }
+    },
+    {
+      "requestType": "GetSceneCollectionList",
+      "responseData": {
+        "currentSceneCollectionName": "Untitled",
+        "sceneCollections": [
+          "Untitled"
+        ]
+      }
+    },
+    {
+      "requestType": "GetSceneItemBlendMode",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemBlendMode": "OBS_BLEND_MULTIPLY"
+      }
+    },
+    {
+      "requestType": "GetSceneItemBlendMode",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemBlendMode": "OBS_BLEND_NORMAL"
+      }
+    },
+    {
+      "requestType": "GetSceneItemBlendMode",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemBlendMode": "OBS_BLEND_NORMAL"
+      }
+    },
+    {
+      "requestType": "GetSceneItemBlendMode",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemBlendMode": "OBS_BLEND_NORMAL"
+      }
+    },
+    {
+      "requestType": "GetSceneItemBlendMode",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemBlendMode": "OBS_BLEND_NORMAL"
+      }
+    },
+    {
+      "requestType": "GetSceneItemEnabled",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemEnabled": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemEnabled",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemEnabled": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemEnabled",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemEnabled": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemEnabled",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemEnabled": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemEnabled",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemEnabled": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemId",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemId": 1
+      }
+    },
+    {
+      "requestType": "GetSceneItemId",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemId": 2
+      }
+    },
+    {
+      "requestType": "GetSceneItemId",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemId": 3
+      }
+    },
+    {
+      "requestType": "GetSceneItemId",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemId": 4
+      }
+    },
+    {
+      "requestType": "GetSceneItemId",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemId": 2
+      }
+    },
+    {
+      "requestType": "GetSceneItemIndex",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemIndex": 2
+      }
+    },
+    {
+      "requestType": "GetSceneItemIndex",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemIndex": 0
+      }
+    },
+    {
+      "requestType": "GetSceneItemIndex",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemIndex": 1
+      }
+    },
+    {
+      "requestType": "GetSceneItemIndex",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemIndex": 3
+      }
+    },
+    {
+      "requestType": "GetSceneItemIndex",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemIndex": 4
+      }
+    },
+    {
+      "requestType": "GetSceneItemList",
+      "label": "Scene",
+      "responseData": {
+        "sceneItems": []
+      }
+    },
+    {
+      "requestType": "GetSceneItemList",
+      "label": "obs-capture-sample-renamed",
+      "responseData": {
+        "sceneItems": [
+          {
+            "inputKind": "ffmpeg_source",
+            "isGroup": null,
+            "sceneItemBlendMode": "OBS_BLEND_NORMAL",
+            "sceneItemEnabled": true,
+            "sceneItemId": 2,
+            "sceneItemIndex": 0,
+            "sceneItemLocked": false,
+            "sceneItemTransform": {
+              "alignment": 5,
+              "boundsAlignment": 0,
+              "boundsHeight": 0.0,
+              "boundsType": "OBS_BOUNDS_NONE",
+              "boundsWidth": 0.0,
+              "cropBottom": 0,
+              "cropLeft": 0,
+              "cropRight": 0,
+              "cropToBounds": false,
+              "cropTop": 0,
+              "height": 0.0,
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "rotation": 0.0,
+              "scaleX": 1.0,
+              "scaleY": 1.0,
+              "sourceHeight": 0.0,
+              "sourceWidth": 0.0,
+              "width": 0.0
+            },
+            "sourceName": "obs-capture-media",
+            "sourceType": "OBS_SOURCE_TYPE_INPUT",
+            "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+          },
+          {
+            "inputKind": "image_source",
+            "isGroup": null,
+            "sceneItemBlendMode": "OBS_BLEND_NORMAL",
+            "sceneItemEnabled": true,
+            "sceneItemId": 3,
+            "sceneItemIndex": 1,
+            "sceneItemLocked": false,
+            "sceneItemTransform": {
+              "alignment": 5,
+              "boundsAlignment": 0,
+              "boundsHeight": 0.0,
+              "boundsType": "OBS_BOUNDS_NONE",
+              "boundsWidth": 0.0,
+              "cropBottom": 0,
+              "cropLeft": 0,
+              "cropRight": 0,
+              "cropToBounds": false,
+              "cropTop": 0,
+              "height": 0.0,
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "rotation": 0.0,
+              "scaleX": 1.0,
+              "scaleY": 1.0,
+              "sourceHeight": 0.0,
+              "sourceWidth": 0.0,
+              "width": 0.0
+            },
+            "sourceName": "obs-capture-image",
+            "sourceType": "OBS_SOURCE_TYPE_INPUT",
+            "sourceUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2"
+          },
+          {
+            "inputKind": "color_source_v3",
+            "isGroup": null,
+            "sceneItemBlendMode": "OBS_BLEND_MULTIPLY",
+            "sceneItemEnabled": true,
+            "sceneItemId": 1,
+            "sceneItemIndex": 2,
+            "sceneItemLocked": false,
+            "sceneItemTransform": {
+              "alignment": 5,
+              "boundsAlignment": 0,
+              "boundsHeight": 200.0,
+              "boundsType": "OBS_BOUNDS_STRETCH",
+              "boundsWidth": 300.0,
+              "cropBottom": 2,
+              "cropLeft": 10,
+              "cropRight": 5,
+              "cropToBounds": true,
+              "cropTop": 3,
+              "height": 450.0,
+              "positionX": 200.0,
+              "positionY": 50.5,
+              "rotation": 30.5,
+              "scaleX": 1.5,
+              "scaleY": 1.25,
+              "sourceHeight": 360.0,
+              "sourceWidth": 640.0,
+              "width": 960.0
+            },
+            "sourceName": "obs-capture-color",
+            "sourceType": "OBS_SOURCE_TYPE_INPUT",
+            "sourceUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+          },
+          {
+            "inputKind": "text_gdiplus_v3",
+            "isGroup": null,
+            "sceneItemBlendMode": "OBS_BLEND_NORMAL",
+            "sceneItemEnabled": true,
+            "sceneItemId": 4,
+            "sceneItemIndex": 3,
+            "sceneItemLocked": true,
+            "sceneItemTransform": {
+              "alignment": 5,
+              "boundsAlignment": 0,
+              "boundsHeight": 0.0,
+              "boundsType": "OBS_BOUNDS_NONE",
+              "boundsWidth": 0.0,
+              "cropBottom": 0,
+              "cropLeft": 0,
+              "cropRight": 0,
+              "cropToBounds": false,
+              "cropTop": 0,
+              "height": 48.0,
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "rotation": 0.0,
+              "scaleX": 1.0,
+              "scaleY": 1.0,
+              "sourceHeight": 48.0,
+              "sourceWidth": 222.0,
+              "width": 222.0
+            },
+            "sourceName": "obs-capture-text-renamed",
+            "sourceType": "OBS_SOURCE_TYPE_INPUT",
+            "sourceUuid": "77dfa594-d931-432f-bec3-8a1622716a6c"
+          },
+          {
+            "inputKind": "ffmpeg_source",
+            "isGroup": null,
+            "sceneItemBlendMode": "OBS_BLEND_NORMAL",
+            "sceneItemEnabled": true,
+            "sceneItemId": 5,
+            "sceneItemIndex": 4,
+            "sceneItemLocked": false,
+            "sceneItemTransform": {
+              "alignment": 5,
+              "boundsAlignment": 0,
+              "boundsHeight": 0.0,
+              "boundsType": "OBS_BOUNDS_NONE",
+              "boundsWidth": 0.0,
+              "cropBottom": 0,
+              "cropLeft": 0,
+              "cropRight": 0,
+              "cropToBounds": false,
+              "cropTop": 0,
+              "height": 0.0,
+              "positionX": 0.0,
+              "positionY": 0.0,
+              "rotation": 0.0,
+              "scaleX": 1.0,
+              "scaleY": 1.0,
+              "sourceHeight": 0.0,
+              "sourceWidth": 0.0,
+              "width": 0.0
+            },
+            "sourceName": "obs-capture-media",
+            "sourceType": "OBS_SOURCE_TYPE_INPUT",
+            "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSceneItemLocked",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemLocked": false
+      }
+    },
+    {
+      "requestType": "GetSceneItemLocked",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemLocked": false
+      }
+    },
+    {
+      "requestType": "GetSceneItemLocked",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemLocked": false
+      }
+    },
+    {
+      "requestType": "GetSceneItemLocked",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemLocked": true
+      }
+    },
+    {
+      "requestType": "GetSceneItemLocked",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemLocked": false
+      }
+    },
+    {
+      "requestType": "GetSceneItemSource",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sourceName": "obs-capture-color",
+        "sourceUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+      }
+    },
+    {
+      "requestType": "GetSceneItemSource",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sourceName": "obs-capture-media",
+        "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "requestType": "GetSceneItemSource",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sourceName": "obs-capture-image",
+        "sourceUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2"
+      }
+    },
+    {
+      "requestType": "GetSceneItemSource",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sourceName": "obs-capture-text-renamed",
+        "sourceUuid": "77dfa594-d931-432f-bec3-8a1622716a6c"
+      }
+    },
+    {
+      "requestType": "GetSceneItemSource",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sourceName": "obs-capture-media",
+        "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "requestType": "GetSceneItemTransform",
+      "label": "obs-capture-sample-renamed-1",
+      "responseData": {
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 200.0,
+          "boundsType": "OBS_BOUNDS_STRETCH",
+          "boundsWidth": 300.0,
+          "cropBottom": 2,
+          "cropLeft": 10,
+          "cropRight": 5,
+          "cropToBounds": true,
+          "cropTop": 3,
+          "height": 450.0,
+          "positionX": 200.0,
+          "positionY": 50.5,
+          "rotation": 30.5,
+          "scaleX": 1.5,
+          "scaleY": 1.25,
+          "sourceHeight": 360.0,
+          "sourceWidth": 640.0,
+          "width": 960.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSceneItemTransform",
+      "label": "obs-capture-sample-renamed-2",
+      "responseData": {
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 0.0,
+          "boundsType": "OBS_BOUNDS_NONE",
+          "boundsWidth": 0.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": false,
+          "cropTop": 0,
+          "height": 0.0,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "rotation": 0.0,
+          "scaleX": 1.0,
+          "scaleY": 1.0,
+          "sourceHeight": 0.0,
+          "sourceWidth": 0.0,
+          "width": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSceneItemTransform",
+      "label": "obs-capture-sample-renamed-3",
+      "responseData": {
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 0.0,
+          "boundsType": "OBS_BOUNDS_NONE",
+          "boundsWidth": 0.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": false,
+          "cropTop": 0,
+          "height": 0.0,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "rotation": 0.0,
+          "scaleX": 1.0,
+          "scaleY": 1.0,
+          "sourceHeight": 0.0,
+          "sourceWidth": 0.0,
+          "width": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSceneItemTransform",
+      "label": "obs-capture-sample-renamed-4",
+      "responseData": {
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 0.0,
+          "boundsType": "OBS_BOUNDS_NONE",
+          "boundsWidth": 0.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": false,
+          "cropTop": 0,
+          "height": 48.0,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "rotation": 0.0,
+          "scaleX": 1.0,
+          "scaleY": 1.0,
+          "sourceHeight": 48.0,
+          "sourceWidth": 222.0,
+          "width": 222.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSceneItemTransform",
+      "label": "obs-capture-sample-renamed-5",
+      "responseData": {
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 0.0,
+          "boundsType": "OBS_BOUNDS_NONE",
+          "boundsWidth": 0.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": false,
+          "cropTop": 0,
+          "height": 0.0,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "rotation": 0.0,
+          "scaleX": 1.0,
+          "scaleY": 1.0,
+          "sourceHeight": 0.0,
+          "sourceWidth": 0.0,
+          "width": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSceneList",
+      "responseData": {
+        "currentPreviewSceneName": null,
+        "currentPreviewSceneUuid": null,
+        "currentProgramSceneName": "Scene",
+        "currentProgramSceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217",
+        "scenes": [
+          {
+            "sceneIndex": 0,
+            "sceneName": "obs-capture-sample-renamed",
+            "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+          },
+          {
+            "sceneIndex": 1,
+            "sceneName": "Scene",
+            "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSceneSceneTransitionOverride",
+      "label": "Scene",
+      "responseData": {
+        "transitionDuration": null,
+        "transitionName": null
+      }
+    },
+    {
+      "requestType": "GetSceneSceneTransitionOverride",
+      "label": "obs-capture-sample-renamed",
+      "responseData": {
+        "transitionDuration": 500,
+        "transitionName": "Fade"
+      }
+    },
+    {
+      "requestType": "GetSceneTransitionList",
+      "responseData": {
+        "currentSceneTransitionKind": "fade_transition",
+        "currentSceneTransitionName": "Fade",
+        "currentSceneTransitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa",
+        "transitions": [
+          {
+            "transitionConfigurable": false,
+            "transitionFixed": false,
+            "transitionKind": "fade_transition",
+            "transitionName": "Fade",
+            "transitionUuid": "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa"
+          },
+          {
+            "transitionConfigurable": false,
+            "transitionFixed": true,
+            "transitionKind": "cut_transition",
+            "transitionName": "Cut",
+            "transitionUuid": "bb5482e7-3a9a-4c29-93e0-1a2fa40ff101"
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "videoActive": true,
+        "videoShowing": true
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "Mic_Aux",
+      "responseData": {
+        "videoActive": true,
+        "videoShowing": true
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "obs-capture-color",
+      "responseData": {
+        "videoActive": false,
+        "videoShowing": false
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "obs-capture-image",
+      "responseData": {
+        "videoActive": false,
+        "videoShowing": false
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "obs-capture-media",
+      "responseData": {
+        "videoActive": false,
+        "videoShowing": false
+      }
+    },
+    {
+      "requestType": "GetSourceActive",
+      "label": "obs-capture-text-renamed",
+      "responseData": {
+        "videoActive": false,
+        "videoShowing": false
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "async_delay_filter",
+      "responseData": {
+        "defaultFilterSettings": {}
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "basic_eq_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "high": 0.0,
+          "low": 0.0,
+          "mid": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "chroma_key_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "key_color": 65280,
+          "key_color_type": "green",
+          "opacity": 100,
+          "similarity": 400,
+          "smoothness": 80,
+          "spill": 100
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "chroma_key_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "key_color": 65280,
+          "key_color_type": "green",
+          "opacity": 1.0,
+          "similarity": 400,
+          "smoothness": 80,
+          "spill": 100
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "clut_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "clut_amount": 1.0,
+          "passthrough_alpha": false
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "color_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "color": 16777215,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "hue_shift": 0.0,
+          "opacity": 100,
+          "saturation": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "color_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "color_add": 0,
+          "color_multiply": 16777215,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "hue_shift": 0.0,
+          "opacity": 1.0,
+          "saturation": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "color_key_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "key_color": 65280,
+          "key_color_type": "green",
+          "opacity": 100,
+          "similarity": 80,
+          "smoothness": 50
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "color_key_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "key_color": 65280,
+          "key_color_type": "green",
+          "opacity": 1.0,
+          "similarity": 80,
+          "smoothness": 50
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "compressor_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "attack_time": 6,
+          "output_gain": 0.0,
+          "ratio": 10.0,
+          "release_time": 60,
+          "sidechain_source": "none",
+          "threshold": -18.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "crop_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "relative": true
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "expander_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "attack_time": 10,
+          "detector": "RMS",
+          "output_gain": 0.0,
+          "presets": "expander",
+          "ratio": 2.0,
+          "release_time": 50,
+          "threshold": -40.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "gain_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "db": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "gpu_delay",
+      "responseData": {
+        "defaultFilterSettings": {}
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "hdr_tonemap_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "hdr_input_maximum_nits": 4000,
+          "hdr_output_maximum_nits": 1000,
+          "sdr_input_maximum_nits": 1000,
+          "sdr_output_maximum_nits": 300,
+          "sdr_white_level_nits": 300,
+          "transform": 0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "invert_polarity_filter",
+      "responseData": {
+        "defaultFilterSettings": {}
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "limiter_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "release_time": 60,
+          "threshold": -6.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "luma_key_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "luma_max": 1.0,
+          "luma_max_smooth": 0.0,
+          "luma_min": 0.0,
+          "luma_min_smooth": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "luma_key_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "luma_max": 1.0,
+          "luma_max_smooth": 0.0,
+          "luma_min": 0.0,
+          "luma_min_smooth": 0.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "mask_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "color": 16777215,
+          "opacity": 100,
+          "type": "mask_color_filter.effect"
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "mask_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "color": 16777215,
+          "opacity": 1.0,
+          "type": "mask_color_filter.effect"
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "noise_gate_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "attack_time": 25,
+          "close_threshold": -32.0,
+          "hold_time": 200,
+          "open_threshold": -26.0,
+          "release_time": 150
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "noise_suppress_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "method": "speex",
+          "suppress_level": -30
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "noise_suppress_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "method": "rnnoise",
+          "suppress_level": -30
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "scale_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "resolution": "None",
+          "sampling": "bicubic",
+          "undistort": false
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "scroll_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "cx": 100,
+          "cy": 100,
+          "limit_size": false,
+          "loop": true
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "sdr_on_hdr_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "gamma": 1,
+          "power": 2.4,
+          "sdr_white_level_nits": 300
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "sharpness_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "sharpness": 0.08
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "sharpness_filter_v2",
+      "responseData": {
+        "defaultFilterSettings": {
+          "sharpness": 0.08
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "upward_compressor_filter",
+      "responseData": {
+        "defaultFilterSettings": {
+          "attack_time": 10,
+          "detector": "RMS",
+          "knee_width": 10,
+          "output_gain": 0.0,
+          "ratio": 0.5,
+          "release_time": 50,
+          "threshold": -20.0
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilterDefaultSettings",
+      "label": "vst_filter",
+      "responseData": {
+        "defaultFilterSettings": {}
+      }
+    },
+    {
+      "requestType": "GetSourceFilterKindList",
+      "responseData": {
+        "sourceFilterKinds": [
+          "mask_filter",
+          "mask_filter_v2",
+          "crop_filter",
+          "gain_filter",
+          "basic_eq_filter",
+          "hdr_tonemap_filter",
+          "sdr_on_hdr_filter",
+          "color_filter",
+          "color_filter_v2",
+          "scale_filter",
+          "scroll_filter",
+          "gpu_delay",
+          "color_key_filter",
+          "color_key_filter_v2",
+          "clut_filter",
+          "sharpness_filter",
+          "sharpness_filter_v2",
+          "chroma_key_filter",
+          "chroma_key_filter_v2",
+          "async_delay_filter",
+          "noise_suppress_filter",
+          "noise_suppress_filter_v2",
+          "invert_polarity_filter",
+          "noise_gate_filter",
+          "compressor_filter",
+          "limiter_filter",
+          "expander_filter",
+          "upward_compressor_filter",
+          "luma_key_filter",
+          "luma_key_filter_v2",
+          "vst_filter"
+        ]
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "Desktop_Audio",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "Mic_Aux",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "obs-capture-color",
+      "responseData": {
+        "filters": [
+          {
+            "filterEnabled": false,
+            "filterIndex": 0,
+            "filterKind": "crop_filter",
+            "filterName": "obs-capture-crop-renamed",
+            "filterSettings": {
+              "bottom": 5,
+              "left": 5,
+              "relative": true,
+              "right": 5,
+              "top": 5
+            }
+          },
+          {
+            "filterEnabled": true,
+            "filterIndex": 1,
+            "filterKind": "color_filter_v2",
+            "filterName": "obs-capture-color-correction",
+            "filterSettings": {
+              "brightness": 0.25,
+              "gamma": 0.1
+            }
+          },
+          {
+            "filterEnabled": true,
+            "filterIndex": 2,
+            "filterKind": "chroma_key_filter_v2",
+            "filterName": "obs-capture-chroma-key",
+            "filterSettings": {
+              "key_color_type": "green",
+              "similarity": 300
+            }
+          }
+        ]
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "obs-capture-image",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "obs-capture-media",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilterList",
+      "label": "obs-capture-text-renamed",
+      "responseData": {
+        "filters": []
+      }
+    },
+    {
+      "requestType": "GetSourceFilter",
+      "label": "obs-capture-color-obs-capture-chroma-key",
+      "responseData": {
+        "filterEnabled": true,
+        "filterIndex": 2,
+        "filterKind": "chroma_key_filter_v2",
+        "filterSettings": {
+          "key_color_type": "green",
+          "similarity": 300
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilter",
+      "label": "obs-capture-color-obs-capture-color-correction",
+      "responseData": {
+        "filterEnabled": true,
+        "filterIndex": 1,
+        "filterKind": "color_filter_v2",
+        "filterSettings": {
+          "brightness": 0.25,
+          "gamma": 0.1
+        }
+      }
+    },
+    {
+      "requestType": "GetSourceFilter",
+      "label": "obs-capture-color-obs-capture-crop-renamed",
+      "responseData": {
+        "filterEnabled": false,
+        "filterIndex": 0,
+        "filterKind": "crop_filter",
+        "filterSettings": {
+          "bottom": 5,
+          "left": 5,
+          "relative": true,
+          "right": 5,
+          "top": 5
+        }
+      }
+    },
+    {
+      "requestType": "GetSpecialInputs",
+      "responseData": {
+        "desktop1": "Desktop Audio",
+        "desktop2": null,
+        "mic1": "Mic/Aux",
+        "mic2": null,
+        "mic3": null,
+        "mic4": null
+      }
+    },
+    {
+      "requestType": "GetStats",
+      "responseData": {
+        "activeFps": 38.823530964705945,
+        "availableDiskSpace": 61643.1171875,
+        "averageFrameRenderTime": 11.280485,
+        "cpuUsage": 4.954980133991542,
+        "memoryUsage": 596.90234375,
+        "outputSkippedFrames": 0,
+        "outputTotalFrames": 109239,
+        "renderSkippedFrames": 82,
+        "renderTotalFrames": 111810,
+        "webSocketSessionIncomingMessages": 38,
+        "webSocketSessionOutgoingMessages": 102
+      }
+    },
+    {
+      "requestType": "GetStreamStatus",
+      "responseData": {
+        "outputActive": false,
+        "outputBytes": 0,
+        "outputCongestion": 0.0,
+        "outputDuration": 0,
+        "outputReconnecting": false,
+        "outputSkippedFrames": 0,
+        "outputTimecode": "00:00:00.000",
+        "outputTotalFrames": 0
+      }
+    },
+    {
+      "requestType": "GetStudioModeEnabled",
+      "responseData": {
+        "studioModeEnabled": false
+      }
+    },
+    {
+      "requestType": "GetTransitionKindList",
+      "responseData": {
+        "transitionKinds": [
+          "cut_transition",
+          "fade_transition",
+          "swipe_transition",
+          "slide_transition",
+          "obs_stinger_transition",
+          "fade_to_color_transition",
+          "wipe_transition"
+        ]
+      }
+    },
+    {
+      "requestType": "GetVersion",
+      "responseData": {
+        "availableRequests": [
+          "GetHotkeyList",
+          "OpenInputInteractDialog",
+          "SaveSourceScreenshot",
+          "GetVersion",
+          "SetInputName",
+          "SetSceneName",
+          "GetStats",
+          "TriggerStudioModeTransition",
+          "SetInputAudioSyncOffset",
+          "GetSceneCollectionList",
+          "BroadcastCustomEvent",
+          "Sleep",
+          "SetSceneSceneTransitionOverride",
+          "CallVendorRequest",
+          "CreateSceneCollection",
+          "SetStudioModeEnabled",
+          "TriggerHotkeyByName",
+          "OpenVideoMixProjector",
+          "TriggerHotkeyByKeySequence",
+          "GetPersistentData",
+          "SetSceneItemIndex",
+          "SetPersistentData",
+          "SetCurrentSceneCollection",
+          "SetInputMute",
+          "SetCurrentPreviewScene",
+          "SetCurrentProgramScene",
+          "OpenSourceProjector",
+          "GetProfileList",
+          "SetCurrentProfile",
+          "RemoveProfile",
+          "CreateProfile",
+          "GetProfileParameter",
+          "SetProfileParameter",
+          "GetInputAudioBalance",
+          "GetStreamServiceSettings",
+          "GetVideoSettings",
+          "SetVideoSettings",
+          "SetInputAudioBalance",
+          "SetInputVolume",
+          "GetSceneItemSource",
+          "SetStreamServiceSettings",
+          "GetInputDefaultSettings",
+          "GetSpecialInputs",
+          "GetInputKindList",
+          "GetCanvasList",
+          "GetRecordDirectory",
+          "SetSourceFilterEnabled",
+          "SetRecordDirectory",
+          "GetInputList",
+          "GetSceneList",
+          "GetInputMute",
+          "GetCurrentPreviewScene",
+          "GetReplayBufferStatus",
+          "GetSourceActive",
+          "GetSourceScreenshot",
+          "GetSourcePrivateSettings",
+          "SetSourcePrivateSettings",
+          "GetGroupList",
+          "SetInputSettings",
+          "GetCurrentProgramScene",
+          "GetSceneItemId",
+          "RemoveScene",
+          "CreateScene",
+          "GetSceneSceneTransitionOverride",
+          "RemoveInput",
+          "CreateInput",
+          "GetSceneItemLocked",
+          "GetInputSettings",
+          "ToggleInputMute",
+          "SetCurrentSceneTransition",
+          "GetInputVolume",
+          "GetInputAudioSyncOffset",
+          "GetInputAudioMonitorType",
+          "SetInputAudioMonitorType",
+          "StartVirtualCam",
+          "GetInputAudioTracks",
+          "SetInputAudioTracks",
+          "PauseRecord",
+          "GetInputDeinterlaceMode",
+          "SetInputDeinterlaceMode",
+          "GetInputDeinterlaceFieldOrder",
+          "SetInputDeinterlaceFieldOrder",
+          "GetInputPropertiesListPropertyItems",
+          "PressInputPropertiesButton",
+          "GetTransitionKindList",
+          "GetSceneItemTransform",
+          "GetSceneTransitionList",
+          "GetVirtualCamStatus",
+          "GetCurrentSceneTransition",
+          "SetCurrentSceneTransitionDuration",
+          "SetCurrentSceneTransitionSettings",
+          "GetCurrentSceneTransitionCursor",
+          "SetTBarPosition",
+          "GetSourceFilterKindList",
+          "StopOutput",
+          "ToggleOutput",
+          "GetSourceFilterList",
+          "GetSourceFilterDefaultSettings",
+          "CreateSourceFilter",
+          "RemoveSourceFilter",
+          "SetSourceFilterName",
+          "GetSourceFilter",
+          "StopRecord",
+          "ToggleRecord",
+          "SetSourceFilterIndex",
+          "SetSourceFilterSettings",
+          "SetSceneItemTransform",
+          "GetSceneItemList",
+          "GetGroupSceneItemList",
+          "CreateSceneItem",
+          "RemoveSceneItem",
+          "DuplicateSceneItem",
+          "GetSceneItemEnabled",
+          "SetSceneItemEnabled",
+          "SetSceneItemLocked",
+          "GetSceneItemIndex",
+          "StartReplayBuffer",
+          "GetSceneItemBlendMode",
+          "SetSceneItemBlendMode",
+          "GetSceneItemPrivateSettings",
+          "SetSceneItemPrivateSettings",
+          "StopVirtualCam",
+          "ToggleVirtualCam",
+          "StopReplayBuffer",
+          "ToggleReplayBuffer",
+          "SaveReplayBuffer",
+          "GetLastReplayBufferReplay",
+          "GetOutputList",
+          "GetOutputStatus",
+          "StartOutput",
+          "GetOutputSettings",
+          "SetOutputSettings",
+          "GetStreamStatus",
+          "StopStream",
+          "ToggleStream",
+          "StartStream",
+          "SendStreamCaption",
+          "GetRecordStatus",
+          "StartRecord",
+          "ToggleRecordPause",
+          "ResumeRecord",
+          "SplitRecordFile",
+          "CreateRecordChapter",
+          "SetMediaInputCursor",
+          "GetMediaInputStatus",
+          "OffsetMediaInputCursor",
+          "TriggerMediaInputAction",
+          "GetStudioModeEnabled",
+          "OpenInputPropertiesDialog",
+          "OpenInputFiltersDialog",
+          "GetMonitorList"
+        ],
+        "obsVersion": "33.0.0",
+        "obsWebSocketVersion": "5.7.6",
+        "platform": "windows",
+        "platformDescription": "Windows 11 Version 26H2",
+        "rpcVersion": 1,
+        "supportedImageFormats": [
+          "bmp",
+          "cur",
+          "icns",
+          "ico",
+          "jfif",
+          "jpeg",
+          "jpg",
+          "pbm",
+          "pgm",
+          "png",
+          "ppm",
+          "tif",
+          "tiff",
+          "wbmp",
+          "webp",
+          "xbm",
+          "xpm"
+        ]
+      }
+    },
+    {
+      "requestType": "GetVideoSettings",
+      "responseData": {
+        "baseHeight": 1080,
+        "baseWidth": 1920,
+        "fpsDenominator": 1,
+        "fpsNumerator": 60,
+        "outputHeight": 1080,
+        "outputWidth": 1920
+      }
+    },
+    {
+      "requestType": "GetVirtualCamStatus",
+      "responseData": {
+        "outputActive": true
+      }
+    }
+  ],
+  "events": [
+    {
+      "eventType": "InputVolumeMeters",
+      "eventIntent": 65536,
+      "eventData": {
+        "inputs": [
+          {
+            "inputLevelsMul": [],
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4"
+          },
+          {
+            "inputLevelsMul": [
+              [
+                0.006970884744077921,
+                0.014309629797935486,
+                0.014309629797935486
+              ],
+              [
+                0.006970884744077921,
+                0.014309629797935486,
+                0.014309629797935486
+              ]
+            ],
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "SceneCreated",
+      "eventIntent": 4,
+      "eventData": {
+        "isGroup": false,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneListChanged",
+      "eventIntent": 4,
+      "eventData": {
+        "scenes": [
+          {
+            "sceneIndex": 0,
+            "sceneName": "obs-capture-sample",
+            "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+          },
+          {
+            "sceneIndex": 1,
+            "sceneName": "Scene",
+            "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "SceneCreated",
+      "eventIntent": 4,
+      "eventData": {
+        "isGroup": false,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "InputVolumeMeters",
+      "eventIntent": 65536,
+      "eventData": {
+        "inputs": [
+          {
+            "inputLevelsMul": [],
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4"
+          },
+          {
+            "inputLevelsMul": [
+              [
+                0.004818756133317947,
+                0.011111674830317497,
+                0.011111674830317497
+              ],
+              [
+                0.004818756133317947,
+                0.011111674830317497,
+                0.011111674830317497
+              ]
+            ],
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "InputVolumeMeters",
+      "eventIntent": 65536,
+      "eventData": {
+        "inputs": [
+          {
+            "inputLevelsMul": [],
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4"
+          },
+          {
+            "inputLevelsMul": [
+              [
+                0.0028285859152674675,
+                0.00635114312171936,
+                0.00635114312171936
+              ],
+              [
+                0.0028285859152674675,
+                0.00635114312171936,
+                0.00635114312171936
+              ]
+            ],
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "InputVolumeMeters",
+      "eventIntent": 65536,
+      "eventData": {
+        "inputs": [
+          {
+            "inputLevelsMul": [],
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4"
+          },
+          {
+            "inputLevelsMul": [
+              [
+                0.008420436643064022,
+                0.021307922899723053,
+                0.021307922899723053
+              ],
+              [
+                0.008420436643064022,
+                0.021307922899723053,
+                0.021307922899723053
+              ]
+            ],
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "InputVolumeMeters",
+      "eventIntent": 65536,
+      "eventData": {
+        "inputs": [
+          {
+            "inputLevelsMul": [],
+            "inputName": "Desktop Audio",
+            "inputUuid": "8ebb41e9-df4b-45f9-add7-389133b263b4"
+          },
+          {
+            "inputLevelsMul": [
+              [
+                0.006794734392315149,
+                0.01244292315095663,
+                0.01244292315095663
+              ],
+              [
+                0.006794734392315149,
+                0.01244292315095663,
+                0.01244292315095663
+              ]
+            ],
+            "inputName": "Mic/Aux",
+            "inputUuid": "f34cb9fa-c21f-4073-97c4-201800df72cb"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "InputCreated",
+      "eventIntent": 8,
+      "eventData": {
+        "defaultInputSettings": {
+          "color": 4291940817,
+          "height": 1080,
+          "width": 1920
+        },
+        "inputKind": "color_source_v3",
+        "inputKindCaps": 32777,
+        "inputName": "obs-capture-color",
+        "inputSettings": {
+          "color": 4278190335,
+          "height": 360,
+          "width": 640
+        },
+        "inputUuid": "b3934585-2939-49c1-9b1d-cea385c3c973",
+        "unversionedInputKind": "color_source"
+      }
+    },
+    {
+      "eventType": "SceneItemCreated",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 1,
+        "sceneItemIndex": 0,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-color",
+        "sourceUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+      }
+    },
+    {
+      "eventType": "SceneItemSelected",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 1,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "InputCreated",
+      "eventIntent": 8,
+      "eventData": {
+        "defaultInputSettings": {
+          "buffering_mb": 2,
+          "clear_on_media_end": true,
+          "is_local_file": true,
+          "linear_alpha": false,
+          "log_changes": true,
+          "looping": false,
+          "reconnect_delay_sec": 10,
+          "restart_on_activate": true,
+          "speed_percent": 100
+        },
+        "inputKind": "ffmpeg_source",
+        "inputKindCaps": 8327,
+        "inputName": "obs-capture-media",
+        "inputSettings": {
+          "is_local_file": true,
+          "local_file": ""
+        },
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd",
+        "unversionedInputKind": "ffmpeg_source"
+      }
+    },
+    {
+      "eventType": "SceneItemCreated",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 2,
+        "sceneItemIndex": 1,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-media",
+        "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "InputCreated",
+      "eventIntent": 8,
+      "eventData": {
+        "defaultInputSettings": {
+          "linear_alpha": false,
+          "unload": false
+        },
+        "inputKind": "image_source",
+        "inputKindCaps": 32769,
+        "inputName": "obs-capture-image",
+        "inputSettings": {
+          "file": ""
+        },
+        "inputUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2",
+        "unversionedInputKind": "image_source"
+      }
+    },
+    {
+      "eventType": "SceneItemCreated",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 3,
+        "sceneItemIndex": 2,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-image",
+        "sourceUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2"
+      }
+    },
+    {
+      "eventType": "InputCreated",
+      "eventIntent": 8,
+      "eventData": {
+        "defaultInputSettings": {
+          "align": "left",
+          "antialiasing": true,
+          "bk_color": 0,
+          "bk_opacity": 0,
+          "chatlog_lines": 6,
+          "color": 16777215,
+          "extents_cx": 100,
+          "extents_cy": 100,
+          "extents_wrap": true,
+          "font": {
+            "face": "Arial",
+            "size": 256
+          },
+          "gradient_color": 16777215,
+          "gradient_dir": 90.0,
+          "gradient_opacity": 100,
+          "opacity": 100,
+          "outline_color": 16777215,
+          "outline_opacity": 100,
+          "outline_size": 2,
+          "transform": 0,
+          "valign": "top"
+        },
+        "inputKind": "text_gdiplus_v3",
+        "inputKindCaps": 32777,
+        "inputName": "obs-capture-text",
+        "inputSettings": {
+          "font": {
+            "face": "Arial",
+            "flags": 0,
+            "size": 48,
+            "style": "Regular"
+          },
+          "text": "obs-capture"
+        },
+        "inputUuid": "77dfa594-d931-432f-bec3-8a1622716a6c",
+        "unversionedInputKind": "text_gdiplus"
+      }
+    },
+    {
+      "eventType": "SceneItemCreated",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 4,
+        "sceneItemIndex": 3,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-text",
+        "sourceUuid": "77dfa594-d931-432f-bec3-8a1622716a6c"
+      }
+    },
+    {
+      "eventType": "SceneItemTransformChanged",
+      "eventIntent": 524288,
+      "eventData": {
+        "sceneItemId": 1,
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 200.0,
+          "boundsType": "OBS_BOUNDS_STRETCH",
+          "boundsWidth": 300.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": true,
+          "cropTop": 0,
+          "height": 450.0,
+          "positionX": 100.5,
+          "positionY": 50.5,
+          "rotation": 15.0,
+          "scaleX": 1.5,
+          "scaleY": 1.25,
+          "sourceHeight": 360.0,
+          "sourceWidth": 640.0,
+          "width": 960.0
+        },
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemSelected",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 2,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemSelected",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 3,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemSelected",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 4,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SourceFilterCreated",
+      "eventIntent": 32,
+      "eventData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "color_add": 0,
+          "color_multiply": 16777215,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "hue_shift": 0.0,
+          "opacity": 1.0,
+          "saturation": 0.0
+        },
+        "filterIndex": 0,
+        "filterKind": "color_filter_v2",
+        "filterName": "obs-capture-color-correction",
+        "filterSettings": {
+          "brightness": 0.25,
+          "gamma": 0.1
+        },
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterCreated",
+      "eventIntent": 32,
+      "eventData": {
+        "defaultFilterSettings": {
+          "brightness": 0.0,
+          "contrast": 0.0,
+          "gamma": 0.0,
+          "key_color": 65280,
+          "key_color_type": "green",
+          "opacity": 1.0,
+          "similarity": 400,
+          "smoothness": 80,
+          "spill": 100
+        },
+        "filterIndex": 1,
+        "filterKind": "chroma_key_filter_v2",
+        "filterName": "obs-capture-chroma-key",
+        "filterSettings": {
+          "key_color_type": "green"
+        },
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterCreated",
+      "eventIntent": 32,
+      "eventData": {
+        "defaultFilterSettings": {
+          "relative": true
+        },
+        "filterIndex": 2,
+        "filterKind": "crop_filter",
+        "filterName": "obs-capture-crop",
+        "filterSettings": {
+          "bottom": 5,
+          "left": 5,
+          "relative": true,
+          "right": 5,
+          "top": 5
+        },
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SceneItemLockStateChanged",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 4,
+        "sceneItemLocked": true,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "InputMuteStateChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputMuted": true,
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "InputSettingsChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-text",
+        "inputSettings": {
+          "font": {
+            "face": "Arial",
+            "flags": 0,
+            "size": 48,
+            "style": "Regular"
+          },
+          "text": "obs-capture"
+        },
+        "inputUuid": "77dfa594-d931-432f-bec3-8a1622716a6c"
+      }
+    },
+    {
+      "eventType": "InputVolumeChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd",
+        "inputVolumeDb": -12.5,
+        "inputVolumeMul": 0.23713737726211548
+      }
+    },
+    {
+      "eventType": "InputAudioBalanceChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputAudioBalance": 0.25,
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "InputAudioSyncOffsetChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputAudioSyncOffset": 150,
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "InputAudioTracksChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputAudioTracks": {
+          "1": true,
+          "2": false,
+          "3": true,
+          "4": true,
+          "5": true,
+          "6": true
+        },
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "SceneItemCreated",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 5,
+        "sceneItemIndex": 4,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-media",
+        "sourceUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "SceneItemEnableStateChanged",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemEnabled": false,
+        "sceneItemId": 1,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemSelected",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 5,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemEnableStateChanged",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemEnabled": true,
+        "sceneItemId": 1,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "InputSettingsChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-color",
+        "inputSettings": {
+          "color": 4294901760,
+          "height": 360,
+          "width": 640
+        },
+        "inputUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+      }
+    },
+    {
+      "eventType": "MediaInputActionTriggered",
+      "eventIntent": 256,
+      "eventData": {
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd",
+        "mediaAction": "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE"
+      }
+    },
+    {
+      "eventType": "SceneItemListReindexed",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItems": [
+          {
+            "sceneItemId": 2,
+            "sceneItemIndex": 0
+          },
+          {
+            "sceneItemId": 3,
+            "sceneItemIndex": 1
+          },
+          {
+            "sceneItemId": 1,
+            "sceneItemIndex": 2
+          },
+          {
+            "sceneItemId": 4,
+            "sceneItemIndex": 3
+          },
+          {
+            "sceneItemId": 5,
+            "sceneItemIndex": 4
+          }
+        ],
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemTransformChanged",
+      "eventIntent": 524288,
+      "eventData": {
+        "sceneItemId": 1,
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 200.0,
+          "boundsType": "OBS_BOUNDS_STRETCH",
+          "boundsWidth": 300.0,
+          "cropBottom": 2,
+          "cropLeft": 10,
+          "cropRight": 5,
+          "cropToBounds": true,
+          "cropTop": 3,
+          "height": 437.5,
+          "positionX": 200.0,
+          "positionY": 50.5,
+          "rotation": 30.5,
+          "scaleX": 1.5,
+          "scaleY": 1.25,
+          "sourceHeight": 350.0,
+          "sourceWidth": 630.0,
+          "width": 945.0
+        },
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemTransformChanged",
+      "eventIntent": 524288,
+      "eventData": {
+        "sceneItemId": 6,
+        "sceneItemTransform": {
+          "alignment": 5,
+          "boundsAlignment": 0,
+          "boundsHeight": 200.0,
+          "boundsType": "OBS_BOUNDS_STRETCH",
+          "boundsWidth": 300.0,
+          "cropBottom": 0,
+          "cropLeft": 0,
+          "cropRight": 0,
+          "cropToBounds": true,
+          "cropTop": 0,
+          "height": 437.5,
+          "positionX": 200.0,
+          "positionY": 50.5,
+          "rotation": 30.5,
+          "scaleX": 1.5,
+          "scaleY": 1.25,
+          "sourceHeight": 350.0,
+          "sourceWidth": 630.0,
+          "width": 945.0
+        },
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneItemRemoved",
+      "eventIntent": 128,
+      "eventData": {
+        "sceneItemId": 6,
+        "sceneName": "obs-capture-sample",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2",
+        "sourceName": "obs-capture-color",
+        "sourceUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+      }
+    },
+    {
+      "eventType": "SourceFilterEnableStateChanged",
+      "eventIntent": 32,
+      "eventData": {
+        "filterEnabled": false,
+        "filterName": "obs-capture-crop",
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterListReindexed",
+      "eventIntent": 32,
+      "eventData": {
+        "filters": [
+          {
+            "filterEnabled": true,
+            "filterIndex": 0,
+            "filterKind": "color_filter_v2",
+            "filterName": "obs-capture-color-correction",
+            "filterSettings": {
+              "brightness": 0.25,
+              "gamma": 0.1
+            }
+          },
+          {
+            "filterEnabled": false,
+            "filterIndex": 1,
+            "filterKind": "crop_filter",
+            "filterName": "obs-capture-crop",
+            "filterSettings": {
+              "bottom": 5,
+              "left": 5,
+              "relative": true,
+              "right": 5,
+              "top": 5
+            }
+          },
+          {
+            "filterEnabled": true,
+            "filterIndex": 2,
+            "filterKind": "chroma_key_filter_v2",
+            "filterName": "obs-capture-chroma-key",
+            "filterSettings": {
+              "key_color_type": "green"
+            }
+          }
+        ],
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterListReindexed",
+      "eventIntent": 32,
+      "eventData": {
+        "filters": [
+          {
+            "filterEnabled": false,
+            "filterIndex": 0,
+            "filterKind": "crop_filter",
+            "filterName": "obs-capture-crop",
+            "filterSettings": {
+              "bottom": 5,
+              "left": 5,
+              "relative": true,
+              "right": 5,
+              "top": 5
+            }
+          },
+          {
+            "filterEnabled": true,
+            "filterIndex": 1,
+            "filterKind": "color_filter_v2",
+            "filterName": "obs-capture-color-correction",
+            "filterSettings": {
+              "brightness": 0.25,
+              "gamma": 0.1
+            }
+          },
+          {
+            "filterEnabled": true,
+            "filterIndex": 2,
+            "filterKind": "chroma_key_filter_v2",
+            "filterName": "obs-capture-chroma-key",
+            "filterSettings": {
+              "key_color_type": "green"
+            }
+          }
+        ],
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterNameChanged",
+      "eventIntent": 32,
+      "eventData": {
+        "filterName": "obs-capture-crop-renamed",
+        "oldFilterName": "obs-capture-crop",
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "InputNameChanged",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-text-renamed",
+        "inputUuid": "77dfa594-d931-432f-bec3-8a1622716a6c",
+        "oldInputName": "obs-capture-text"
+      }
+    },
+    {
+      "eventType": "CustomEvent",
+      "eventIntent": 1,
+      "eventData": {
+        "capture": "obs-capture",
+        "nested": {
+          "ok": true
+        },
+        "numbers": [
+          1,
+          2.5
+        ]
+      }
+    },
+    {
+      "eventType": "SceneNameChanged",
+      "eventIntent": 4,
+      "eventData": {
+        "oldSceneName": "obs-capture-sample",
+        "sceneName": "obs-capture-sample-renamed",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "InputRemoved",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-color",
+        "inputUuid": "b3934585-2939-49c1-9b1d-cea385c3c973"
+      }
+    },
+    {
+      "eventType": "InputRemoved",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-media",
+        "inputUuid": "92496c0e-ecd9-450c-bbb6-918081371dfd"
+      }
+    },
+    {
+      "eventType": "InputRemoved",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-image",
+        "inputUuid": "cedd8f9e-f002-4ee6-a3fc-fb21120593a2"
+      }
+    },
+    {
+      "eventType": "InputRemoved",
+      "eventIntent": 8,
+      "eventData": {
+        "inputName": "obs-capture-text-renamed",
+        "inputUuid": "77dfa594-d931-432f-bec3-8a1622716a6c"
+      }
+    },
+    {
+      "eventType": "SceneRemoved",
+      "eventIntent": 4,
+      "eventData": {
+        "isGroup": false,
+        "sceneName": "obs-capture-sample-renamed",
+        "sceneUuid": "9bcdf426-06c8-4e7e-b87d-ac2f467e46c2"
+      }
+    },
+    {
+      "eventType": "SceneListChanged",
+      "eventIntent": 4,
+      "eventData": {
+        "scenes": [
+          {
+            "sceneIndex": 0,
+            "sceneName": "Scene",
+            "sceneUuid": "abd59596-9185-49d2-a9c5-e95ddc7ac217"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "SourceFilterRemoved",
+      "eventIntent": 32,
+      "eventData": {
+        "filterName": "obs-capture-chroma-key",
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterRemoved",
+      "eventIntent": 32,
+      "eventData": {
+        "filterName": "obs-capture-color-correction",
+        "sourceName": "obs-capture-color"
+      }
+    },
+    {
+      "eventType": "SourceFilterRemoved",
+      "eventIntent": 32,
+      "eventData": {
+        "filterName": "obs-capture-crop-renamed",
+        "sourceName": "obs-capture-color"
+      }
+    }
+  ]
+}

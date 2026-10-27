@@ -1,7 +1,6 @@
-﻿namespace OBSStudioClient.Messages
+namespace OBSStudioClient.Messages
 {
     using OBSStudioClient.Enums;
-    using OBSStudioClient.Events;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Interfaces;
     using System.Text.Json;
@@ -17,93 +16,14 @@
     /// <param name="eventIntent">The subscribed events.</param>
     /// <param name="rawEventData">The json data for the event data.</param>
     [method: JsonConstructor]
-    public class EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData) : IMessage, IJsonOnDeserialized
+    public partial class EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData) : IMessage, IJsonOnDeserialized
     {
-        /// <summary>
-        /// Gets the type of the event based on the request type.
-        /// </summary>
-        private static readonly Dictionary<EventType, Type> _responseTypeMap = new()
-        {
-            // General Events
-            { EventType.ExitStarted, typeof(EventArgs) },
-            { EventType.VendorEvent, typeof(VendorEventEventArgs) },
-            { EventType.CustomEvent, typeof(CustomEventEventArgs) },
-
-            // Config Events
-            { EventType.CurrentSceneCollectionChanging, typeof(SceneCollectionNameEventArgs) },
-            { EventType.CurrentSceneCollectionChanged, typeof(SceneCollectionNameEventArgs) },
-            { EventType.SceneCollectionListChanged, typeof(SceneCollectionListEventArgs) },
-            { EventType.CurrentProfileChanging, typeof(ProfileNameEventArgs) },
-            { EventType.CurrentProfileChanged, typeof(ProfileNameEventArgs) },
-            { EventType.ProfileListChanged, typeof(ProfileListEventArgs) },
-
-            // Scenes Events
-            { EventType.SceneCreated, typeof(SceneModifiedEventArgs) },
-            { EventType.SceneRemoved, typeof(SceneModifiedEventArgs) },
-            { EventType.SceneNameChanged, typeof(SceneNameChangedEventArgs) },
-            { EventType.CurrentProgramSceneChanged, typeof(SceneNameEventArgs) },
-            { EventType.CurrentPreviewSceneChanged, typeof(SceneNameEventArgs) },
-            { EventType.SceneListChanged, typeof(SceneListEventArgs) },
-
-            // Inputs Events
-            { EventType.InputCreated, typeof(InputCreatedEventArgs) },
-            { EventType.InputRemoved, typeof(InputNameEventArgs) },
-            { EventType.InputNameChanged, typeof(InputNameChangedEventArgs) },
-            { EventType.InputSettingsChanged, typeof(InputSettingsChangedEventArgs) },
-            { EventType.InputActiveStateChanged, typeof(InputActiveStateChangedEventArgs) },
-            { EventType.InputShowStateChanged, typeof(InputShowStateChangedEventArgs) },
-            { EventType.InputMuteStateChanged, typeof(InputMuteStateChangedEventArgs) },
-            { EventType.InputVolumeChanged, typeof(InputVolumeChangedEventArgs) },
-            { EventType.InputAudioBalanceChanged, typeof(InputAudioBalanceChangedEventArgs) },
-            { EventType.InputAudioSyncOffsetChanged, typeof(InputAudioSyncOffsetChangedEventArgs) },
-            { EventType.InputAudioTracksChanged, typeof(InputAudioTracksChangedEventArgs) },
-            { EventType.InputAudioMonitorTypeChanged, typeof(InputAudioMonitorTypeChangedEventArgs) },
-            { EventType.InputVolumeMeters, typeof(InputVolumeMetersEventArgs) },
-
-            // Transitions Events
-            { EventType.CurrentSceneTransitionChanged, typeof(TransitionNameEventArgs) },
-            { EventType.CurrentSceneTransitionDurationChanged, typeof(TransitionDurationEventArgs) },
-            { EventType.SceneTransitionStarted, typeof(TransitionNameEventArgs) },
-            { EventType.SceneTransitionEnded, typeof(TransitionNameEventArgs) },
-            { EventType.SceneTransitionVideoEnded, typeof(TransitionNameEventArgs) },
-
-            // Filters Events
-            { EventType.SourceFilterListReindexed, typeof(SourceFiltersEventArgs) },
-            { EventType.SourceFilterCreated, typeof(SourceFilterCreatedEventArgs) },
-            { EventType.SourceFilterRemoved, typeof(SourceFilterRemovedEventArgs) },
-            { EventType.SourceFilterNameChanged, typeof(SourceFilterNameChangedEventArgs) },
-            { EventType.SourceFilterSettingsChanged, typeof(SourceFilterSettingsChangedEventArgs) },
-            { EventType.SourceFilterEnableStateChanged, typeof(SourceFilterEnableStateChangedEventArgs) },
-
-            // Scene Items Events
-            { EventType.SceneItemCreated, typeof(SceneItemCreatedEventArgs) },
-            { EventType.SceneItemRemoved, typeof(SceneItemRemovedEventArgs) },
-            { EventType.SceneItemListReindexed, typeof(SceneItemListReindexedEventArgs) },
-            { EventType.SceneItemEnableStateChanged, typeof(SceneItemEnableStateChangedEventArgs) },
-            { EventType.SceneItemLockStateChanged, typeof(SceneItemLockStateChangedEventArgs) },
-            { EventType.SceneItemSelected, typeof(SceneItemSelectedEventArgs) },
-            { EventType.SceneItemTransformChanged, typeof(SceneItemTransformChangedEventArgs) },
-
-            // Outputs Events
-            { EventType.StreamStateChanged, typeof(OutputStateChangedEventArgs) },
-            { EventType.RecordFileChanged, typeof(RecordFileChangedEventArgs) },
-            { EventType.RecordStateChanged, typeof(RecordStateChangedEventArgs) },
-            { EventType.ReplayBufferStateChanged, typeof(OutputStateChangedEventArgs) },
-            { EventType.VirtualcamStateChanged, typeof(OutputStateChangedEventArgs) },
-            { EventType.ReplayBufferSaved, typeof(ReplayBufferSavedEventArgs) },
-
-            // Media Inputs Events
-            { EventType.MediaInputPlaybackStarted, typeof(InputNameEventArgs) },
-            { EventType.MediaInputPlaybackEnded, typeof(InputNameEventArgs) },
-            { EventType.MediaInputActionTriggered, typeof(MediaInputActionTriggeredEventArgs) },
-            { EventType.StudioModeStateChanged, typeof(StudioModeStateChangedEventArgs) },
-            { EventType.ScreenshotSaved, typeof(ScreenshotSavedEventArgs) },
-        };
+        // The type of the arguments of each event (_responseTypeMap) is generated from the protocol:
+        // see Generated/EventMessage.g.cs.
 
         /// <summary>
         /// The type of Event
         /// </summary>
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         [JsonPropertyName("eventType")]
         public EventType EventType { get; } = eventType;
 

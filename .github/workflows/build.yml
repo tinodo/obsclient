@@ -1,37 +1,196 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: Build OBSClient
+# Builds and tests OBSClient on every push/PR to main.
+# The library and its tests are cross-platform; the WinUI 3 test app is Windows-only and is built separately.
+name: Build and Test
 
 on:
   push:
     branches: [ "main" ]
     paths-ignore:
       - 'docs/**'
-      - 'SampleWindowsAppliation/**'
-      - README.md
+      - '**.md'
+  # No path filter on pull requests: main requires these checks, and a workflow that is skipped by a path filter
+  # leaves its required checks pending forever, which would block every docs-only pull request. No branch filter
+  # either, so that a pull request that is stacked on another one gets the same checks.
   pull_request:
-    branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - 'SampleWindowsAppliation/**'
-      - README.md
-      
-env:
-  PROJECT: OBSClient
-  
-jobs:
-  build:
+  workflow_dispatch:
 
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 6.0.x
-    - name: Restore dependencies
-      run: dotnet restore $PROJECT
-    - name: Build
-      run: dotnet build $PROJECT --no-restore
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check the tooling compiles
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 -m py_compile tools/verify-package.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
+
+      # The protocol-derived code under OBSClient/Generated and the snapshot of the tests are generated from
+      # tools/protocol/obs-websocket-protocol.json and tools/protocol/overlay.toml. They must be what the generator
+      # produces: change the inputs, run `python tools/protocol/generate.py` and commit the result.
+      - name: Check the generated code is up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 tools/protocol/generate.py --check
+
+      - name: Test the generator
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 -m unittest discover -s tools/protocol -p "test_*.py" -v
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore OBSClient.Tests/OBSClient.Tests.csproj
+
+      - name: Build
+        run: dotnet build OBSClient.Tests/OBSClient.Tests.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: >
+          dotnet test OBSClient.Tests/OBSClient.Tests.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFilePrefix=test-results"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults/**/*.trx
+          retention-days: 14
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}
+          path: TestResults/**/coverage.cobertura.xml
+          retention-days: 14
+
+  package:
+    name: Pack (single assembly)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore OBSClient/OBSClient.csproj
+
+      - name: Build
+        run: dotnet build OBSClient/OBSClient.csproj --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build --output ./artifacts
+
+      # The package has to stay one thing: the library, its XML documentation, the README and the license. The protocol
+      # definition and the code generator are inputs of the build, they are never shipped (not even embedded).
+      - name: Verify the package is a single assembly
+        run: python3 tools/verify-package.py ./artifacts/*.nupkg
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package-preview
+          path: ./artifacts/*.nupkg
+          retention-days: 14
+
+  # The test app is a WinUI 3 application: it only builds on Windows. It is published unpackaged and self-contained, so the
+  # artifact is a folder that runs on any Windows 10 (1809) or later machine, with nothing to install.
+  build-test-app:
+    name: Build Test App (WinUI 3)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Publish
+        run: >
+          dotnet publish OBSClient.TestApp/OBSClient.TestApp.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:Platform=x64
+          --output ./artifacts/OBSClient.TestApp-win-x64
+
+      # Starts the app, which opens every page, builds, fills in and reads the editor of every request, and takes a picture of
+      # each page, and says so in a log. This is what finds an error in a XAML file (they are only read when the app runs)
+      # before anyone has to start the app to find it; the pictures show the design.
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'artifacts/OBSClient.TestApp-win-x64/OBSClient.TestApp.exe'
+          $log = Join-Path $PWD 'smoke-test.log'
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "`"$log`"" -PassThru
+          if (-not $process.WaitForExit(120000)) {
+            $process.Kill()
+            Write-Host 'The app did not finish within two minutes.'
+            if (Test-Path $log) { Get-Content $log }
+            exit 1
+          }
+          if (Test-Path $log) { Get-Content $log } else { Write-Host 'The app wrote no log.' }
+          if ($process.ExitCode -ne 0) {
+            Write-Host "The app ended with exit code $($process.ExitCode)."
+            exit 1
+          }
+
+      - name: What Windows recorded about the app
+        if: failure()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          # A crash while the app closes leaves no trace in the log of the smoke test; Windows records it.
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-20) } -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProviderName -in '.NET Runtime', 'Application Error', 'Windows Error Reporting' } |
+            ForEach-Object { "[$($_.TimeCreated)] $($_.ProviderName) ($($_.Id))"; $_.Message; '' }
+
+      - name: Upload the smoke test log and pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-app-smoke-test
+          path: |
+            smoke-test.log
+            smoke-test-*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the test app
+        uses: actions/upload-artifact@v4
+        with:
+          name: OBSClient.TestApp-win-x64
+          path: ./artifacts/OBSClient.TestApp-win-x64
+          retention-days: 14

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="OBSStudioClient.TestApp.Views.ConnectionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel
+            MaxWidth="{StaticResource PageMaxWidth}"
+            Padding="{StaticResource PagePadding}"
+            HorizontalAlignment="Left"
+            Spacing="16">
+
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Connection" />
+                <TextBlock
+                    Style="{StaticResource SecondaryBodyStyle}"
+                    Text="Connect to the WebSocket server of OBS Studio. Enable it in OBS Studio under Tools, WebSocket Server Settings; the default port is 4455." />
+            </StackPanel>
+
+            <InfoBar
+                x:Name="StatusBar"
+                IsClosable="False"
+                IsOpen="True"
+                Severity="Informational"
+                Title="Not connected" />
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="16">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="OBS Studio" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            x:Name="HostBox"
+                            AutomationProperties.Name="Host"
+                            Header="Host"
+                            PlaceholderText="localhost" />
+                        <TextBox
+                            x:Name="PortBox"
+                            Grid.Column="1"
+                            AutomationProperties.Name="Port"
+                            Header="Port"
+                            PlaceholderText="4455" />
+                        <TextBox
+                            x:Name="TimeoutBox"
+                            Grid.Column="2"
+                            AutomationProperties.Name="Request timeout in milliseconds"
+                            Header="Request timeout (ms)"
+                            PlaceholderText="5000" />
+                    </Grid>
+                    <PasswordBox
+                        x:Name="PasswordInput"
+                        Header="Password"
+                        PlaceholderText="Leave empty when authentication is off" />
+                    <ToggleSwitch x:Name="AutoReconnectSwitch" Header="Reconnect automatically" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="ConnectButton"
+                            Click="ConnectButton_Click"
+                            Content="Connect"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="DisconnectButton"
+                            Click="DisconnectButton_Click"
+                            Content="Disconnect" />
+                        <ProgressRing
+                            x:Name="Busy"
+                            Width="20"
+                            Height="20"
+                            AutomationProperties.Name="Connecting"
+                            IsActive="False" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Events to receive" />
+                    <TextBlock
+                        Style="{StaticResource SecondaryCaptionStyle}"
+                        Text="Applied when connecting. While connected, use the button below to change them without reconnecting (the client sends a Reidentify)." />
+                    <VariableSizedWrapGrid
+                        x:Name="SubscriptionGrid"
+                        ItemWidth="200"
+                        Orientation="Horizontal" />
+                    <TextBlock Style="{StaticResource SecondaryCaptionStyle}" Text="High volume: these send many events per second." />
+                    <VariableSizedWrapGrid
+                        x:Name="HighVolumeGrid"
+                        ItemWidth="260"
+                        Orientation="Horizontal" />
+                    <Button
+                        x:Name="ApplyButton"
+                        Click="ApplyButton_Click"
+                        Content="Apply to the open connection" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="4">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Session" />
+                    <TextBlock x:Name="VersionText" Style="{StaticResource SecondaryBodyStyle}" />
+                    <TextBlock x:Name="StatisticsText" Style="{StaticResource SecondaryBodyStyle}" />
+                </StackPanel>
+            </Border>
+
+            <InfoBar
+                x:Name="NoticeBar"
+                IsOpen="False"
+                Severity="Success" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

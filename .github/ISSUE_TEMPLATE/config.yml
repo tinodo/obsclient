@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: obs-websocket protocol documentation
+    url: https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md
+    about: Authoritative reference for OBS Studio's WebSocket protocol that this library implements.
+  - name: OBSClient discussions
+    url: https://github.com/tinodo/obsclient/discussions
+    about: Questions and general discussion that aren't a bug report or feature request.

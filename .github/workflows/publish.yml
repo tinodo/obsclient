@@ -1,0 +1,164 @@
+# Publishes the OBSClient NuGet package to nuget.org (via Trusted Publishing/OIDC - no long-lived API key)
+# and to GitHub Packages, whenever a vX.Y.Z tag is pushed. Keep this separate from build.yml: CI runs on every
+# push/PR, publishing only runs on a deliberate version tag.
+#
+# Release process (details and troubleshooting: CONTRIBUTING.md, "Releasing"):
+#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0) and commit/merge it to main.
+#   2. git tag v4.0.0 && git push origin v4.0.0   (the tag must equal <Version> and be on main)
+#   3. This workflow packs once, then pushes that same .nupkg to nuget.org (after you approve the deployment to the
+#      `release` environment) and to GitHub Packages. A published version is permanent, hence the approval.
+#
+# One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+#   nuget.org/account/trustedpublishing -> Add policy
+#     Repository Owner: tinodo | Repository: obsclient | Workflow File: publish.yml | Environment: release
+#     (scope: new versions of existing packages, package OBSClient)
+#   And in this repo: the `release` environment (Settings -> Environments) with an environment secret
+#   NUGET_USER = the nuget.org profile name of the package owner (not the e-mail address, not the GitHub name).
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)publish, e.g. v4.0.0'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # A manual run names the tag; qualify it so a branch of the same name can never be packaged instead
+          # (a tag push already provides a fully qualified ref).
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          # The whole history, to check below that the tagged commit is on main.
+          fetch-depth: 0
+
+      # A version is permanent on nuget.org, so a tag that was pushed from a branch must never get that far.
+      - name: Verify the tagged commit is on main
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::The commit that is being published is not on main. Merge it to main, then tag main."
+            exit 1
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Determine version from tag
+        id: version
+        shell: bash
+        env:
+          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$TAG' is not a version tag (expected vX.Y.Z)."
+            exit 1
+          fi
+          echo "VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches project version
+        shell: bash
+        env:
+          TAG_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          PROJECT_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj)
+          if [ "$PROJECT_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match <Version> in OBSClient.csproj ($PROJECT_VERSION)"
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore OBSClient/OBSClient.csproj
+
+      - name: Build
+        run: dotnet build OBSClient/OBSClient.csproj --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build -o ./artifacts
+
+      # Never publish anything but the library: the protocol definition and the code generator are build inputs.
+      - name: Verify the package is a single assembly
+        shell: bash
+        run: python tools/verify-package.py ./artifacts/*.nupkg
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts/*.nupkg
+          retention-days: 90
+
+  publish-nuget-org:
+    name: Publish to NuGet.org
+    needs: pack
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write # required for NuGet Trusted Publishing (OIDC)
+      contents: read
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Push to GitHub Packages
+        env:
+          OWNER: ${{ github.repository_owner }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source --username "$OWNER" --password "$TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/$OWNER/index.json"
+          dotnet nuget push ./artifacts/*.nupkg --source github --api-key "$TOKEN" --skip-duplicate

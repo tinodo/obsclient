@@ -138,5 +138,23 @@
         /// </summary>
         [JsonPropertyName("width")]
         public float Width { get; } = width;
+
+        /// <summary>
+        /// Gets a value that indicates whether the scene item is cropped to its bounds.
+        /// </summary>
+        /// <remarks>
+        /// <see langword="null"/> when OBS Studio does not send it. When this transform is sent to OBS Studio, a
+        /// <see langword="null"/> value is ignored. It is an <see langword="init"/> property, rather than a
+        /// constructor parameter, to keep the public constructor of this class unchanged.
+        /// </remarks>
+        [JsonPropertyName("cropToBounds")]
+        public bool? CropToBounds { get; init; }
+
+        /// <summary>
+        /// Creates the <see cref="SceneItemTransformUpdate"/> that gives a scene item this transform, ready to be changed
+        /// with a <see langword="with"/> expression.
+        /// </summary>
+        /// <returns>The update. The bounds of a transform without bounds are left out of it, because OBS Studio refuses a bounds width or height below 1.</returns>
+        public SceneItemTransformUpdate ToUpdate() => SceneItemTransformUpdate.From(this);
     }
 }

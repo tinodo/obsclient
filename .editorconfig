@@ -224,3 +224,9 @@ dotnet_naming_style.begins_with_i.required_prefix = I
 dotnet_naming_style.begins_with_i.required_suffix = 
 dotnet_naming_style.begins_with_i.word_separator = 
 dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+# Generated code (tools/protocol/generate.py). LF line endings, so that the generator's output can be compared byte for
+# byte on every platform (see .gitattributes); analyzers and the IDE treat it as generated.
+[*.g.cs]
+end_of_line = lf
+generated_code = true

@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="OBSStudioClient.TestApp.Views.LogPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:local="using:OBSStudioClient.TestApp.Views"
+    xmlns:svc="using:OBSStudioClient.TestApp.Services"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Page.Resources>
+        <DataTemplate x:Key="EntryTemplate" x:DataType="svc:LogEntry">
+            <Grid Padding="0,2" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="92" />
+                    <ColumnDefinition Width="Auto" MinWidth="20" />
+                    <ColumnDefinition Width="Auto" MinWidth="36" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    FontFamily="{StaticResource CodeFontFamily}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind TimeText}" />
+                <TextBlock Grid.Column="1" Text="{x:Bind Direction}" />
+                <TextBlock
+                    Grid.Column="2"
+                    Style="{StaticResource SecondaryCaptionStyle}"
+                    Text="{x:Bind LevelText}" />
+                <TextBlock
+                    Grid.Column="3"
+                    Text="{x:Bind Title}"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ProblemTemplate" x:DataType="svc:LogEntry">
+            <Grid Padding="0,2" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="92" />
+                    <ColumnDefinition Width="Auto" MinWidth="20" />
+                    <ColumnDefinition Width="Auto" MinWidth="36" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    FontFamily="{StaticResource CodeFontFamily}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind TimeText}" />
+                <TextBlock Grid.Column="1" Text="{x:Bind Direction}" />
+                <TextBlock
+                    Grid.Column="2"
+                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind LevelText}" />
+                <TextBlock
+                    Grid.Column="3"
+                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    Text="{x:Bind Title}"
+                    TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </DataTemplate>
+
+        <local:LogTemplateSelector
+            x:Key="EntrySelector"
+            Normal="{StaticResource EntryTemplate}"
+            Problem="{StaticResource ProblemTemplate}" />
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Spacing="4">
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Log" />
+            <TextBlock
+                Style="{StaticResource SecondaryBodyStyle}"
+                Text="Every message that went to and from OBS Studio, and everything the client reported. Failed responses and warnings are marked in red." />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <AutoSuggestBox
+                x:Name="FilterBox"
+                AutomationProperties.Name="Filter the log"
+                PlaceholderText="Filter by title or content"
+                QueryIcon="Find"
+                TextChanged="FilterBox_TextChanged" />
+            <ToggleButton
+                x:Name="SentButton"
+                Grid.Column="1"
+                AutomationProperties.Name="Show the messages that were sent"
+                Click="Filter_Click"
+                Content="Sent"
+                IsChecked="True" />
+            <ToggleButton
+                x:Name="ReceivedButton"
+                Grid.Column="2"
+                AutomationProperties.Name="Show the messages that were received"
+                Click="Filter_Click"
+                Content="Received"
+                IsChecked="True" />
+            <ToggleButton
+                x:Name="ClientButton"
+                Grid.Column="3"
+                AutomationProperties.Name="Show what the client reported"
+                Click="Filter_Click"
+                Content="Client"
+                IsChecked="True" />
+            <ToggleButton
+                x:Name="FollowButton"
+                Grid.Column="4"
+                AutomationProperties.Name="Follow the newest entry"
+                Content="Follow"
+                IsChecked="True"
+                ToolTipService.ToolTip="Scrolls to the newest entry as it arrives, as long as no entry is selected" />
+            <ToggleButton
+                x:Name="PauseButton"
+                Grid.Column="5"
+                AutomationProperties.Name="Pause the log"
+                Click="PauseButton_Click"
+                Content="Pause" />
+            <Button
+                Grid.Column="6"
+                Click="ClearButton_Click"
+                Content="Clear" />
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                Click="ExportLogButton_Click"
+                Content="Export the log (JSON lines)" />
+            <Button
+                Grid.Column="1"
+                Click="ExportShapesButton_Click"
+                Content="Export observed shapes" />
+            <CheckBox
+                x:Name="RedactBox"
+                Grid.Column="2"
+                Content="Hide passwords and keys"
+                IsChecked="True" />
+            <TextBlock
+                x:Name="CountText"
+                Grid.Column="3"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Style="{StaticResource SecondaryCaptionStyle}" />
+        </Grid>
+
+        <Grid Grid.Row="3" ColumnSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <InfoBar
+                x:Name="ExportBar"
+                Grid.ColumnSpan="2"
+                Margin="0,0,0,12"
+                IsOpen="False"
+                Severity="Success">
+                <InfoBar.ActionButton>
+                    <Button Click="ShowInFolderButton_Click" Content="Show in folder" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
+            <Border
+                Grid.Row="1"
+                Padding="0"
+                Style="{StaticResource CardStyle}">
+                <Grid>
+                    <ListView
+                        x:Name="EntryList"
+                        AutomationProperties.Name="Log entries"
+                        ItemTemplateSelector="{StaticResource EntrySelector}"
+                        ItemsSource="{x:Bind Visible}"
+                        SelectionChanged="EntryList_SelectionChanged"
+                        SelectionMode="Single">
+                        <ListView.ItemContainerStyle>
+                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                <Setter Property="MinHeight" Value="28" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                    </ListView>
+                    <TextBlock
+                        x:Name="EmptyText"
+                        Margin="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Style="{StaticResource SecondaryBodyStyle}"
+                        Text="Nothing to show. Connect to OBS Studio and send a request; every message appears here."
+                        TextAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <Border
+                Grid.Row="1"
+                Grid.Column="1"
+                Style="{StaticResource CardStyle}">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        x:Name="DetailTitle"
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        Text="Select an entry" />
+                    <TextBox
+                        x:Name="DetailBox"
+                        Grid.Row="1"
+                        AutomationProperties.Name="Entry data"
+                        IsReadOnly="True"
+                        Style="{StaticResource CodeTextBoxStyle}" />
+                    <Button
+                        x:Name="CopyButton"
+                        Grid.Row="2"
+                        HorizontalAlignment="Left"
+                        Click="CopyButton_Click"
+                        Content="Copy" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

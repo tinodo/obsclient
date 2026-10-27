@@ -34,5 +34,26 @@
         /// </summary>
         [JsonPropertyName("unversionedInputKind")]
         public string UnversionedInputKind { get; } = unversionedInputKind;
+
+        /// <summary>
+        /// Gets the uuid of the input.
+        /// </summary>
+        /// <remarks>
+        /// <see langword="null"/> when OBS Studio does not send it. It is an <see langword="init"/> property, rather
+        /// than a constructor parameter, to keep the public constructor of this class unchanged.
+        /// </remarks>
+        [JsonPropertyName("inputUuid")]
+        public Guid? InputUuid { get; init; }
+
+        /// <summary>
+        /// Gets the capabilities of the input kind, as a bitflag value. See <c>obs_source_info.output_flags</c> in the libobs documentation.
+        /// </summary>
+        /// <remarks>
+        /// Introduced in obs-websocket 5.6.0; <see langword="null"/> when OBS Studio does not send it.
+        /// A flags value of 32 bits, which is why it is an unsigned number (and not CLS-compliant).
+        /// </remarks>
+        [JsonPropertyName("inputKindCaps")]
+        [CLSCompliant(false)]
+        public uint? InputKindCaps { get; init; }
     }
 }
