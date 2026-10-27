@@ -126,7 +126,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - **Cancelling** *(after beta1)*: the `CancellationToken` of a request ends the wait for the response with an `OperationCanceledException`
   and leaves the connection usable. A request that was already sent is not undone, and its answer is ignored when it arrives; a token
   that is cancelled before the call stops it before anything is sent. A request that runs out of time still throws a
-  `TimeoutException`. The token also ends the wait between the retries of a request that OBS Studio is not ready for. Cancelling
+  `TimeoutException`, and the call ends with its token or its timeout even when OBS Studio does not read a large request: the write goes
+  on in the background and keeps its turn, and a message that still waits for its turn is not sent. The token also ends the wait between
+  the retries of a request that OBS Studio is not ready for. Cancelling
   `ConnectAsync` ends the attempt as `Disconnect()` does (it closes the connection that is being opened and switches `AutoReconnect`
   off, for that attempt only: a connection that a handler started in its place keeps its settings) and throws an
   `OperationCanceledException`, where a failed attempt returns `false`. A `ReidentifyAsync` that was cancelled, or that failed, leaves

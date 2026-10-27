@@ -2,6 +2,7 @@ namespace OBSStudioClient.Tests
 {
     using System.Net;
     using System.Net.Sockets;
+    using System.Text.Json;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
     using OBSStudioClient.Tests.TestSupport;
@@ -355,6 +356,51 @@ namespace OBSStudioClient.Tests
             Assert.Equal((int)EventSubscriptions.Inputs, identify.RootElement.GetProperty("d").GetProperty("eventSubscriptions").GetInt32());
 
             client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ARequestThatIsCancelledWhileItsWriteIsBlocked_EndsTheCall_AndTheWriteGoesOnHoldingItsTurn()
+        {
+            // OBS Studio does not read, so the write of a large request blocks. Cancelling the call ends it all the same, without aborting
+            // the connection (a send that is cancelled halfway does that), and the write goes on by itself and keeps its turn: a request
+            // that follows is written after it, once the server does read.
+            await using var server = new FakeObsWebSocketServer(receiveBufferSize: 1024);
+            using var client = await ConnectAsync(server);
+            using var cancellation = new CancellationTokenSource();
+            var sentBefore = client.TotalMessagesSent;
+            var payload = JsonSerializer.SerializeToElement(new { data = new string('x', 16_000_000) });
+
+            var large = client.CallVendorRequest("plugin", "large", payload, cancellation.Token);
+
+            // The client counts a message when its write is done: it is still blocked.
+            await Task.Delay(500);
+            Assert.True(client.TotalMessagesSent == sentBefore, "The write did not block, so this test says nothing: the request has to be larger than what the buffers hold.");
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => large.WithTimeoutAsync(Timeout));
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            var next = client.GetStudioModeEnabled();
+            var (firstType, _, _) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("CallVendorRequest", firstType);
+            var (nextType, nextId, _) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("GetStudioModeEnabled", nextType);
+            await server.SendRequestSuccessAsync(nextType, nextId, new { studioModeEnabled = true });
+            Assert.True(await next.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task ConnectAsync_OnADisposedClient_Throws_AndOpensNothing()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            var client = new ObsClient();
+            client.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => client.ConnectAsync(hostname: "127.0.0.1", port: server.Port));
+
+            await Assert.ThrowsAsync<TimeoutException>(() => server.WaitForConnectionAsync(TimeSpan.FromMilliseconds(500)));
+            Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
         }
 
         [Fact]

@@ -175,6 +175,9 @@ catch (OperationCanceledException)
 - A token that is cancelled before the call stops it before anything is sent.
 - A request that was already sent is **not undone**: OBS Studio may still carry it out. When its answer arrives, it is ignored, and the
   connection stays usable.
+- The call ends when the token is cancelled even if OBS Studio is not reading what you send. A message that is being written cannot be
+  cancelled without breaking the connection, so it is written to the end in the background, and the requests that follow wait for their
+  turn behind it. A message that was still waiting for its turn is not sent at all.
 - The timeout is a different thing: a request that runs out of `RequestTimeout` throws a `TimeoutException`, whatever the token is.
 - The wait between the retries of a request that OBS Studio is not ready for ends when the token is cancelled, too.
 

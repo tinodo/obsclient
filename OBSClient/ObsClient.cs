@@ -597,16 +597,21 @@
             this._eventsMap.Clear();
         }
 
-        // Makes a new session the active one. The settings of the connection that it is for are written after this, never before.
+        // Makes a new session the active one, unless the client is disposed: Dispose could not end a connection that it did not know of.
+        // The settings of the connection that it is for are written after this, never before.
         private ConnectionSession ActivateNewSession()
         {
-            var session = new ConnectionSession();
             lock (this._syncRoot)
             {
-                this._session = session;
-            }
+                if (this._disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ObsClient));
+                }
 
-            return session;
+                var session = new ConnectionSession();
+                this._session = session;
+                return session;
+            }
         }
 
         // Runs a change that was made for a session, but only while that session is the active one. The check and the change are one step
@@ -1332,7 +1337,21 @@
                     throw new ObsClientException("Not connected.");
                 }
 
-                await this.SendAsync(session, request, cancellationToken).ConfigureAwait(false);
+                // The wait of the caller ends with its token or with the timeout, whatever the write is doing: when OBS Studio does not read,
+                // a write can block, and it cannot be cancelled without aborting the connection. So it is left to finish by itself, still
+                // holding the turn (nothing can be written in the middle of it), and what goes wrong with it is observed. A message that
+                // still waits for its turn is given up together with the wait.
+                using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
+                var write = this.SendAsync(session, request, turnCts.Token);
+                if (await Task.WhenAny(write, tcs.Task).ConfigureAwait(false) == write)
+                {
+                    await write.ConfigureAwait(false);
+                }
+                else
+                {
+                    _ = this.ObserveWriteAsync(write);
+                }
+
                 return await tcs.Task.ConfigureAwait(false);
             }
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -1344,6 +1363,19 @@
             {
                 _ = ctr.Unregister();
                 _ = session.Requests.TryRemove(requestId, out _);
+            }
+        }
+
+        // A write that outlives the wait for it ends one way or another with nobody awaiting it: what went wrong with it is logged, not lost.
+        private async Task ObserveWriteAsync(Task write)
+        {
+            try
+            {
+                await write.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "A write that the caller no longer waited for did not complete");
             }
         }
 
