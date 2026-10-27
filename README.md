@@ -92,6 +92,9 @@ client.Dispose();
   behind it. `PropertyChanged` and the statistics events are raised on the thread that causes the change: keep those handlers quick.
 - **Requests time out after 500 ms by default.** Change `ObsClient.RequestTimeout` if OBS Studio is busy (batches with long
   `Sleep` requests need a longer timeout; see `SendRequestBatchAsync`).
+- **Every call can be cancelled.** Every request, `ConnectAsync`, `SendRequestBatchAsync` and `ReidentifyAsync` take a
+  `CancellationToken`: cancelling it ends the wait with an `OperationCanceledException` and leaves the connection usable. A request
+  that was already sent is not undone.
 - **A lost connection is reported, not hidden.** `ConnectionState` and `ConnectionClosed` tell you when it ends, requests
   that were waiting fail at once with an `ObsClientException`, and `AutoReconnect` brings the connection back.
 - **See what goes over the wire.** The client logs every message it sends and receives at the debug level (`Sending: …`,

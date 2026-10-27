@@ -22,10 +22,11 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="realm">The data realm to select. <c>OBS_WEBSOCKET_DATA_REALM_GLOBAL</c> or <c>OBS_WEBSOCKET_DATA_REALM_PROFILE</c>.</param>
         /// <param name="slotName">The name of the slot to retrieve data from.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Value associated with the slot. <c>null</c> if not set.</returns>
-        public async Task<object?> GetPersistentData(Realm realm, string slotName)
+        public async Task<object?> GetPersistentData(Realm realm, string slotName, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SlotValueResponse>(RequestType.GetPersistentData, GetPersistentDataRequestData.Create(realm, slotName)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SlotValueResponse>(RequestType.GetPersistentData, GetPersistentDataRequestData.Create(realm, slotName), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SlotValue;
         }
 
@@ -35,78 +36,86 @@ namespace OBSStudioClient
         /// <param name="realm">The data realm to select. <c>OBS_WEBSOCKET_DATA_REALM_GLOBAL</c> or <c>OBS_WEBSOCKET_DATA_REALM_PROFILE</c>.</param>
         /// <param name="slotName">The name of the slot to retrieve data from.</param>
         /// <param name="slotValue">The value to apply to the slot.</param>
-        public async Task SetPersistentData(Realm realm, string slotName, object slotValue)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetPersistentData(Realm realm, string slotName, object slotValue, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetPersistentData, SetPersistentDataRequestData.Create(realm, slotName, slotValue)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetPersistentData, SetPersistentDataRequestData.Create(realm, slotName, slotValue), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets an array of all scene collections.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SceneCollectionListResponse"/> with the response data.</returns>
-        public async Task<SceneCollectionListResponse> GetSceneCollectionList()
+        public async Task<SceneCollectionListResponse> GetSceneCollectionList(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SceneCollectionListResponse>(RequestType.GetSceneCollectionList).ConfigureAwait(false);
+            return await this.SendRequestAsync<SceneCollectionListResponse>(RequestType.GetSceneCollectionList, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Switches to a scene collection.
         /// </summary>
         /// <param name="sceneCollectionName">Name of the scene collection to switch to.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: This will block until the collection has finished changing.</para>
         /// </remarks>
-        public async Task SetCurrentSceneCollection(string sceneCollectionName)
+        public async Task SetCurrentSceneCollection(string sceneCollectionName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentSceneCollection, SetCurrentSceneCollectionRequestData.Create(sceneCollectionName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentSceneCollection, SetCurrentSceneCollectionRequestData.Create(sceneCollectionName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Creates a new scene collection, switching to it in the process.
         /// </summary>
         /// <param name="sceneCollectionName">Name for the new scene collection.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: This will block until the collection has finished changing.</para>
         /// </remarks>
-        public async Task CreateSceneCollection(string sceneCollectionName)
+        public async Task CreateSceneCollection(string sceneCollectionName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.CreateSceneCollection, CreateSceneCollectionRequestData.Create(sceneCollectionName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.CreateSceneCollection, CreateSceneCollectionRequestData.Create(sceneCollectionName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets an array of all profiles.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="ProfileListResponse"/> with the response data.</returns>
-        public async Task<ProfileListResponse> GetProfileList()
+        public async Task<ProfileListResponse> GetProfileList(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<ProfileListResponse>(RequestType.GetProfileList).ConfigureAwait(false);
+            return await this.SendRequestAsync<ProfileListResponse>(RequestType.GetProfileList, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Switches to a profile.
         /// </summary>
         /// <param name="profileName">Name of the profile to switch to.</param>
-        public async Task SetCurrentProfile(string profileName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetCurrentProfile(string profileName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentProfile, SetCurrentProfileRequestData.Create(profileName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentProfile, SetCurrentProfileRequestData.Create(profileName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Creates a new profile, switching to it in the process.
         /// </summary>
         /// <param name="profileName">Name for the new profile.</param>
-        public async Task CreateProfile(string profileName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task CreateProfile(string profileName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.CreateProfile, CreateProfileRequestData.Create(profileName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.CreateProfile, CreateProfileRequestData.Create(profileName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Removes a profile. If the current profile is chosen, it will change to a different profile first.
         /// </summary>
         /// <param name="profileName">Name of the profile to remove.</param>
-        public async Task RemoveProfile(string profileName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task RemoveProfile(string profileName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.RemoveProfile, RemoveProfileRequestData.Create(profileName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.RemoveProfile, RemoveProfileRequestData.Create(profileName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -114,10 +123,14 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="parameterCategory">Category of the parameter to get.</param>
         /// <param name="parameterName">Name of the parameter to get.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="ProfileParameterResponse"/> with the response data.</returns>
-        public async Task<ProfileParameterResponse> GetProfileParameter(string parameterCategory, string parameterName)
+        public async Task<ProfileParameterResponse> GetProfileParameter(
+            string parameterCategory,
+            string parameterName,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<ProfileParameterResponse>(RequestType.GetProfileParameter, GetProfileParameterRequestData.Create(parameterCategory, parameterName)).ConfigureAwait(false);
+            return await this.SendRequestAsync<ProfileParameterResponse>(RequestType.GetProfileParameter, GetProfileParameterRequestData.Create(parameterCategory, parameterName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -126,21 +139,27 @@ namespace OBSStudioClient
         /// <param name="parameterCategory">Category of the parameter to set.</param>
         /// <param name="parameterName">Name of the parameter to set.</param>
         /// <param name="parameterValue">Value of the parameter to set. Use <c>null</c> to delete.</param>
-        public async Task SetProfileParameter(string parameterCategory, string parameterName, string? parameterValue)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetProfileParameter(
+            string parameterCategory,
+            string parameterName,
+            string? parameterValue,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetProfileParameter, SetProfileParameterRequestData.Create(parameterCategory, parameterName, parameterValue)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetProfileParameter, SetProfileParameterRequestData.Create(parameterCategory, parameterName, parameterValue), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the current video settings.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="VideoSettingsResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Note: To get the true FPS value, divide the FPS numerator by the FPS denominator. Example: <c>60000/1001</c>.</para>
         /// </remarks>
-        public async Task<VideoSettingsResponse> GetVideoSettings()
+        public async Task<VideoSettingsResponse> GetVideoSettings(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<VideoSettingsResponse>(RequestType.GetVideoSettings).ConfigureAwait(false);
+            return await this.SendRequestAsync<VideoSettingsResponse>(RequestType.GetVideoSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -152,6 +171,7 @@ namespace OBSStudioClient
         /// <param name="baseHeight">Height of the base (canvas) resolution in pixels. Restrictions: &gt;= 1, &lt;= 4096. If omitted: Not changed.</param>
         /// <param name="outputWidth">Width of the output resolution in pixels. Restrictions: &gt;= 1, &lt;= 4096. If omitted: Not changed.</param>
         /// <param name="outputHeight">Height of the output resolution in pixels. Restrictions: &gt;= 1, &lt;= 4096. If omitted: Not changed.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Fields must be specified in pairs. For example, you cannot set only <c>baseWidth</c> without needing to specify <c>baseHeight</c>.</para>
         /// </remarks>
@@ -161,18 +181,20 @@ namespace OBSStudioClient
             int? baseWidth = null,
             int? baseHeight = null,
             int? outputWidth = null,
-            int? outputHeight = null)
+            int? outputHeight = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetVideoSettings, SetVideoSettingsRequestData.Create(fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetVideoSettings, SetVideoSettingsRequestData.Create(fpsNumerator, fpsDenominator, baseWidth, baseHeight, outputWidth, outputHeight), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the current stream service settings (stream destination).
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="StreamServiceSettingsResponse"/> with the response data.</returns>
-        public async Task<StreamServiceSettingsResponse> GetStreamServiceSettings()
+        public async Task<StreamServiceSettingsResponse> GetStreamServiceSettings(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<StreamServiceSettingsResponse>(RequestType.GetStreamServiceSettings).ConfigureAwait(false);
+            return await this.SendRequestAsync<StreamServiceSettingsResponse>(RequestType.GetStreamServiceSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -180,21 +202,26 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="streamServiceType">Type of stream service to apply. Example: <c>rtmp_common</c> or <c>rtmp_custom</c>.</param>
         /// <param name="streamServiceSettings">Settings to apply to the service.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: Simple RTMP settings can be set with type <c>rtmp_custom</c> and the settings fields <c>server</c> and <c>key</c>.</para>
         /// </remarks>
-        public async Task SetStreamServiceSettings(string streamServiceType, object streamServiceSettings)
+        public async Task SetStreamServiceSettings(
+            string streamServiceType,
+            object streamServiceSettings,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetStreamServiceSettings, SetStreamServiceSettingsRequestData.Create(streamServiceType, streamServiceSettings)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetStreamServiceSettings, SetStreamServiceSettingsRequestData.Create(streamServiceType, streamServiceSettings), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the current directory that the record output is set to.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Output directory.</returns>
-        public async Task<string> GetRecordDirectory()
+        public async Task<string> GetRecordDirectory(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<RecordDirectoryResponse>(RequestType.GetRecordDirectory).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<RecordDirectoryResponse>(RequestType.GetRecordDirectory, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.RecordDirectory;
         }
 
@@ -202,12 +229,13 @@ namespace OBSStudioClient
         /// Sets the current directory that the record output writes files to.
         /// </summary>
         /// <param name="recordDirectory">Output directory.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Introduced in obs-websocket 5.3.0.</para>
         /// </remarks>
-        public async Task SetRecordDirectory(string recordDirectory)
+        public async Task SetRecordDirectory(string recordDirectory, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetRecordDirectory, SetRecordDirectoryRequestData.Create(recordDirectory)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetRecordDirectory, SetRecordDirectoryRequestData.Create(recordDirectory), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

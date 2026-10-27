@@ -20,88 +20,97 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets the status of the record output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="RecordStatusResponse"/> with the response data.</returns>
-        public async Task<RecordStatusResponse> GetRecordStatus()
+        public async Task<RecordStatusResponse> GetRecordStatus(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<RecordStatusResponse>(RequestType.GetRecordStatus).ConfigureAwait(false);
+            return await this.SendRequestAsync<RecordStatusResponse>(RequestType.GetRecordStatus, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Toggles the status of the record output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>The new active state of the output.</returns>
-        public async Task<bool> ToggleRecord()
+        public async Task<bool> ToggleRecord(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleRecord).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleRecord, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Starts the record output.
         /// </summary>
-        public async Task StartRecord()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StartRecord(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StartRecord).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StartRecord, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the record output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>File name for the saved recording.</returns>
-        public async Task<string> StopRecord()
+        public async Task<string> StopRecord(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputPathResponse>(RequestType.StopRecord).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputPathResponse>(RequestType.StopRecord, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputPath;
         }
 
         /// <summary>
         /// Toggles pause on the record output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is paused.</returns>
-        public async Task<bool> ToggleRecordPause()
+        public async Task<bool> ToggleRecordPause(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputPausedResponse>(RequestType.ToggleRecordPause).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputPausedResponse>(RequestType.ToggleRecordPause, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputPaused;
         }
 
         /// <summary>
         /// Pauses the record output.
         /// </summary>
-        public async Task PauseRecord()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task PauseRecord(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.PauseRecord).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.PauseRecord, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Resumes the record output.
         /// </summary>
-        public async Task ResumeRecord()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task ResumeRecord(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.ResumeRecord).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.ResumeRecord, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Splits the current file being recorded into a new file.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Introduced in obs-websocket 5.5.0.</para>
         /// </remarks>
-        public async Task SplitRecordFile()
+        public async Task SplitRecordFile(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SplitRecordFile).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SplitRecordFile, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Adds a new chapter marker to the file currently being recorded.
         /// </summary>
         /// <param name="chapterName">Name of the new chapter.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Note: As of OBS 30.2.0, the only file format supporting this feature is Hybrid MP4.</para>
         /// <para>Introduced in obs-websocket 5.5.0.</para>
         /// </remarks>
-        public async Task CreateRecordChapter(string? chapterName = null)
+        public async Task CreateRecordChapter(string? chapterName = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.CreateRecordChapter, CreateRecordChapterRequestData.Create(chapterName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.CreateRecordChapter, CreateRecordChapterRequestData.Create(chapterName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

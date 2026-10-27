@@ -39,7 +39,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.9" />
+    <!-- The client only takes an ILogger<ObsClient>, so it needs the abstractions and not the logging system itself. The version is the
+         oldest that has what the client uses: a library that asks for a newer one makes every application that uses it update too
+         (and breaks the restore of one that pins an older one). Dependabot leaves it alone, see .github/dependabot.yml. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

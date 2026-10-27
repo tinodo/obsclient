@@ -46,8 +46,14 @@ updates:
           - minor
           - patch
     ignore:
-      # The one dependency of the library is part of what its users get with it. Moving to another major version of it is a
-      # decision about the target frameworks that people have to make, so no pull request is opened for it.
-      - dependency-name: Microsoft.Extensions.*
+      # The one dependency of the library is part of what its users get with it, and it is asked for at the oldest version that
+      # has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it update too.
+      # So no version update is proposed for it, whatever the version. It is raised by hand when the library needs something that
+      # a newer version has. The three update types are named on purpose: a rule that only names the dependency would also hold
+      # back the pull requests of security updates (it is expanded to ">= 0" and applied to those as well), and a rule that names
+      # the update types is a filter on version updates only.
+      - dependency-name: Microsoft.Extensions.Logging.Abstractions
         update-types:
           - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch

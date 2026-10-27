@@ -20,53 +20,58 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets an array of all available transition kinds.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of transition kinds.</returns>
         /// <remarks>
         /// <para>Similar to <c>GetInputKindList</c>.</para>
         /// </remarks>
-        public async Task<string[]> GetTransitionKindList()
+        public async Task<string[]> GetTransitionKindList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<TransitionKindsResponse>(RequestType.GetTransitionKindList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<TransitionKindsResponse>(RequestType.GetTransitionKindList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.TransitionKinds;
         }
 
         /// <summary>
         /// Gets an array of all scene transitions in OBS.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SceneTransitionListResponse"/> with the response data.</returns>
-        public async Task<SceneTransitionListResponse> GetSceneTransitionList()
+        public async Task<SceneTransitionListResponse> GetSceneTransitionList(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SceneTransitionListResponse>(RequestType.GetSceneTransitionList).ConfigureAwait(false);
+            return await this.SendRequestAsync<SceneTransitionListResponse>(RequestType.GetSceneTransitionList, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets information about the current scene transition.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="TransitionResponse"/> with the response data.</returns>
-        public async Task<TransitionResponse> GetCurrentSceneTransition()
+        public async Task<TransitionResponse> GetCurrentSceneTransition(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<TransitionResponse>(RequestType.GetCurrentSceneTransition).ConfigureAwait(false);
+            return await this.SendRequestAsync<TransitionResponse>(RequestType.GetCurrentSceneTransition, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Sets the current scene transition.
         /// </summary>
         /// <param name="transitionName">Name of the transition to make active.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Small note: While the namespace of scene transitions is generally unique, that uniqueness is not a guarantee as it is with other resources like inputs.</para>
         /// </remarks>
-        public async Task SetCurrentSceneTransition(string transitionName)
+        public async Task SetCurrentSceneTransition(string transitionName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentSceneTransition, SetCurrentSceneTransitionRequestData.Create(transitionName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentSceneTransition, SetCurrentSceneTransitionRequestData.Create(transitionName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Sets the duration of the current scene transition, if it is not fixed.
         /// </summary>
         /// <param name="transitionDuration">Duration in milliseconds. Restrictions: &gt;= 50, &lt;= 20000.</param>
-        public async Task SetCurrentSceneTransitionDuration(float transitionDuration)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetCurrentSceneTransitionDuration(float transitionDuration, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentSceneTransitionDuration, SetCurrentSceneTransitionDurationRequestData.Create(transitionDuration)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentSceneTransitionDuration, SetCurrentSceneTransitionDurationRequestData.Create(transitionDuration), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -74,30 +79,36 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="transitionSettings">Settings object to apply to the transition. Can be <c>{}</c>.</param>
         /// <param name="overlay">Whether to overlay over the current settings or replace them. If omitted: true.</param>
-        public async Task SetCurrentSceneTransitionSettings(Dictionary<string, object> transitionSettings, bool? overlay = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetCurrentSceneTransitionSettings(
+            Dictionary<string, object> transitionSettings,
+            bool? overlay = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetCurrentSceneTransitionSettings, SetCurrentSceneTransitionSettingsRequestData.Create(transitionSettings, overlay)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetCurrentSceneTransitionSettings, SetCurrentSceneTransitionSettingsRequestData.Create(transitionSettings, overlay), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the cursor position of the current scene transition.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Cursor position, between 0.0 and 1.0.</returns>
         /// <remarks>
         /// <para>Note: <c>transitionCursor</c> will return 1.0 when the transition is inactive.</para>
         /// </remarks>
-        public async Task<float> GetCurrentSceneTransitionCursor()
+        public async Task<float> GetCurrentSceneTransitionCursor(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<TransitionCursorResponse>(RequestType.GetCurrentSceneTransitionCursor).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<TransitionCursorResponse>(RequestType.GetCurrentSceneTransitionCursor, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.TransitionCursor;
         }
 
         /// <summary>
         /// Triggers the current scene transition. Same functionality as the <c>Transition</c> button in studio mode.
         /// </summary>
-        public async Task TriggerStudioModeTransition()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task TriggerStudioModeTransition(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.TriggerStudioModeTransition).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.TriggerStudioModeTransition, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -105,12 +116,13 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="position">New position. Restrictions: &gt;= 0.0, &lt;= 1.0.</param>
         /// <param name="release">Whether to release the TBar. Only set <c>false</c> if you know that you will be sending another position update. If omitted: <c>true</c>.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>**Very important note**: This will be deprecated and replaced in a future version of obs-websocket.</para>
         /// </remarks>
-        public async Task SetTBarPosition(float position, bool? release = null)
+        public async Task SetTBarPosition(float position, bool? release = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetTBarPosition, SetTBarPositionRequestData.Create(position, release)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetTBarPosition, SetTBarPositionRequestData.Create(position, release), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

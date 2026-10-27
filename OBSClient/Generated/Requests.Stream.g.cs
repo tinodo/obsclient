@@ -20,45 +20,50 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets the status of the stream output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="OutputStatusResponse"/> with the response data.</returns>
-        public async Task<OutputStatusResponse> GetStreamStatus()
+        public async Task<OutputStatusResponse> GetStreamStatus(CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<OutputStatusResponse>(RequestType.GetStreamStatus).ConfigureAwait(false);
+            return await this.SendRequestAsync<OutputStatusResponse>(RequestType.GetStreamStatus, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Toggles the status of the stream output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>New state of the stream output.</returns>
-        public async Task<bool> ToggleStream()
+        public async Task<bool> ToggleStream(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleStream).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleStream, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Starts the stream output.
         /// </summary>
-        public async Task StartStream()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StartStream(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StartStream).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StartStream, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the stream output.
         /// </summary>
-        public async Task StopStream()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StopStream(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StopStream).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StopStream, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Sends CEA-608 caption text over the stream output.
         /// </summary>
         /// <param name="captionText">Caption text.</param>
-        public async Task SendStreamCaption(string captionText)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SendStreamCaption(string captionText, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SendStreamCaption, SendStreamCaptionRequestData.Create(captionText)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SendStreamCaption, SendStreamCaptionRequestData.Create(captionText), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

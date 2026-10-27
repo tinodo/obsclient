@@ -378,6 +378,13 @@ REQUEST_USINGS = (
 
 MAX_SIGNATURE = 150
 
+# The last parameter of every method of ObsClient that sends a request, and what its documentation says.
+CANCELLATION_PARAMETER = "CancellationToken cancellationToken = default"
+CANCELLATION_DOCUMENTATION = (
+    'A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. '
+    "A request that was already sent is not undone: OBS Studio may still carry it out."
+)
+
 
 def paragraphs(text: str) -> list[str]:
     return [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
@@ -426,6 +433,7 @@ def request_docs(source: Source, request: pm.Request, params: list[pm.Param], re
     for p in params:
         source.add(2, f'/// <param name="{p.name}">{param_text(p)}</param>')
     if not batch:
+        source.add(2, f'/// <param name="cancellationToken">{CANCELLATION_DOCUMENTATION}</param>')
         if ret.kind == "field":
             text = xml(sentence(ret.field.description)) if ret.field.description else f"The value of <c>{ret.field.name}</c>."
             source.add(2, f"/// <returns>{text}</returns>")
@@ -438,9 +446,9 @@ def request_docs(source: Source, request: pm.Request, params: list[pm.Param], re
         source.add(2, "/// </remarks>")
 
 
-def declaration(prefix: str, params: list[pm.Param], depth: int) -> list[str]:
-    """The signature of a method, on one line when it fits."""
-    parts = [f"{p.type.text} {p.name}" + (" = null" if p.has_default else "") for p in params]
+def declaration(prefix: str, params: list[pm.Param], depth: int, last: tuple[str, ...] = ()) -> list[str]:
+    """The signature of a method, on one line when it fits. `last` are parameters that follow the ones of the request."""
+    parts = [f"{p.type.text} {p.name}" + (" = null" if p.has_default else "") for p in params] + list(last)
     line = f"{prefix}({', '.join(parts)})"
     if len(line) + 4 * depth <= MAX_SIGNATURE:
         return [line]
@@ -461,11 +469,11 @@ def emit_request_methods(source: Source, model: Model, requests: list[pm.Request
             source.add()
         request_docs(source, request, params, ret, batch=False)
         task = "Task" if ret.kind == "none" else f"Task<{ret.type}>"
-        lines = declaration(f"public async {task} {request.name}", params, 2)
+        lines = declaration(f"public async {task} {request.name}", params, 2, (CANCELLATION_PARAMETER,))
         for line in lines:
             source.add(2, line)
         source.add(2, "{")
-        arguments = f"RequestType.{request.name}" + (f", {payload}" if payload else "")
+        arguments = f"RequestType.{request.name}" + (f", {payload}" if payload else "") + ", cancellationToken: cancellationToken"
         if ret.kind == "none":
             source.add(3, f"await this.SendRequestAsync({arguments}).ConfigureAwait(false);")
         elif ret.kind == "dto":

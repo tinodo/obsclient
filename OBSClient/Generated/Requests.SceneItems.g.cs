@@ -22,13 +22,14 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The scene to get the items of, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of scene items in the scene.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
         /// </remarks>
-        public async Task<SceneItem[]> GetSceneItemList(SceneRef scene, Guid? canvasUuid = null)
+        public async Task<SceneItem[]> GetSceneItemList(SceneRef scene, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemsResponse>(RequestType.GetSceneItemList, GetSceneItemListRequestData.Create(scene, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemsResponse>(RequestType.GetSceneItemList, GetSceneItemListRequestData.Create(scene, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItems;
         }
 
@@ -37,14 +38,15 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="scene">The group to get the items of, by name or by UUID.</param>
         /// <param name="canvasUuid">UUID of the canvas the group is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of scene items in the group.</returns>
         /// <remarks>
         /// <para>Using groups at all in OBS is discouraged, as they are very broken under the hood. Please use nested scenes instead.</para>
         /// <para>Groups only.</para>
         /// </remarks>
-        public async Task<SceneItem[]> GetGroupSceneItemList(SceneRef scene, Guid? canvasUuid = null)
+        public async Task<SceneItem[]> GetGroupSceneItemList(SceneRef scene, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemsResponse>(RequestType.GetGroupSceneItemList, GetGroupSceneItemListRequestData.Create(scene, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemsResponse>(RequestType.GetGroupSceneItemList, GetGroupSceneItemListRequestData.Create(scene, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItems;
         }
 
@@ -55,13 +57,19 @@ namespace OBSStudioClient
         /// <param name="sourceName">Name of the source to find.</param>
         /// <param name="searchOffset">Number of matches to skip during search. &gt;= 0 means first forward. -1 means last (top) item. Restrictions: &gt;= -1. If omitted: 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene or group is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Numeric ID of the scene item.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<int> GetSceneItemId(SceneRef scene, string sourceName, int? searchOffset = null, Guid? canvasUuid = null)
+        public async Task<int> GetSceneItemId(
+            SceneRef scene,
+            string sourceName,
+            int? searchOffset = null,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.GetSceneItemId, GetSceneItemIdRequestData.Create(scene, sourceName, searchOffset, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.GetSceneItemId, GetSceneItemIdRequestData.Create(scene, sourceName, searchOffset, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemId;
         }
 
@@ -71,13 +79,18 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="SceneItemSourceResponse"/> with the response data.</returns>
         /// <remarks>
         /// <para>Introduced in obs-websocket 5.4.0.</para>
         /// </remarks>
-        public async Task<SceneItemSourceResponse> GetSceneItemSource(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<SceneItemSourceResponse> GetSceneItemSource(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<SceneItemSourceResponse>(RequestType.GetSceneItemSource, GetSceneItemSourceRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            return await this.SendRequestAsync<SceneItemSourceResponse>(RequestType.GetSceneItemSource, GetSceneItemSourceRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -87,13 +100,19 @@ namespace OBSStudioClient
         /// <param name="source">The source to add to the scene, by name or by UUID.</param>
         /// <param name="sceneItemEnabled">Enable state to apply to the scene item on creation. If omitted: True.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Numeric ID of the scene item.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
         /// </remarks>
-        public async Task<int> CreateSceneItem(SceneRef scene, SourceRef source, bool? sceneItemEnabled = null, Guid? canvasUuid = null)
+        public async Task<int> CreateSceneItem(
+            SceneRef scene,
+            SourceRef source,
+            bool? sceneItemEnabled = null,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.CreateSceneItem, CreateSceneItemRequestData.Create(scene, source, sceneItemEnabled, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.CreateSceneItem, CreateSceneItemRequestData.Create(scene, source, sceneItemEnabled, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemId;
         }
 
@@ -103,12 +122,13 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Scenes only.</para>
         /// </remarks>
-        public async Task RemoveSceneItem(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task RemoveSceneItem(SceneRef scene, int sceneItemId, Guid? canvasUuid = null, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.RemoveSceneItem, RemoveSceneItemRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.RemoveSceneItem, RemoveSceneItemRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -118,13 +138,19 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="destinationScene">The scene to create the duplicated item in, by name or by UUID. If omitted: From scene is assumed.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Numeric ID of the duplicated scene item.</returns>
         /// <remarks>
         /// <para>Scenes only.</para>
         /// </remarks>
-        public async Task<int> DuplicateSceneItem(SceneRef scene, int sceneItemId, SceneRef? destinationScene = null, Guid? canvasUuid = null)
+        public async Task<int> DuplicateSceneItem(
+            SceneRef scene,
+            int sceneItemId,
+            SceneRef? destinationScene = null,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.DuplicateSceneItem, DuplicateSceneItemRequestData.Create(scene, sceneItemId, destinationScene, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemIdResponse>(RequestType.DuplicateSceneItem, DuplicateSceneItemRequestData.Create(scene, sceneItemId, destinationScene, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemId;
         }
 
@@ -134,13 +160,18 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Object containing scene item transform info.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<SceneItemTransform> GetSceneItemTransform(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<SceneItemTransform> GetSceneItemTransform(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemTransformResponse>(RequestType.GetSceneItemTransform, GetSceneItemTransformRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemTransformResponse>(RequestType.GetSceneItemTransform, GetSceneItemTransformRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemTransform;
         }
 
@@ -151,9 +182,15 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemTransform">Object containing scene item transform info to update.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
-        public async Task SetSceneItemTransform(SceneRef scene, int sceneItemId, SceneItemTransformUpdate sceneItemTransform, Guid? canvasUuid = null)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetSceneItemTransform(
+            SceneRef scene,
+            int sceneItemId,
+            SceneItemTransformUpdate sceneItemTransform,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneItemTransform, SetSceneItemTransformRequestData.Create(scene, sceneItemId, sceneItemTransform, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneItemTransform, SetSceneItemTransformRequestData.Create(scene, sceneItemId, sceneItemTransform, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -162,13 +199,18 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the scene item is enabled. <c>true</c> for enabled, <c>false</c> for disabled.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<bool> GetSceneItemEnabled(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<bool> GetSceneItemEnabled(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemEnabledResponse>(RequestType.GetSceneItemEnabled, GetSceneItemEnabledRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemEnabledResponse>(RequestType.GetSceneItemEnabled, GetSceneItemEnabledRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemEnabled;
         }
 
@@ -179,12 +221,18 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemEnabled">New enable state of the scene item.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task SetSceneItemEnabled(SceneRef scene, int sceneItemId, bool sceneItemEnabled, Guid? canvasUuid = null)
+        public async Task SetSceneItemEnabled(
+            SceneRef scene,
+            int sceneItemId,
+            bool sceneItemEnabled,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneItemEnabled, SetSceneItemEnabledRequestData.Create(scene, sceneItemId, sceneItemEnabled, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneItemEnabled, SetSceneItemEnabledRequestData.Create(scene, sceneItemId, sceneItemEnabled, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -193,13 +241,18 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the scene item is locked. <c>true</c> for locked, <c>false</c> for unlocked.</returns>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<bool> GetSceneItemLocked(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<bool> GetSceneItemLocked(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemlockedResponse>(RequestType.GetSceneItemLocked, GetSceneItemLockedRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemlockedResponse>(RequestType.GetSceneItemLocked, GetSceneItemLockedRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemLocked;
         }
 
@@ -210,12 +263,18 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemLocked">New lock state of the scene item.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Scenes and Group.</para>
         /// </remarks>
-        public async Task SetSceneItemLocked(SceneRef scene, int sceneItemId, bool sceneItemLocked, Guid? canvasUuid = null)
+        public async Task SetSceneItemLocked(
+            SceneRef scene,
+            int sceneItemId,
+            bool sceneItemLocked,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneItemLocked, SetSceneItemLockedRequestData.Create(scene, sceneItemId, sceneItemLocked, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneItemLocked, SetSceneItemLockedRequestData.Create(scene, sceneItemId, sceneItemLocked, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -224,14 +283,19 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Index position of the scene item.</returns>
         /// <remarks>
         /// <para>An index of 0 is at the bottom of the source list in the UI.</para>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<int> GetSceneItemIndex(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<int> GetSceneItemIndex(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemIndexResponse>(RequestType.GetSceneItemIndex, GetSceneItemIndexRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemIndexResponse>(RequestType.GetSceneItemIndex, GetSceneItemIndexRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemIndex;
         }
 
@@ -242,12 +306,18 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemIndex">New index position of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task SetSceneItemIndex(SceneRef scene, int sceneItemId, int sceneItemIndex, Guid? canvasUuid = null)
+        public async Task SetSceneItemIndex(
+            SceneRef scene,
+            int sceneItemId,
+            int sceneItemIndex,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneItemIndex, SetSceneItemIndexRequestData.Create(scene, sceneItemId, sceneItemIndex, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneItemIndex, SetSceneItemIndexRequestData.Create(scene, sceneItemId, sceneItemIndex, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -256,15 +326,20 @@ namespace OBSStudioClient
         /// <param name="scene">The scene the item is in, by name or by UUID.</param>
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Current blend mode.</returns>
         /// <remarks>
         /// <para>Blend modes:.</para>
         /// <para>- <c>OBS_BLEND_NORMAL</c> - <c>OBS_BLEND_ADDITIVE</c> - <c>OBS_BLEND_SUBTRACT</c> - <c>OBS_BLEND_SCREEN</c> - <c>OBS_BLEND_MULTIPLY</c> - <c>OBS_BLEND_LIGHTEN</c> - <c>OBS_BLEND_DARKEN</c>.</para>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task<BlendMode> GetSceneItemBlendMode(SceneRef scene, int sceneItemId, Guid? canvasUuid = null)
+        public async Task<BlendMode> GetSceneItemBlendMode(
+            SceneRef scene,
+            int sceneItemId,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SceneItemBlendModeResponse>(RequestType.GetSceneItemBlendMode, GetSceneItemBlendModeRequestData.Create(scene, sceneItemId, canvasUuid)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SceneItemBlendModeResponse>(RequestType.GetSceneItemBlendMode, GetSceneItemBlendModeRequestData.Create(scene, sceneItemId, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SceneItemBlendMode;
         }
 
@@ -275,12 +350,18 @@ namespace OBSStudioClient
         /// <param name="sceneItemId">Numeric ID of the scene item. Restrictions: &gt;= 0.</param>
         /// <param name="sceneItemBlendMode">New blend mode.</param>
         /// <param name="canvasUuid">UUID of the canvas the scene is in, if the scene is given by name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <remarks>
         /// <para>Scenes and Groups.</para>
         /// </remarks>
-        public async Task SetSceneItemBlendMode(SceneRef scene, int sceneItemId, BlendMode sceneItemBlendMode, Guid? canvasUuid = null)
+        public async Task SetSceneItemBlendMode(
+            SceneRef scene,
+            int sceneItemId,
+            BlendMode sceneItemBlendMode,
+            Guid? canvasUuid = null,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetSceneItemBlendMode, SetSceneItemBlendModeRequestData.Create(scene, sceneItemId, sceneItemBlendMode, canvasUuid)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetSceneItemBlendMode, SetSceneItemBlendModeRequestData.Create(scene, sceneItemId, sceneItemBlendMode, canvasUuid), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

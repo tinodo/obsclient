@@ -20,100 +20,111 @@ namespace OBSStudioClient
         /// <summary>
         /// Gets the status of the virtualcam output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is active.</returns>
-        public async Task<bool> GetVirtualCamStatus()
+        public async Task<bool> GetVirtualCamStatus(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.GetVirtualCamStatus).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.GetVirtualCamStatus, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Toggles the state of the virtualcam output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is active.</returns>
-        public async Task<bool> ToggleVirtualCam()
+        public async Task<bool> ToggleVirtualCam(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleVirtualCam).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleVirtualCam, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Starts the virtualcam output.
         /// </summary>
-        public async Task StartVirtualCam()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StartVirtualCam(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StartVirtualCam).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StartVirtualCam, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the virtualcam output.
         /// </summary>
-        public async Task StopVirtualCam()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StopVirtualCam(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StopVirtualCam).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StopVirtualCam, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the status of the replay buffer output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is active.</returns>
-        public async Task<bool> GetReplayBufferStatus()
+        public async Task<bool> GetReplayBufferStatus(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.GetReplayBufferStatus).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.GetReplayBufferStatus, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Toggles the state of the replay buffer output.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is active.</returns>
-        public async Task<bool> ToggleReplayBuffer()
+        public async Task<bool> ToggleReplayBuffer(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleReplayBuffer).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleReplayBuffer, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
         /// <summary>
         /// Starts the replay buffer output.
         /// </summary>
-        public async Task StartReplayBuffer()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StartReplayBuffer(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StartReplayBuffer).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StartReplayBuffer, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the replay buffer output.
         /// </summary>
-        public async Task StopReplayBuffer()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StopReplayBuffer(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StopReplayBuffer).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StopReplayBuffer, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Saves the contents of the replay buffer output.
         /// </summary>
-        public async Task SaveReplayBuffer()
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SaveReplayBuffer(CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SaveReplayBuffer).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SaveReplayBuffer, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the filename of the last replay buffer save file.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>File path.</returns>
-        public async Task<string> GetLastReplayBufferReplay()
+        public async Task<string> GetLastReplayBufferReplay(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<SavedReplayPathResponse>(RequestType.GetLastReplayBufferReplay).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<SavedReplayPathResponse>(RequestType.GetLastReplayBufferReplay, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.SavedReplayPath;
         }
 
         /// <summary>
         /// Gets the list of available outputs.
         /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Array of outputs.</returns>
-        public async Task<Output[]> GetOutputList()
+        public async Task<Output[]> GetOutputList(CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputsResponse>(RequestType.GetOutputList).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputsResponse>(RequestType.GetOutputList, cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.Outputs;
         }
 
@@ -121,20 +132,22 @@ namespace OBSStudioClient
         /// Gets the status of an output.
         /// </summary>
         /// <param name="outputName">Output name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>A <see cref="OutputStatusResponse"/> with the response data.</returns>
-        public async Task<OutputStatusResponse> GetOutputStatus(string outputName)
+        public async Task<OutputStatusResponse> GetOutputStatus(string outputName, CancellationToken cancellationToken = default)
         {
-            return await this.SendRequestAsync<OutputStatusResponse>(RequestType.GetOutputStatus, GetOutputStatusRequestData.Create(outputName)).ConfigureAwait(false);
+            return await this.SendRequestAsync<OutputStatusResponse>(RequestType.GetOutputStatus, GetOutputStatusRequestData.Create(outputName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Toggles the status of an output.
         /// </summary>
         /// <param name="outputName">Output name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Whether the output is active.</returns>
-        public async Task<bool> ToggleOutput(string outputName)
+        public async Task<bool> ToggleOutput(string outputName, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleOutput, ToggleOutputRequestData.Create(outputName)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputActiveResponse>(RequestType.ToggleOutput, ToggleOutputRequestData.Create(outputName), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputActive;
         }
 
@@ -142,28 +155,31 @@ namespace OBSStudioClient
         /// Starts an output.
         /// </summary>
         /// <param name="outputName">Output name.</param>
-        public async Task StartOutput(string outputName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StartOutput(string outputName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StartOutput, StartOutputRequestData.Create(outputName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StartOutput, StartOutputRequestData.Create(outputName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops an output.
         /// </summary>
         /// <param name="outputName">Output name.</param>
-        public async Task StopOutput(string outputName)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task StopOutput(string outputName, CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.StopOutput, StopOutputRequestData.Create(outputName)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.StopOutput, StopOutputRequestData.Create(outputName), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the settings of an output.
         /// </summary>
         /// <param name="outputName">Output name.</param>
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
         /// <returns>Output settings.</returns>
-        public async Task<Dictionary<string, object>> GetOutputSettings(string outputName)
+        public async Task<Dictionary<string, object>> GetOutputSettings(string outputName, CancellationToken cancellationToken = default)
         {
-            var response = await this.SendRequestAsync<OutputSettingsResponse>(RequestType.GetOutputSettings, GetOutputSettingsRequestData.Create(outputName)).ConfigureAwait(false);
+            var response = await this.SendRequestAsync<OutputSettingsResponse>(RequestType.GetOutputSettings, GetOutputSettingsRequestData.Create(outputName), cancellationToken: cancellationToken).ConfigureAwait(false);
             return response.OutputSettings;
         }
 
@@ -172,9 +188,13 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="outputName">Output name.</param>
         /// <param name="outputSettings">Output settings.</param>
-        public async Task SetOutputSettings(string outputName, Dictionary<string, object> outputSettings)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task SetOutputSettings(
+            string outputName,
+            Dictionary<string, object> outputSettings,
+            CancellationToken cancellationToken = default)
         {
-            await this.SendRequestAsync(RequestType.SetOutputSettings, SetOutputSettingsRequestData.Create(outputName, outputSettings)).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.SetOutputSettings, SetOutputSettingsRequestData.Create(outputName, outputSettings), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

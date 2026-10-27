@@ -101,6 +101,18 @@ Most code does not notice, but:
 implicitly, so a call compiles unchanged. The update has a nullable member for each part of the transform, and sends only
 what you set, which is what obs-websocket supports. See [Calling requests](requests.md#moving-and-scaling-a-scene-item).
 
+### A `CancellationToken` at the end of every request method
+
+Every request method, `ConnectAsync`, `SendRequestBatchAsync` and `ReidentifyAsync` have a new last parameter,
+`CancellationToken cancellationToken = default`: see [cancelling a request](requests.md#cancelling-a-request). A call compiles unchanged,
+but there are two things to know:
+
+- **Code that was compiled against 3.x or 4.0.0-beta1 has to be recompiled**, because the signature of each of these methods changed.
+  (Everything that was compiled against 3.x had to be recompiled anyway, see above.)
+- **A method group converted to a delegate** no longer converts: `Func<Task<bool>> enabled = client.GetStudioModeEnabled;` does not
+  compile, because a method with an optional parameter does not fit a delegate type without it. Use a lambda:
+  `Func<Task<bool>> enabled = () => client.GetStudioModeEnabled();`.
+
 ### Other signatures
 
 | What | 3.x | 4.0 |
@@ -117,6 +129,7 @@ what you set, which is what obs-websocket supports. See [Calling requests](reque
 | `AddOpenSourceProjectorRequest`, `AddOpenVideoMixProjectorRequest` | Threw an `ArgumentException` for an invalid combination of monitor and geometry | Send what they are given and leave the check to obs-websocket, which answers an error. |
 | `MonitorTypeResponse` | Existed, but no request returned it | Removed (`GetInputAudioMonitorType` returns the `MonitorType`). |
 | The constructors of `RequestMessage` that took a `dynamic` | `protected internal` | Removed. |
+| The package dependency | `Microsoft.Extensions.Logging` 9.0.9 | `Microsoft.Extensions.Logging.Abstractions` 8.0.0, which has the `ILogger` that the client uses. An application that makes its own logger with `LoggerFactory` references `Microsoft.Extensions.Logging` itself; one that gets its logger from dependency injection has it already. |
 
 ## What behaves differently
 

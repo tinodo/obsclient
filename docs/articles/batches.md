@@ -105,3 +105,6 @@ await client.SendRequestBatchAsync(batch, timeOutInMilliseconds: 5000);
 `SendRequestBatchAsync` waits [`RequestTimeout`](xref:OBSStudioClient.ObsClient.RequestTimeout) milliseconds for the answer unless you give
 `timeOutInMilliseconds`. The answer only comes when the whole batch has run, so a batch that sleeps needs a timeout that is longer
 than all its sleeps together, or the call throws a `TimeoutException` (OBS Studio still runs the batch).
+
+`SendRequestBatchAsync` also takes a `CancellationToken`, as the last parameter: cancelling it ends the wait and the call throws an
+`OperationCanceledException`. A batch that was already sent is not undone, so OBS Studio still runs it.

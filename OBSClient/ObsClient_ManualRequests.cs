@@ -12,10 +12,11 @@ namespace OBSStudioClient
         /// </summary>
         /// <param name="keyId">The OBS key ID to use. See https://github.com/obsproject/obs-studio/blob/master/libobs/obs-hotkeys.h</param>
         /// <param name="keyModifier">Key modifiers to apply</param>
-        public async Task TriggerHotkeyByKeySequence(ObsKey? keyId, KeyModifier? keyModifier)
+        /// <param name="cancellationToken">A token that ends the wait for the response, which makes the method throw an <see cref="OperationCanceledException"/>. A request that was already sent is not undone: OBS Studio may still carry it out.</param>
+        public async Task TriggerHotkeyByKeySequence(ObsKey? keyId, KeyModifier? keyModifier, CancellationToken cancellationToken = default)
         {
             KeyModifiers keyModifiers = new(keyModifier);
-            await this.SendRequestAsync(RequestType.TriggerHotkeyByKeySequence, new { keyId, keyModifiers }).ConfigureAwait(false);
+            await this.SendRequestAsync(RequestType.TriggerHotkeyByKeySequence, new { keyId, keyModifiers }, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 }

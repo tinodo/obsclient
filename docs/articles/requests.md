@@ -117,6 +117,7 @@ A `SceneItemTransform` also converts to an update implicitly.
 | [`ObsResponseException`](xref:OBSStudioClient.Exceptions.ObsResponseException) | OBS Studio answered with an error. `ErrorCode` is the [`RequestStatusCode`](xref:OBSStudioClient.Enums.RequestStatusCode) and `ErrorMessage` the comment of OBS Studio. |
 | [`ObsClientException`](xref:OBSStudioClient.Exceptions.ObsClientException) | The client could not complete the request: it is not connected (`Not connected.`), the connection ended while it waited, or the response could not be read. `ObsResponseException` derives from it. |
 | `TimeoutException` | OBS Studio did not answer within `RequestTimeout`. |
+| `OperationCanceledException` | The `CancellationToken` that you passed was cancelled, see [cancelling a request](#cancelling-a-request). |
 | `ArgumentException` | An argument is refused before anything is sent (see above). |
 
 ```csharp
@@ -151,6 +152,34 @@ catch (ObsClientException ex)
   it started. The client then tries again, up to [`MaxRequestRetries`](xref:OBSStudioClient.ObsClient.MaxRequestRetries) times (10 by default),
   [`RequestRetryInterval`](xref:OBSStudioClient.ObsClient.RequestRetryInterval) milliseconds apart (500 by default), before it throws the
   `ObsResponseException`. Each attempt has its own timeout.
+
+## Cancelling a request
+
+Every request method takes a `CancellationToken` as its last parameter, and so do `SendRequestBatchAsync`, `ReidentifyAsync` and
+[`ConnectAsync`](connecting.md#cancelling-a-connection-attempt). Cancelling it ends the wait for the response, and the method throws an
+`OperationCanceledException`:
+
+```csharp
+using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+try
+{
+    SceneListResponse scenes = await client.GetSceneList(cancellationToken: cancellation.Token);
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Stopped waiting.");
+}
+```
+
+- A token that is cancelled before the call stops it before anything is sent.
+- A request that was already sent is **not undone**: OBS Studio may still carry it out. When its answer arrives, it is ignored, and the
+  connection stays usable.
+- The call ends when the token is cancelled even if OBS Studio is not reading what you send. A message that is being written cannot be
+  cancelled without breaking the connection, so it is written to the end in the background, and the requests that follow wait for their
+  turn behind it. A message that was still waiting for its turn is not sent at all.
+- The timeout is a different thing: a request that runs out of `RequestTimeout` throws a `TimeoutException`, whatever the token is.
+- The wait between the retries of a request that OBS Studio is not ready for ends when the token is cancelled, too.
 
 ## Requests of other programs and your own events
 

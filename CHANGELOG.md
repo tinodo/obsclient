@@ -53,11 +53,23 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   is what `GetCurrentSceneTransition` returns; neither is a settings object, so there was no way to give a new input
   any settings (such as the URL of a browser source) or to change the settings of the current transition. Passing
   `null` to `CreateInput` still works.
+- **Every request method takes a `CancellationToken`** *(after beta1)* as its last parameter, with a default (`GetSceneList(Guid? canvasUuid = null,
+  CancellationToken cancellationToken = default)`), and so do `ConnectAsync`, `SendRequestBatchAsync` and `ReidentifyAsync` (see
+  *Added*). The builders of `RequestBatchMessage` have none: they only collect requests. A call compiles unchanged, but the signature
+  of each of these methods changed, so code that was compiled against 3.x or 4.0.0-beta1 has to be recompiled (against 3.x it had to
+  be anyway, see above), and a method group that is converted to a delegate type (`Func<Task<bool>> f = client.GetStudioModeEnabled;`)
+  no longer converts, because a method with an optional parameter does not fit a delegate type without it: use a lambda.
 - `RequestBatchMessage.AddOpenSourceProjectorRequest` and `AddOpenVideoMixProjectorRequest` send the `monitorIndex` and
   `projectorGeometry` they are given and leave the check of the combination to obs-websocket, which answers a monitor
   index of 0 or more together with a geometry with an error. They used to throw an `ArgumentException` first, and the
   former defaulted `monitorIndex` to `-1`; leaving it out has the same effect now, because that is obs-websocket's default.
 - `MonitorTypeResponse` was removed: no request returned it (`GetInputAudioMonitorType` returns the `MonitorType`).
+- **The dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0** *(after beta1)*, where it was `Microsoft.Extensions.Logging` 9.0.9. The client
+  only uses the `ILogger<ObsClient>` interface (and `NullLogger`), which the abstractions have, so an application no longer gets the
+  whole logging system with it, and one that stays on the 8.x packages of `Microsoft.Extensions` does not have to move to 9.0.9 (it could
+  not restore: package downgrade, NU1605). An application that makes its own logger with `LoggerFactory` has to reference
+  `Microsoft.Extensions.Logging` itself, as it does for `AddConsole` (`Microsoft.Extensions.Logging.Console` brings it along); one that
+  gets its logger from dependency injection (a generic host, ASP.NET Core) has it already.
 - The constructors of `RequestMessage` that derived the request type from the name of the calling method (`[CallerMemberName]`)
   and took a `dynamic` are gone. They were `protected internal`, so only a class that derived from `RequestMessage` could
   use them from outside the assembly.
@@ -124,6 +136,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   bounds, alignment) without having to send the others, which is what obs-websocket supports. `SceneItemTransform.ToUpdate()`
   turns what was read into a change that can be adjusted with a `with` expression:
   `await client.SetSceneItemTransform("Scene", id, current.ToUpdate() with { ScaleX = 2, ScaleY = 2 });`
+- **Cancelling** *(after beta1)*: the `CancellationToken` of a request ends the wait for the response with an `OperationCanceledException`
+  and leaves the connection usable. A request that was already sent is not undone, and its answer is ignored when it arrives; a token
+  that is cancelled before the call stops it before anything is sent. A request that runs out of time still throws a
+  `TimeoutException`, and the call ends with its token or its timeout even when OBS Studio does not read a large request: the write goes
+  on in the background and keeps its turn, and a message that still waits for its turn is not sent. The token also ends the wait between
+  the retries of a request that OBS Studio is not ready for. Cancelling
+  `ConnectAsync` ends the attempt as `Disconnect()` does (it closes the connection that is being opened and switches `AutoReconnect`
+  off, for that attempt only: a connection that a handler started in its place keeps its settings) and throws an
+  `OperationCanceledException`, where a failed attempt returns `false`. A `ReidentifyAsync` that was cancelled, or that failed, leaves
+  the events that a reconnect subscribes to as they were: they are remembered when the message has been written.
 - `net10.0` as an additional target framework, next to `net8.0`.
 - **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
   event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch
