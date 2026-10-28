@@ -245,7 +245,7 @@ listed, and a failure to push them is a warning, not a failed release.
 ### When it fails
 
 Re-run the **failed jobs** in the Actions tab (not *all jobs*, and not a new run for the tag): they use the commit and the artifacts of
-that run, so what is finished is what was built. Never delete and re-tag once something was published; the one case in which a tag
+that run (kept for 90 days), so what is finished is what was built. Never delete and re-tag once something was published; the one case in which a tag
 may be moved is in the table (the first job refuses the version, so nothing was published).
 
 | Symptom | Cause |

@@ -250,7 +250,8 @@ jobs:
           name: test-app
           path: ./artifacts/*.zip
           if-no-files-found: error
-          retention-days: 30
+          # As long as the package: a release that failed is finished by re-running its failed jobs, which need all three artifacts.
+          retention-days: 90
 
   prepare-release:
     name: Prepare the release
@@ -296,7 +297,7 @@ jobs:
           name: release-notes
           path: release-notes.md
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
   # Only for a dry run: proves that the release can be made (the notes, and the upload of the two files), with a draft that has
   # nothing to do with the tag, and that is deleted again, whatever happens.
