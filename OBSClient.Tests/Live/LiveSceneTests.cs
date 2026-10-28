@@ -18,6 +18,9 @@ namespace OBSStudioClient.Tests.Live
     {
         private static readonly EventSubscriptions WithTransforms = EventSubscriptions.All | EventSubscriptions.SceneItemTransformChanged;
 
+        // How long the list of scenes, or of inputs, of OBS Studio may take to follow the announcement of a removal.
+        private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(5);
+
         [LiveChangesFact]
         public async Task ASceneWithAnInput_CanBeCreatedChangedRenamedSwitchedToAndRemoved_AndEveryEventIsRaisedAsObsStudioSentIt()
         {
@@ -163,24 +166,19 @@ namespace OBSStudioClient.Tests.Live
                 var removedUuid = sceneUuid;
                 sceneUuid = null;
                 await session.WaitForEventAsync<SceneModifiedEventArgs>("SceneRemoved", e => e.SceneUuid == removedUuid);
-                Assert.DoesNotContain((await client.GetSceneList()).Scenes, s => s.SceneUuid == removedUuid);
+
+                // OBS Studio announces the removal of a scene a moment before its own list has let go of it (in the same way as it announces
+                // a scene before its list has it), so SceneRemoved is what to go by, and the list has to follow.
+                var (sceneListedAtOnce, sceneGoneAfter) = await WaitUntilNotListedAsync(async () => (await client.GetSceneList()).Scenes.Any(s => s.SceneUuid == removedUuid), ListTimeout);
+                output.WriteLine($"Right after SceneRemoved the scene was {(sceneListedAtOnce ? "still" : "no longer")} listed{(sceneListedAtOnce && sceneGoneAfter is { } later ? $"; it was gone {later.TotalMilliseconds:N0} ms later" : string.Empty)}.");
+                Assert.True(sceneGoneAfter is not null, "The scene that was removed is still in the list of scenes 5 seconds after OBS Studio announced that it was removed.");
 
                 // OBS Studio announces the removal of an input before the scenes that hold it have let go of it (a scene that is not on
                 // an output only does so when it is removed itself), so the input can still be in the list for a while: InputRemoved is
                 // what to go by. It is gone from the list once the scene that held it is.
-                var stopwatch = Stopwatch.StartNew();
-                var listed = true;
-                while (listed && stopwatch.Elapsed < TimeSpan.FromSeconds(5))
-                {
-                    listed = (await client.GetInputList()).Any(candidate => candidate.InputName == inputName);
-                    if (listed)
-                    {
-                        await Task.Delay(50);
-                    }
-                }
-
-                output.WriteLine($"Right after InputRemoved the input was {(listedAtOnce ? "still" : "no longer")} listed; {(listed ? "after 5 seconds it still was" : $"it was gone {stopwatch.Elapsed.TotalMilliseconds:N0} ms after its scene was removed")}.");
-                Assert.False(listed, "The input that was removed is still in the list of inputs 5 seconds after the scene that held it was removed.");
+                var (_, inputGoneAfter) = await WaitUntilNotListedAsync(async () => (await client.GetInputList()).Any(candidate => candidate.InputName == inputName), ListTimeout);
+                output.WriteLine($"Right after InputRemoved the input was {(listedAtOnce ? "still" : "no longer")} listed; {(inputGoneAfter is { } gone ? $"it was gone {gone.TotalMilliseconds:N0} ms after its scene was removed" : "after 5 seconds it still was")}.");
+                Assert.True(inputGoneAfter is not null, "The input that was removed is still in the list of inputs 5 seconds after the scene that held it was removed.");
 
                 output.WriteLine(session.DescribeEvents());
                 ConformanceAssert.NoProblems(
@@ -195,6 +193,22 @@ namespace OBSStudioClient.Tests.Live
 
         // What the settings of an input hold is not typed: a number is a JSON number, however the client gives it.
         private static long AsLong(object value) => JsonSerializer.SerializeToElement(value).GetInt64();
+
+        // Asks again until the answer is no, for at most the time that is given: what OBS Studio lists follows what it announces. It tells
+        // whether the first answer was yes, and how long it took until it was no (nothing when it was still yes at the end).
+        private static async Task<(bool ListedAtOnce, TimeSpan? GoneAfter)> WaitUntilNotListedAsync(Func<Task<bool>> isListed, TimeSpan timeout)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var listedAtOnce = await isListed();
+            var listed = listedAtOnce;
+            while (listed && stopwatch.Elapsed < timeout)
+            {
+                await Task.Delay(50);
+                listed = await isListed();
+            }
+
+            return (listedAtOnce, listed ? null : stopwatch.Elapsed);
+        }
 
         // Best effort, each step on its own: what fails here must not hide why the test failed, nor keep the other steps from running.
         private static async Task RestoreAsync(ObsClient client, Guid programScene, string? input, Guid? scene)

@@ -132,6 +132,8 @@ obs-websocket 5.7.4 (on Linux), which are worth knowing:
   change in the live tests.
 - **`SceneCreated` can arrive before the scene is in the list that `GetSceneList` returns**: OBS Studio announces a scene a moment before its
   own list has it. Use the data of the event, and not a request that you send because of it, to learn what was created.
+- **`SceneRemoved` can arrive while `GetSceneList` still lists the scene**, for a moment: OBS Studio announces the removal of a scene a moment
+  before its own list has let go of it (in the same way as it announces a scene before its list has it). Go by the event.
 - **`InputRemoved` can arrive while `GetInputList` still lists the input**, and it can stay in the list for a long time: in the tests an
   input of a scene that was not on an output was still listed 5 seconds later, and left the list when that scene was removed. Go by the event.
 - **`SceneItemRemoved` is sent when an item is removed from a scene** (`RemoveSceneItem`), and not when the scene is removed (the

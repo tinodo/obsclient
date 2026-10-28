@@ -197,7 +197,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   take a scene with an input through its life and check that every event is raised as OBS Studio sent it, and try a wrong password, a handler
   that waits for a response, a cancelled batch, a failing batch and `Reidentify`. They are skipped unless `OBS_LIVE_PORT` is set (see
   CONTRIBUTING). What they found about OBS Studio itself is in the guides: OBS Studio 32.2.0 and 33.0.0 send `SceneCreated` twice for every
-  scene, and the interface thread of OBS Studio can be away for seconds, so that a request times out and is carried out later all the same.
+  scene, a scene or an input that was removed can still be in the list of OBS Studio when its event arrives, and the interface thread of
+  OBS Studio can be away for seconds, so that a request times out and is carried out later all the same.
   The one difference that the comparison of values found is on purpose, and is documented now: OBS Studio sends `null` as the
   `transitionSettings` of a transition that cannot be configured, and `TransitionResponse.TransitionSettings` is an empty dictionary then.
 
