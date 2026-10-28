@@ -9,10 +9,6 @@ namespace OBSStudioClient.Tests.Live
     /// </summary>
     internal static class JsonValues
     {
-        // The client holds a number that OBS Studio sends as a double in a float, which is what the protocol says it is: the values
-        // are the same when they are the same to the precision of a float (about seven digits).
-        private const double RelativeTolerance = 1e-6;
-
         /// <summary>Finds where what the client gives back differs in value from what OBS Studio sent.</summary>
         /// <param name="sent">What OBS Studio sent.</param>
         /// <param name="returned">What the client gives back, as JSON. A member that OBS Studio sent and that is not here is not reported: the shape comparison does that.</param>
@@ -80,7 +76,7 @@ namespace OBSStudioClient.Tests.Live
                     break;
 
                 case JsonValueKind.Number:
-                    if (returned.ValueKind != JsonValueKind.Number || !SameNumber(sent.GetDouble(), returned.GetDouble()))
+                    if (returned.ValueKind != JsonValueKind.Number || !SameNumber(sent, returned))
                     {
                         found.Add($"{path}: OBS Studio sent {sent.GetRawText()}, the client gave {Describe(returned)}");
                     }
@@ -113,8 +109,21 @@ namespace OBSStudioClient.Tests.Live
             _ => false,
         };
 
-        private static bool SameNumber(double sent, double returned) =>
-            Math.Abs(sent - returned) <= RelativeTolerance * Math.Max(1.0, Math.Max(Math.Abs(sent), Math.Abs(returned)));
+        // What OBS Studio sent decides how exact the number has to be. A number that it sent as an integer (a counter, an id, a size, an index)
+        // must come back as exactly that integer: next to the one that it sent is another number, and a rounding allowance would hide a counter that is
+        // off by one. A number that it sent as a floating point value (a position, a volume, a percentage) is a double that the client may hold in a
+        // float, which is what the protocol says it is, so it is the same when it is the same float: the allowance is what a float cannot hold.
+        private static bool SameNumber(JsonElement sent, JsonElement returned)
+        {
+            if (IsInteger(sent))
+            {
+                return sent.TryGetDecimal(out var exact) && returned.TryGetDecimal(out var other) && exact == other;
+            }
+
+            return (float)sent.GetDouble() == (float)returned.GetDouble();
+        }
+
+        private static bool IsInteger(JsonElement number) => number.GetRawText().AsSpan().IndexOfAny('.', 'e', 'E') < 0;
 
         // Never the content of a string: the settings of a stream hold a key, and a failure of a test ends up in logs that are shared.
         private static string Describe(JsonElement element) => element.ValueKind switch

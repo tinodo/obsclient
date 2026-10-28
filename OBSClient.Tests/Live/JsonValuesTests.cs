@@ -81,6 +81,43 @@ namespace OBSStudioClient.Tests.Live
         }
 
         [Fact]
+        public void AdjacentCounters_AreNotTheSame_WhenOBSStudioSentThemAsIntegers()
+        {
+            // 1000000, 1000001 and 16777217 are exactly what a float or a rounding allowance cannot tell apart, or can: an integer is exact.
+            var differences = Differences(
+                """{"renderTotalFrames":1000000,"outputTotalFrames":16777216,"sceneItemId":7}""",
+                """{"renderTotalFrames":1000001,"outputTotalFrames":16777217,"sceneItemId":8}""");
+
+            Assert.Equal(["$.renderTotalFrames", "$.outputTotalFrames", "$.sceneItemId"], differences.Select(difference => difference[..difference.IndexOf(':')]));
+        }
+
+        [Fact]
+        public void AnIntegerThatLostItsPrecision_IsFound_ButTheSameIntegerWrittenAnotherWay_IsNot()
+        {
+            var lost = Differences("""{"bytes":123456789}""", """{"bytes":123456792}""");
+            var written = Differences("""{"bytes":5,"frames":1000000}""", """{"bytes":5.0,"frames":1E+6}""");
+
+            Assert.Single(lost);
+            Assert.Empty(written);
+        }
+
+        [Fact]
+        public void AFloatingPointValue_IsTheSameWhenItIsTheSameFloat_AndNotWhenItIsAnotherOne_AlsoWhenItIsSmall()
+        {
+            Assert.Empty(Differences("""{"scale":0.20000000298023224}""", """{"scale":0.2}"""));
+            Assert.Single(Differences("""{"scale":0.2}""", """{"scale":0.2000001}"""));
+            Assert.Single(Differences("""{"volume":0.000002}""", """{"volume":0.000001}"""));
+        }
+
+        [Fact]
+        public void ANumberThatBecameAnotherKindOfValue_IsFound()
+        {
+            var differences = Differences("""{"count":3,"ratio":0.5}""", """{"count":"3","ratio":null}""");
+
+            Assert.Equal(["$.count", "$.ratio"], differences.Select(difference => difference[..difference.IndexOf(':')]));
+        }
+
+        [Fact]
         public void ABigNumberThatIsOff_IsFound_AndTheContentOfAStringIsNeverInTheMessage()
         {
             var secret = "stream-key-that-must-not-be-shown";
