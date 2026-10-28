@@ -176,7 +176,7 @@ Dependabot alerts and security updates are on.
 
 These are pull requests like any other: CI builds and tests them, and the Docs workflow builds the site when DocFX is updated. Read the
 release notes of a major update before you merge it, and be careful with the actions of `publish.yml`: a change to that workflow is only
-exercised when a version tag is pushed.
+exercised when a version tag is pushed, or by a dry run (see *Releasing*), so do a dry run after you merge an update of one of its actions.
 
 The one dependency of the library, `Microsoft.Extensions.Logging.Abstractions`, is part of what its users get with it, so it is asked for at
 the oldest version that has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it
@@ -185,8 +185,10 @@ raise it by hand when the library needs something that a newer version has.
 
 ## Releasing (maintainers)
 
-Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It packs **once**, checks that
-the package is a single assembly, and pushes that same `.nupkg` to nuget.org and to GitHub Packages.
+Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It checks the version and the
+changelog, packs **once** (the package, and next to it its symbols), checks that the package is a single assembly, builds the test app
+and writes the notes of the release. Then it waits for your approval, pushes that same `.nupkg` to nuget.org and, once that lists it, to
+GitHub Packages, and creates the GitHub release with the notes, the package and the test app.
 
 **Trusted Publishing, in short.** No NuGet API key is stored anywhere. When the nuget.org job runs, GitHub signs a token that says
 "this is the workflow `publish.yml` of `tinodo/obsclient`, running in the environment `release`". nuget.org checks that against a
@@ -205,33 +207,46 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
 
 ### Each release
 
-1. Bump `<Version>` in `OBSClient/OBSClient.csproj` (and the version in the *Installation* of the README), add the CHANGELOG entry, and merge to `main` with a pull request.
-2. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
-3. Open the run in the Actions tab. The *Pack* job checks the tag, builds, packs and uploads the package as the artifact
-   `nuget-package`; download it if you want to look at it. The *Publish to NuGet.org* job then waits for you: **Review
-   deployments**, **Approve and deploy**. GitHub Packages does not wait.
-4. nuget.org validates the package before it is listed; the version shows up after a few minutes.
-5. Create the GitHub release. This step is manual. The release is titled with the tag, is a prerelease when the version has a suffix, and has
-   the notes (what is new, what breaks, and the SHA-256 of both assets) and two assets: the package that was published (the artifact
-   `nuget-package` of the Publish run) and the test app as `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the artifact `OBSClient.TestApp-win-x64`
-   of the Build and Test run of the tagged commit on `main`, which is kept for 14 days; the artifact has some 400 files in its root, so zip
-   them again in a folder of that name). Create it as a draft, look at it, and publish it:
+1. Bump `<Version>` in `OBSClient/OBSClient.csproj` (and the version in the *Installation* of the README), write the section of that
+   version in `CHANGELOG.md` and give it its date (`## [4.0.0-beta2] - 2026-11-02`), and merge to `main` with a pull request. That
+   section is the text of the GitHub release: what is new, what breaks, what is fixed. A version without a section that has a date is
+   refused by the first job of the workflow, before anything is built.
+2. Optional, and worth it after a change of the workflow or of one of its actions: a **dry run**. Actions, *Publish Package*, *Run
+   workflow*, pick the branch (or `main`), tick *Dry run*. It does everything up to the approval, for what is on that branch: it checks
+   the version and the changelog, packs, builds the test app, shows the release as it will be made in the summary of the run, and makes a
+   draft release to prove that one can be made (which is deleted again). It publishes nothing and needs no tag.
+3. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
+4. Open the run in the Actions tab. The *Check the version*, *Pack*, *Build the test app* and *Prepare the release* jobs run first (the
+   package and the test app are artifacts of the run; download them if you want to look). The *Publish to NuGet.org* job then waits for
+   you: **Review deployments**, **Approve and deploy**. That one approval is the gate of every channel: GitHub Packages and the release
+   follow once nuget.org lists the version.
+5. The *Publish to NuGet.org* job checks that the tag still points at the commit that was packed, pushes the package, **waits until
+   nuget.org lists the version** (it validates a package first, which takes a few minutes), **checks that the package that nuget.org
+   serves is the one that was packed** (`tools/compare-published.py`: file by file, nuget.org adds only its signature), and then pushes
+   the symbols. *Publish to GitHub Packages* follows. When both are done, the *Create the GitHub release* job makes the release: titled
+   with the tag, a prerelease when the version has a suffix, with the notes, two files, `OBSClient.X.Y.Z.nupkg` (the package that was
+   published) and `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the test app), and the SHA-256 of both in its text. Have a look at it.
 
-   ```shell
-   gh release create vX.Y.Z --draft --prerelease --verify-tag --title vX.Y.Z --notes-file notes.md OBSClient.X.Y.Z.nupkg OBSClient.TestApp-X.Y.Z-win-x64.zip
-   gh release view vX.Y.Z
-   gh release edit vX.Y.Z --draft=false
-   ```
-
-   (`--prerelease` only when the version has a suffix.)
+Only one run for a version is active at a time (the workflow has a concurrency group per tag): a second run for the same tag waits for
+the first to end, and then stops at the first job, because nuget.org lists the version by then. A run that waits for your approval holds
+its turn: cancel it before you start over.
 
 **Prereleases.** A version with a suffix (`4.0.0-beta1`, tag `v4.0.0-beta1`) goes through the same workflow. nuget.org lists it as a
 prerelease, which `dotnet add package OBSClient` and the NuGet UI skip unless they are asked to include prereleases, so what people
 get by default stays the latest stable version. A version cannot be reused: a fixed beta is `4.0.0-beta2`, and the stable release is `4.0.0`.
 
+**Symbols.** Next to the package the workflow builds `OBSClient.X.Y.Z.snupkg`: the debug symbols (PDB) of each target framework, with
+[Source Link](https://learn.microsoft.com/dotnet/standard/library-guidance/sourcelink), so that a debugger can step into the library and
+show the source of the commit that was built. nuget.org serves them from its symbol server (Visual Studio: *Tools, Options, Debugging,
+Symbols*, tick *NuGet.org Symbol Server*). `tools/verify-package.py` makes sure that the symbol package is there, that it holds nothing
+but the PDBs, and that they carry Source Link (and that the package itself has no PDB). The symbols are pushed once the package is
+listed, and a failure to push them is a warning, not a failed release.
+
 ### When it fails
 
-Re-run the failed jobs in the Actions tab; it runs the workflow as it was at the tag. Never delete and re-tag.
+Re-run the **failed jobs** in the Actions tab (not *all jobs*, and not a new run for the tag): they use the commit and the artifacts of
+that run (kept for 90 days), so what is finished is what was built. Never delete and re-tag once something was published; the one case in which a tag
+may be moved is in the table (the first job refuses the version, so nothing was published).
 
 | Symptom | Cause |
 | --- | --- |
@@ -239,7 +254,14 @@ Re-run the failed jobs in the Actions tab; it runs the workflow as it was at the
 | No matching policy | The policy on nuget.org differs from the workflow: owner, repository, file name (`publish.yml`) or environment (`release`) |
 | Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
 | The job never starts | It is waiting for your approval |
-| The pack job refuses the tag | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, or is not on `main` |
+| The first job (*Check the version*) refuses the release | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
+| The first job says that nuget.org lists the version already | A version is never built again: the package that was published can never be replaced, so a new build could not be matched with it (the symbols, the test app and the files of the release would come from another build). To finish a release that failed after the push, re-run the **failed jobs** of its run |
+| *Verify the tag still points at the commit that was packed* fails | The tag was moved while the release waited for your approval. Nothing was published (GitHub Packages and the release wait for nuget.org, so this is the first thing that is checked); release a new version |
+| *Verify the tag still points at the commit that was released* fails (in *Create the GitHub release*) | The tag was moved after the package was published. The release was not made. Move the tag back to the commit that the message names (`git push --force origin <commit>:refs/tags/vX.Y.Z`) and re-run the job, or make the release by hand |
+| *Wait until NuGet.org lists the version* fails | nuget.org did not list the version within 30 minutes: it may have failed its validation (look at the page of the version; you also get an e-mail). Re-run the job when it is fine |
+| *Verify that NuGet.org serves the package that was packed* fails | nuget.org lists this version, but not the package that this run packed: another run, or an earlier attempt for the same version, published first (the push skips a duplicate). The step names the files that differ. Nothing after it ran: no symbols, no GitHub Packages, no release. Find the run that published, and if that package is the wrong one, release a new version (a published version can never be replaced) |
+| A warning that the symbols were not pushed | The package is published. Re-run the *Publish to NuGet.org* job: it skips the package as a duplicate and pushes the symbols |
+| *Create the GitHub release* fails | Re-run it. It updates a release that exists (a draft too: it is published after its files are uploaded), so it is safe after a release that was made by hand. A release is only made the latest one when its version is the newest stable one |
 
 A published version is **permanent**: nuget.org lets you unlist or deprecate it, never delete or replace it. If a release is wrong,
 publish a fixed one.

@@ -1,12 +1,19 @@
-# Publishes the OBSClient NuGet package to nuget.org (via Trusted Publishing/OIDC - no long-lived API key)
-# and to GitHub Packages, whenever a vX.Y.Z tag is pushed. Keep this separate from build.yml: CI runs on every
-# push/PR, publishing only runs on a deliberate version tag.
+# Publishes OBSClient whenever a vX.Y.Z tag is pushed: the NuGet package (with its symbols) to nuget.org, via Trusted
+# Publishing/OIDC - no long-lived API key - and to GitHub Packages, and the GitHub release, with the notes, the package and the
+# test app. Keep this separate from build.yml: CI runs on every push/PR, publishing only runs on a deliberate version tag.
 #
 # Release process (details and troubleshooting: CONTRIBUTING.md, "Releasing"):
-#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0) and commit/merge it to main.
+#   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0), give the section of that version in CHANGELOG.md its date,
+#      and merge both to main.
 #   2. git tag v4.0.0 && git push origin v4.0.0   (the tag must equal <Version> and be on main)
-#   3. This workflow packs once, then pushes that same .nupkg to nuget.org (after you approve the deployment to the
-#      `release` environment) and to GitHub Packages. A published version is permanent, hence the approval.
+#   3. This workflow checks the version and the changelog, packs once, builds the test app and writes the notes of the release.
+#      Then it waits for your approval of the deployment to the `release` environment (a published version is permanent),
+#      pushes that same .nupkg to nuget.org, waits until nuget.org lists the version, checks that nuget.org serves that package, pushes
+#      the symbols, pushes the package to GitHub Packages, and creates the GitHub release.
+#
+# A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch) does everything up to the approval, for
+# the branch that it is started on: it checks and packs it, builds the test app, shows the notes of the release in the summary of
+# the run, and makes a draft release to prove that one can be made (which is deleted again). It publishes nothing.
 #
 # One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
 #   nuget.org/account/trustedpublishing -> Add policy
@@ -14,6 +21,7 @@
 #     (scope: new versions of existing packages, package OBSClient)
 #   And in this repo: the `release` environment (Settings -> Environments) with an environment secret
 #   NUGET_USER = the nuget.org profile name of the package owner (not the e-mail address, not the GitHub name).
+#   The policy names this file and the environment: do not rename either.
 name: Publish Package
 
 on:
@@ -23,28 +31,82 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to (re)publish, e.g. v4.0.0'
-        required: true
+        description: 'Existing tag to (re)publish, e.g. v4.0.0 (not used by a dry run)'
+        required: false
+      dry_run:
+        description: 'Dry run: check, pack and prepare everything for the branch that this is started on, and publish nothing'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# One run per version at a time. A second run for the same tag (a tag that was pushed again, a manual run) waits until the first has
+# ended, and then finds the version on nuget.org, and stops at the first job: the two never race to publish the same version. A run
+# that waits for the approval of the release holds its turn, so cancel it before you start over. A dry run only waits for another
+# run of the same branch.
+concurrency:
+  group: publish-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
-  pack:
-    name: Pack
-    runs-on: windows-latest
+  version:
+    name: Check the version
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.notes.outputs.prerelease }}
     steps:
+      - name: Decide what is built
+        id: which
+        shell: bash
+        env:
+          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
+          TAG_INPUT: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            # A dry run builds the commit that it was started on (not the branch, which can move while it runs); there is no tag.
+            ref="$GITHUB_SHA"
+            tag=""
+          else
+            tag="${TAG_INPUT:-$GITHUB_REF_NAME}"
+            if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::'$tag' is not a version tag (expected vX.Y.Z)."
+              exit 1
+            fi
+            if [ "$EVENT_NAME" = "push" ]; then
+              # The commit that the tag pointed at when it was pushed; a tag that is moved afterwards is not followed.
+              ref="$GITHUB_SHA"
+            else
+              # A manual run for an existing tag: its commit now. Fully qualified, so that a branch of the same name can never be
+              # packaged instead of the tag.
+              ref="refs/tags/$tag"
+            fi
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # A manual run names the tag; qualify it so a branch of the same name can never be packaged instead
-          # (a tag push already provides a fully qualified ref).
-          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          ref: ${{ steps.which.outputs.ref }}
           # The whole history, to check below that the tagged commit is on main.
           fetch-depth: 0
 
+      # Every other job builds this commit, and not the tag or the branch again: a ref can move while the run goes on (the approval
+      # of a release can take a day), and the package, the test app and the notes must come from the commit that was checked here.
+      - name: Pin the commit
+        id: commit
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       # A version is permanent on nuget.org, so a tag that was pushed from a branch must never get that far.
       - name: Verify the tagged commit is on main
+        if: ${{ !inputs.dry_run }}
         shell: bash
         run: |
           git fetch --no-tags origin main
@@ -53,6 +115,64 @@ jobs:
             exit 1
           fi
 
+      - name: Determine the version
+        id: version
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          TAG: ${{ steps.which.outputs.tag }}
+        run: |
+          project_version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj)
+          if [ "$DRY_RUN" = "true" ]; then
+            version="$project_version"
+            tag="v$version"
+          else
+            version="${TAG#v}"
+            tag="$TAG"
+            if [ "$project_version" != "$version" ]; then
+              echo "::error::Tag version ($version) does not match <Version> in OBSClient.csproj ($project_version)"
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # A version that nuget.org lists is never built again. A new build would use whatever the runner has today, while the package
+      # that was published can never be replaced (a push is skipped as a duplicate), so the symbols, the test app and the assets of
+      # the release could end up not matching it. To finish a release that failed after the push, re-run the failed jobs of its run:
+      # they use the artifacts of that run.
+      - name: Verify the version is not published yet
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          curl -fsS -o index.json "https://api.nuget.org/v3-flatcontainer/obsclient/index.json"
+          version=$(echo "$VERSION" | tr '[:upper:]' '[:lower:]')
+          if jq -e --arg v "$version" '.versions | index($v) != null' index.json > /dev/null; then
+            echo "::error::OBSClient $VERSION is on nuget.org already, and a version is never built again. To finish a release that failed after the push, re-run the failed jobs of its run (not all jobs, and not a new run)."
+            exit 1
+          fi
+
+      # The notes of the release are what CHANGELOG.md says about this version, so a version without a section that has a date is
+      # refused here, before anything is built or published.
+      - name: Check the changelog
+        id: notes
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: python3 tools/release_notes.py check "$VERSION" --github-output "$GITHUB_OUTPUT"
+
+  pack:
+    name: Pack
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
@@ -60,41 +180,19 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Determine version from tag
-        id: version
-        shell: bash
-        env:
-          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::'$TAG' is not a version tag (expected vX.Y.Z)."
-            exit 1
-          fi
-          echo "VERSION=${TAG#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate tag matches project version
-        shell: bash
-        env:
-          TAG_VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          PROJECT_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj)
-          if [ "$PROJECT_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match <Version> in OBSClient.csproj ($PROJECT_VERSION)"
-            exit 1
-          fi
-
       - name: Restore
         run: dotnet restore OBSClient/OBSClient.csproj
 
       - name: Build
         run: dotnet build OBSClient/OBSClient.csproj --configuration Release --no-restore
 
+      # The package, and next to it its symbols (OBSClient.csproj: IncludeSymbols, SymbolPackageFormat snupkg).
       - name: Pack
         run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build -o ./artifacts
 
-      # Never publish anything but the library: the protocol definition and the code generator are build inputs.
-      - name: Verify the package is a single assembly
+      # Never publish anything but the library: the protocol definition and the code generator are build inputs. The symbols have to be
+      # there, and have to carry Source Link.
+      - name: Verify the package is a single assembly, with its symbols
         shell: bash
         run: python tools/verify-package.py ./artifacts/*.nupkg
 
@@ -102,18 +200,215 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nuget-package
-          path: ./artifacts/*.nupkg
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+          if-no-files-found: error
           retention-days: 90
+
+  # The test app is a download of the release: self-contained and unpackaged, so that it runs on any Windows 10 (1809) or later
+  # machine with nothing to install (the same publish as the Build Test App job of build.yml).
+  test-app:
+    name: Build the test app
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Publish
+        shell: pwsh
+        run: >
+          dotnet publish OBSClient.TestApp/OBSClient.TestApp.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:Platform=x64
+          --output "./stage/OBSClient.TestApp-$($env:VERSION)-win-x64"
+
+      # One folder in the zip, named like the zip, so that unzipping it makes one folder and not a mess.
+      - name: Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ./artifacts | Out-Null
+          Compress-Archive -Path "./stage/OBSClient.TestApp-$($env:VERSION)-win-x64" -DestinationPath "./artifacts/OBSClient.TestApp-$($env:VERSION)-win-x64.zip" -CompressionLevel Optimal
+
+      - name: Upload the test app
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-app
+          path: ./artifacts/*.zip
+          if-no-files-found: error
+          # As long as the package: a release that failed is finished by re-running its failed jobs, which need all three artifacts.
+          retention-days: 90
+
+  prepare-release:
+    name: Prepare the release
+    needs: [version, pack, test-app]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-package
+          path: ./assets
+
+      - name: Download the test app
+        uses: actions/download-artifact@v8
+        with:
+          name: test-app
+          path: ./assets
+
+      # The text of the release: the notes of the version from CHANGELOG.md, how to install it, and the assets with their SHA-256.
+      - name: Write the notes of the release
+        run: |
+          python3 tools/release_notes.py compose "$VERSION" "$TAG" \
+            --asset "assets/OBSClient.$VERSION.nupkg" \
+            --asset "assets/OBSClient.TestApp-$VERSION-win-x64.zip" \
+            --output release-notes.md
+          {
+            echo "### The release $TAG, as it will be made"
+            echo
+            cat release-notes.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+          retention-days: 90
+
+  # Only for a dry run: proves that the release can be made (the notes, and the upload of the two files), with a draft that has
+  # nothing to do with the tag, and that is deleted again, whatever happens.
+  release-dry-run:
+    name: Try the release (a draft, deleted again)
+    if: ${{ inputs.dry_run }}
+    needs: [version, prepare-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-package
+          path: ./assets
+
+      - name: Download the test app
+        uses: actions/download-artifact@v8
+        with:
+          name: test-app
+          path: ./assets
+
+      - name: Download the notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: .
+
+      - name: Make a draft release, and delete it
+        shell: bash
+        run: |
+          # Unique for every attempt of every run, so that a retry can never collide with what a failed attempt left behind.
+          draft="dry-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+          # Whatever happens, no draft of this attempt is left: a draft is not found by its tag, so it is looked up in the list of
+          # releases, also when it was made but a file did not upload. The step keeps the outcome that it had, and also fails when the
+          # draft could not be found or deleted, so that a green dry run never hides a draft that was left behind.
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if ! ids=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id"); then
+              echo "::error::The draft release $draft could not be looked up to delete it: delete it by hand (Releases, Drafts)."
+              exit 1
+            fi
+            for id in $ids; do
+              if gh api -X DELETE "repos/$GH_REPO/releases/$id" > /dev/null; then
+                echo "The draft release $draft ($id) is deleted."
+              else
+                echo "::error::The draft release $draft ($id) could not be deleted: delete it by hand (Releases, Drafts)."
+                status=1
+              fi
+            done
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          gh release create "$draft" --draft --target "$GITHUB_SHA" --title "Dry run of $TAG" --notes-file release-notes.md \
+            "assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip"
+
+          id=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id")
+          if [ -z "$id" ]; then
+            echo "::error::The draft release $draft was made, but it is not in the list of releases."
+            exit 1
+          fi
+
+          assets=$(gh api "repos/$GH_REPO/releases/$id" --jq '[.assets[] | select(.state == "uploaded")] | length')
+          echo "The draft release has $assets of 2 files, uploaded."
+          [ "$assets" = "2" ] || { echo "::error::The draft release has $assets of its 2 files."; exit 1; }
 
   publish-nuget-org:
     name: Publish to NuGet.org
-    needs: pack
+    if: ${{ !inputs.dry_run }}
+    needs: [version, prepare-release]
     runs-on: ubuntu-latest
     environment: release
+    timeout-minutes: 60
     permissions:
       id-token: write # required for NuGet Trusted Publishing (OIDC)
       contents: read
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
+      # The approval can take a long time. What is published has to be what was tagged, so the tag must still point at the commit that
+      # was packed: a tag that was moved in the meantime stops the release here, before anything is pushed.
+      - name: Verify the tag still points at the commit that was packed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          SHA: ${{ needs.version.outputs.sha }}
+        run: |
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$TAG" --jq .sha)
+          if [ "$actual" != "$SHA" ]; then
+            echo "::error::The tag $TAG points at $actual now, and the package was built from $SHA. Nothing was published: GitHub Packages and the release wait for this job. Release a new version."
+            exit 1
+          fi
+
+      # Only the scripts of the commit that was packed, to compare the published package with the one that was packed. This comes first: a
+      # checkout into a workspace that is not a git repository yet deletes what is in it, which the downloaded package would be.
+      - name: Checkout the tools of the commit that was packed
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          sparse-checkout: tools
+          persist-credentials: false
+
       - name: Download package artifact
         uses: actions/download-artifact@v8
         with:
@@ -131,14 +426,55 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
+      # --skip-duplicate lets the re-run of this job go on after an earlier attempt pushed the package. It also hides a package that
+      # somebody else pushed first, which is why the package that nuget.org serves is compared with the one that was packed below,
+      # before anything else is published.
       - name: Push to NuGet.org
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push ./artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push ./artifacts/*.nupkg --no-symbols --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
+      # nuget.org validates a package before it lists it, which takes a few minutes. A version that does not show up is a release
+      # that did not happen, however green the push was.
+      - name: Wait until NuGet.org lists the version
+        shell: bash
+        run: |
+          version=$(echo "$VERSION" | tr '[:upper:]' '[:lower:]')
+          for attempt in $(seq 1 60); do
+            if curl -fsS "https://api.nuget.org/v3-flatcontainer/obsclient/index.json" | jq -e --arg v "$version" '.versions | index($v) != null' > /dev/null; then
+              echo "OBSClient $VERSION is listed on nuget.org."
+              exit 0
+            fi
+            echo "Not listed yet (attempt $attempt of 60); waiting 30 seconds."
+            sleep 30
+          done
+          echo "::error::OBSClient $VERSION is not listed on nuget.org after 30 minutes. Look at https://www.nuget.org/packages/OBSClient/$VERSION (the validation may have failed), then re-run this job."
+          exit 1
+
+      # What is listed has to be what was packed, file by file (nuget.org adds its signature and nothing else): the symbols, GitHub
+      # Packages and the release that follow all describe the package of this run.
+      - name: Verify that NuGet.org serves the package that was packed
+        run: python3 tools/compare-published.py ./artifacts/OBSClient.*.nupkg
+
+      # After the package, and on their own: a problem with the symbols must not make the release fail, and a re-run of this job pushes
+      # them again (the package is skipped as a duplicate).
+      - name: Push the symbols
+        id: symbols
+        continue-on-error: true
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push ./artifacts/*.snupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Say that the symbols were not pushed
+        if: ${{ steps.symbols.outcome == 'failure' }}
+        run: echo "::warning::The package is published, but its symbols were not pushed. Re-run this job to push them again."
+
+  # After nuget.org has listed the package, and not before: the approval of the release is the one gate of every channel, so a release
+  # that is stopped (a tag that moved, an approval that was refused) has published nothing anywhere.
   publish-github-packages:
     name: Publish to GitHub Packages
-    needs: pack
+    if: ${{ !inputs.dry_run }}
+    needs: [version, prepare-release, publish-nuget-org]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -161,4 +497,79 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dotnet nuget add source --username "$OWNER" --password "$TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/$OWNER/index.json"
-          dotnet nuget push ./artifacts/*.nupkg --source github --api-key "$TOKEN" --skip-duplicate
+          dotnet nuget push ./artifacts/*.nupkg --no-symbols --source github --api-key "$TOKEN" --skip-duplicate
+
+  # After the package is on every channel (nuget.org lists it, GitHub Packages has it): a release that announces a package that people
+  # cannot install is worse than no release.
+  github-release:
+    name: Create the GitHub release
+    if: ${{ !inputs.dry_run }}
+    needs: [version, prepare-release, publish-nuget-org, publish-github-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+      SHA: ${{ needs.version.outputs.sha }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+    steps:
+      # The tag can move during the wait for nuget.org, or before a re-run of this job, and a release takes its tag as it is: the tag has
+      # to point at the commit that the package, the test app and the notes were made from.
+      - name: Verify the tag still points at the commit that was released
+        run: |
+          actual=$(gh api "repos/$GH_REPO/commits/refs/tags/$TAG" --jq .sha)
+          if [ "$actual" != "$SHA" ]; then
+            echo "::error::The tag $TAG points at $actual now, but what was published was built from $SHA, so the release was not made. Move the tag back (git push --force origin $SHA:refs/tags/$TAG) and re-run this job, or make the release by hand."
+            exit 1
+          fi
+
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-package
+          path: ./assets
+
+      - name: Download the test app
+        uses: actions/download-artifact@v8
+        with:
+          name: test-app
+          path: ./assets
+
+      - name: Download the notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: .
+
+      # A re-run (or a release that was made by hand, even a draft) is updated instead of failing on it: the files are uploaded first
+      # and the release is published after that, as a person would do it.
+      - name: Create the release
+        shell: bash
+        run: |
+          files=("assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip")
+
+          # A release becomes the latest one only when it is the newest stable version: finishing an older one (a re-run, a recovery)
+          # must not take that place from a newer one.
+          if [ "$PRERELEASE" = "true" ]; then
+            kind=(--prerelease)
+          else
+            latest=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2> /dev/null || true)
+            if [ -z "$latest" ] || [ "$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)" = "$VERSION" ]; then
+              kind=(--prerelease=false --latest)
+            else
+              echo "$latest is newer than $TAG, so $TAG is not made the latest release."
+              kind=(--prerelease=false --latest=false)
+            fi
+          fi
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "The release $TAG exists: its files and notes are updated, and it is published."
+            gh release upload "$TAG" "${files[@]}" --clobber
+            gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md --draft=false "${kind[@]}"
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md "${kind[@]}" "${files[@]}"
+          fi
+          gh release view "$TAG" --json url,isPrerelease,isDraft,assets --jq '"\(.url) (prerelease: \(.isPrerelease), draft: \(.isDraft)): \([.assets[].name] | join(", "))"'

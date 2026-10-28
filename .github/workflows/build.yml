@@ -36,7 +36,7 @@ jobs:
 
       - name: Check the tooling compiles
         if: matrix.os == 'ubuntu-latest'
-        run: python3 -m py_compile tools/verify-package.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
+        run: python3 -m py_compile tools/verify-package.py tools/release_notes.py tools/compare-published.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
 
       # The protocol-derived code under OBSClient/Generated and the snapshot of the tests are generated from
       # tools/protocol/obs-websocket-protocol.json and tools/protocol/overlay.toml. They must be what the generator
@@ -48,6 +48,11 @@ jobs:
       - name: Test the generator
         if: matrix.os == 'ubuntu-latest'
         run: python3 -m unittest discover -s tools/protocol -p "test_*.py" -v
+
+      # The tools that guard a release: what a package may hold, and what the notes of a release are made of.
+      - name: Test the release tooling
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 -m unittest discover -s tools -p "test_*.py" -v
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -110,15 +115,18 @@ jobs:
         run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build --output ./artifacts
 
       # The package has to stay one thing: the library, its XML documentation, the README and the license. The protocol
-      # definition and the code generator are inputs of the build, they are never shipped (not even embedded).
-      - name: Verify the package is a single assembly
+      # definition and the code generator are inputs of the build, they are never shipped (not even embedded). Its symbol
+      # package (the .snupkg next to it) is verified with it: the PDB of each target framework, with Source Link.
+      - name: Verify the package is a single assembly, with its symbols
         run: python3 tools/verify-package.py ./artifacts/*.nupkg
 
       - name: Upload the package
         uses: actions/upload-artifact@v7
         with:
           name: nuget-package-preview
-          path: ./artifacts/*.nupkg
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
           retention-days: 14
 
   # The test app is a WinUI 3 application: it only builds on Windows. It is published unpackaged and self-contained, so the

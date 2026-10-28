@@ -6,14 +6,23 @@ license, and nothing else. In particular there must be no JSON (the protocol def
 design-time inputs under tools/ and never ship), no analyzer or source generator, no build targets and no content
 files. The package also must not take on a new runtime dependency unless somebody decides that on purpose.
 
-Usage: verify-package.py PACKAGE.nupkg [PACKAGE.nupkg ...]
+Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
+nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
+Source Link names the repository that was built, which is the one of GITHUB_REPOSITORY on GitHub Actions (so a fork's own CI
+verifies its own symbols), and tinodo/obsclient anywhere else; --repository names another.
+
+Usage: verify-package.py [--repository OWNER/NAME] PACKAGE.nupkg [PACKAGE.nupkg ...]
+       (a .snupkg that is named is verified as a symbol package; the one that belongs to a .nupkg is verified with it)
 """
+import argparse
+import os
 import re
 import sys
 import xml.etree.ElementTree as ElementTree
 import zipfile
 
 ASSEMBLY_NAME = "OBSClient"
+DEFAULT_REPOSITORY = "tinodo/obsclient"
 REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
@@ -28,8 +37,21 @@ ALLOWED_FILES = [
     rf"lib/(?P<framework>net\d+\.\d+)/{ASSEMBLY_NAME}\.(?P<kind>dll|xml)",
 ]
 
+# The symbol package has the same plumbing, and the PDB of each target framework instead of the assembly.
+ALLOWED_SYMBOL_FILES = [
+    r"\[Content_Types\]\.xml",
+    r"_rels/\.rels",
+    r"package/services/metadata/core-properties/[0-9a-zA-Z]+\.psmdcp",
+    rf"{ASSEMBLY_NAME}\.nuspec",
+    rf"lib/(?P<framework>net\d+\.\d+)/{ASSEMBLY_NAME}\.pdb",
+]
 
-def verify(path):
+# What Source Link writes into a PDB (as UTF-8 JSON): the URL at which the file of a commit can be read.
+def source_link(repository):
+    return re.compile(rb"https://raw\.githubusercontent\.com/" + re.escape(repository.encode()) + rb"/[0-9a-f]{40}/\*", re.IGNORECASE)
+
+
+def verify_package(path):
     problems = []
     with zipfile.ZipFile(path) as package:
         names = [name for name in package.namelist() if not name.endswith("/")]
@@ -68,14 +90,72 @@ def verify(path):
     return names, problems
 
 
+def verify_symbols(path, repository=DEFAULT_REPOSITORY):
+    problems = []
+    expected = source_link(repository)
+    with zipfile.ZipFile(path) as package:
+        names = [name for name in package.namelist() if not name.endswith("/")]
+        found = set()
+        for name in names:
+            for pattern in ALLOWED_SYMBOL_FILES:
+                match = re.fullmatch(pattern, name)
+                if match:
+                    if "framework" in match.groupdict():
+                        found.add(match.group("framework"))
+                        if not expected.search(package.read(name)):
+                            problems.append(f"{name} has no Source Link to https://raw.githubusercontent.com/{repository}/<commit>/")
+                    break
+            else:
+                problems.append(f"unexpected file in the symbol package: {name}")
+
+        for framework in sorted(REQUIRED_FRAMEWORKS - found):
+            problems.append(f"lib/{framework}/{ASSEMBLY_NAME}.pdb is missing")
+        for framework in sorted(found - REQUIRED_FRAMEWORKS):
+            problems.append(f"unexpected target framework in the symbol package: {framework}")
+
+        if f"{ASSEMBLY_NAME}.nuspec" not in names:
+            problems.append(f"{ASSEMBLY_NAME}.nuspec is missing")
+
+    return names, problems
+
+
+def verify(path, repository=DEFAULT_REPOSITORY):
+    return verify_symbols(path, repository) if path.endswith(".snupkg") else verify_package(path)
+
+
+def symbols_of(path):
+    """The symbol package that belongs to a package (it is built next to it), or None when the path is not a package."""
+    return path[: -len(".nupkg")] + ".snupkg" if path.endswith(".nupkg") else None
+
+
 def main(arguments):
-    if not arguments:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--repository")
+    parser.add_argument("packages", nargs="*")
+    options = parser.parse_args(arguments)
+    if not options.packages:
         print(__doc__)
         return 2
 
+    repository = options.repository or os.environ.get("GITHUB_REPOSITORY") or DEFAULT_REPOSITORY
+
+    # A package is never verified without its symbols: a pack that forgot them must not go unnoticed.
+    paths = []
+    for path in options.packages:
+        if path not in paths:
+            paths.append(path)
+        symbols = symbols_of(path)
+        if symbols is not None and symbols not in paths:
+            paths.append(symbols)
+
     failed = False
-    for path in arguments:
-        names, problems = verify(path)
+    for path in paths:
+        if not os.path.isfile(path):
+            failed = True
+            print(f"::error::{path}: the file is missing (the symbol package is made by the pack: IncludeSymbols and SymbolPackageFormat=snupkg).")
+            continue
+
+        names, problems = verify(path, repository)
         print(f"{path}: {len(names)} files")
         for name in sorted(names):
             print(f"  {name}")
@@ -83,6 +163,8 @@ def main(arguments):
             failed = True
             for problem in problems:
                 print(f"::error::{path}: {problem}")
+        elif path.endswith(".snupkg"):
+            print("  OK: the symbol package has the PDB of each target framework, with Source Link.")
         else:
             print("  OK: the package is a single assembly (plus its documentation, README and license).")
     return 1 if failed else 0

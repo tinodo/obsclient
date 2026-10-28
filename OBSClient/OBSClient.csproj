@@ -19,6 +19,12 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
 	<PublishRepositoryUrl>true</PublishRepositoryUrl>
 	<EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- The debug symbols are a package of their own (.snupkg), made next to the package and pushed to nuget.org with it, so that a
+         debugger can step into the library and show the source of the commit that was built (Source Link, which is part of the SDK). -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- On GitHub Actions the paths of the sources are normalized, so that a build of a commit is the same wherever it was made. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>
