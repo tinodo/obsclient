@@ -20,8 +20,8 @@ What is new since 4.0.0-beta1, in short:
   `ReidentifyAsync` takes a `CancellationToken` as its last parameter now, so that a request can be cancelled. A call compiles unchanged;
   a method group that is converted to a delegate type does not, so use a lambda.
 - **The events are raised off the receive thread**, one at a time and in the order in which they happened, so a handler can wait for a
-  response (`.Result`) without the request timing out. An event is no longer raised before the response to the request that caused it
-  is handled.
+  response (`.Result`) without the request timing out. An event is no longer guaranteed to be raised before the response to the request
+  that caused it is handled: `await client.SetCurrentProgramScene("Game")` can return before `CurrentProgramSceneChanged` was raised.
 - **The dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0**, where it was `Microsoft.Extensions.Logging` 9.0.9. An
   application that makes its own logger with `LoggerFactory` has to reference `Microsoft.Extensions.Logging` itself.
 - **Fixed**: `AutoReconnect` reconnected a client that was kicked in OBS Studio. It stays disconnected now, as obs-websocket requires.
@@ -125,7 +125,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   used to run the handlers itself, so a handler that waited for a response (`.Result`, `.Wait()`) kept the client from reading it, and the
   request timed out. The client now queues them, and a task of the thread pool raises them, one at a time and in the order in which they
   happened: a handler can wait for a response, and a slow handler delays only the events behind it. What that changes for code that
-  worked: (1) an event is no longer raised before the response to the request that caused it is handled (`await
+  worked: (1) an event is no longer guaranteed to be raised before the response to the request that caused it is handled (`await
   client.SetCurrentProgramScene("Game")` can return before `CurrentProgramSceneChanged` was raised for it); (2) events queue up in memory
   while a handler runs, without a limit (dropping one would lose a change), where they used to hold up the receive loop and everything
   behind it, and the client logs a warning when 1000 of them are waiting; (3) `ConnectionClosed` is raised after the events that arrived

@@ -83,9 +83,9 @@ Most code does not notice, but:
 - **A handler can wait for a response** (`client.GetSceneList().Result`). In 3.x and 4.0.0-beta1 that made the request time out, because the
   handler held the thread that has to read the response. A handler that was written around that (with `async`/`await` or `Task.Run`) keeps
   working.
-- **An event is not raised before the response of the request that caused it.** `await client.SetCurrentProgramScene("Game")` can return
-  before the `CurrentProgramSceneChanged` for it was raised. Code that read something that the handler sets, right after the `await`, has
-  to wait for the event instead.
+- **An event is not guaranteed to be raised before the response of the request that caused it.** `await
+  client.SetCurrentProgramScene("Game")` can return before the `CurrentProgramSceneChanged` for it was raised. Code that read something
+  that the handler sets, right after the `await`, has to wait for the event instead.
 - **Events queue up while a handler runs**, in memory and without a limit; the client logs a warning when 1000 are waiting. Keep handlers
   short.
 - **`ConnectionClosed` comes after the events that arrived before the connection ended**, and once `Dispose()` was called nothing that was
