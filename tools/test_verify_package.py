@@ -364,19 +364,84 @@ class VerifyPackageTests(unittest.TestCase):
         transparency = lambda size: png_chunk(b"tRNS", bytes(size))  # noqa: E731
         for name, data, expected in (
             ("grey, with the grey level that is transparent", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(2)]), None),
-            ("grey, with too many bytes", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(3)]), "its transparency chunk has 3 bytes, where 2 are needed"),
+            ("grey, with too many bytes", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(3)]), "its tRNS chunk has 3 bytes, where 2 are needed"),
             ("RGB, with the colour that is transparent", png_of(128, 128, 8, 2, rgb, extra_chunks=[transparency(6)]), None),
-            ("RGB, with too few bytes", png_of(128, 128, 8, 2, rgb, extra_chunks=[transparency(5)]), "its transparency chunk has 5 bytes, where 6 are needed"),
+            ("RGB, with too few bytes", png_of(128, 128, 8, 2, rgb, extra_chunks=[transparency(5)]), "its tRNS chunk has 5 bytes, where 6 are needed"),
             ("indexed, with a value for every entry", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(2)]), None),
             ("indexed, with fewer values than entries", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(1)]), None),
-            ("indexed, with more values than entries", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(3)]), "its transparency chunk has 3 values, for a palette of 2 entries"),
-            ("grey with alpha", png_of(128, 128, 8, 4, grey_with_alpha, extra_chunks=[transparency(2)]), "it has a transparency chunk, which an image with an alpha channel cannot have"),
-            ("RGBA", png_of(256, 256, 8, 6, rgba, extra_chunks=[transparency(6)]), "it has a transparency chunk, which an image with an alpha channel cannot have"),
-            ("two of them", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(2), transparency(2)]), "it has more than one transparency chunk"),
-            ("after the image data", png_of(128, 128, 8, 0, grey, chunks_after=[transparency(2)]), "its transparency chunk comes after its image data"),
+            ("indexed, with more values than entries", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(3)]), "its tRNS chunk has 3 values, for a palette of 2 entries"),
+            ("grey with alpha", png_of(128, 128, 8, 4, grey_with_alpha, extra_chunks=[transparency(2)]), "it has a tRNS chunk, which an image with an alpha channel cannot have"),
+            ("RGBA", png_of(256, 256, 8, 6, rgba, extra_chunks=[transparency(6)]), "it has a tRNS chunk, which an image with an alpha channel cannot have"),
+            ("two of them", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(2), transparency(2)]), "it has more than one tRNS chunk"),
+            ("after the image data", png_of(128, 128, 8, 0, grey, chunks_after=[transparency(2)]), "its tRNS chunk comes after its image data"),
         ):
             with self.subTest(name):
                 self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
+
+    def test_chunks_that_go_before_or_after_the_palette_are_refused_in_the_wrong_place(self):
+        indexed = bytes(128 * 129)
+        palette = png_chunk(b"PLTE", bytes(6))
+        chunk = lambda name, size: png_chunk(name, bytes(size))  # noqa: E731
+        for name, chunks, expected in (
+            ("gAMA before the palette", [chunk(b"gAMA", 4), palette], None),
+            ("gAMA after the palette", [palette, chunk(b"gAMA", 4)], "its gAMA chunk comes after its palette"),
+            ("sRGB after the palette", [palette, chunk(b"sRGB", 1)], "its sRGB chunk comes after its palette"),
+            ("tRNS after the palette", [palette, chunk(b"tRNS", 2)], None),
+            ("tRNS before the palette", [chunk(b"tRNS", 2), palette], "its tRNS chunk comes before its palette"),
+            ("bKGD after the palette", [palette, chunk(b"bKGD", 1)], None),
+            ("bKGD before the palette", [chunk(b"bKGD", 1), palette], "its bKGD chunk comes before its palette"),
+            ("hIST after the palette, one value for each entry", [palette, chunk(b"hIST", 4)], None),
+            ("hIST before the palette", [chunk(b"hIST", 4), palette], "its hIST chunk comes before its palette"),
+            ("hIST with another size", [palette, chunk(b"hIST", 6)], "its hIST chunk has 6 bytes, where 4 are needed for a palette of 2 entries"),
+        ):
+            with self.subTest(name):
+                problems = verify_package.icon_problems(png_of(128, 128, 8, 3, indexed, extra_chunks=chunks))
+
+                self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], problems)
+
+    def test_chunks_that_go_before_the_image_data_are_refused_after_it_and_the_time_may_come_anywhere(self):
+        rows = bytes(256 * 1025)
+        chunk = lambda name, size: png_chunk(name, bytes(size))  # noqa: E731
+        for name, data, expected in (
+            ("pHYs before the image data", png_of(256, 256, 8, 6, rows, extra_chunks=[chunk(b"pHYs", 9)]), None),
+            ("pHYs after the image data", png_of(256, 256, 8, 6, rows, chunks_after=[chunk(b"pHYs", 9)]), "its pHYs chunk comes after its image data"),
+            ("gAMA after the image data", png_of(256, 256, 8, 6, rows, chunks_after=[chunk(b"gAMA", 4)]), "its gAMA chunk comes after its image data"),
+            ("tIME before the image data", png_of(256, 256, 8, 6, rows, extra_chunks=[chunk(b"tIME", 7)]), None),
+            ("tIME after the image data", png_of(256, 256, 8, 6, rows, chunks_after=[chunk(b"tIME", 7)]), None),
+        ):
+            with self.subTest(name):
+                self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
+
+    def test_chunks_with_a_size_that_is_fixed_are_refused_with_another_size_and_when_there_are_two(self):
+        rows = bytes(256 * 1025)
+        chunk = lambda name, size: png_chunk(name, bytes(size))  # noqa: E731
+        for name, chunks, expected in (
+            ("cHRM of 32 bytes", [chunk(b"cHRM", 32)], None),
+            ("cHRM of 31 bytes", [chunk(b"cHRM", 31)], "its cHRM chunk has 31 bytes, where 32 are needed"),
+            ("gAMA of 5 bytes", [chunk(b"gAMA", 5)], "its gAMA chunk has 5 bytes, where 4 are needed"),
+            ("sRGB of 2 bytes", [chunk(b"sRGB", 2)], "its sRGB chunk has 2 bytes, where 1 are needed"),
+            ("pHYs of 8 bytes", [chunk(b"pHYs", 8)], "its pHYs chunk has 8 bytes, where 9 are needed"),
+            ("tIME of 6 bytes", [chunk(b"tIME", 6)], "its tIME chunk has 6 bytes, where 7 are needed"),
+            ("sBIT with the bytes of RGBA", [chunk(b"sBIT", 4)], None),
+            ("sBIT with the bytes of RGB", [chunk(b"sBIT", 3)], "its sBIT chunk has 3 bytes, where 4 are needed"),
+            ("bKGD with the bytes of RGB", [chunk(b"bKGD", 6)], None),
+            ("bKGD with the bytes of grey", [chunk(b"bKGD", 2)], "its bKGD chunk has 2 bytes, where 6 are needed"),
+            ("two gAMA", [chunk(b"gAMA", 4), chunk(b"gAMA", 4)], "it has more than one gAMA chunk"),
+            ("two pHYs", [chunk(b"pHYs", 9), chunk(b"pHYs", 9)], "it has more than one pHYs chunk"),
+            ("sRGB and iCCP", [chunk(b"sRGB", 1), chunk(b"iCCP", 3)], "it has both an sRGB and an iCCP chunk, which exclude each other"),
+            ("an iCCP of any size", [chunk(b"iCCP", 3)], None),
+            ("hIST without a palette", [chunk(b"hIST", 4)], "it has an hIST chunk, which is only for an image with a palette"),
+        ):
+            with self.subTest(name):
+                problems = verify_package.icon_problems(png_of(256, 256, 8, 6, rows, extra_chunks=chunks))
+
+                self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], problems)
+
+    def test_an_end_chunk_with_data_in_it_is_refused(self):
+        header = struct.pack(">IIBBBBB", 256, 256, 8, 6, 0, 0, 0)
+        data = b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", header) + png_chunk(b"IDAT", zlib.compress(bytes(256 * 1025))) + png_chunk(b"IEND", b"x")
+
+        self.assertEqual(["icon.png is not a complete PNG: its IEND chunk has data in it, where it has none"], verify_package.icon_problems(data))
 
     def test_an_icon_that_claims_a_huge_image_is_refused_without_being_decoded(self):
         # A few hundred bytes that claim 100,000 by 100,000 pixels: what they hold is never read.

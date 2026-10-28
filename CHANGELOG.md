@@ -205,7 +205,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   `obs-websocket`, `websocket`, `streaming`, `dotnet` and `client`, so that it is easier to find and to recognise on nuget.org (CI checks that the
   icon is a whole PNG, with its chunks in order, a valid header, palette and transparency and image data that is as long as its header says,
   of at least 128 by 128 pixels). `samples/ConsoleSample`
-  is a small program that connects, lists the scenes and prints the events (`dotnet run --project samples/ConsoleSample`); CI builds it
+  is a small program that connects, says which OBS Studio it reached, lists the scenes and prints the events (`dotnet run --project samples/ConsoleSample`); CI builds it
   against the package that was just packed, for both target frameworks, which shows that the package can be used. The target frameworks
   are `net8.0` and `net10.0`, the LTS releases: .NET 8 reaches the end of its support on 10 November 2026, and its target stays in the 4.x packages (see
   the compatibility table of the documentation).
