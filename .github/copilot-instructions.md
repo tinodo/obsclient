@@ -1,3 +1,12 @@
 - @azure Rule - Use Azure Tools - When handling requests related to Azure, always use your tools.
 - @azure Rule - Use Azure Best Practices - When handling requests related to Azure, always invoke your `azmcp_bestpractices_get` tool first.
 - @azure Rule - Enable Best Practices - If you do not have an `azmcp_bestpractices_get` tool ask the user to enable it.
+
+## This repository (OBSClient)
+
+- A .NET client for OBS Studio (obs-websocket 5). `OBSClient` is the library (`net8.0` and `net10.0`, one assembly, whose only dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0), `OBSClient.Tests` the tests, `OBSClient.TestApp` a WinUI 3 app that tries every request by hand (Windows only), `tools/` the generators and the release tooling with their tests (Python, standard library only), and `docs/` the DocFX site.
+- Most of the client is generated from the protocol. Never edit `OBSClient/Generated`, `OBSClient.TestApp/Generated` or `OBSClient.Tests/Protocol`: change `tools/protocol/overlay.toml` or the generator and run `python tools/protocol/generate.py` (CI checks it with `--check`).
+- Build and test with `dotnet test OBSClient.Tests/OBSClient.Tests.csproj`, and `python -m unittest discover -s tools -p "test_*.py"` (also `-s tools/protocol`).
+- A change that users can see goes in `CHANGELOG.md` under the unreleased version. Public API needs XML documentation.
+- A release is made by a `vX.Y.Z` tag and `.github/workflows/publish.yml`, never by hand. `tools/verify-package.py` keeps the package one assembly: no JSON, no extra files.
+- **OBS Studio on a developer machine (hard rule).** Several versions of OBS Studio can be installed and running, and the arguments of a start decide which configuration (scenes, profiles) an instance uses. Never start OBS Studio without `--portable`, never read or change the configuration of an installation, and never use the default WebSocket port 4455. The live tests (`OBSClient.Tests/Live`) run through `tools/live/run-live-tests.ps1` only: a private copy, always `--portable`, with a port of its own. In CI `.github/workflows/live-obs.yml` does the same on a throw-away Linux runner.

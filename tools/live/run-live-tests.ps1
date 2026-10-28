@@ -65,6 +65,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
+    throw 'This script makes a private copy of OBS Studio for Windows. On Linux the live tests run in CI (.github/workflows/live-obs.yml).'
+}
 $repository = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 # --portable is not a parameter: it starts every start of OBS Studio here, and Start-ObsCopy refuses a start without it. --multi only
