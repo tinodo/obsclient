@@ -186,6 +186,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   locally (see CONTRIBUTING). The project URL of the package is the site now. The XML documentation that the site exposes was corrected
   where it was wrong: `ConnectAsync` said that authentication was handled asynchronously, while it waits for the handshake; the `Connected`
   member of `ConnectionState` was described as "Connecting"; and the documentation of `AutoReconnect` ended in stray characters.
+- **Symbols and Source Link** *(after beta1)*: each release comes with a symbol package (`.snupkg`) on nuget.org, so that a debugger can
+  step into the library and show the source of the commit that was built (Visual Studio: tick *NuGet.org Symbol Server* in *Tools,
+  Options, Debugging, Symbols*). The package itself stays one assembly with its documentation, and CI checks both. The release
+  pipeline also builds the test app and creates the GitHub release, with the notes from this file, by itself (see CONTRIBUTING).
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:
