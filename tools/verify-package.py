@@ -218,8 +218,12 @@ def chunk_problems(chunks, color, depth):
             problems.append(f"its {label} chunk has {len(payload)} bytes, where {wanted} are needed")
         elif name == b"sRGB" and payload[0] > 3:
             problems.append(f"its sRGB chunk has a rendering intent ({payload[0]}) that does not exist")
-        elif name == b"gAMA" and not struct.unpack(">I", payload)[0]:
-            problems.append("its gAMA chunk has a gamma of zero")
+        elif name == b"gAMA":
+            gamma = struct.unpack(">I", payload)[0]
+            if not gamma:
+                problems.append("its gAMA chunk has a gamma of zero")
+            elif gamma > PNG_MAX_INTEGER:
+                problems.append("its gAMA chunk has a gamma that is more than a PNG can hold")
         elif name == b"pHYs":
             across, down, unit = struct.unpack(">IIB", payload)
             if unit > 1:
