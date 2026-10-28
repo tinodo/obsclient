@@ -22,6 +22,7 @@ import struct
 import sys
 import xml.etree.ElementTree as ElementTree
 import zipfile
+import zlib
 
 ASSEMBLY_NAME = "OBSClient"
 DEFAULT_REPOSITORY = "tinodo/obsclient"
@@ -59,16 +60,60 @@ def source_link(repository):
     return re.compile(rb"https://raw\.githubusercontent\.com/" + re.escape(repository.encode()) + rb"/[0-9a-f]{40}/\*", re.IGNORECASE)
 
 
+def png_chunks(data):
+    """The chunks of a PNG as (type, payload), in order. A ValueError says what is damaged: a chunk that is cut off, or a wrong CRC."""
+    position = len(PNG_SIGNATURE)
+    chunks = []
+    while position < len(data):
+        if position + 8 > len(data):
+            raise ValueError("the header of a chunk is cut off")
+        length, kind = struct.unpack(">I4s", data[position : position + 8])
+        end = position + 8 + length + 4
+        if end > len(data):
+            raise ValueError(f"the {kind.decode('latin-1')} chunk is cut off")
+        payload = data[position + 8 : end - 4]
+        (crc,) = struct.unpack(">I", data[end - 4 : end])
+        if zlib.crc32(kind + payload) & 0xFFFFFFFF != crc:
+            raise ValueError(f"the {kind.decode('latin-1')} chunk is damaged (its CRC is wrong)")
+        chunks.append((kind, payload))
+        position = end
+    return chunks
+
+
 def icon_problems(data):
     problems = []
     if len(data) > ICON_MAX_BYTES:
         problems.append(f"{ICON_NAME} is larger than 1 MB, which nuget.org refuses")
-    if data[:8] != PNG_SIGNATURE or len(data) < 24:
+    if data[:8] != PNG_SIGNATURE:
         problems.append(f"{ICON_NAME} is not a PNG")
+        return problems
+
+    try:
+        chunks = png_chunks(data)
+    except ValueError as error:
+        problems.append(f"{ICON_NAME} is not a complete PNG: {error}")
+        return problems
+
+    kinds = [kind for kind, _ in chunks]
+    if not chunks or kinds[0] != b"IHDR" or len(chunks[0][1]) != 13:
+        problems.append(f"{ICON_NAME} is not a complete PNG: it does not start with its IHDR chunk")
+        return problems
+
+    width, height = struct.unpack(">II", chunks[0][1][:8])
+    if min(width, height) < ICON_MIN_PIXELS:
+        problems.append(f"{ICON_NAME} is {width} by {height} pixels, which is less than the {ICON_MIN_PIXELS} by {ICON_MIN_PIXELS} that NuGet recommends")
+
+    pixels = b"".join(payload for kind, payload in chunks if kind == b"IDAT")
+    if not pixels:
+        problems.append(f"{ICON_NAME} is not a complete PNG: it has no image data")
     else:
-        width, height = struct.unpack(">II", data[16:24])
-        if min(width, height) < ICON_MIN_PIXELS:
-            problems.append(f"{ICON_NAME} is {width} by {height} pixels, which is less than the {ICON_MIN_PIXELS} by {ICON_MIN_PIXELS} that NuGet recommends")
+        try:
+            if not zlib.decompress(pixels):
+                problems.append(f"{ICON_NAME} is not a complete PNG: its image data is empty")
+        except zlib.error as error:
+            problems.append(f"{ICON_NAME} is not a complete PNG: its image data cannot be read ({error})")
+    if kinds[-1] != b"IEND":
+        problems.append(f"{ICON_NAME} is not a complete PNG: it does not end with its IEND chunk")
     return problems
 
 

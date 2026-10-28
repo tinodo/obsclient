@@ -10,6 +10,7 @@ import struct
 import tempfile
 import unittest
 import zipfile
+import zlib
 from unittest import mock
 
 _PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify-package.py")
@@ -26,9 +27,19 @@ PLUMBING = {
 }
 
 
-def png(width=256, height=256, size=1000):
-    header = b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", width, height) + b"\x08\x06\x00\x00\x00"
-    return header + b"\x00" * max(0, size - len(header))
+def png_chunk(kind, payload):
+    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+
+
+def png(width=256, height=256, extra=0):
+    """A valid PNG (an empty RGBA image), with a text chunk of `extra` bytes that makes it as large as a test needs."""
+    rows = bytes(height * (1 + 4 * width))
+    chunks = [png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))]
+    if extra:
+        chunks.append(png_chunk(b"tEXt", b"filler\x00" + b"x" * extra))
+    chunks.append(png_chunk(b"IDAT", zlib.compress(rows)))
+    chunks.append(png_chunk(b"IEND", b""))
+    return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
 
 
 def nuspec(*dependencies, icon="icon.png"):
@@ -120,10 +131,55 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertIn("icon.png is 64 by 256 pixels, which is less than the 128 by 128", output)
 
     def test_an_icon_that_is_too_large_is_refused(self):
-        code, output = self.verify(packages=package_files(**{"icon.png": png(size=1024 * 1024 + 1)}), symbols=symbol_files())
+        code, output = self.verify(packages=package_files(**{"icon.png": png(extra=1024 * 1024)}), symbols=symbol_files())
 
         self.assertEqual(1, code)
         self.assertIn("icon.png is larger than 1 MB", output)
+
+    def test_a_real_icon_passes_and_so_does_the_one_of_the_repository(self):
+        self.assertEqual([], verify_package.icon_problems(png()))
+        with open(os.path.join(os.path.dirname(_PATH), "..", "OBSClient", "icon.png"), "rb") as icon:
+            self.assertEqual([], verify_package.icon_problems(icon.read()))
+
+    def test_a_truncated_icon_is_refused(self):
+        whole = png()
+        for name, data in {
+            "only the signature and the start of the header": whole[:24],
+            "cut in the middle of the image data": whole[: len(whole) // 2],
+            "without the last chunk": whole[:-12],
+        }.items():
+            with self.subTest(name):
+                code, output = self.verify(packages=package_files(**{"icon.png": data}), symbols=symbol_files())
+
+                self.assertEqual(1, code)
+                self.assertIn("icon.png is not a complete PNG", output)
+
+    def test_an_icon_with_a_damaged_chunk_is_refused(self):
+        whole = bytearray(png())
+        whole[len(whole) // 2] ^= 0xFF
+
+        code, output = self.verify(packages=package_files(**{"icon.png": bytes(whole)}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is not a complete PNG: the IDAT chunk is damaged", output)
+
+    def test_an_icon_without_image_data_is_refused(self):
+        header = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 256, 256, 8, 6, 0, 0, 0))
+        data = b"\x89PNG\r\n\x1a\n" + header + png_chunk(b"IEND", b"")
+
+        code, output = self.verify(packages=package_files(**{"icon.png": data}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is not a complete PNG: it has no image data", output)
+
+    def test_an_icon_whose_image_data_cannot_be_read_is_refused(self):
+        header = png_chunk(b"IHDR", struct.pack(">IIBBBBB", 256, 256, 8, 6, 0, 0, 0))
+        data = b"\x89PNG\r\n\x1a\n" + header + png_chunk(b"IDAT", b"not zlib data") + png_chunk(b"IEND", b"")
+
+        code, output = self.verify(packages=package_files(**{"icon.png": data}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is not a complete PNG: its image data cannot be read", output)
 
     def test_an_icon_that_the_package_does_not_name_is_refused(self):
         code, output = self.verify(
