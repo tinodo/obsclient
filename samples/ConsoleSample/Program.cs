@@ -6,7 +6,8 @@ using OBSStudioClient;
 //   dotnet run --project samples/ConsoleSample -- [host] [port]
 //
 // The password is read from the environment variable OBS_PASSWORD (leave it unset when OBS Studio asks for none). The host is localhost
-// and the port 4455 unless you give others.
+// and the port 4455 unless you give others. When more than one OBS Studio is running (each has its own port), the port is what decides
+// which one you get, so give the port of the one that you mean: the sample says which one it is connected to.
 var host = args.Length > 0 ? args[0] : "localhost";
 var port = args.Length > 1 && int.TryParse(args[1], out var parsed) ? parsed : 4455;
 var password = Environment.GetEnvironmentVariable("OBS_PASSWORD") ?? string.Empty;
@@ -36,7 +37,12 @@ if (!await client.ConnectAsync(password: password, hostname: host, port: port))
 }
 
 var version = await client.GetVersion();
-Console.WriteLine($"OBS Studio {version.ObsVersion}, obs-websocket {version.ObsWebSocketVersion}");
+Console.WriteLine($"Connected to OBS Studio {version.ObsVersion} (obs-websocket {version.ObsWebSocketVersion}) at {host}:{port}");
+
+// The scenes belong to a scene collection and the settings to a profile; saying which ones makes clear whose scenes these are.
+var collection = await client.GetSceneCollectionList();
+var profile = await client.GetProfileList();
+Console.WriteLine($"Scene collection: {collection.CurrentSceneCollectionName}, profile: {profile.CurrentProfileName}");
 
 var scenes = await client.GetSceneList();
 Console.WriteLine($"On air: {scenes.CurrentProgramSceneName}");

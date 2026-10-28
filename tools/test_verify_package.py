@@ -324,6 +324,60 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertEqual([], colour)
         self.assertEqual(["icon.png is not a complete PNG: its palette is not made of whole entries of 3 bytes (it has 2 bytes)"], colour_with_a_broken_one)
 
+    def test_chunks_that_do_not_follow_the_rules_of_png_are_refused(self):
+        rows = bytes(256 * 1025)
+        header = struct.pack(">IIBBBBB", 256, 256, 8, 6, 0, 0, 0)
+        stream = zlib.compress(rows)
+        half = len(stream) // 2
+
+        def whole(*chunks):
+            return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
+
+        in_a_run = whole(png_chunk(b"IHDR", header), png_chunk(b"IDAT", stream[:half]), png_chunk(b"IDAT", stream[half:]), png_chunk(b"IEND", b""))
+        interrupted = whole(
+            png_chunk(b"IHDR", header), png_chunk(b"IDAT", stream[:half]), png_chunk(b"tEXt", b"a\x00b"), png_chunk(b"IDAT", stream[half:]), png_chunk(b"IEND", b""))
+        self.assertEqual([], verify_package.icon_problems(in_a_run))
+        for name, data, expected in (
+            ("two headers", png_of(256, 256, 8, 6, rows, extra_chunks=[png_chunk(b"IHDR", header)]), "it has more than one IHDR chunk"),
+            ("two ends", png_of(256, 256, 8, 6, rows, chunks_after=[png_chunk(b"IEND", b"")]), "it has more than one IEND chunk"),
+            ("image data that another chunk interrupts", interrupted, "its image data is not in one run of IDAT chunks"),
+            (
+                "a chunk that a decoder has to understand, and that PNG does not have",
+                png_of(256, 256, 8, 6, rows, extra_chunks=[png_chunk(b"ABCD", b"")]),
+                "it has chunks that a decoder has to understand and that are not part of PNG (ABCD)",
+            ),
+        ):
+            with self.subTest(name):
+                self.assertEqual([f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
+
+    def test_chunks_that_a_decoder_may_skip_are_accepted(self):
+        data = png_of(
+            256, 256, 8, 6, bytes(256 * 1025),
+            extra_chunks=[png_chunk(b"abCD", b"x"), png_chunk(b"tEXt", b"a\x00b")],
+            chunks_after=[png_chunk(b"zzZZ", b"")])
+
+        self.assertEqual([], verify_package.icon_problems(data))
+
+    def test_the_transparency_of_a_png_has_to_follow_its_colour_type(self):
+        grey, rgb, grey_with_alpha, rgba = bytes(128 * 129), bytes(128 * 385), bytes(128 * 257), bytes(256 * 1025)
+        palette = png_chunk(b"PLTE", bytes(6))
+        transparency = lambda size: png_chunk(b"tRNS", bytes(size))  # noqa: E731
+        for name, data, expected in (
+            ("grey, with the grey level that is transparent", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(2)]), None),
+            ("grey, with too many bytes", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(3)]), "its transparency chunk has 3 bytes, where 2 are needed"),
+            ("RGB, with the colour that is transparent", png_of(128, 128, 8, 2, rgb, extra_chunks=[transparency(6)]), None),
+            ("RGB, with too few bytes", png_of(128, 128, 8, 2, rgb, extra_chunks=[transparency(5)]), "its transparency chunk has 5 bytes, where 6 are needed"),
+            ("indexed, with a value for every entry", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(2)]), None),
+            ("indexed, with fewer values than entries", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(1)]), None),
+            ("indexed, with more values than entries", png_of(128, 128, 8, 3, grey, extra_chunks=[palette, transparency(3)]), "its transparency chunk has 3 values, for a palette of 2 entries"),
+            ("grey with alpha", png_of(128, 128, 8, 4, grey_with_alpha, extra_chunks=[transparency(2)]), "it has a transparency chunk, which an image with an alpha channel cannot have"),
+            ("RGBA", png_of(256, 256, 8, 6, rgba, extra_chunks=[transparency(6)]), "it has a transparency chunk, which an image with an alpha channel cannot have"),
+            ("two of them", png_of(128, 128, 8, 0, grey, extra_chunks=[transparency(2), transparency(2)]), "it has more than one transparency chunk"),
+            ("after the image data", png_of(128, 128, 8, 0, grey, chunks_after=[transparency(2)]), "its transparency chunk comes after its image data"),
+        ):
+            with self.subTest(name):
+                self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
+
     def test_an_icon_that_claims_a_huge_image_is_refused_without_being_decoded(self):
         # A few hundred bytes that claim 100,000 by 100,000 pixels: what they hold is never read.
         problems = verify_package.icon_problems(png_of(100_000, 100_000, 8, 6, b"\x00"))

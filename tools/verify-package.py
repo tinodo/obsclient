@@ -6,9 +6,9 @@ nothing else. In particular there must be no JSON (the protocol definition and t
 design-time inputs under tools/ and never ship), no analyzer or source generator, no build targets and no content
 files. The package also must not take on a new runtime dependency unless somebody decides that on purpose. The icon has to be a PNG
 that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends) and a whole one: the checksums of its
-chunks are right, its header and its palette are valid, and its image data is as long as its header says, with rows that have a filter
-type that exists. The pixels themselves are not decoded (that is what an image library does, and a look at the icon). The package has to
-name the icon.
+chunks are right, its chunks come in the order and the number that PNG asks for, its header, palette and transparency are valid, and
+its image data is as long as its header says, with rows that have a filter type that exists. The pixels themselves are not decoded (that
+is what an image library does, and a look at the icon). The package has to name the icon.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -40,6 +40,9 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 # What a PNG may hold: the bit depths that a colour type allows, and its samples per pixel.
 PNG_COLOR_TYPES = {0: ({1, 2, 4, 8, 16}, 1), 2: ({8, 16}, 3), 3: ({1, 2, 4, 8}, 1), 4: ({8, 16}, 2), 6: ({8, 16}, 4)}
+
+CRITICAL_CHUNKS = {b"IHDR", b"PLTE", b"IDAT", b"IEND"}  # the chunks that every decoder has to understand
+TRANSPARENCY_BYTES = {0: 2, 2: 6}  # what the tRNS chunk of a greyscale and of an RGB image holds
 
 # The passes of an interlaced (Adam7) image, as (x start, y start, x step, y step); a plain image is one pass over everything.
 PNG_PASSES = {0: [(0, 0, 1, 1)], 1: [(0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2)]}
@@ -158,6 +161,38 @@ def palette_problems(chunks, color, depth):
     return problems
 
 
+def chunk_problems(chunks, color):
+    """What is wrong with the number and the order of the chunks of a PNG, and with its transparency chunk: the problems, as texts."""
+    kinds = [kind for kind, _ in chunks]
+    problems = []
+    for name in (b"IHDR", b"IEND"):
+        if kinds.count(name) > 1:
+            problems.append(f"it has more than one {name.decode()} chunk")
+    positions = [position for position, kind in enumerate(kinds) if kind == b"IDAT"]
+    if positions and positions[-1] - positions[0] + 1 != len(positions):
+        problems.append("its image data is not in one run of IDAT chunks")
+    # The first letter of the name of a chunk is a capital when a decoder cannot go without it: one that is not in PNG cannot be read.
+    unknown = sorted({kind.decode("latin-1") for kind in kinds if not kind[0] & 0x20 and kind not in CRITICAL_CHUNKS})
+    if unknown:
+        problems.append(f"it has chunks that a decoder has to understand and that are not part of PNG ({', '.join(unknown)})")
+
+    transparency = [payload for kind, payload in chunks if kind == b"tRNS"]
+    if color in (4, 6) and transparency:
+        problems.append("it has a transparency chunk, which an image with an alpha channel cannot have")
+    elif len(transparency) > 1:
+        problems.append("it has more than one transparency chunk")
+    elif transparency:
+        size = len(transparency[0])
+        palettes = [payload for kind, payload in chunks if kind == b"PLTE"]
+        if color in TRANSPARENCY_BYTES and size != TRANSPARENCY_BYTES[color]:
+            problems.append(f"its transparency chunk has {size} bytes, where {TRANSPARENCY_BYTES[color]} are needed")
+        elif color == 3 and len(palettes) == 1 and size > len(palettes[0]) // 3:
+            problems.append(f"its transparency chunk has {size} values, for a palette of {len(palettes[0]) // 3} entries")
+        if b"IDAT" in kinds and kinds.index(b"tRNS") > kinds.index(b"IDAT"):
+            problems.append("its transparency chunk comes after its image data")
+    return problems
+
+
 def icon_problems(data):
     problems = []
     if len(data) > ICON_MAX_BYTES:
@@ -184,6 +219,7 @@ def icon_problems(data):
         problems.append(f"{ICON_NAME} is not a complete PNG: its header is not valid (colour type {color}, bit depth {depth}, compression {compression}, filter {filtering}, interlace {interlace})")
         return problems
     problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in palette_problems(chunks, color, depth))
+    problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in chunk_problems(chunks, color))
 
     pixels = b"".join(payload for kind, payload in chunks if kind == b"IDAT")
     if not pixels:
