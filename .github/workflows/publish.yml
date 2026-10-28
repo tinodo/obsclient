@@ -330,11 +330,24 @@ jobs:
           draft="dry-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
 
           # Whatever happens, no draft of this attempt is left: a draft is not found by its tag, so it is looked up in the list of
-          # releases, also when it was made but a file did not upload.
+          # releases, also when it was made but a file did not upload. The step keeps the outcome that it had, and also fails when the
+          # draft could not be found or deleted, so that a green dry run never hides a draft that was left behind.
           cleanup() {
-            for id in $(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id"); do
-              gh api -X DELETE "repos/$GH_REPO/releases/$id" && echo "The draft release $draft ($id) is deleted."
+            status=$?
+            trap - EXIT
+            if ! ids=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id"); then
+              echo "::error::The draft release $draft could not be looked up to delete it: delete it by hand (Releases, Drafts)."
+              exit 1
+            fi
+            for id in $ids; do
+              if gh api -X DELETE "repos/$GH_REPO/releases/$id" > /dev/null; then
+                echo "The draft release $draft ($id) is deleted."
+              else
+                echo "::error::The draft release $draft ($id) could not be deleted: delete it by hand (Releases, Drafts)."
+                status=1
+              fi
             done
+            exit "$status"
           }
           trap cleanup EXIT
 
@@ -374,7 +387,7 @@ jobs:
         run: |
           actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$TAG" --jq .sha)
           if [ "$actual" != "$SHA" ]; then
-            echo "::error::The tag $TAG points at $actual now, and the package was built from $SHA. Nothing was published. Start again with a new version."
+            echo "::error::The tag $TAG points at $actual now, and the package was built from $SHA. Nothing was published: GitHub Packages and the release wait for this job. Release a new version."
             exit 1
           fi
 
@@ -430,10 +443,12 @@ jobs:
         if: ${{ steps.symbols.outcome == 'failure' }}
         run: echo "::warning::The package is published, but its symbols were not pushed. Re-run this job to push them again."
 
+  # After nuget.org has listed the package, and not before: the approval of the release is the one gate of every channel, so a release
+  # that is stopped (a tag that moved, an approval that was refused) has published nothing anywhere.
   publish-github-packages:
     name: Publish to GitHub Packages
     if: ${{ !inputs.dry_run }}
-    needs: [version, prepare-release]
+    needs: [version, prepare-release, publish-nuget-org]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -458,11 +473,12 @@ jobs:
           dotnet nuget add source --username "$OWNER" --password "$TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/$OWNER/index.json"
           dotnet nuget push ./artifacts/*.nupkg --no-symbols --source github --api-key "$TOKEN" --skip-duplicate
 
-  # After the package is listed on nuget.org: a release that announces a package that people cannot install is worse than no release.
+  # After the package is on every channel (nuget.org lists it, GitHub Packages has it): a release that announces a package that people
+  # cannot install is worse than no release.
   github-release:
     name: Create the GitHub release
     if: ${{ !inputs.dry_run }}
-    needs: [version, prepare-release, publish-nuget-org]
+    needs: [version, prepare-release, publish-nuget-org, publish-github-packages]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -471,8 +487,19 @@ jobs:
       GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.version.outputs.version }}
       TAG: ${{ needs.version.outputs.tag }}
+      SHA: ${{ needs.version.outputs.sha }}
       PRERELEASE: ${{ needs.version.outputs.prerelease }}
     steps:
+      # The tag can move during the wait for nuget.org, or before a re-run of this job, and a release takes its tag as it is: the tag has
+      # to point at the commit that the package, the test app and the notes were made from.
+      - name: Verify the tag still points at the commit that was released
+        run: |
+          actual=$(gh api "repos/$GH_REPO/commits/refs/tags/$TAG" --jq .sha)
+          if [ "$actual" != "$SHA" ]; then
+            echo "::error::The tag $TAG points at $actual now, but what was published was built from $SHA, so the release was not made. Move the tag back (git push --force origin $SHA:refs/tags/$TAG) and re-run this job, or make the release by hand."
+            exit 1
+          fi
+
       - name: Download the package
         uses: actions/download-artifact@v8
         with:
