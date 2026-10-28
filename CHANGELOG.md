@@ -5,6 +5,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [4.0.0-beta2] - 2026-10-28
+
+The second prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 in the
+[changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md), where what is new since 4.0.0-beta1 is marked *after beta1*.
+Its public API can still change before 4.0.0 is released, so read the *Breaking changes* there to see what you have to change, and report
+what you find in an [issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain
+`dotnet add package OBSClient`: use `dotnet add package OBSClient --version 4.0.0-beta2` (or `--prerelease` for the newest prerelease).
+The GitHub release of this version has the package and the test app as downloads.
+
+What is new since 4.0.0-beta1, in short:
+
+- **Code that was compiled against 4.0.0-beta1 has to be recompiled.** Every request method, `ConnectAsync`, `SendRequestBatchAsync` and
+  `ReidentifyAsync` takes a `CancellationToken` as its last parameter now, so that a request can be cancelled. A call compiles unchanged;
+  a method group that is converted to a delegate type does not, so use a lambda.
+- **The events are raised off the receive thread**, one at a time and in the order in which they happened, so a handler can wait for a
+  response (`.Result`) without the request timing out. An event is no longer raised before the response to the request that caused it
+  is handled.
+- **The dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0**, where it was `Microsoft.Extensions.Logging` 9.0.9. An
+  application that makes its own logger with `LoggerFactory` has to reference `Microsoft.Extensions.Logging` itself.
+- **Fixed**: `AutoReconnect` reconnected a client that was kicked in OBS Studio. It stays disconnected now, as obs-websocket requires.
+- **New**: a symbol package with Source Link, so that a debugger can step into the library; a package icon and better tags; a
+  [documentation site](https://tinodo.github.io/obsclient/); a console sample; and live tests against a real OBS Studio, which found that
+  OBS Studio 32.2.0 and 33.0.0 send `SceneCreated` twice for every scene (reported to obs-websocket; the guide on events says what to do
+  about it).
+
 ## [4.0.0-beta1] - 2026-10-27
 
 The first prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 below, except the items that are

@@ -174,7 +174,7 @@ These were bugs. Code that worked around them may not need the workaround any mo
 
 ## Upgrading step by step
 
-1. Update the package: `dotnet add package OBSClient --prerelease` (or `--version 4.0.0-beta1`).
+1. Update the package: `dotnet add package OBSClient --prerelease` (or `--version 4.0.0-beta2`).
 2. Build. The compiler points to what has to change: named arguments, method groups, the types in the table above.
 3. Read the list of behavior changes. If you kept a workaround for a bug that is listed there, try without it.
 4. Run your program against OBS Studio. The [test app](test-app.md) is a quick way to see what a response looks like.
