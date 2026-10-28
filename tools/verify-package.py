@@ -8,10 +8,13 @@ files. The package also must not take on a new runtime dependency unless somebod
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
+Source Link names the repository that was built, which is the one of GITHUB_REPOSITORY on GitHub Actions (so a fork's own CI
+verifies its own symbols), and tinodo/obsclient anywhere else; --repository names another.
 
-Usage: verify-package.py PACKAGE.nupkg [PACKAGE.nupkg ...]
+Usage: verify-package.py [--repository OWNER/NAME] PACKAGE.nupkg [PACKAGE.nupkg ...]
        (a .snupkg that is named is verified as a symbol package; the one that belongs to a .nupkg is verified with it)
 """
+import argparse
 import os
 import re
 import sys
@@ -19,6 +22,7 @@ import xml.etree.ElementTree as ElementTree
 import zipfile
 
 ASSEMBLY_NAME = "OBSClient"
+DEFAULT_REPOSITORY = "tinodo/obsclient"
 REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
@@ -43,7 +47,8 @@ ALLOWED_SYMBOL_FILES = [
 ]
 
 # What Source Link writes into a PDB (as UTF-8 JSON): the URL at which the file of a commit can be read.
-SOURCE_LINK = re.compile(rb"https://raw\.githubusercontent\.com/tinodo/obsclient/[0-9a-f]{40}/\*")
+def source_link(repository):
+    return re.compile(rb"https://raw\.githubusercontent\.com/" + re.escape(repository.encode()) + rb"/[0-9a-f]{40}/\*", re.IGNORECASE)
 
 
 def verify_package(path):
@@ -85,8 +90,9 @@ def verify_package(path):
     return names, problems
 
 
-def verify_symbols(path):
+def verify_symbols(path, repository=DEFAULT_REPOSITORY):
     problems = []
+    expected = source_link(repository)
     with zipfile.ZipFile(path) as package:
         names = [name for name in package.namelist() if not name.endswith("/")]
         found = set()
@@ -96,8 +102,8 @@ def verify_symbols(path):
                 if match:
                     if "framework" in match.groupdict():
                         found.add(match.group("framework"))
-                        if not SOURCE_LINK.search(package.read(name)):
-                            problems.append(f"{name} has no Source Link to https://raw.githubusercontent.com/tinodo/obsclient/<commit>/")
+                        if not expected.search(package.read(name)):
+                            problems.append(f"{name} has no Source Link to https://raw.githubusercontent.com/{repository}/<commit>/")
                     break
             else:
                 problems.append(f"unexpected file in the symbol package: {name}")
@@ -113,8 +119,8 @@ def verify_symbols(path):
     return names, problems
 
 
-def verify(path):
-    return verify_symbols(path) if path.endswith(".snupkg") else verify_package(path)
+def verify(path, repository=DEFAULT_REPOSITORY):
+    return verify_symbols(path, repository) if path.endswith(".snupkg") else verify_package(path)
 
 
 def symbols_of(path):
@@ -123,13 +129,19 @@ def symbols_of(path):
 
 
 def main(arguments):
-    if not arguments:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--repository")
+    parser.add_argument("packages", nargs="*")
+    options = parser.parse_args(arguments)
+    if not options.packages:
         print(__doc__)
         return 2
 
+    repository = options.repository or os.environ.get("GITHUB_REPOSITORY") or DEFAULT_REPOSITORY
+
     # A package is never verified without its symbols: a pack that forgot them must not go unnoticed.
     paths = []
-    for path in arguments:
+    for path in options.packages:
         if path not in paths:
             paths.append(path)
         symbols = symbols_of(path)
@@ -143,7 +155,7 @@ def main(arguments):
             print(f"::error::{path}: the file is missing (the symbol package is made by the pack: IncludeSymbols and SymbolPackageFormat=snupkg).")
             continue
 
-        names, problems = verify(path)
+        names, problems = verify(path, repository)
         print(f"{path}: {len(names)} files")
         for name in sorted(names):
             print(f"  {name}")

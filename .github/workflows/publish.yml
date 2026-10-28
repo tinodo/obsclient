@@ -46,7 +46,7 @@ jobs:
     name: Check the version
     runs-on: ubuntu-latest
     outputs:
-      ref: ${{ steps.which.outputs.ref }}
+      sha: ${{ steps.commit.outputs.sha }}
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.notes.outputs.prerelease }}
@@ -58,10 +58,11 @@ jobs:
           # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
           TAG_INPUT: ${{ inputs.tag }}
           DRY_RUN: ${{ inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
-            # A dry run builds the branch that it was started on; there is no tag.
-            ref="$GITHUB_REF"
+            # A dry run builds the commit that it was started on (not the branch, which can move while it runs); there is no tag.
+            ref="$GITHUB_SHA"
             tag=""
           else
             tag="${TAG_INPUT:-$GITHUB_REF_NAME}"
@@ -69,8 +70,14 @@ jobs:
               echo "::error::'$tag' is not a version tag (expected vX.Y.Z)."
               exit 1
             fi
-            # Fully qualified, so that a branch of the same name can never be packaged instead of the tag.
-            ref="refs/tags/$tag"
+            if [ "$EVENT_NAME" = "push" ]; then
+              # The commit that the tag pointed at when it was pushed; a tag that is moved afterwards is not followed.
+              ref="$GITHUB_SHA"
+            else
+              # A manual run for an existing tag: its commit now. Fully qualified, so that a branch of the same name can never be
+              # packaged instead of the tag.
+              ref="refs/tags/$tag"
+            fi
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -81,6 +88,13 @@ jobs:
           ref: ${{ steps.which.outputs.ref }}
           # The whole history, to check below that the tagged commit is on main.
           fetch-depth: 0
+
+      # Every other job builds this commit, and not the tag or the branch again: a ref can move while the run goes on (the approval
+      # of a release can take a day), and the package, the test app and the notes must come from the commit that was checked here.
+      - name: Pin the commit
+        id: commit
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # A version is permanent on nuget.org, so a tag that was pushed from a branch must never get that far.
       - name: Verify the tagged commit is on main
@@ -115,6 +129,23 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+      # A version that nuget.org lists is never built again. A new build would use whatever the runner has today, while the package
+      # that was published can never be replaced (a push is skipped as a duplicate), so the symbols, the test app and the assets of
+      # the release could end up not matching it. To finish a release that failed after the push, re-run the failed jobs of its run:
+      # they use the artifacts of that run.
+      - name: Verify the version is not published yet
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          curl -fsS -o index.json "https://api.nuget.org/v3-flatcontainer/obsclient/index.json"
+          version=$(echo "$VERSION" | tr '[:upper:]' '[:lower:]')
+          if jq -e --arg v "$version" '.versions | index($v) != null' index.json > /dev/null; then
+            echo "::error::OBSClient $VERSION is on nuget.org already, and a version is never built again. To finish a release that failed after the push, re-run the failed jobs of its run (not all jobs, and not a new run)."
+            exit 1
+          fi
+
       # The notes of the release are what CHANGELOG.md says about this version, so a version without a section that has a date is
       # refused here, before anything is built or published.
       - name: Check the changelog
@@ -132,7 +163,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.version.outputs.ref }}
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -179,7 +210,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.version.outputs.ref }}
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -224,7 +255,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.version.outputs.ref }}
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Download the package
         uses: actions/download-artifact@v8
@@ -295,19 +326,21 @@ jobs:
       - name: Make a draft release, and delete it
         shell: bash
         run: |
-          draft="dry-run-$GITHUB_RUN_ID"
-          id=""
+          # Unique for every attempt of every run, so that a retry can never collide with what a failed attempt left behind.
+          draft="dry-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+          # Whatever happens, no draft of this attempt is left: a draft is not found by its tag, so it is looked up in the list of
+          # releases, also when it was made but a file did not upload.
           cleanup() {
-            if [ -n "$id" ]; then
-              gh api -X DELETE "repos/$GH_REPO/releases/$id" && echo "The draft release is deleted."
-            fi
+            for id in $(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id"); do
+              gh api -X DELETE "repos/$GH_REPO/releases/$id" && echo "The draft release $draft ($id) is deleted."
+            done
           }
           trap cleanup EXIT
 
           gh release create "$draft" --draft --target "$GITHUB_SHA" --title "Dry run of $TAG" --notes-file release-notes.md \
             "assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip"
 
-          # A draft is not found by its tag name, so look it up in the list of releases.
           id=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id")
           if [ -z "$id" ]; then
             echo "::error::The draft release $draft was made, but it is not in the list of releases."
@@ -331,6 +364,20 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
+      # The approval can take a long time. What is published has to be what was tagged, so the tag must still point at the commit that
+      # was packed: a tag that was moved in the meantime stops the release here, before anything is pushed.
+      - name: Verify the tag still points at the commit that was packed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          SHA: ${{ needs.version.outputs.sha }}
+        run: |
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/tags/$TAG" --jq .sha)
+          if [ "$actual" != "$SHA" ]; then
+            echo "::error::The tag $TAG points at $actual now, and the package was built from $SHA. Nothing was published. Start again with a new version."
+            exit 1
+          fi
+
       - name: Download package artifact
         uses: actions/download-artifact@v8
         with:
@@ -444,22 +491,32 @@ jobs:
           name: release-notes
           path: .
 
-      # A re-run (or a release that was made by hand before) updates the release instead of failing on it.
+      # A re-run (or a release that was made by hand, even a draft) is updated instead of failing on it: the files are uploaded first
+      # and the release is published after that, as a person would do it.
       - name: Create the release
         shell: bash
         run: |
           files=("assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip")
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "The release $TAG exists: its notes and files are updated."
-            if [ "$PRERELEASE" = "true" ]; then
-              gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md --prerelease
-            else
-              gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md --prerelease=false --latest
-            fi
-            gh release upload "$TAG" "${files[@]}" --clobber
-          elif [ "$PRERELEASE" = "true" ]; then
-            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md --prerelease "${files[@]}"
+
+          # A release becomes the latest one only when it is the newest stable version: finishing an older one (a re-run, a recovery)
+          # must not take that place from a newer one.
+          if [ "$PRERELEASE" = "true" ]; then
+            kind=(--prerelease)
           else
-            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md --latest "${files[@]}"
+            latest=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2> /dev/null || true)
+            if [ -z "$latest" ] || [ "$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)" = "$VERSION" ]; then
+              kind=(--prerelease=false --latest)
+            else
+              echo "$latest is newer than $TAG, so $TAG is not made the latest release."
+              kind=(--prerelease=false --latest=false)
+            fi
           fi
-          gh release view "$TAG" --json url,isPrerelease,assets --jq '"\(.url) (prerelease: \(.isPrerelease)): \([.assets[].name] | join(", "))"'
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "The release $TAG exists: its files and notes are updated, and it is published."
+            gh release upload "$TAG" "${files[@]}" --clobber
+            gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md --draft=false "${kind[@]}"
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md "${kind[@]}" "${files[@]}"
+          fi
+          gh release view "$TAG" --json url,isPrerelease,isDraft,assets --jq '"\(.url) (prerelease: \(.isPrerelease), draft: \(.isDraft)): \([.assets[].name] | join(", "))"'

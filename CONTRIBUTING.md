@@ -237,8 +237,9 @@ listed, and a failure to push them is a warning, not a failed release.
 
 ### When it fails
 
-Re-run the failed jobs in the Actions tab; it runs the workflow as it was at the tag. Never delete and re-tag once something was
-published; the one case in which a tag may be moved is in the table (the first job refuses the version, so nothing was published).
+Re-run the **failed jobs** in the Actions tab (not *all jobs*, and not a new run for the tag): they use the commit and the artifacts of
+that run, so what is finished is what was built. Never delete and re-tag once something was published; the one case in which a tag
+may be moved is in the table (the first job refuses the version, so nothing was published).
 
 | Symptom | Cause |
 | --- | --- |
@@ -247,9 +248,11 @@ published; the one case in which a tag may be moved is in the table (the first j
 | Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
 | The job never starts | It is waiting for your approval |
 | The first job (*Check the version*) refuses the release | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
+| The first job says that nuget.org lists the version already | A version is never built again: the package that was published can never be replaced, so a new build could not be matched with it (the symbols, the test app and the files of the release would come from another build). To finish a release that failed after the push, re-run the **failed jobs** of its run |
+| *Verify the tag still points at the commit that was packed* fails | The tag was moved while the release waited for your approval. Nothing was published; release a new version |
 | *Wait until NuGet.org lists the version* fails | nuget.org did not list the version within 30 minutes: it may have failed its validation (look at the page of the version; you also get an e-mail). Re-run the job when it is fine |
 | A warning that the symbols were not pushed | The package is published. Re-run the *Publish to NuGet.org* job: it skips the package as a duplicate and pushes the symbols |
-| *Create the GitHub release* fails | Re-run it. It updates a release that exists, so it is safe after a release that was made by hand |
+| *Create the GitHub release* fails | Re-run it. It updates a release that exists (a draft too: it is published after its files are uploaded), so it is safe after a release that was made by hand. A release is only made the latest one when its version is the newest stable one |
 
 A published version is **permanent**: nuget.org lets you unlist or deprecate it, never delete or replace it. If a release is wrong,
 publish a fixed one.

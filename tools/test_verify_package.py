@@ -9,6 +9,7 @@ import os
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 _PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify-package.py")
 _SPEC = importlib.util.spec_from_file_location("verify_package", _PATH)
@@ -66,14 +67,17 @@ class VerifyPackageTests(unittest.TestCase):
                 package.writestr(entry, content)
         return path
 
-    def verify(self, packages=None, symbols=None):
-        """Verifies a package (and, unless None, the symbol package that is next to it), the way the pipelines do."""
+    def verify(self, packages=None, symbols=None, options=None):
+        """
+        Verifies a package (and, unless None, the symbol package that is next to it), the way the pipelines do. The repository is
+        named, unless the options say otherwise, so that the tests do not depend on where they run (GITHUB_REPOSITORY of a fork).
+        """
         path = self.write("OBSClient.4.0.0.nupkg", package_files() if packages is None else packages)
         if symbols is not None:
             self.write("OBSClient.4.0.0.snupkg", symbols)
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
-            code = verify_package.main([path])
+            code = verify_package.main([*(["--repository", "tinodo/obsclient"] if options is None else options), path])
         return code, output.getvalue()
 
     def test_a_package_with_its_symbols_passes(self):
@@ -151,20 +155,56 @@ class VerifyPackageTests(unittest.TestCase):
         symbols = self.write("OBSClient.4.0.0.snupkg", symbol_files())
         output = io.StringIO()
 
-        with contextlib.redirect_stdout(output):
+        with contextlib.redirect_stdout(output), mock.patch.dict(os.environ, {}, clear=True):
             code = verify_package.main([package, symbols])
 
         self.assertEqual(0, code, output.getvalue())
         self.assertEqual(1, output.getvalue().count("OBSClient.4.0.0.snupkg: "))
 
+    def test_a_fork_verifies_symbols_that_point_at_itself(self):
+        fork = SOURCE_LINK.replace(b"tinodo/obsclient", b"someone/else")
+        symbols = symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + fork, "lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
+
+        accepted_code, accepted = self.verify(symbols=symbols, options=["--repository", "someone/else"])
+        refused_code, refused = self.verify(symbols=symbols, options=["--repository", "tinodo/obsclient"])
+
+        self.assertEqual(0, accepted_code, accepted)
+        self.assertEqual(1, refused_code)
+        self.assertIn("no Source Link to https://raw.githubusercontent.com/tinodo/obsclient/<commit>/", refused)
+
+    def test_the_repository_is_the_one_of_github_actions_unless_one_is_named(self):
+        fork = SOURCE_LINK.replace(b"tinodo/obsclient", b"someone/else")
+        symbols = symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + fork, "lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
+
+        with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "someone/else"}):
+            from_the_environment, _ = self.verify(symbols=symbols, options=[])
+            named_wins, named = self.verify(symbols=symbols, options=["--repository", "tinodo/obsclient"])
+
+        self.assertEqual(0, from_the_environment)
+        self.assertEqual(1, named_wins)
+        self.assertIn("tinodo/obsclient", named)
+
+    def test_without_a_repository_it_is_the_upstream_one(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            code, output = self.verify(symbols=symbol_files(), options=[])
+
+        self.assertEqual(0, code, output)
+
+    def test_the_name_of_the_repository_is_not_case_sensitive(self):
+        code, output = self.verify(symbols=symbol_files(), options=["--repository", "Tinodo/ObsClient"])
+
+        self.assertEqual(0, code, output)
+
     def test_without_arguments_it_explains_itself(self):
-        output = io.StringIO()
+        for arguments in ([], ["--repository", "someone/else"]):
+            with self.subTest(arguments):
+                output = io.StringIO()
 
-        with contextlib.redirect_stdout(output):
-            code = verify_package.main([])
+                with contextlib.redirect_stdout(output):
+                    code = verify_package.main(arguments)
 
-        self.assertEqual(2, code)
-        self.assertIn("Usage: verify-package.py", output.getvalue())
+                self.assertEqual(2, code)
+                self.assertIn("Usage: verify-package.py", output.getvalue())
 
 
 if __name__ == "__main__":
