@@ -221,10 +221,15 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
    you: **Review deployments**, **Approve and deploy**. That one approval is the gate of every channel: GitHub Packages and the release
    follow once nuget.org lists the version.
 5. The *Publish to NuGet.org* job checks that the tag still points at the commit that was packed, pushes the package, **waits until
-   nuget.org lists the version** (it validates a package first, which takes a few minutes), and then pushes the symbols. *Publish to
-   GitHub Packages* follows. When both are done, the *Create the GitHub release* job makes the release: titled with the tag, a
-   prerelease when the version has a suffix, with the notes, two files, `OBSClient.X.Y.Z.nupkg` (the package that was published) and
-   `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the test app), and the SHA-256 of both in its text. Have a look at it.
+   nuget.org lists the version** (it validates a package first, which takes a few minutes), **checks that the package that nuget.org
+   serves is the one that was packed** (`tools/compare-published.py`: file by file, nuget.org adds only its signature), and then pushes
+   the symbols. *Publish to GitHub Packages* follows. When both are done, the *Create the GitHub release* job makes the release: titled
+   with the tag, a prerelease when the version has a suffix, with the notes, two files, `OBSClient.X.Y.Z.nupkg` (the package that was
+   published) and `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the test app), and the SHA-256 of both in its text. Have a look at it.
+
+Only one run for a version is active at a time (the workflow has a concurrency group per tag): a second run for the same tag waits for
+the first to end, and then stops at the first job, because nuget.org lists the version by then. A run that waits for your approval holds
+its turn: cancel it before you start over.
 
 **Prereleases.** A version with a suffix (`4.0.0-beta1`, tag `v4.0.0-beta1`) goes through the same workflow. nuget.org lists it as a
 prerelease, which `dotnet add package OBSClient` and the NuGet UI skip unless they are asked to include prereleases, so what people
@@ -254,6 +259,7 @@ may be moved is in the table (the first job refuses the version, so nothing was 
 | *Verify the tag still points at the commit that was packed* fails | The tag was moved while the release waited for your approval. Nothing was published (GitHub Packages and the release wait for nuget.org, so this is the first thing that is checked); release a new version |
 | *Verify the tag still points at the commit that was released* fails (in *Create the GitHub release*) | The tag was moved after the package was published. The release was not made. Move the tag back to the commit that the message names (`git push --force origin <commit>:refs/tags/vX.Y.Z`) and re-run the job, or make the release by hand |
 | *Wait until NuGet.org lists the version* fails | nuget.org did not list the version within 30 minutes: it may have failed its validation (look at the page of the version; you also get an e-mail). Re-run the job when it is fine |
+| *Verify that NuGet.org serves the package that was packed* fails | nuget.org lists this version, but not the package that this run packed: another run, or an earlier attempt for the same version, published first (the push skips a duplicate). The step names the files that differ. Nothing after it ran: no symbols, no GitHub Packages, no release. Find the run that published, and if that package is the wrong one, release a new version (a published version can never be replaced) |
 | A warning that the symbols were not pushed | The package is published. Re-run the *Publish to NuGet.org* job: it skips the package as a duplicate and pushes the symbols |
 | *Create the GitHub release* fails | Re-run it. It updates a release that exists (a draft too: it is published after its files are uploaded), so it is safe after a release that was made by hand. A release is only made the latest one when its version is the newest stable one |
 

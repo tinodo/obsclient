@@ -8,8 +8,8 @@
 #   2. git tag v4.0.0 && git push origin v4.0.0   (the tag must equal <Version> and be on main)
 #   3. This workflow checks the version and the changelog, packs once, builds the test app and writes the notes of the release.
 #      Then it waits for your approval of the deployment to the `release` environment (a published version is permanent),
-#      pushes that same .nupkg to nuget.org, waits until nuget.org lists the version, pushes the symbols, pushes the package to
-#      GitHub Packages, and creates the GitHub release.
+#      pushes that same .nupkg to nuget.org, waits until nuget.org lists the version, checks that nuget.org serves that package, pushes
+#      the symbols, pushes the package to GitHub Packages, and creates the GitHub release.
 #
 # A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch) does everything up to the approval, for
 # the branch that it is started on: it checks and packs it, builds the test app, shows the notes of the release in the summary of
@@ -40,6 +40,14 @@ on:
 
 permissions:
   contents: read
+
+# One run per version at a time. A second run for the same tag (a tag that was pushed again, a manual run) waits until the first has
+# ended, and then finds the version on nuget.org, and stops at the first job: the two never race to publish the same version. A run
+# that waits for the approval of the release holds its turn, so cancel it before you start over. A dry run only waits for another
+# run of the same branch.
+concurrency:
+  group: publish-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   version:
@@ -397,6 +405,14 @@ jobs:
           name: nuget-package
           path: ./artifacts
 
+      # Only the scripts of the commit that was packed, to compare the published package with the one that was packed.
+      - name: Checkout the tools of the commit that was packed
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          sparse-checkout: tools
+          persist-credentials: false
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
@@ -408,6 +424,9 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
+      # --skip-duplicate lets the re-run of this job go on after an earlier attempt pushed the package. It also hides a package that
+      # somebody else pushed first, which is why the package that nuget.org serves is compared with the one that was packed below,
+      # before anything else is published.
       - name: Push to NuGet.org
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
@@ -429,6 +448,11 @@ jobs:
           done
           echo "::error::OBSClient $VERSION is not listed on nuget.org after 30 minutes. Look at https://www.nuget.org/packages/OBSClient/$VERSION (the validation may have failed), then re-run this job."
           exit 1
+
+      # What is listed has to be what was packed, file by file (nuget.org adds its signature and nothing else): the symbols, GitHub
+      # Packages and the release that follow all describe the package of this run.
+      - name: Verify that NuGet.org serves the package that was packed
+        run: python3 tools/compare-published.py ./artifacts/OBSClient.*.nupkg
 
       # After the package, and on their own: a problem with the symbols must not make the release fail, and a re-run of this job pushes
       # them again (the package is skipped as a duplicate).
