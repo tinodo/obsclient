@@ -42,10 +42,13 @@ def png(width=256, height=256, extra=0):
     return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
 
 
-def png_of(width, height, depth, color, rows=b"", interlace=0, compression=0, filtering=0, extra_chunks=(), compressed=None):
-    """A PNG with the header and the raster that a test gives it (`compressed` replaces the compressed raster), for what `png` does not cover."""
+def png_of(width, height, depth, color, rows=b"", interlace=0, compression=0, filtering=0, extra_chunks=(), chunks_after=(), compressed=None):
+    """A PNG with the header and the raster that a test gives it (`compressed` replaces the compressed raster), for what `png` does not cover.
+
+    `extra_chunks` come before the image data and `chunks_after` after it."""
     chunks = [png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, depth, color, compression, filtering, interlace)), *extra_chunks]
     chunks.append(png_chunk(b"IDAT", zlib.compress(rows) if compressed is None else compressed))
+    chunks.extend(chunks_after)
     chunks.append(png_chunk(b"IEND", b""))
     return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
 
@@ -274,6 +277,52 @@ class VerifyPackageTests(unittest.TestCase):
         problems = verify_package.icon_problems(png_of(128, 128, 8, 3, bytes(128 * 129)))
 
         self.assertEqual(["icon.png is not a complete PNG: it has no palette"], problems)
+
+    def test_the_palette_of_an_indexed_icon_has_to_be_whole_entries_and_has_to_fit_the_bit_depth(self):
+        eight, one = bytes(128 * 129), bytes(128 * 17)
+        whole = "its palette is not made of whole entries of 3 bytes"
+        for name, depth, rows, palette, expected in (
+            ("an empty palette", 8, eight, b"", f"{whole} (it has 0 bytes)"),
+            ("a palette of two bytes", 8, eight, bytes(2), f"{whole} (it has 2 bytes)"),
+            ("a palette of four bytes", 8, eight, bytes(4), f"{whole} (it has 4 bytes)"),
+            ("257 entries at 8 bits", 8, eight, bytes(257 * 3), "its palette has 257 entries, where at most 256 are possible"),
+            ("3 entries at 1 bit", 1, one, bytes(9), "its palette has 3 entries, where at most 2 are possible"),
+        ):
+            with self.subTest(name):
+                problems = verify_package.icon_problems(png_of(128, 128, depth, 3, rows, extra_chunks=[png_chunk(b"PLTE", palette)]))
+
+                self.assertEqual([f"icon.png is not a complete PNG: {expected}"], problems)
+
+    def test_a_palette_with_as_many_entries_as_the_bit_depth_has_values_is_accepted(self):
+        for depth, rows, entries in ((8, bytes(128 * 129), 256), (8, bytes(128 * 129), 1), (1, bytes(128 * 17), 2), (1, bytes(128 * 17), 1)):
+            with self.subTest(f"{entries} entries at {depth} bits"):
+                data = png_of(128, 128, depth, 3, rows, extra_chunks=[png_chunk(b"PLTE", bytes(entries * 3))])
+
+                self.assertEqual([], verify_package.icon_problems(data))
+
+    def test_more_than_one_palette_and_a_palette_after_the_image_data_are_refused(self):
+        rows = bytes(128 * 129)
+        palette = png_chunk(b"PLTE", bytes(3))
+
+        twice = verify_package.icon_problems(png_of(128, 128, 8, 3, rows, extra_chunks=[palette, palette]))
+        late = verify_package.icon_problems(png_of(128, 128, 8, 3, rows, chunks_after=[palette]))
+
+        self.assertEqual(["icon.png is not a complete PNG: it has more than one palette"], twice)
+        self.assertEqual(["icon.png is not a complete PNG: its palette comes after its image data"], late)
+
+    def test_a_greyscale_icon_cannot_have_a_palette_and_a_colour_icon_may_have_a_suggested_one(self):
+        palette = png_chunk(b"PLTE", bytes(3 * 16))
+        broken = png_chunk(b"PLTE", bytes(2))
+
+        grey = verify_package.icon_problems(png_of(128, 128, 8, 0, bytes(128 * 129), extra_chunks=[palette]))
+        grey_with_alpha = verify_package.icon_problems(png_of(128, 128, 8, 4, bytes(128 * 257), extra_chunks=[palette]))
+        colour = verify_package.icon_problems(png_of(256, 256, 8, 6, bytes(256 * 1025), extra_chunks=[palette]))
+        colour_with_a_broken_one = verify_package.icon_problems(png_of(256, 256, 8, 6, bytes(256 * 1025), extra_chunks=[broken]))
+
+        self.assertEqual(["icon.png is not a complete PNG: it has a palette, which a greyscale image cannot have"], grey)
+        self.assertEqual(grey, grey_with_alpha)
+        self.assertEqual([], colour)
+        self.assertEqual(["icon.png is not a complete PNG: its palette is not made of whole entries of 3 bytes (it has 2 bytes)"], colour_with_a_broken_one)
 
     def test_an_icon_that_claims_a_huge_image_is_refused_without_being_decoded(self):
         # A few hundred bytes that claim 100,000 by 100,000 pixels: what they hold is never read.

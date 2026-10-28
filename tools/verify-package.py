@@ -5,8 +5,10 @@ The package may hold the assembly (and its XML documentation) for each target fr
 nothing else. In particular there must be no JSON (the protocol definition and the code generator are
 design-time inputs under tools/ and never ship), no analyzer or source generator, no build targets and no content
 files. The package also must not take on a new runtime dependency unless somebody decides that on purpose. The icon has to be a PNG
-that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends) and a whole one (the checksums of its
-chunks are right, and its image data is as long as its header says), and the package has to name it.
+that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends) and a whole one: the checksums of its
+chunks are right, its header and its palette are valid, and its image data is as long as its header says, with rows that have a filter
+type that exists. The pixels themselves are not decoded (that is what an image library does, and a look at the icon). The package has to
+name the icon.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -132,6 +134,30 @@ def raster_problems(pixels, width, height, bits_per_pixel, interlace):
     return problems
 
 
+def palette_problems(chunks, color, depth):
+    """What is wrong with the palette (the PLTE chunk) of a PNG, given its colour type and bit depth: the problems, as texts."""
+    kinds = [kind for kind, _ in chunks]
+    palettes = [payload for kind, payload in chunks if kind == b"PLTE"]
+    if color in (0, 4):
+        return ["it has a palette, which a greyscale image cannot have"] if palettes else []
+    if not palettes:
+        return ["it has no palette"] if color == 3 else []
+    if len(palettes) > 1:
+        return ["it has more than one palette"]
+
+    # An indexed image has one entry for every value that a pixel can have, at most; the others hold a palette only as a suggestion.
+    palette = palettes[0]
+    most = 2**depth if color == 3 else 256
+    problems = []
+    if not palette or len(palette) % 3:
+        problems.append(f"its palette is not made of whole entries of 3 bytes (it has {len(palette)} bytes)")
+    elif len(palette) // 3 > most:
+        problems.append(f"its palette has {len(palette) // 3} entries, where at most {most} are possible")
+    if b"IDAT" in kinds and kinds.index(b"PLTE") > kinds.index(b"IDAT"):
+        problems.append("its palette comes after its image data")
+    return problems
+
+
 def icon_problems(data):
     problems = []
     if len(data) > ICON_MAX_BYTES:
@@ -157,8 +183,7 @@ def icon_problems(data):
     if color not in PNG_COLOR_TYPES or depth not in PNG_COLOR_TYPES[color][0] or compression != 0 or filtering != 0 or interlace not in PNG_PASSES:
         problems.append(f"{ICON_NAME} is not a complete PNG: its header is not valid (colour type {color}, bit depth {depth}, compression {compression}, filter {filtering}, interlace {interlace})")
         return problems
-    if color == 3 and b"PLTE" not in kinds:
-        problems.append(f"{ICON_NAME} is not a complete PNG: it has no palette")
+    problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in palette_problems(chunks, color, depth))
 
     pixels = b"".join(payload for kind, payload in chunks if kind == b"IDAT")
     if not pixels:
