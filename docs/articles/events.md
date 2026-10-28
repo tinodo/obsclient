@@ -122,7 +122,9 @@ skips the ones in between. The other three events each describe a change of one 
 
 ## What OBS Studio sends
 
-The client raises every event that OBS Studio sends, as it sends it, and does not filter or combine them. The live tests (see
+The client raises the events that OBS Studio sends as it sends them: it does not combine them, and it drops none of them, with two exceptions
+that are explained above: `InputVolumeMeters` is raised at most once every 100 milliseconds (see [High-volume events](#high-volume-events)),
+and an event that this version of the library does not know is ignored. The live tests (see
 [CONTRIBUTING](https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md#live-tests-a-real-obs-studio)) compare what a real OBS Studio
 sends with what the client raises, and found these things in OBS Studio 33.0.0 with obs-websocket 5.7.6 (on Windows) and in OBS Studio 32.2.0 with
 obs-websocket 5.7.4 (on Linux), which are worth knowing:
@@ -132,8 +134,9 @@ obs-websocket 5.7.4 (on Linux), which are worth knowing:
   change in the live tests.
 - **`SceneCreated` can arrive before the scene is in the list that `GetSceneList` returns**: OBS Studio announces a scene a moment before its
   own list has it. Use the data of the event, and not a request that you send because of it, to learn what was created.
-- **`SceneRemoved` can arrive while `GetSceneList` still lists the scene**, for a moment: OBS Studio announces the removal of a scene a moment
-  before its own list has let go of it (in the same way as it announces a scene before its list has it). Go by the event.
+- **`SceneRemoved` can arrive while `GetSceneList` still lists the scene**, for a moment (it was seen once in the live tests, with OBS Studio
+  32.2.0 on Linux, and not in the runs after it): OBS Studio announces the removal of a scene a moment before its own list has let go of it
+  (in the same way as it announces a scene before its list has it). Go by the event.
 - **`InputRemoved` can arrive while `GetInputList` still lists the input**, and it can stay in the list for a long time: in the tests an
   input of a scene that was not on an output was still listed 5 seconds later, and left the list when that scene was removed. Go by the event.
 - **`SceneItemRemoved` is sent when an item is removed from a scene** (`RemoveSceneItem`), and not when the scene is removed (the
