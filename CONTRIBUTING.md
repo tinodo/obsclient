@@ -18,6 +18,12 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
   Windows, Linux and macOS, and is what CI runs on each of them.
 - `dotnet build OBSClient.sln` builds everything, including the WinUI 3 test app (`OBSClient.TestApp`, see below), so it needs
   Windows and the .NET 10 SDK; on Linux and macOS it fails with NETSDK1100. CI builds the test app on its own Windows job.
+- `samples/ConsoleSample` is a small program that uses the library (`dotnet run --project samples/ConsoleSample`, with OBS Studio running).
+  CI also builds it against the package that was just packed, for both target frameworks, the way a consumer of the package does: that is
+  what shows that the package can be used.
+- The icon of the package, `OBSClient/icon.png`, is drawn by `python tools/make-icon.py` (it needs Pillow) from the same drawing as the logo of
+  the site, `docs/images/logo.svg`: change them together. `tools/verify-package.py` checks that the package has it, and that it is a PNG that
+  nuget.org accepts.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.

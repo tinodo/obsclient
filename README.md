@@ -1,7 +1,12 @@
 # ObsClient
+[![NuGet](https://img.shields.io/nuget/vpre/OBSClient.svg?logo=nuget)](https://www.nuget.org/packages/OBSClient)
+[![Downloads](https://img.shields.io/nuget/dt/OBSClient.svg)](https://www.nuget.org/packages/OBSClient)
+[![Build and Test](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg)](https://github.com/tinodo/obsclient/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/github/license/tinodo/obsclient.svg)](https://github.com/tinodo/obsclient/blob/main/LICENSE)
+
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
 Currently implementing: [**obs-websocket 5.7.6 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md) (including multi-canvas support added in 5.7.0)  
-Targets `net8.0` and `net10.0`.  
+Targets `net8.0` and `net10.0`, the LTS releases of .NET (see [Compatibility](https://tinodo.github.io/obsclient/#compatibility)).  
 Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.  
 **Documentation, guides and the API reference: [tinodo.github.io/obsclient](https://tinodo.github.io/obsclient/)**
 

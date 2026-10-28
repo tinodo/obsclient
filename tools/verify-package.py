@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Verifies that the OBSClient NuGet package is exactly one thing: the library.
 
-The package may hold the assembly (and its XML documentation) for each target framework, the README and the
-license, and nothing else. In particular there must be no JSON (the protocol definition and the code generator are
+The package may hold the assembly (and its XML documentation) for each target framework, the README, the license and the icon, and
+nothing else. In particular there must be no JSON (the protocol definition and the code generator are
 design-time inputs under tools/ and never ship), no analyzer or source generator, no build targets and no content
-files. The package also must not take on a new runtime dependency unless somebody decides that on purpose.
+files. The package also must not take on a new runtime dependency unless somebody decides that on purpose. The icon has to be a PNG
+that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends), and the package has to name it.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -17,6 +18,7 @@ Usage: verify-package.py [--repository OWNER/NAME] PACKAGE.nupkg [PACKAGE.nupkg 
 import argparse
 import os
 import re
+import struct
 import sys
 import xml.etree.ElementTree as ElementTree
 import zipfile
@@ -26,6 +28,11 @@ DEFAULT_REPOSITORY = "tinodo/obsclient"
 REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
+ICON_NAME = "icon.png"
+ICON_MAX_BYTES = 1024 * 1024  # nuget.org refuses a bigger icon
+ICON_MIN_PIXELS = 128  # what NuGet recommends
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
 # Plumbing that every NuGet package has, plus the files this package is meant to carry.
 ALLOWED_FILES = [
     r"\[Content_Types\]\.xml",
@@ -34,6 +41,7 @@ ALLOWED_FILES = [
     rf"{ASSEMBLY_NAME}\.nuspec",
     r"README\.md",
     r"LICENSE",
+    r"icon\.png",
     rf"lib/(?P<framework>net\d+\.\d+)/{ASSEMBLY_NAME}\.(?P<kind>dll|xml)",
 ]
 
@@ -49,6 +57,19 @@ ALLOWED_SYMBOL_FILES = [
 # What Source Link writes into a PDB (as UTF-8 JSON): the URL at which the file of a commit can be read.
 def source_link(repository):
     return re.compile(rb"https://raw\.githubusercontent\.com/" + re.escape(repository.encode()) + rb"/[0-9a-f]{40}/\*", re.IGNORECASE)
+
+
+def icon_problems(data):
+    problems = []
+    if len(data) > ICON_MAX_BYTES:
+        problems.append(f"{ICON_NAME} is larger than 1 MB, which nuget.org refuses")
+    if data[:8] != PNG_SIGNATURE or len(data) < 24:
+        problems.append(f"{ICON_NAME} is not a PNG")
+    else:
+        width, height = struct.unpack(">II", data[16:24])
+        if min(width, height) < ICON_MIN_PIXELS:
+            problems.append(f"{ICON_NAME} is {width} by {height} pixels, which is less than the {ICON_MIN_PIXELS} by {ICON_MIN_PIXELS} that NuGet recommends")
+    return problems
 
 
 def verify_package(path):
@@ -74,6 +95,11 @@ def verify_package(path):
         for framework in sorted(set(found) - REQUIRED_FRAMEWORKS):
             problems.append(f"unexpected target framework in the package: {framework}")
 
+        if ICON_NAME in names:
+            problems.extend(icon_problems(package.read(ICON_NAME)))
+        else:
+            problems.append(f"{ICON_NAME} is missing")
+
         nuspec_name = f"{ASSEMBLY_NAME}.nuspec"
         if nuspec_name in names:
             root = ElementTree.fromstring(package.read(nuspec_name))
@@ -84,6 +110,9 @@ def verify_package(path):
             }
             for dependency in sorted(dependencies - ALLOWED_DEPENDENCIES):
                 problems.append(f"unexpected package dependency: {dependency}")
+            icons = [element.text for element in root.iter() if element.tag.rsplit("}", 1)[-1] == "icon"]
+            if icons != [ICON_NAME]:
+                problems.append(f"the nuspec does not name {ICON_NAME} as the icon of the package")
         else:
             problems.append(f"{nuspec_name} is missing")
 
@@ -166,7 +195,7 @@ def main(arguments):
         elif path.endswith(".snupkg"):
             print("  OK: the symbol package has the PDB of each target framework, with Source Link.")
         else:
-            print("  OK: the package is a single assembly (plus its documentation, README and license).")
+            print("  OK: the package is a single assembly (plus its documentation, README, license and icon).")
     return 1 if failed else 0
 
 

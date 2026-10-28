@@ -6,6 +6,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import struct
 import tempfile
 import unittest
 import zipfile
@@ -25,11 +26,17 @@ PLUMBING = {
 }
 
 
-def nuspec(*dependencies):
+def png(width=256, height=256, size=1000):
+    header = b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", width, height) + b"\x08\x06\x00\x00\x00"
+    return header + b"\x00" * max(0, size - len(header))
+
+
+def nuspec(*dependencies, icon="icon.png"):
     items = "".join(f'<dependency id="{name}" version="8.0.0" />' for name in dependencies)
+    icon_element = f"<icon>{icon}</icon>" if icon else ""
     return (
         '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"><metadata><id>OBSClient</id>'
-        f"<dependencies><group targetFramework=\"net8.0\">{items}</group></dependencies></metadata></package>"
+        f"{icon_element}<dependencies><group targetFramework=\"net8.0\">{items}</group></dependencies></metadata></package>"
     ).encode()
 
 
@@ -39,6 +46,7 @@ def package_files(**changes):
         "OBSClient.nuspec": nuspec("Microsoft.Extensions.Logging.Abstractions"),
         "README.md": b"# ObsClient",
         "LICENSE": b"MIT",
+        "icon.png": png(),
     }
     for framework in ("net8.0", "net10.0"):
         files[f"lib/{framework}/OBSClient.dll"] = b"MZ"
@@ -92,6 +100,39 @@ class VerifyPackageTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertIn("OBSClient.4.0.0.snupkg: the file is missing", output)
+
+    def test_a_package_without_an_icon_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"icon.png": None}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is missing", output)
+
+    def test_an_icon_that_is_not_a_png_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"icon.png": b"<svg/>" + b" " * 40}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is not a PNG", output)
+
+    def test_an_icon_that_is_too_small_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"icon.png": png(width=64, height=256)}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is 64 by 256 pixels, which is less than the 128 by 128", output)
+
+    def test_an_icon_that_is_too_large_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"icon.png": png(size=1024 * 1024 + 1)}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is larger than 1 MB", output)
+
+    def test_an_icon_that_the_package_does_not_name_is_refused(self):
+        code, output = self.verify(
+            packages=package_files(**{"OBSClient.nuspec": nuspec("Microsoft.Extensions.Logging.Abstractions", icon=None)}),
+            symbols=symbol_files(),
+        )
+
+        self.assertEqual(1, code)
+        self.assertIn("the nuspec does not name icon.png as the icon of the package", output)
 
     def test_a_pdb_in_the_package_is_refused(self):
         code, output = self.verify(packages=package_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB"}), symbols=symbol_files())

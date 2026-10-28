@@ -201,6 +201,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   OBS Studio can be away for seconds, so that a request times out and is carried out later all the same.
   The one difference that the comparison of values found is on purpose, and is documented now: OBS Studio sends `null` as the
   `transitionSettings` of a transition that cannot be configured, and `TransitionResponse.TransitionSettings` is an empty dictionary then.
+- **A package icon, better tags and a sample** *(after beta1)*: the package has an icon (the logo of the site) and the tags `obs`, `obs-studio`,
+  `obs-websocket`, `websocket`, `streaming`, `dotnet` and `client`, so that it is easier to find and to recognise on nuget.org. `samples/ConsoleSample`
+  is a small program that connects, lists the scenes and prints the events (`dotnet run --project samples/ConsoleSample`); CI builds it
+  against the package that was just packed, for both target frameworks, which shows that the package can be used. The target frameworks
+  are `net8.0` and `net10.0`, the LTS releases: .NET 8 reaches the end of its support on 10 November 2026, and its target stays in the 4.x packages (see
+  the compatibility table of the documentation).
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:
