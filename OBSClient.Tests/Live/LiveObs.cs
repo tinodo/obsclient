@@ -119,6 +119,8 @@ namespace OBSStudioClient.Tests.Live
 
         private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(20);
 
+        private static readonly TimeSpan EventsQuietPeriod = TimeSpan.FromMilliseconds(300);
+
         private readonly List<(string Name, object? Arguments)> _events = [];
 
         private LiveSession(ObsClient client, ListLogger log)
@@ -287,14 +289,14 @@ namespace OBSStudioClient.Tests.Live
                     message.Data.TryGetProperty("eventData", out var data) && data.ValueKind == JsonValueKind.Object ? (JsonElement?)data : null))];
 
         /// <summary>
-        /// Waits until the client has raised every event that OBS Studio sent, and compares each one with what OBS Studio sent: an event
-        /// that the client did not raise, or raised without anything that OBS Studio sent (or with another value), is a problem, and so
-        /// is an event of a type that OBS Studio never sent.
+        /// Waits until the events have settled (the client has raised as many events of every type as OBS Studio sent, and no more came for a
+        /// moment), and compares each one with what OBS Studio sent: an event that the client did not raise, or raised without anything that
+        /// OBS Studio sent (or with another value), is a problem, and so is an event of a type that OBS Studio never sent.
         /// </summary>
         /// <returns>What is wrong; nothing when the client raised every event as OBS Studio sent it.</returns>
         public async Task<IReadOnlyList<string>> CompareEventsWithWhatObsStudioSentAsync()
         {
-            await AsyncTestHelpers.WaitUntilAsync(this.HasRaisedWhatWasSent, TimeSpan.FromSeconds(10));
+            await this.WaitUntilEventsHaveSettledAsync();
 
             var problems = new List<string>();
             var sentByType = this.RawEvents().GroupBy(entry => entry.Type, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
@@ -346,17 +348,37 @@ namespace OBSStudioClient.Tests.Live
             this.Client.Dispose();
         }
 
-        private bool HasRaisedWhatWasSent()
+        // More events can follow the last one that a test waited for (OBS Studio sends some of them twice, and the client raises the events off
+        // the thread that receives them). What OBS Studio sent and what the client raised is therefore only compared when both have the same
+        // number of events of every type, and that has not changed for a moment, so that both are copied from one and the same state. When it
+        // does not settle, the comparison reports the difference.
+        private async Task WaitUntilEventsHaveSettledAsync()
         {
-            var raised = this.Events
-                .GroupBy(entry => entry.Name, StringComparer.Ordinal)
-                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
-            return this.RawEvents()
-                .GroupBy(entry => entry.Type, StringComparer.Ordinal)
-                .All(group => raised.GetValueOrDefault(group.Key) >= group.Count());
+            var previous = string.Empty;
+            var changedAt = DateTime.UtcNow;
+            await AsyncTestHelpers.WaitUntilAsync(
+                () =>
+                {
+                    var sent = this.RawEvents().Select(entry => entry.Type).ToList();
+                    var raised = this.Events.Select(entry => entry.Name).ToList();
+                    var state = $"{Summarize(sent)}|{Summarize(raised)}";
+                    if (!string.Equals(state, previous, StringComparison.Ordinal))
+                    {
+                        previous = state;
+                        changedAt = DateTime.UtcNow;
+                    }
+
+                    var sameNumbers = sent.Count == raised.Count
+                        && sent.GroupBy(name => name, StringComparer.Ordinal).All(group => raised.Count(name => string.Equals(name, group.Key, StringComparison.Ordinal)) == group.Count());
+                    return sameNumbers && DateTime.UtcNow - changedAt >= EventsQuietPeriod;
+                },
+                TimeSpan.FromSeconds(10));
         }
 
-        private IEnumerable<(int Op, JsonElement Data)> RawMessages(int fromEntry)
+        /// <summary>The messages that OBS Studio sent, as the client logged them: the operation code and the data (<c>d</c>) of each, from a position of the log.</summary>
+        /// <param name="fromEntry">The number of entries of the log to skip.</param>
+        /// <returns>The messages, in the order in which they were received.</returns>
+        internal IEnumerable<(int Op, JsonElement Data)> RawMessages(int fromEntry)
         {
             const string Prefix = "Received: ";
             foreach (var (_, message) in this.Log.Entries.Skip(fromEntry))

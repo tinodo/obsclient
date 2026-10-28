@@ -2,6 +2,8 @@ namespace OBSStudioClient.Tests.Live
 {
     using System.Collections.Concurrent;
     using System.Diagnostics;
+    using System.Security.Cryptography;
+    using System.Text;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
@@ -20,6 +22,7 @@ namespace OBSStudioClient.Tests.Live
     [Collection("Live OBS")]
     public class LiveClientTests(ITestOutputHelper output)
     {
+        private const int LeastDistinctivePasswordLength = 8;
         [LivePasswordFact]
         public async Task AWrongPassword_IsRefused_WithTheCloseCodeOfObsStudio()
         {
@@ -46,7 +49,22 @@ namespace OBSStudioClient.Tests.Live
             // The connection is made with the password of the environment, which may be one with characters that are not ASCII.
             Assert.Equal(ConnectionState.Connected, session.Client.ConnectionState);
             var entries = session.Log.Entries.Select(entry => entry.Message).ToList();
-            Assert.DoesNotContain(entries, message => message.Contains(LiveObs.Password, StringComparison.Ordinal));
+
+            // What the client works out of the password with the salt and the challenge of OBS Studio (as obs-websocket 5 defines it) are long
+            // strings that cannot be in the log by chance. The password itself can be a word that the log is made of (a person chose it), so it
+            // is only looked for in what the client wrote, and only when it is long enough to be told apart from the words of the protocol.
+            Assert.True(
+                session.RawMessages(0).First(message => message.Op == 0).Data.TryGetProperty("authentication", out var authentication),
+                "OBS Studio did not ask for a password. This test needs an OBS Studio that does (OBS_LIVE_PASSWORD).");
+            var secret = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(LiveObs.Password + authentication.GetProperty("salt").GetString())));
+            var proof = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(secret + authentication.GetProperty("challenge").GetString())));
+            Assert.DoesNotContain(entries, message => message.Contains(secret, StringComparison.Ordinal) || message.Contains(proof, StringComparison.Ordinal));
+            if (LiveObs.Password.Length >= LeastDistinctivePasswordLength)
+            {
+                Assert.DoesNotContain(
+                    entries.Where(message => !message.StartsWith("Received: ", StringComparison.Ordinal)),
+                    message => message.Contains(LiveObs.Password, StringComparison.Ordinal));
+            }
 
             var identify = entries.Single(message => message.StartsWith("Sending: ", StringComparison.Ordinal) && message.Contains("\"authentication\"", StringComparison.Ordinal));
             Assert.Contains("\"authentication\":\"***\"", identify, StringComparison.Ordinal);
