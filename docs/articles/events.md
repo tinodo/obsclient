@@ -129,9 +129,14 @@ and an event that this version of the library does not know is ignored. The live
 sends with what the client raises, and found these things in OBS Studio 33.0.0 with obs-websocket 5.7.6 (on Windows) and in OBS Studio 32.2.0 with
 obs-websocket 5.7.4 (on Linux), which are worth knowing:
 
-- **`SceneCreated` arrives twice for every scene that is created** (in both versions), with the same data (the same `SceneUuid`) both times. A
-  handler that adds the scene to a list of yours has to check whether it is in the list already. No other event was sent twice for one
-  change in the live tests.
+- **`SceneCreated` arrives twice for every scene that is created** (in both versions), with the same data (the same `SceneUuid`) both times.
+  The two do not follow each other: in the runs with OBS Studio 33.0.0 the `SceneListChanged` of the same change arrived in between, and the
+  second `SceneCreated` came 0.7 to 25 milliseconds after the first, so ignoring an event that equals the previous one does not catch it. A
+  handler that adds the scene to a list of yours has to check whether it is in the list already (go by the `SceneUuid`), and that check does
+  no harm when a later OBS Studio sends the event once. Going by the source, this comes with obs-websocket 5.7 (OBS Studio 32.1.0 and later),
+  and OBS Studio 32.0.x, with obs-websocket 5.6.3, is not affected. It is reported to obs-websocket as
+  [obs-websocket#1364](https://github.com/obsproject/obs-websocket/issues/1364). No other event was sent twice for one change in the live
+  tests.
 - **`SceneCreated` can arrive before the scene is in the list that `GetSceneList` returns**: OBS Studio announces a scene a moment before its
   own list has it. Use the data of the event, and not a request that you send because of it, to learn what was created.
 - **`SceneRemoved` can arrive while `GetSceneList` still lists the scene**, for a moment (it was seen once in the live tests, with OBS Studio
