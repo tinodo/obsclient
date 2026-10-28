@@ -126,7 +126,7 @@ have the client reconnect.
 An OBS Studio user can end your session with the **Kick** button of the session list. The connection then closes with
 `WebSocketCloseCode.SessionInvalidated`, and obs-websocket requires that a client does not reconnect automatically after that, so the
 client sets `AutoReconnect` to `false` and stays `Disconnected`. Connect again yourself when you want to. (Versions up to and including
-4.0.0-beta1 reconnected anyway; that was fixed after beta1.)
+4.0.0-beta1 reconnected anyway; that was fixed in 4.0.0-beta2.)
 
 ## Choosing the events
 

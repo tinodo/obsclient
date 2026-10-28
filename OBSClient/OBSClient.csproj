@@ -16,7 +16,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>obs;obs-studio;obs-websocket;websocket;streaming;dotnet;client</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>4.0.0-beta1</Version>
+    <Version>4.0.0-beta2</Version>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
 	<PublishRepositoryUrl>true</PublishRepositoryUrl>
 	<EmbedUntrackedSources>true</EmbedUntrackedSources>
