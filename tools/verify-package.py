@@ -89,13 +89,15 @@ def source_link(repository):
 
 
 def png_chunks(data):
-    """The chunks of a PNG as (type, payload), in order. A ValueError says what is damaged: a chunk that is cut off, or a wrong CRC."""
+    """The chunks of a PNG as (type, payload), in order. A ValueError says what is damaged: a chunk that is cut off, a name that is not four letters, or a wrong CRC."""
     position = len(PNG_SIGNATURE)
     chunks = []
     while position < len(data):
         if position + 8 > len(data):
             raise ValueError("the header of a chunk is cut off")
         length, kind = struct.unpack(">I4s", data[position : position + 8])
+        if not re.fullmatch(rb"[A-Za-z]{4}", kind):
+            raise ValueError(f"a chunk has a name that is not four letters ({ascii(kind.decode('latin-1'))})")
         end = position + 8 + length + 4
         if end > len(data):
             raise ValueError(f"the {kind.decode('latin-1')} chunk is cut off")

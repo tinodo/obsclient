@@ -358,6 +358,19 @@ class VerifyPackageTests(unittest.TestCase):
 
         self.assertEqual([], verify_package.icon_problems(data))
 
+    def test_a_chunk_whose_name_is_not_four_letters_is_refused(self):
+        rows = bytes(256 * 1025)
+        for name, kind in (
+            ("a digit", b"t1Xt"),
+            ("a space", b"ab d"),
+            ("a byte that is not text", b"\x00\x01\x02\x03"),
+            ("a letter that is not ASCII", b"t\xe9Xt"),
+        ):
+            with self.subTest(name):
+                problems = verify_package.icon_problems(png_of(256, 256, 8, 6, rows, extra_chunks=[png_chunk(kind, b"")]))
+
+                self.assertEqual([f"icon.png is not a complete PNG: a chunk has a name that is not four letters ({ascii(kind.decode('latin-1'))})"], problems)
+
     def test_the_transparency_of_a_png_has_to_follow_its_colour_type(self):
         grey, rgb, grey_with_alpha, rgba = bytes(128 * 129), bytes(128 * 385), bytes(128 * 257), bytes(256 * 1025)
         palette = png_chunk(b"PLTE", bytes(6))
