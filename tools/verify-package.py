@@ -5,7 +5,8 @@ The package may hold the assembly (and its XML documentation) for each target fr
 nothing else. In particular there must be no JSON (the protocol definition and the code generator are
 design-time inputs under tools/ and never ship), no analyzer or source generator, no build targets and no content
 files. The package also must not take on a new runtime dependency unless somebody decides that on purpose. The icon has to be a PNG
-that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends), and the package has to name it.
+that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends) and a whole one (the checksums of its
+chunks are right, and its image data is as long as its header says), and the package has to name it.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -32,7 +33,14 @@ ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 ICON_NAME = "icon.png"
 ICON_MAX_BYTES = 1024 * 1024  # nuget.org refuses a bigger icon
 ICON_MIN_PIXELS = 128  # what NuGet recommends
+ICON_MAX_RASTER_BYTES = 64 * 1024 * 1024  # what an icon may need once it is decoded: a PNG of 1 MB can claim much more, and is not read then
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+# What a PNG may hold: the bit depths that a colour type allows, and its samples per pixel.
+PNG_COLOR_TYPES = {0: ({1, 2, 4, 8, 16}, 1), 2: ({8, 16}, 3), 3: ({1, 2, 4, 8}, 1), 4: ({8, 16}, 2), 6: ({8, 16}, 4)}
+
+# The passes of an interlaced (Adam7) image, as (x start, y start, x step, y step); a plain image is one pass over everything.
+PNG_PASSES = {0: [(0, 0, 1, 1)], 1: [(0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2)]}
 
 # Plumbing that every NuGet package has, plus the files this package is meant to carry.
 ALLOWED_FILES = [
@@ -80,6 +88,50 @@ def png_chunks(data):
     return chunks
 
 
+def png_rows(width, height, bits_per_pixel, interlace):
+    """What the decoded image of a PNG is made of, as (rows, bytes of a row) for each pass; a row has a byte for its filter type in front."""
+    passes = []
+    for x_start, y_start, x_step, y_step in PNG_PASSES[interlace]:
+        pass_width = (width - x_start + x_step - 1) // x_step if width > x_start else 0
+        pass_height = (height - y_start + y_step - 1) // y_step if height > y_start else 0
+        if pass_width and pass_height:
+            passes.append((pass_height, 1 + (pass_width * bits_per_pixel + 7) // 8))
+    return passes
+
+
+def raster_problems(pixels, width, height, bits_per_pixel, interlace):
+    """What is wrong with the compressed image data of a PNG, given what its header says: the problems, as texts."""
+    passes = png_rows(width, height, bits_per_pixel, interlace)
+    expected = sum(rows * length for rows, length in passes)
+    if expected > ICON_MAX_RASTER_BYTES:
+        return [f"its {width} by {height} pixels need more than {ICON_MAX_RASTER_BYTES // (1024 * 1024)} MB once they are decoded"]
+
+    # Never more than what the header calls for (and one byte more, to see that there is more): a small file can claim a huge image.
+    decoder = zlib.decompressobj()
+    try:
+        raster = decoder.decompress(pixels, expected + 1)
+    except zlib.error as error:
+        return [f"its image data cannot be read ({error})"]
+    if len(raster) < expected:
+        return [f"its image data is incomplete ({len(raster)} of the {expected} bytes that {width} by {height} pixels need)"]
+    if len(raster) > expected:
+        return [f"its image data is longer than the {expected} bytes that {width} by {height} pixels need"]
+
+    problems = []
+    if not decoder.eof:
+        problems.append("its image data is cut off: the compressed stream does not end")
+    elif decoder.unused_data:
+        problems.append("there are bytes after the end of its compressed image data")
+    offset = 0
+    for rows, length in passes:
+        filters = raster[offset : offset + rows * length : length]
+        if max(filters) > 4:
+            problems.append("a row of its image data has a filter type that does not exist")
+            break
+        offset += rows * length
+    return problems
+
+
 def icon_problems(data):
     problems = []
     if len(data) > ICON_MAX_BYTES:
@@ -99,19 +151,21 @@ def icon_problems(data):
         problems.append(f"{ICON_NAME} is not a complete PNG: it does not start with its IHDR chunk")
         return problems
 
-    width, height = struct.unpack(">II", chunks[0][1][:8])
+    width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", chunks[0][1])
     if min(width, height) < ICON_MIN_PIXELS:
         problems.append(f"{ICON_NAME} is {width} by {height} pixels, which is less than the {ICON_MIN_PIXELS} by {ICON_MIN_PIXELS} that NuGet recommends")
+    if color not in PNG_COLOR_TYPES or depth not in PNG_COLOR_TYPES[color][0] or compression != 0 or filtering != 0 or interlace not in PNG_PASSES:
+        problems.append(f"{ICON_NAME} is not a complete PNG: its header is not valid (colour type {color}, bit depth {depth}, compression {compression}, filter {filtering}, interlace {interlace})")
+        return problems
+    if color == 3 and b"PLTE" not in kinds:
+        problems.append(f"{ICON_NAME} is not a complete PNG: it has no palette")
 
     pixels = b"".join(payload for kind, payload in chunks if kind == b"IDAT")
     if not pixels:
         problems.append(f"{ICON_NAME} is not a complete PNG: it has no image data")
     else:
-        try:
-            if not zlib.decompress(pixels):
-                problems.append(f"{ICON_NAME} is not a complete PNG: its image data is empty")
-        except zlib.error as error:
-            problems.append(f"{ICON_NAME} is not a complete PNG: its image data cannot be read ({error})")
+        bits_per_pixel = depth * PNG_COLOR_TYPES[color][1]
+        problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in raster_problems(pixels, width, height, bits_per_pixel, interlace))
     if kinds[-1] != b"IEND":
         problems.append(f"{ICON_NAME} is not a complete PNG: it does not end with its IEND chunk")
     return problems

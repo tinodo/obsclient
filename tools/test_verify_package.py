@@ -42,6 +42,32 @@ def png(width=256, height=256, extra=0):
     return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
 
 
+def png_of(width, height, depth, color, rows=b"", interlace=0, compression=0, filtering=0, extra_chunks=(), compressed=None):
+    """A PNG with the header and the raster that a test gives it (`compressed` replaces the compressed raster), for what `png` does not cover."""
+    chunks = [png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, depth, color, compression, filtering, interlace)), *extra_chunks]
+    chunks.append(png_chunk(b"IDAT", zlib.compress(rows) if compressed is None else compressed))
+    chunks.append(png_chunk(b"IEND", b""))
+    return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
+
+
+# Kinds of PNG, as (width, height, bit depth, colour type, interlace, bytes of the raster). The sizes are worked out by hand: a row has a
+# byte for its filter type and then its pixels, rounded up to whole bytes; the Adam7 image of 256 by 256 has these seven passes:
+# 32 rows of 129 bytes, 32 of 129, 32 of 257, 64 of 257, 64 of 513, 128 of 513 and 128 of 1025.
+PNG_KINDS = {
+    "8 bits per sample with alpha": (256, 256, 8, 6, 0, 256 * 1025),
+    "16 bits per sample, grey": (130, 140, 16, 0, 0, 140 * 261),
+    "1 bit grey, rows that are not a whole number of bytes": (130, 130, 1, 0, 0, 130 * 18),
+    "a palette": (128, 128, 8, 3, 0, 128 * 129),
+    "interlaced (Adam7)": (256, 256, 8, 6, 1, 32 * 129 + 32 * 129 + 32 * 257 + 64 * 257 + 64 * 513 + 128 * 513 + 128 * 1025),
+}
+
+
+def png_of_kind(kind, delta=0):
+    width, height, depth, color, interlace, size = PNG_KINDS[kind]
+    palette = [png_chunk(b"PLTE", bytes(3))] if color == 3 else []
+    return png_of(width, height, depth, color, bytes(size + delta), interlace=interlace, extra_chunks=palette)
+
+
 def nuspec(*dependencies, icon="icon.png"):
     items = "".join(f'<dependency id="{name}" version="8.0.0" />' for name in dependencies)
     icon_element = f"<icon>{icon}</icon>" if icon else ""
@@ -180,6 +206,80 @@ class VerifyPackageTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertIn("icon.png is not a complete PNG: its image data cannot be read", output)
+
+    def test_an_icon_with_incomplete_pixel_data_in_a_valid_stream_is_refused(self):
+        # A stream that is valid (and has a correct checksum), with one byte of the 262,400 that 256 by 256 pixels need.
+        code, output = self.verify(packages=package_files(**{"icon.png": png_of(256, 256, 8, 6, b"\x00")}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("icon.png is not a complete PNG: its image data is incomplete (1 of the 262400 bytes that 256 by 256 pixels need)", output)
+
+    def test_the_raster_of_every_kind_of_png_has_to_be_as_long_as_its_header_says(self):
+        for kind, (width, height, *_) in PNG_KINDS.items():
+            with self.subTest(kind):
+                self.assertEqual([], verify_package.icon_problems(png_of_kind(kind)))
+                short = verify_package.icon_problems(png_of_kind(kind, -1))
+                long = verify_package.icon_problems(png_of_kind(kind, 1))
+
+                self.assertEqual(1, len(short), short)
+                self.assertIn(f"its image data is incomplete", short[0])
+                self.assertEqual(1, len(long), long)
+                self.assertIn(f"its image data is longer than", long[0])
+                self.assertIn(f"{width} by {height} pixels", long[0])
+
+    def test_a_row_with_a_filter_type_that_does_not_exist_is_refused(self):
+        rows = bytearray(256 * 1025)
+        rows[7 * 1025] = 5
+
+        problems = verify_package.icon_problems(png_of(256, 256, 8, 6, bytes(rows)))
+
+        self.assertEqual(["icon.png is not a complete PNG: a row of its image data has a filter type that does not exist"], problems)
+
+    def test_a_filter_type_that_does_not_exist_is_found_in_every_pass_of_an_interlaced_icon(self):
+        passes = [(32, 129), (32, 129), (32, 257), (64, 257), (64, 513), (128, 513), (128, 1025)]
+        for number in range(len(passes)):
+            with self.subTest(f"pass {number + 1}"):
+                rows = bytearray(sum(count * length for count, length in passes))
+                rows[sum(count * length for count, length in passes[:number])] = 5
+
+                problems = verify_package.icon_problems(png_of(256, 256, 8, 6, bytes(rows), interlace=1))
+
+                self.assertEqual(["icon.png is not a complete PNG: a row of its image data has a filter type that does not exist"], problems)
+
+    def test_a_stream_that_does_not_end_and_bytes_after_its_end_are_refused(self):
+        stream = zlib.compress(bytes(256 * 1025))
+
+        cut = verify_package.icon_problems(png_of(256, 256, 8, 6, compressed=stream[:-4]))
+        trailing = verify_package.icon_problems(png_of(256, 256, 8, 6, compressed=stream + b"more"))
+
+        self.assertEqual(["icon.png is not a complete PNG: its image data is cut off: the compressed stream does not end"], cut)
+        self.assertEqual(["icon.png is not a complete PNG: there are bytes after the end of its compressed image data"], trailing)
+
+    def test_a_header_that_is_not_valid_is_refused(self):
+        rows = bytes(256 * 1025)
+        for name, header in {
+            "a bit depth that the colour type does not have": {"depth": 4, "color": 6},
+            "a colour type that does not exist": {"depth": 8, "color": 5},
+            "a compression method that does not exist": {"depth": 8, "color": 6, "compression": 1},
+            "a filter method that does not exist": {"depth": 8, "color": 6, "filtering": 1},
+            "an interlace method that does not exist": {"depth": 8, "color": 6, "interlace": 2},
+        }.items():
+            with self.subTest(name):
+                problems = verify_package.icon_problems(png_of(256, 256, rows=rows, **header))
+
+                self.assertEqual(1, len(problems), problems)
+                self.assertIn("icon.png is not a complete PNG: its header is not valid", problems[0])
+
+    def test_an_icon_with_a_palette_type_and_no_palette_is_refused(self):
+        problems = verify_package.icon_problems(png_of(128, 128, 8, 3, bytes(128 * 129)))
+
+        self.assertEqual(["icon.png is not a complete PNG: it has no palette"], problems)
+
+    def test_an_icon_that_claims_a_huge_image_is_refused_without_being_decoded(self):
+        # A few hundred bytes that claim 100,000 by 100,000 pixels: what they hold is never read.
+        problems = verify_package.icon_problems(png_of(100_000, 100_000, 8, 6, b"\x00"))
+
+        self.assertEqual(["icon.png is not a complete PNG: its 100000 by 100000 pixels need more than 64 MB once they are decoded"], problems)
 
     def test_an_icon_that_the_package_does_not_name_is_refused(self):
         code, output = self.verify(
