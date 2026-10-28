@@ -399,19 +399,20 @@ jobs:
             exit 1
           fi
 
-      - name: Download package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: nuget-package
-          path: ./artifacts
-
-      # Only the scripts of the commit that was packed, to compare the published package with the one that was packed.
+      # Only the scripts of the commit that was packed, to compare the published package with the one that was packed. This comes first: a
+      # checkout into a workspace that is not a git repository yet deletes what is in it, which the downloaded package would be.
       - name: Checkout the tools of the commit that was packed
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.version.outputs.sha }}
           sparse-checkout: tools
           persist-credentials: false
+
+      - name: Download package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-package
+          path: ./artifacts
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
