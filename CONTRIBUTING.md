@@ -156,7 +156,7 @@ change something stay skipped. `-WebSocketDebug` has the copy of OBS Studio log 
 
 `.github/workflows/live-obs.yml` runs the same tests on Linux in CI: OBS Studio from the PPA of the OBS project, in a virtual display (Xvfb),
 with its own configuration and port (the runner is thrown away, so nothing is at risk there). It is experimental and **not a required
-check**. It runs when the live tests or the workflow change, every week, and on request (*Actions, Live OBS tests, Run workflow*); a scheduled run
+check**. It runs when the client, its tests, the live tests or the workflow change, every week, and on request (*Actions, Live OBS tests, Run workflow*); a scheduled run
 that fails opens an issue (or adds to the open one). The log of OBS Studio is an artifact of the run.
 
 ### The documentation site

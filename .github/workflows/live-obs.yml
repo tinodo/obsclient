@@ -4,15 +4,21 @@
 # installed and running, use tools/live/run-live-tests.ps1 instead (CONTRIBUTING.md, "Live tests"): it makes the same kind of private copy
 # there, and always starts it with --portable.
 #
-# Experimental: this is not a required check. It runs when the live tests or this workflow change, every week, and on request; a
-# scheduled run that fails opens an issue.
+# Experimental: this is not a required check. It runs when the client, its tests, the live tests or this workflow change, every week, and on
+# request; a scheduled run that fails opens an issue.
 name: Live OBS tests
 
 on:
   pull_request:
+    # What the live tests are made of: the client, the tests (with the pieces of the test app that they compile in), and the way they are run.
     paths:
       - '.github/workflows/live-obs.yml'
-      - 'OBSClient.Tests/Live/**'
+      - 'OBSClient/**'
+      - 'OBSClient.Tests/**'
+      - 'OBSClient.TestApp/Analysis/**'
+      - 'OBSClient.TestApp/Catalog/**'
+      - 'OBSClient.TestApp/Generated/**'
+      - 'OBSClient.TestApp/Services/**'
       - 'tools/live/**'
   schedule:
     - cron: '43 5 * * 2'
