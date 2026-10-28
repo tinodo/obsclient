@@ -372,7 +372,7 @@ jobs:
           TAG: ${{ needs.version.outputs.tag }}
           SHA: ${{ needs.version.outputs.sha }}
         run: |
-          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/tags/$TAG" --jq .sha)
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$TAG" --jq .sha)
           if [ "$actual" != "$SHA" ]; then
             echo "::error::The tag $TAG points at $actual now, and the package was built from $SHA. Nothing was published. Start again with a new version."
             exit 1
