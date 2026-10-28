@@ -24,8 +24,9 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 - The icon of the package, `OBSClient/icon.png`, is drawn by `python tools/make-icon.py` (it needs Pillow) from the same drawing as the logo of
   the site, `docs/images/logo.svg`: change them together. `tools/verify-package.py` checks that the package has it, and that it is a PNG that
   nuget.org accepts: a whole file (the checksums of its chunks, chunks in the order, the number and the size that PNG asks for, a valid header, palette
-  and transparency, and image data that is as long as its header says, row by row), of at most 1 MB and at least 128 by 128 pixels. The pixels
-  are not decoded: look at the icon when you change it.
+  and transparency, and image data that is as long as its header says, row by row), of at most 1 MB and at least 128 by 128 pixels. It has to be
+  a plain image: besides the chunks that every PNG has it may only have `tRNS`, `sRGB`, `gAMA` and `pHYs`, and no metadata (text, colour profiles,
+  times, ...), so save it without metadata; `tools/make-icon.py` writes none. The pixels are not decoded: look at the icon when you change it.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.

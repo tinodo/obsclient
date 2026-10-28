@@ -27,15 +27,19 @@ using var client = new ObsClient();
 // The events are raised one at a time, on a thread of the thread pool, in the order in which OBS Studio sent them.
 client.CurrentProgramSceneChanged += (_, e) => Console.WriteLine($"On air now: {e.SceneName}");
 
-// OBS Studio announces a new scene twice, and the client raises what OBS Studio sends, so remember the scenes that were announced.
-var announced = new ConcurrentDictionary<Guid, bool>();
+// OBS Studio announces a new scene twice, and the client raises what OBS Studio sends, so remember the scenes that were announced. A scene is
+// told apart by its UUID, or by its name when the obs-websocket of the OBS Studio is too old to send a UUID (the client gives an empty one then,
+// and every scene would look like the first), and it is forgotten when it is removed, so that one that is made again with its name is announced.
+var announced = new ConcurrentDictionary<string, bool>();
+static string KeyOf(Guid uuid, string name) => uuid != Guid.Empty ? uuid.ToString() : name;
 client.SceneCreated += (_, e) =>
 {
-    if (announced.TryAdd(e.SceneUuid, true))
+    if (announced.TryAdd(KeyOf(e.SceneUuid, e.SceneName), true))
     {
         Console.WriteLine($"A scene was created: {e.SceneName}");
     }
 };
+client.SceneRemoved += (sender, e) => announced.TryRemove(KeyOf(e.SceneUuid, e.SceneName), out _);
 
 client.ConnectionClosed += (_, e) => Console.WriteLine($"The connection was closed: {e.WebSocketCloseDescription}");
 

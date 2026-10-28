@@ -7,8 +7,10 @@ design-time inputs under tools/ and never ship), no analyzer or source generator
 files. The package also must not take on a new runtime dependency unless somebody decides that on purpose. The icon has to be a PNG
 that nuget.org accepts (at most 1 MB, and at least the 128 by 128 pixels that NuGet recommends) and a whole one: the checksums of its
 chunks are right, they are in the order, the number and the size that PNG asks for, its header, palette and transparency are valid, and
-its image data is as long as its header says, with rows that have a filter type that exists. The pixels themselves are not decoded (that
-is what an image library does, and a look at the icon). The package has to name the icon.
+its image data is as long as its header says, with rows that have a filter type that exists. An icon is a plain image: next to the chunks
+that every PNG has it may only have the few that say how the picture is shown (tRNS, sRGB, gAMA, pHYs), and none of the metadata that
+programs add (text, profiles, times, ...), which it does not need and which would have to be checked as well. The pixels themselves are
+not decoded (that is what an image library does, and a look at the icon). The package has to name the icon.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -42,22 +44,19 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PNG_COLOR_TYPES = {0: ({1, 2, 4, 8, 16}, 1), 2: ({8, 16}, 3), 3: ({1, 2, 4, 8}, 1), 4: ({8, 16}, 2), 6: ({8, 16}, 4)}
 
 CRITICAL_CHUNKS = {b"IHDR", b"PLTE", b"IDAT", b"IEND"}  # the chunks that every decoder has to understand
+PNG_MAX_INTEGER = 2**31 - 1  # the largest number that PNG holds in four bytes
 
-# The chunks that the PNG specification puts in a place, as (where, bytes): where is before the palette (before PLTE, when there is one), after
-# the palette, before the image data, or anywhere; the bytes are a number, a number for each colour type, or None when it is not fixed. There
-# is at most one of each of them, and all of them but the last kind are before the image data.
+# An icon is a plain image. Next to the chunks that every PNG has it may only have the few that say how the picture is shown, and none of
+# the metadata that programs add (text, profiles, times, ...): an icon does not need them, and each kind would have to be checked as well.
+# As (where, bytes): where is before the palette (before PLTE, when there is one), after the palette, or before the image data; the bytes
+# are a number, or a number for each colour type. There is at most one of each of them.
 PNG_PLACED_CHUNKS = {
-    b"cHRM": ("before the palette", 32),
     b"gAMA": ("before the palette", 4),
-    b"iCCP": ("before the palette", None),
-    b"sBIT": ("before the palette", {0: 1, 2: 3, 3: 3, 4: 2, 6: 4}),
     b"sRGB": ("before the palette", 1),
-    b"bKGD": ("after the palette", {0: 2, 2: 6, 3: 1, 4: 2, 6: 6}),
-    b"hIST": ("after the palette", None),
     b"tRNS": ("after the palette", {0: 2, 2: 6}),
     b"pHYs": ("before the image data", 9),
-    b"tIME": ("anywhere", 7),
 }
+ICON_CHUNKS = CRITICAL_CHUNKS | set(PNG_PLACED_CHUNKS)
 
 # The passes of an interlaced (Adam7) image, as (x start, y start, x step, y step); a plain image is one pass over everything.
 PNG_PASSES = {0: [(0, 0, 1, 1)], 1: [(0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2)]}
@@ -179,7 +178,7 @@ def palette_problems(chunks, color, depth):
 
 
 def chunk_problems(chunks, color):
-    """What is wrong with the number, the order and the size of the chunks of a PNG, and with its transparency: the problems, as texts."""
+    """What is wrong with the chunks of a PNG that is to be an icon: their number, order, size and values, and those that an icon does not need."""
     kinds = [kind for kind, _ in chunks]
     problems = []
     for name in (b"IHDR", b"IEND"):
@@ -191,9 +190,12 @@ def chunk_problems(chunks, color):
     if positions and positions[-1] - positions[0] + 1 != len(positions):
         problems.append("its image data is not in one run of IDAT chunks")
     # The first letter of the name of a chunk is a capital when a decoder cannot go without it: one that is not in PNG cannot be read.
-    unknown = sorted({kind.decode("latin-1") for kind in kinds if not kind[0] & 0x20 and kind not in CRITICAL_CHUNKS})
-    if unknown:
-        problems.append(f"it has chunks that a decoder has to understand and that are not part of PNG ({', '.join(unknown)})")
+    for kind in sorted(set(kinds) - ICON_CHUNKS):
+        label = kind.decode()
+        if not kind[0] & 0x20:
+            problems.append(f"it has a {label} chunk that a decoder has to understand and that is not part of PNG")
+        else:
+            problems.append(f"it has a {label} chunk, which an icon does not need: save it without metadata (tools/make-icon.py writes none)")
 
     data_at = kinds.index(b"IDAT") if b"IDAT" in kinds else None
     palette_at = kinds.index(b"PLTE") if b"PLTE" in kinds else None
@@ -205,7 +207,7 @@ def chunk_problems(chunks, color):
         if len(found) != 1:
             continue
         position, payload = found[0]
-        if where != "anywhere" and data_at is not None and position > data_at:
+        if data_at is not None and position > data_at:
             problems.append(f"its {label} chunk comes after its image data")
         if where == "before the palette" and palette_at is not None and position > palette_at:
             problems.append(f"its {label} chunk comes after its palette")
@@ -214,17 +216,20 @@ def chunk_problems(chunks, color):
         wanted = size.get(color) if isinstance(size, dict) else size
         if wanted is not None and len(payload) != wanted:
             problems.append(f"its {label} chunk has {len(payload)} bytes, where {wanted} are needed")
+        elif name == b"sRGB" and payload[0] > 3:
+            problems.append(f"its sRGB chunk has a rendering intent ({payload[0]}) that does not exist")
+        elif name == b"gAMA" and not struct.unpack(">I", payload)[0]:
+            problems.append("its gAMA chunk has a gamma of zero")
+        elif name == b"pHYs":
+            across, down, unit = struct.unpack(">IIB", payload)
+            if unit > 1:
+                problems.append(f"its pHYs chunk has a unit ({unit}) that does not exist")
+            if max(across, down) > PNG_MAX_INTEGER:
+                problems.append("its pHYs chunk has a size that is more than a PNG can hold")
 
-    # What depends on the other chunks, or on the colour type, more than on the place or the size of the chunk.
-    if b"sRGB" in kinds and b"iCCP" in kinds:
-        problems.append("it has both an sRGB and an iCCP chunk, which exclude each other")
+    # What depends on the colour type and on the palette more than on the place or the size of the chunk.
     palettes = [payload for kind, payload in chunks if kind == b"PLTE"]
     entries = len(palettes[0]) // 3 if len(palettes) == 1 else None
-    histogram = [payload for kind, payload in chunks if kind == b"hIST"]
-    if histogram and not palettes:
-        problems.append("it has an hIST chunk, which is only for an image with a palette")
-    elif len(histogram) == 1 and entries is not None and len(histogram[0]) != 2 * entries:
-        problems.append(f"its hIST chunk has {len(histogram[0])} bytes, where {2 * entries} are needed for a palette of {entries} entries")
     transparency = [payload for kind, payload in chunks if kind == b"tRNS"]
     if transparency and color in (4, 6):
         problems.append("it has a tRNS chunk, which an image with an alpha channel cannot have")
