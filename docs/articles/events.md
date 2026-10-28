@@ -120,6 +120,23 @@ skips the ones in between. The other three events each describe a change of one 
   `SynchronizationContext.Post`) before you touch a control.
 - An event that this version of the library does not know, for example one of a newer obs-websocket, is ignored.
 
+## What OBS Studio sends
+
+The client raises every event that OBS Studio sends, as it sends it, and does not filter or combine them. The live tests (see
+[CONTRIBUTING](https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md#live-tests-a-real-obs-studio)) compare what a real OBS Studio
+sends with what the client raises, and found these things in OBS Studio 33.0.0 with obs-websocket 5.7.6 (on Windows) and in OBS Studio 32.2.0 with
+obs-websocket 5.7.4 (on Linux), which are worth knowing:
+
+- **`SceneCreated` arrives twice for every scene that is created** (in both versions), with the same data (the same `SceneUuid`) both times. A
+  handler that adds the scene to a list of yours has to check whether it is in the list already. No other event was sent twice for one
+  change in the live tests.
+- **`SceneCreated` can arrive before the scene is in the list that `GetSceneList` returns**: OBS Studio announces a scene a moment before its
+  own list has it. Use the data of the event, and not a request that you send because of it, to learn what was created.
+- **`InputRemoved` can arrive while `GetInputList` still lists the input**, and it can stay in the list for a long time: in the tests an
+  input of a scene that was not on an output was still listed 5 seconds later, and left the list when that scene was removed. Go by the event.
+- **`SceneItemRemoved` is sent when an item is removed from a scene** (`RemoveSceneItem`), and not when the scene is removed (the
+  protocol says so) or when the input is removed: you get `SceneRemoved` or `InputRemoved` then.
+
 ## Custom and vendor events
 
 `BroadcastCustomEvent` sends your data to every client that subscribed to `General`, which receives it as a `CustomEvent`. The data is

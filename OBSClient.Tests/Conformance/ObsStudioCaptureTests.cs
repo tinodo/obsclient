@@ -24,7 +24,7 @@ namespace OBSStudioClient.Tests.Conformance
 
         // Requests that obs-websocket registers, but that its source marks as "Intentionally undocumented" (checked in 5.7.6: the
         // private settings of a source and of a scene item). They are not part of the protocol, so the client leaves them out.
-        private static readonly string[] IntentionallyUndocumented =
+        internal static readonly string[] IntentionallyUndocumented =
         [
             "GetSceneItemPrivateSettings",
             "GetSourcePrivateSettings",
@@ -218,7 +218,7 @@ namespace OBSStudioClient.Tests.Conformance
 
         // The deprecated names that obs-websocket still sends (currentProgramSceneName next to sceneName) are kept by the client
         // as obsolete properties that are computed from the property that replaced them: they are read, but not written back.
-        private static bool IsObsoleteAlias(Type responseType, string path)
+        internal static bool IsObsoleteAlias(Type responseType, string path)
         {
             var match = TopLevelMember.Match(path);
             return match.Success

@@ -38,6 +38,12 @@ client.ConnectionClosed += (_, e) =>
 OBS Studio did not answer within [`RequestTimeout`](xref:OBSStudioClient.ObsClient.RequestTimeout), which is 500 milliseconds by default.
 
 - Some requests take OBS Studio longer, a screenshot of a large source for instance. Raise `RequestTimeout`.
+- **OBS Studio runs many requests on its interface thread**: switching scenes, creating, renaming and removing scenes and inputs, changing
+  the scene collection or the profile. That thread can be busy for seconds (while it loads a scene collection, or on a machine that has a
+  lot to do): in a test on a development machine one scene switch waited for 9 seconds, while the requests that do not need the thread were
+  answered all the time. Raise `RequestTimeout` if your application does these things on a busy machine. **A request that timed out is not
+  undone**: OBS Studio may still carry it out when the thread is free again (the scene switch above was made about 4 seconds after the client had
+  given up on it), so read the state again before you send the request again.
 - A batch that sleeps needs a timeout that is longer than all its sleeps: pass `timeOutInMilliseconds` to `SendRequestBatchAsync`.
 - **Every request of your program times out after a `PropertyChanged` or statistics handler waited for one.** Those handlers run on
   the thread that causes the change, which can be the one that reads the responses, and a handler that waits there (`.Result`,

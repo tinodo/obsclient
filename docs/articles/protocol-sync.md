@@ -42,6 +42,11 @@ Every build runs *conformance tests* that:
 - read captures of **what a real OBS Studio answered and sent**, and fail when a member that OBS Studio sent is not given back. This is
   how the nested objects are checked, which the protocol only describes in prose.
 
+On a machine that has an OBS Studio, **live tests** go further: they start a private copy of OBS Studio (never the one you use) and compare
+what it answers to every `Get` request with what the client returns, run a scene with an input through its life and check that every event
+is raised as OBS Studio sent it, and try a wrong password, a handler that waits for a response, a cancelled batch and a failing one. See
+[CONTRIBUTING](https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md#live-tests-a-real-obs-studio).
+
 A missing request, a field that cannot be sent, a mistyped name, a wrongly registered response, or a response the client cannot read
 fails the build.
 

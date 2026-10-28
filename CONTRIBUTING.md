@@ -120,6 +120,33 @@ of it again at the end, also when something fails. It only touches what it creat
 recording), and it says what to remove by hand if OBS Studio stops answering before it is done. The events are subscribed to all, including
 the high-volume ones; `-MaxEventsPerType` (5) limits how many of each type are kept.
 
+### Live tests (a real OBS Studio)
+
+The tests in `OBSClient.Tests/Live` talk to a real OBS Studio, which is what the other tests can only imitate. For every `Get` request that needs
+no parameters they compare what OBS Studio sent with what the client gives back; they create, change, rename, switch to and remove a scene with
+an input and check that every event is raised as OBS Studio sent it; and they try what only a real server shows: a wrong password, a handler
+that waits for the answer of another request, a batch that is cancelled or that fails, and `Reidentify`. They are **skipped, quietly,** unless
+`OBS_LIVE_PORT` is set, so `dotnet test` and CI do not need OBS Studio.
+
+`pwsh tools/live/run-live-tests.ps1 -ObsPath <the folder of an OBS Studio>` runs them. Several versions of OBS Studio can be installed (and
+running) on one machine, and the arguments of a start decide which configuration, with the scenes in it, an instance uses, so the script is strict:
+
+- It copies the programs of that OBS Studio to `%LOCALAPPDATA%\obsclient-live` (without its configuration: the original is only read) and starts
+  **the copy, always with `--portable`**, with a new configuration for every run. It never starts the virtual camera.
+- The copy gets a WebSocket port of its own: a free one, never the default 4455 that another instance may use. The script checks that the copy
+  is the only process that listens on it, and it stops only the process that it started.
+- The tests that create and remove scenes and inputs need `OBS_LIVE_ALLOW_CHANGES=1` **and** `OBS_LIVE_COLLECTION`, the name of the scene
+  collection of the OBS Studio of the run, and refuse to change an OBS Studio that has another scene collection as its current one (a test checks
+  that). The script names the scene collection after the run. What a test creates is named `obsclient-live-…` and removed again.
+
+To point the read-only tests at an OBS Studio of your own, set `OBS_LIVE_PORT` and `OBS_LIVE_PASSWORD` (and `OBS_LIVE_HOST`); the tests that
+change something stay skipped. `-WebSocketDebug` has the copy of OBS Studio log every message of its WebSocket server, to see what it did.
+
+`.github/workflows/live-obs.yml` runs the same tests on Linux in CI: OBS Studio from the PPA of the OBS project, in a virtual display (Xvfb),
+with its own configuration and port (the runner is thrown away, so nothing is at risk there). It is experimental and **not a required
+check**. It runs when the live tests or the workflow change, every week, and on request (*Actions, Live OBS tests, Run workflow*); a scheduled run
+that fails opens an issue (or adds to the open one). The log of OBS Studio is an artifact of the run.
+
 ### The documentation site
 
 The site at <https://tinodo.github.io/obsclient/> is built with [DocFX](https://dotnet.github.io/docfx/), which is pinned in

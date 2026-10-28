@@ -1,0 +1,144 @@
+# Runs the live tests (OBSClient.Tests/Live) against a real OBS Studio on Linux: OBS Studio from the PPA of the OBS project, in a
+# virtual display (Xvfb, with the software OpenGL of Mesa), with a configuration of its own and a WebSocket port of its own. The runner is
+# thrown away afterwards, so nothing of anybody is at risk here. On a developer machine, where several versions of OBS Studio can be
+# installed and running, use tools/live/run-live-tests.ps1 instead (CONTRIBUTING.md, "Live tests"): it makes the same kind of private copy
+# there, and always starts it with --portable.
+#
+# Experimental: this is not a required check. It runs when the live tests or this workflow change, every week, and on request; a
+# scheduled run that fails opens an issue.
+name: Live OBS tests
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/live-obs.yml'
+      - 'OBSClient.Tests/Live/**'
+      - 'tools/live/**'
+  schedule:
+    - cron: '43 5 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-obs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: Live tests (OBS Studio on Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # The PPA of the OBS project has the newest release that Ubuntu 24.04 gets. The recommended packages are left out: they include a
+      # kernel module (v4l2loopback) for the virtual camera, which nothing here uses.
+      - name: Install OBS Studio and a virtual display
+        run: |
+          sudo add-apt-repository -y ppa:obsproject/obs-studio
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends obs-studio xvfb libgl1-mesa-dri libxcb-cursor0 jq
+          apt-cache policy obs-studio | head -n 4
+
+      # The configuration of OBS Studio is in a folder of its own (HOME and XDG_CONFIG_HOME), with the WebSocket server on a free port
+      # and a password that has characters that are not ASCII, and a scene collection that is named after this run: the tests that
+      # create and remove scenes only change an OBS Studio that has that scene collection.
+      - name: Start OBS Studio
+        run: |
+          export LC_ALL=C.UTF-8
+          home="$RUNNER_TEMP/obs-home"
+          config="$home/.config/obs-studio"
+          mkdir -p "$config/plugin_config/obs-websocket" "$home/runtime"
+          chmod 700 "$home/runtime"
+
+          port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("", 0)); print(s.getsockname()[1])')
+          password="pässö-$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          collection="obsclient-live-$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          echo "::add-mask::$password"
+
+          printf '[General]\nEnableAutoUpdates=false\n' > "$config/global.ini"
+          printf '[General]\nFirstRun=true\nConfirmOnExit=false\n\n[BasicWindow]\nSysTrayEnabled=false\n\n[Basic]\nSceneCollection=%s\n' "$collection" > "$config/user.ini"
+          jq -n --arg password "$password" --argjson port "$port" \
+            '{alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true, server_password: $password, server_port: $port}' \
+            > "$config/plugin_config/obs-websocket/config.json"
+
+          nohup Xvfb :99 -screen 0 1280x720x24 +extension GLX +render -noreset > "$home/xvfb.log" 2>&1 &
+          for _ in $(seq 1 20); do
+            [ -e /tmp/.X11-unix/X99 ] && break
+            sleep 0.5
+          done
+
+          DISPLAY=:99 HOME="$home" XDG_CONFIG_HOME="$home/.config" XDG_RUNTIME_DIR="$home/runtime" LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb \
+            nohup obs --multi --disable-shutdown-check --disable-missing-files-check > "$home/obs-stdout.log" 2>&1 &
+          obs_pid=$!
+
+          {
+            echo "OBS_HOME=$home"
+            echo "OBS_LIVE_HOST=127.0.0.1"
+            echo "OBS_LIVE_PORT=$port"
+            echo "OBS_LIVE_PASSWORD=$password"
+            echo "OBS_LIVE_ALLOW_CHANGES=1"
+            echo "OBS_LIVE_COLLECTION=$collection"
+          } >> "$GITHUB_ENV"
+
+          for _ in $(seq 1 90); do
+            if ss -ltn "sport = :$port" | grep -q LISTEN; then
+              echo "OBS Studio listens on port $port."
+              exit 0
+            fi
+            if ! kill -0 "$obs_pid" 2>/dev/null; then
+              echo "::error::OBS Studio ended while it started."
+              tail -n 40 "$home/obs-stdout.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::The WebSocket server of OBS Studio did not come up on port $port within 90 seconds."
+          tail -n 40 "$home/obs-stdout.log"
+          exit 1
+
+      - name: Run the live tests
+        run: dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release --framework net10.0 --filter "FullyQualifiedName~.Live." --logger "console;verbosity=detailed"
+
+      - name: Keep the logs of OBS Studio
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: obs-logs
+          path: |
+            ${{ env.OBS_HOME }}/obs-stdout.log
+            ${{ env.OBS_HOME }}/xvfb.log
+            ${{ env.OBS_HOME }}/.config/obs-studio/logs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  report:
+    name: Report a failure
+    needs: live
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue, or add to the one that is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="The live tests against OBS Studio failed"
+          body="The scheduled run of the live tests failed: $RUN_URL. The log of OBS Studio is an artifact of the run. Either OBS Studio did something new (compare it with what the tests expect, and with docs/articles/events.md), or the client does something wrong."
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
