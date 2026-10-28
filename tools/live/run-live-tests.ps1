@@ -24,7 +24,9 @@
     variable OBS_LIVE_OBS_PATH, then the installed OBS Studio.
 
 .PARAMETER CacheDirectory
-    Where the copy of OBS Studio and its configuration are kept: %LOCALAPPDATA%\obsclient-live. It can be deleted at any time.
+    Where the copy of OBS Studio and its configuration are kept: %LOCALAPPDATA%\obsclient-live. It can be deleted at any time. One run at a
+    time uses a folder (it is locked): a second run ends at once instead of stopping the OBS Studio of the first; give it another folder
+    to run both.
 
 .PARAMETER Configuration
     The build configuration of the tests (Release).
@@ -244,24 +246,35 @@ if (Test-Path -LiteralPath $CacheDirectory) {
     Write-Utf8 $marker "Made by tools/live/run-live-tests.ps1 for a copy of OBS Studio that the live tests use. It can be deleted.`n"
 }
 
-# A copy of this script that was left running (a crash): it is recognised by its path, which is nobody else's.
-Get-CimInstance Win32_Process -Filter "Name = 'obs64.exe'" | Where-Object { $_.ExecutablePath -and ((Get-FullPath $_.ExecutablePath) -ieq (Get-FullPath $exe)) } | ForEach-Object {
-    Write-Host "Stopping the copy of OBS Studio that an earlier run left (process $($_.ProcessId))."
-    Stop-Process -Id $_.ProcessId -Force
+# One run at a time for a cache directory: a second run would stop the OBS Studio of the first one, copy over its files and delete its
+# configuration while it is still testing. The lock is a file that stays open until this script ends: it is released in the final
+# finally, and by the system when the process ends however it ends, so a crash leaves nothing behind that has to be removed.
+$lock = $null
+try {
+    $lock = [System.IO.File]::Open((Join-Path $CacheDirectory '.lock'), [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+} catch [System.IO.IOException] {
+    throw "Another run of this script is using $CacheDirectory. Wait for it to end, or give this run another -CacheDirectory."
 }
 
-Write-Host "OBS Studio programs (only read): $source"
-Write-Host "Private copy:                    $obsRoot (without the configuration of the original)"
-$null = & robocopy $source $obsRoot /MIR /XD (Join-Path $source 'config') (Join-Path $obsRoot 'config') /NFL /NDL /NJH /NJS /NP /R:2 /W:2
-if ($LASTEXITCODE -ge 8) { throw "Copying OBS Studio failed (robocopy exit code $LASTEXITCODE)." }
-
-$password = 'p' + [char]0x00E4 + 's' + [char]0x00F6 + '-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
-$collection = 'obsclient-live-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
-
+# What is found running from this folder (the lock is held) is a copy that an earlier run left (a crash), and nobody's work. It is
+# recognised by its path, which is nobody else's.
 $obs = $null
 $port = 0
 $problem = 'OBS Studio was not started.'
 try {
+    Get-CimInstance Win32_Process -Filter "Name = 'obs64.exe'" | Where-Object { $_.ExecutablePath -and ((Get-FullPath $_.ExecutablePath) -ieq (Get-FullPath $exe)) } | ForEach-Object {
+        Write-Host "Stopping the copy of OBS Studio that an earlier run left (process $($_.ProcessId))."
+        Stop-Process -Id $_.ProcessId -Force
+    }
+
+    Write-Host "OBS Studio programs (only read): $source"
+    Write-Host "Private copy:                    $obsRoot (without the configuration of the original)"
+    $null = & robocopy $source $obsRoot /MIR /XD (Join-Path $source 'config') (Join-Path $obsRoot 'config') /NFL /NDL /NJH /NJS /NP /R:2 /W:2
+    if ($LASTEXITCODE -ge 8) { throw "Copying OBS Studio failed (robocopy exit code $LASTEXITCODE)." }
+
+    $password = 'p' + [char]0x00E4 + 's' + [char]0x00F6 + '-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+    $collection = 'obsclient-live-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         $port = Get-FreePort
         Write-ObsConfiguration $port $password $collection
@@ -308,6 +321,7 @@ try {
     }
     $null = Save-ObsLog
     if (Test-Path -LiteralPath (Join-Path $logDirectory 'obs-log.txt')) { Write-Host "The log of the copy of OBS Studio is kept in $(Join-Path $logDirectory 'obs-log.txt')." }
+    if ($null -ne $lock) { $lock.Dispose() }
 }
 
 exit $exitCode

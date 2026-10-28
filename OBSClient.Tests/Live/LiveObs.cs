@@ -156,36 +156,44 @@ namespace OBSStudioClient.Tests.Live
             var log = new ListLogger();
             var client = new ObsClient(log) { RequestTimeout = RequestTimeoutMilliseconds };
             var session = new LiveSession(client, log);
-            RequestCatalog.Subscribe(client, session.OnEvent);
 
-            var connected = await client
-                .ConnectAsync(false, password ?? LiveObs.Password, LiveObs.Host, LiveObs.Port!.Value, subscriptions)
-                .WithTimeoutAsync(ConnectTimeout, $"OBS Studio at {LiveObs.Host}:{LiveObs.Port} did not complete the connection within {ConnectTimeout.TotalSeconds:N0} seconds.");
-            if (!connected)
+            // The caller only gets the session when this succeeds: what fails on the way must not leave a client that stays connected.
+            try
+            {
+                RequestCatalog.Subscribe(client, session.OnEvent);
+
+                var connected = await client
+                    .ConnectAsync(false, password ?? LiveObs.Password, LiveObs.Host, LiveObs.Port!.Value, subscriptions)
+                    .WithTimeoutAsync(ConnectTimeout, $"OBS Studio at {LiveObs.Host}:{LiveObs.Port} did not complete the connection within {ConnectTimeout.TotalSeconds:N0} seconds.");
+                if (!connected)
+                {
+                    Assert.Fail($"Could not connect to OBS Studio at {LiveObs.Host}:{LiveObs.Port}. Is it running, with the WebSocket server on, and is OBS_LIVE_PASSWORD right?");
+                }
+
+                // Whatever the port and the password are, an OBS Studio is only changed when it is the one that was made for these tests:
+                // another one that happens to listen there (a version that is running for somebody else) is left exactly as it is.
+                if (LiveObs.MayChange)
+                {
+                    var expected = expectedCollection ?? LiveObs.Collection;
+                    var collection = (await client.GetSceneCollectionList()).CurrentSceneCollectionName;
+                    if (!string.Equals(collection, expected, StringComparison.Ordinal))
+                    {
+                        Assert.Fail($"Refusing to change the OBS Studio at {LiveObs.Host}:{LiveObs.Port}: its current scene collection is '{collection}', not the '{expected}' that the OBS Studio of this run has (OBS_LIVE_COLLECTION), so it is not the OBS Studio that tools/live/run-live-tests.ps1 started. Nothing was changed.");
+                    }
+                }
+
+                if (removeLeftovers)
+                {
+                    await session.RemoveLeftoversAsync();
+                }
+
+                return session;
+            }
+            catch
             {
                 await session.DisposeAsync();
-                Assert.Fail($"Could not connect to OBS Studio at {LiveObs.Host}:{LiveObs.Port}. Is it running, with the WebSocket server on, and is OBS_LIVE_PASSWORD right?");
+                throw;
             }
-
-            // Whatever the port and the password are, an OBS Studio is only changed when it is the one that was made for these tests:
-            // another one that happens to listen there (a version that is running for somebody else) is left exactly as it is.
-            if (LiveObs.MayChange)
-            {
-                var expected = expectedCollection ?? LiveObs.Collection;
-                var collection = (await client.GetSceneCollectionList()).CurrentSceneCollectionName;
-                if (!string.Equals(collection, expected, StringComparison.Ordinal))
-                {
-                    await session.DisposeAsync();
-                    Assert.Fail($"Refusing to change the OBS Studio at {LiveObs.Host}:{LiveObs.Port}: its current scene collection is '{collection}', not the '{expected}' that the OBS Studio of this run has (OBS_LIVE_COLLECTION), so it is not the OBS Studio that tools/live/run-live-tests.ps1 started. Nothing was changed.");
-                }
-            }
-
-            if (removeLeftovers)
-            {
-                await session.RemoveLeftoversAsync();
-            }
-
-            return session;
         }
 
         /// <summary>Removes the scenes and the inputs that were made by an earlier run of the live tests that did not finish: the ones that carry <see cref="LiveObs.NamePrefix"/>.</summary>
@@ -280,7 +288,8 @@ namespace OBSStudioClient.Tests.Live
 
         /// <summary>
         /// Waits until the client has raised every event that OBS Studio sent, and compares each one with what OBS Studio sent: an event
-        /// that the client did not raise, or raised with less than OBS Studio sent, is a problem.
+        /// that the client did not raise, or raised without anything that OBS Studio sent (or with another value), is a problem, and so
+        /// is an event of a type that OBS Studio never sent.
         /// </summary>
         /// <returns>What is wrong; nothing when the client raised every event as OBS Studio sent it.</returns>
         public async Task<IReadOnlyList<string>> CompareEventsWithWhatObsStudioSentAsync()
@@ -288,14 +297,17 @@ namespace OBSStudioClient.Tests.Live
             await AsyncTestHelpers.WaitUntilAsync(this.HasRaisedWhatWasSent, TimeSpan.FromSeconds(10));
 
             var problems = new List<string>();
-            var raised = this.Events;
-            foreach (var sent in this.RawEvents().GroupBy(entry => entry.Type, StringComparer.Ordinal))
+            var sentByType = this.RawEvents().GroupBy(entry => entry.Type, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+            var raisedByType = this.Events.GroupBy(entry => entry.Name, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+
+            // The types of both sides: an event that the client raised and OBS Studio never sent is as wrong as one that got lost.
+            foreach (var type in sentByType.Keys.Union(raisedByType.Keys, StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal))
             {
-                var fromObs = sent.ToList();
-                var heard = raised.Where(entry => entry.Name == sent.Key).ToList();
+                var fromObs = sentByType.GetValueOrDefault(type) ?? [];
+                var heard = raisedByType.GetValueOrDefault(type) ?? [];
                 if (heard.Count != fromObs.Count)
                 {
-                    problems.Add($"{sent.Key}: OBS Studio sent {fromObs.Count}, the client raised {heard.Count}.");
+                    problems.Add($"{type}: OBS Studio sent {fromObs.Count}, the client raised {heard.Count}.");
                 }
 
                 for (var index = 0; index < Math.Min(heard.Count, fromObs.Count); index++)
@@ -308,17 +320,18 @@ namespace OBSStudioClient.Tests.Live
                     var arguments = heard[index].Arguments;
                     if (arguments is null)
                     {
-                        problems.Add($"{sent.Key}: OBS Studio sent event data, the client gave no arguments.");
+                        problems.Add($"{type}: OBS Studio sent event data, the client gave no arguments.");
                         continue;
                     }
 
                     using var back = JsonTools.ToDocument(arguments)!;
                     var comparison = JsonShape.Compare(data, back.RootElement);
-                    var type = arguments.GetType();
+                    var argumentsType = arguments.GetType();
                     problems.AddRange(comparison.OnlyInObs
-                        .Where(path => !ObsStudioCaptureTests.IsObsoleteAlias(type, path))
-                        .Select(path => $"{sent.Key}: OBS Studio sent {path}, the client does not give it back"));
-                    problems.AddRange(comparison.TypeDifferences.Select(difference => $"{sent.Key}: {difference}"));
+                        .Where(path => !ObsStudioCaptureTests.IsObsoleteAlias(argumentsType, path))
+                        .Select(path => $"{type}: OBS Studio sent {path}, the client does not give it back"));
+                    problems.AddRange(comparison.TypeDifferences.Select(difference => $"{type}: {difference}"));
+                    problems.AddRange(JsonValues.Differences(data, back.RootElement).Select(difference => $"{type}: {difference}"));
                 }
             }
 

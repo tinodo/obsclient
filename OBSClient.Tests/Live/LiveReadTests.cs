@@ -18,6 +18,26 @@ namespace OBSStudioClient.Tests.Live
         // The answers that are checked at least: a sweep that exercised hardly any request would pass without proving anything.
         private const int LeastRequestsAnswered = 20;
 
+        // What OBS Studio can refuse for what is going on in it, not for what the client sent: there is no preview scene when Studio Mode is
+        // off, no replay when the replay buffer did not run, and an output that does not run has no status to give. Every other refusal
+        // (a missing field, a field of the wrong type, an unknown request) is a request that the client sent wrongly, and fails the test.
+        private static readonly RequestStatusCode[] StateDependentRefusals =
+        [
+            RequestStatusCode.StudioModeNotActive,
+            RequestStatusCode.InvalidResourceState,
+            RequestStatusCode.OutputNotRunning,
+            RequestStatusCode.OutputRunning,
+            RequestStatusCode.ResourceNotFound,
+        ];
+
+        // What the client holds in another way than OBS Studio sent it, on purpose. OBS Studio sends null for the settings of a transition
+        // that cannot be configured (the protocol says so); the client gives an empty dictionary, so that nobody who uses the client has to
+        // check for null (TransitionResponse.TransitionSettings), and TransitionConfigurable says that the transition has no settings.
+        private static readonly Dictionary<string, string[]> NullsReadAsEmpty = new(StringComparer.Ordinal)
+        {
+            ["GetCurrentSceneTransition"] = ["$.transitionSettings"],
+        };
+
         [LiveFact]
         public async Task ObsStudio_ReportsItsVersion_AndOffersOnlyRequestsThatTheClientHas()
         {
@@ -64,11 +84,14 @@ namespace OBSStudioClient.Tests.Live
                 {
                     returned = await request.Invoke!(session.Client, new ArgumentSet());
                 }
+                catch (ObsResponseException exception) when (StateDependentRefusals.Contains(exception.ErrorCode))
+                {
+                    refused.Add($"{request.Name}: {exception.ErrorCode}");
+                    continue;
+                }
                 catch (ObsResponseException exception)
                 {
-                    // OBS Studio may refuse a request for what is going on, not for what the client did: there is no preview scene
-                    // when Studio Mode is off, and no replay when the replay buffer did not run.
-                    refused.Add($"{request.Name}: {exception.ErrorCode}");
+                    problems.Add($"{request.Name}: OBS Studio refused the request with {exception.ErrorCode}, which is not a refusal for what is going on in it: {exception.Message}");
                     continue;
                 }
                 catch (Exception exception) when (exception is ObsClientException or System.Text.Json.JsonException or InvalidOperationException or NotSupportedException)
@@ -121,6 +144,7 @@ namespace OBSStudioClient.Tests.Live
                     .Where(path => !ObsStudioCaptureTests.IsObsoleteAlias(type, path))
                     .Select(path => $"{request.Name}: OBS Studio sent {path}, the client does not give it back"));
                 problems.AddRange(comparison.TypeDifferences.Select(difference => $"{request.Name}: {difference}"));
+                problems.AddRange(JsonValues.Differences(sent, back.RootElement, NullsReadAsEmpty.GetValueOrDefault(request.Name)).Select(difference => $"{request.Name}: {difference}"));
                 answered.Add(request.Name);
             }
 

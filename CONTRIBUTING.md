@@ -123,7 +123,7 @@ the high-volume ones; `-MaxEventsPerType` (5) limits how many of each type are k
 ### Live tests (a real OBS Studio)
 
 The tests in `OBSClient.Tests/Live` talk to a real OBS Studio, which is what the other tests can only imitate. For every `Get` request that needs
-no parameters they compare what OBS Studio sent with what the client gives back; they create, change, rename, switch to and remove a scene with
+no parameters they compare what OBS Studio sent with what the client gives back, member by member and value by value; they create, change, rename, switch to and remove a scene with
 an input and check that every event is raised as OBS Studio sent it; and they try what only a real server shows: a wrong password, a handler
 that waits for the answer of another request, a batch that is cancelled or that fails, and `Reidentify`. They are **skipped, quietly,** unless
 `OBS_LIVE_PORT` is set, so `dotnet test` and CI do not need OBS Studio.
@@ -135,6 +135,9 @@ running) on one machine, and the arguments of a start decide which configuration
   **the copy, always with `--portable`**, with a new configuration for every run. It never starts the virtual camera.
 - The copy gets a WebSocket port of its own: a free one, never the default 4455 that another instance may use. The script checks that the copy
   is the only process that listens on it, and it stops only the process that it started.
+- One run at a time uses that folder: the script holds a lock on it (`.lock`), and a second run says so and ends, instead of stopping the
+  OBS Studio of the first one and replacing its files. A crash leaves nothing to clean up; give a second run another `-CacheDirectory` to
+  have two at once.
 - The tests that create and remove scenes and inputs need `OBS_LIVE_ALLOW_CHANGES=1` **and** `OBS_LIVE_COLLECTION`, the name of the scene
   collection of the OBS Studio of the run, and refuse to change an OBS Studio that has another scene collection as its current one (a test checks
   that). The script names the scene collection after the run. What a test creates is named `obsclient-live-…` and removed again.
