@@ -43,7 +43,11 @@ namespace OBSStudioClient.Tests.Live
                 var sceneCreated = await session.WaitForEventAsync<SceneModifiedEventArgs>("SceneCreated", e => e.SceneUuid == sceneUuid);
                 Assert.Equal(sceneName, sceneCreated.SceneName);
                 Assert.False(sceneCreated.IsGroup);
-                Assert.Contains((await client.GetSceneList()).Scenes, s => s.SceneUuid == sceneUuid && s.SceneName == sceneName);
+
+                // OBS Studio announces a scene a moment before its own list has it: the list is asked again until it shows the scene.
+                Assert.True(
+                    await this.ListShowsAsync("SceneCreated", async () => (await client.GetSceneList()).Scenes.Any(s => s.SceneUuid == sceneUuid && s.SceneName == sceneName)),
+                    "The scene that was created is not in the list of scenes.");
 
                 // An input in it, made with settings: and the settings that come back (the "settings" of issues 15 and 17).
                 var kind = (await client.GetInputKindList())
@@ -132,9 +136,15 @@ namespace OBSStudioClient.Tests.Live
                 var nameChanged = await session.WaitForEventAsync<SceneNameChangedEventArgs>("SceneNameChanged", e => e.SceneUuid == sceneUuid);
                 Assert.Equal(sceneName, nameChanged.OldSceneName);
                 Assert.Equal(renamed, nameChanged.SceneName);
-                var scenes = (await client.GetSceneList()).Scenes;
-                Assert.DoesNotContain(scenes, s => s.SceneName == sceneName);
-                Assert.Contains(scenes, s => s.SceneUuid == sceneUuid && s.SceneName == renamed);
+                Assert.True(
+                    await this.ListShowsAsync(
+                        "SceneNameChanged",
+                        async () =>
+                        {
+                            var listed = (await client.GetSceneList()).Scenes;
+                            return listed.Any(s => s.SceneUuid == sceneUuid && s.SceneName == renamed) && !listed.Any(s => s.SceneName == sceneName);
+                        }),
+                    "The list of scenes does not show the new name of the scene that was renamed, or it still has the old one.");
                 Assert.Contains(await client.GetSceneItemList(SceneRef.FromName(renamed)), item => item.SceneItemId == itemId);
 
                 // Onto the program output and back (issue 13).
@@ -169,16 +179,17 @@ namespace OBSStudioClient.Tests.Live
 
                 // OBS Studio announces the removal of a scene a moment before its own list has let go of it (in the same way as it announces
                 // a scene before its list has it), so SceneRemoved is what to go by, and the list has to follow.
-                var (sceneListedAtOnce, sceneGoneAfter) = await WaitUntilNotListedAsync(async () => (await client.GetSceneList()).Scenes.Any(s => s.SceneUuid == removedUuid), ListTimeout);
-                output.WriteLine($"Right after SceneRemoved the scene was {(sceneListedAtOnce ? "still" : "no longer")} listed{(sceneListedAtOnce && sceneGoneAfter is { } later ? $"; it was gone {later.TotalMilliseconds:N0} ms later" : string.Empty)}.");
-                Assert.True(sceneGoneAfter is not null, "The scene that was removed is still in the list of scenes 5 seconds after OBS Studio announced that it was removed.");
+                Assert.True(
+                    await this.ListShowsAsync("SceneRemoved", async () => !(await client.GetSceneList()).Scenes.Any(s => s.SceneUuid == removedUuid)),
+                    "The scene that was removed is still in the list of scenes.");
 
                 // OBS Studio announces the removal of an input before the scenes that hold it have let go of it (a scene that is not on
                 // an output only does so when it is removed itself), so the input can still be in the list for a while: InputRemoved is
                 // what to go by. It is gone from the list once the scene that held it is.
-                var (_, inputGoneAfter) = await WaitUntilNotListedAsync(async () => (await client.GetInputList()).Any(candidate => candidate.InputName == inputName), ListTimeout);
-                output.WriteLine($"Right after InputRemoved the input was {(listedAtOnce ? "still" : "no longer")} listed; {(inputGoneAfter is { } gone ? $"it was gone {gone.TotalMilliseconds:N0} ms after its scene was removed" : "after 5 seconds it still was")}.");
-                Assert.True(inputGoneAfter is not null, "The input that was removed is still in the list of inputs 5 seconds after the scene that held it was removed.");
+                output.WriteLine($"Right after InputRemoved the input was {(listedAtOnce ? "still" : "no longer")} listed.");
+                Assert.True(
+                    await this.ListShowsAsync("the scene that held the input was removed", async () => !(await client.GetInputList()).Any(candidate => candidate.InputName == inputName)),
+                    "The input that was removed is still in the list of inputs after the scene that held it was removed.");
 
                 output.WriteLine(session.DescribeEvents());
                 ConformanceAssert.NoProblems(
@@ -194,20 +205,21 @@ namespace OBSStudioClient.Tests.Live
         // What the settings of an input hold is not typed: a number is a JSON number, however the client gives it.
         private static long AsLong(object value) => JsonSerializer.SerializeToElement(value).GetInt64();
 
-        // Asks again until the answer is no, for at most the time that is given: what OBS Studio lists follows what it announces. It tells
-        // whether the first answer was yes, and how long it took until it was no (nothing when it was still yes at the end).
-        private static async Task<(bool ListedAtOnce, TimeSpan? GoneAfter)> WaitUntilNotListedAsync(Func<Task<bool>> isListed, TimeSpan timeout)
+        // OBS Studio announces a change a moment before its own lists have it, so the event is what to go by, and a list is asked again until it
+        // shows the change, for at most ListTimeout. What it took is written down: the guide on events tells what was seen.
+        private async Task<bool> ListShowsAsync(string after, Func<Task<bool>> shows)
         {
             var stopwatch = Stopwatch.StartNew();
-            var listedAtOnce = await isListed();
-            var listed = listedAtOnce;
-            while (listed && stopwatch.Elapsed < timeout)
+            var atOnce = await shows();
+            var done = atOnce;
+            while (!done && stopwatch.Elapsed < ListTimeout)
             {
                 await Task.Delay(50);
-                listed = await isListed();
+                done = await shows();
             }
 
-            return (listedAtOnce, listed ? null : stopwatch.Elapsed);
+            output.WriteLine($"After {after}: {(atOnce ? "the list showed the change at once" : done ? $"the list showed the change {stopwatch.Elapsed.TotalMilliseconds:N0} ms later" : $"the list did not show the change within {ListTimeout.TotalSeconds:N0} seconds")}.");
+            return done;
         }
 
         // Best effort, each step on its own: what fails here must not hide why the test failed, nor keep the other steps from running.
