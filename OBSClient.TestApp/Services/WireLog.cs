@@ -5,11 +5,12 @@ using Microsoft.UI.Dispatching;
 namespace OBSStudioClient.TestApp.Services;
 
 /// <summary>
-/// The logger of the client: it keeps everything the client reports, including (at the debug level) every message that goes
+/// The log of the app: it keeps everything that the client reports, including (at the debug level) every message that goes
 /// to and from OBS Studio, and hands the entries to the screen in small batches. The messages are what the wire log of the
 /// app shows, so the client has to keep logging them as "Sending: {json}" and "Received: {json}" (the unit tests check that).
+/// A client logs to the <see cref="ClientLog"/> that <see cref="ForClient"/> makes for it, and not to this class.
 /// </summary>
-internal sealed class WireLog : ILogger<ObsClient>
+internal sealed class WireLog
 {
     private const int Capacity = 20_000;
 
@@ -24,6 +25,7 @@ internal sealed class WireLog : ILogger<ObsClient>
     private readonly List<LogEntry> _pending = [];
     private readonly ObservationStore _observations;
     private readonly DispatcherQueueTimer _timer;
+    private volatile ClientLog? _clientLog;
     private long _sequence;
     private long _characters;
 
@@ -67,17 +69,33 @@ internal sealed class WireLog : ILogger<ObsClient>
         }
     }
 
-    /// <inheritdoc/>
-    public IDisposable? BeginScope<TState>(TState state)
-        where TState : notnull => null;
-
-    /// <inheritdoc/>
-    public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
-
-    /// <inheritdoc/>
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    /// <summary>Makes the logger for a client that is about to connect.</summary>
+    /// <returns>The logger that the client logs to.</returns>
+    /// <remarks>
+    /// The app keeps this log when it connects again with a new client, and the client that it replaces can still log for a moment. The
+    /// messages in which OBS Studio sent an event wait for that event in the pairing of the logger of the client that received them, so a
+    /// message that a replaced client left behind is never matched with an event of the new one.
+    /// </remarks>
+    public ClientLog ForClient()
     {
-        if (!this.IsEnabled(logLevel))
+        var log = new ClientLog(this);
+        this._clientLog = log;
+        return log;
+    }
+
+    /// <summary>Adds a message of the app itself to the log.</summary>
+    public void Note(LogLevel level, string message) => this.Write(null, level, message, null, static (text, _) => text);
+
+    /// <summary>Adds what a client logged to the log.</summary>
+    /// <typeparam name="TState">The type of what was logged.</typeparam>
+    /// <param name="pairing">Where a message in which OBS Studio sent an event waits for that event: the pairing of the client that logged it, or null.</param>
+    /// <param name="logLevel">The level of the entry.</param>
+    /// <param name="state">What was logged.</param>
+    /// <param name="exception">The exception that was logged with it, if any.</param>
+    /// <param name="formatter">Makes the text of the entry of <paramref name="state"/> and <paramref name="exception"/>.</param>
+    internal void Write<TState>(EventPairing? pairing, LogLevel logLevel, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        if (logLevel == LogLevel.None)
         {
             return;
         }
@@ -109,10 +127,9 @@ internal sealed class WireLog : ILogger<ObsClient>
             this._characters += entry.Text.Length;
             this.Trim();
         }
-    }
 
-    /// <summary>Adds a message of the app itself to the log.</summary>
-    public void Note(LogLevel level, string message) => this.Log(level, default, message, null, static (text, _) => text);
+        pairing?.Received(entry);
+    }
 
     /// <summary>Stops handing entries to the screen, for the end of the app.</summary>
     public void Stop() => this._timer.Stop();
@@ -135,6 +152,8 @@ internal sealed class WireLog : ILogger<ObsClient>
             this._pending.Clear();
             this._characters = 0;
         }
+
+        this._clientLog?.Pairing.Clear();
     }
 
     /// <summary>Finds the response to a request that was sent after a given point of the log.</summary>
@@ -150,26 +169,6 @@ internal sealed class WireLog : ILogger<ObsClient>
     /// <returns>The response of that batch, or null.</returns>
     public LogEntry? FindBatchResponse(string requestId, long afterSequence) =>
         this.FindLast(afterSequence, entry => entry.OpCode == 9 && entry.RequestId == requestId);
-
-    /// <summary>Finds the message in which OBS Studio sent the event that the client has just raised.</summary>
-    /// <param name="eventType">The type of the event.</param>
-    /// <returns>The latest message of that event, or null.</returns>
-    public LogEntry? LatestEvent(string eventType)
-    {
-        lock (this._gate)
-        {
-            for (var index = this._entries.Count - 1; index >= Math.Max(0, this._entries.Count - 500); index--)
-            {
-                var entry = this._entries[index];
-                if (entry.Kind == LogKind.Received && entry.OpCode == 5 && entry.EventType == eventType)
-                {
-                    return entry;
-                }
-            }
-
-            return null;
-        }
-    }
 
     private void ObserveResponse(string requestType, JsonElement responseData)
     {

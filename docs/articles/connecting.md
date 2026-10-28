@@ -104,8 +104,9 @@ client.ConnectionClosed += (_, e) =>
 ```
 
 A request that is waiting for its response when the connection ends fails at once with an `ObsClientException`; it does not
-wait for its timeout. The notifications are raised on the thread that caused them, which is often the one that reads from the socket,
-so keep a handler short and do not block it.
+wait for its timeout. `ConnectionClosed` is raised by the dispatcher of the client, after the events that arrived before the
+connection ended (see [Handling events](events.md#rules-for-handlers)). `PropertyChanged` is raised on the thread that causes the
+change, which is often the one that reads from the socket, so keep that handler short and do not wait for a response from OBS Studio in it.
 
 ## Reconnecting
 
@@ -179,4 +180,5 @@ There is no encryption between the client and OBS Studio, so connect across a ne
 ## Threads
 
 Requests can be sent from any thread, and at the same time: they take turns writing to the socket, and each response is matched
-to its request. Events are raised on the thread that reads from the socket; see [Handling events](events.md#rules-for-handlers).
+to its request. The events are raised by a dispatcher of the client, on a thread of the thread pool that is not the one that reads
+from the socket; see [Handling events](events.md#rules-for-handlers).

@@ -74,6 +74,26 @@ await client.CreateInput(
 
 Passing `null` to `CreateInput` still works.
 
+### Events are raised off the receive thread
+
+The events of OBS Studio and `ConnectionClosed` used to be raised by the thread that reads from OBS Studio. They are queued now, and raised
+by a task of the thread pool: one at a time, in the order in which they happened. See [the rules for handlers](events.md#rules-for-handlers).
+Most code does not notice, but:
+
+- **A handler can wait for a response** (`client.GetSceneList().Result`). In 3.x and 4.0.0-beta1 that made the request time out, because the
+  handler held the thread that has to read the response. A handler that was written around that (with `async`/`await` or `Task.Run`) keeps
+  working.
+- **An event is not raised before the response of the request that caused it.** `await client.SetCurrentProgramScene("Game")` can return
+  before the `CurrentProgramSceneChanged` for it was raised. Code that read something that the handler sets, right after the `await`, has
+  to wait for the event instead.
+- **Events queue up while a handler runs**, in memory and without a limit; the client logs a warning when 1000 are waiting. Keep handlers
+  short.
+- **`ConnectionClosed` comes after the events that arrived before the connection ended**, and once `Dispose()` was called nothing that was
+  waiting is raised any more (a handler that is running is not waited for). It is raised handler by handler, so a handler that throws no
+  longer keeps the others from being called.
+- **`PropertyChanged` and the statistics events are not part of this**: they are raised on the thread that causes the change, which can
+  still be the thread that reads from OBS Studio.
+
 ### `SetSceneItemTransform` takes an update
 
 [`SetSceneItemTransform`](xref:OBSStudioClient.ObsClient.SetSceneItemTransform*) and its builder take a
