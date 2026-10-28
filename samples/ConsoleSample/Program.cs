@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using OBSStudioClient;
 
@@ -27,19 +26,24 @@ using var client = new ObsClient();
 // The events are raised one at a time, on a thread of the thread pool, in the order in which OBS Studio sent them.
 client.CurrentProgramSceneChanged += (_, e) => Console.WriteLine($"On air now: {e.SceneName}");
 
-// OBS Studio announces a new scene twice, and the client raises what OBS Studio sends, so remember the scenes that were announced. A scene is
-// told apart by its UUID, or by its name when the obs-websocket of the OBS Studio is too old to send a UUID (the client gives an empty one then,
-// and every scene would look like the first), and it is forgotten when it is removed, so that one that is made again with its name is announced.
-var announced = new ConcurrentDictionary<string, bool>();
-static string KeyOf(Guid uuid, string name) => uuid != Guid.Empty ? uuid.ToString() : name;
+// OBS Studio announces a new scene twice, right after each other, and the client raises what OBS Studio sends, so skip a scene that was
+// announced a moment ago. A scene is told apart by its UUID or, when the obs-websocket of the OBS Studio is too old to send one (the client
+// gives an empty one then), by its name; and because only a moment counts, a scene that is renamed or removed leaves nothing behind.
+var announced = new Dictionary<string, long>();
 client.SceneCreated += (_, e) =>
 {
-    if (announced.TryAdd(KeyOf(e.SceneUuid, e.SceneName), true))
+    // The events are raised one at a time, so nothing else uses the dictionary while this runs.
+    var now = Environment.TickCount64;
+    foreach (var old in announced.Where(pair => now - pair.Value > 1000).Select(pair => pair.Key).ToList())
+    {
+        announced.Remove(old);
+    }
+
+    if (announced.TryAdd(e.SceneUuid != Guid.Empty ? e.SceneUuid.ToString() : e.SceneName, now))
     {
         Console.WriteLine($"A scene was created: {e.SceneName}");
     }
 };
-client.SceneRemoved += (sender, e) => announced.TryRemove(KeyOf(e.SceneUuid, e.SceneName), out _);
 
 client.ConnectionClosed += (_, e) => Console.WriteLine($"The connection was closed: {e.WebSocketCloseDescription}");
 

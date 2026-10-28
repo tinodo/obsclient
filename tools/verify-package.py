@@ -177,7 +177,7 @@ def palette_problems(chunks, color, depth):
     return problems
 
 
-def chunk_problems(chunks, color):
+def chunk_problems(chunks, color, depth):
     """What is wrong with the chunks of a PNG that is to be an icon: their number, order, size and values, and those that an icon does not need."""
     kinds = [kind for kind, _ in chunks]
     problems = []
@@ -235,6 +235,12 @@ def chunk_problems(chunks, color):
         problems.append("it has a tRNS chunk, which an image with an alpha channel cannot have")
     elif len(transparency) == 1 and color == 3 and entries is not None and len(transparency[0]) > entries:
         problems.append(f"its tRNS chunk has {len(transparency[0])} values, for a palette of {entries} entries")
+    elif len(transparency) == 1 and color in (0, 2) and len(transparency[0]) == (2 if color == 0 else 6):
+        # The sample values of the colour that is transparent are 16 bits wide in the chunk, whatever the bit depth: they have to fit the depth.
+        for sample in struct.unpack(f">{len(transparency[0]) // 2}H", transparency[0]):
+            if sample >= 2**depth:
+                problems.append(f"its tRNS chunk has a sample ({sample}) that is too big for a bit depth of {depth}")
+                break
     return problems
 
 
@@ -264,7 +270,7 @@ def icon_problems(data):
         problems.append(f"{ICON_NAME} is not a complete PNG: its header is not valid (colour type {color}, bit depth {depth}, compression {compression}, filter {filtering}, interlace {interlace})")
         return problems
     problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in palette_problems(chunks, color, depth))
-    problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in chunk_problems(chunks, color))
+    problems.extend(f"{ICON_NAME} is not a complete PNG: {problem}" for problem in chunk_problems(chunks, color, depth))
 
     pixels = b"".join(payload for kind, payload in chunks if kind == b"IDAT")
     if not pixels:

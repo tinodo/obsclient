@@ -420,6 +420,23 @@ class VerifyPackageTests(unittest.TestCase):
             with self.subTest(name):
                 self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
 
+    def test_the_samples_of_the_transparent_colour_have_to_fit_the_bit_depth(self):
+        grey8, grey16, grey1, rgb8 = bytes(128 * 129), bytes(128 * 257), bytes(128 * 17), bytes(128 * 385)
+        transparent = lambda *samples: png_chunk(b"tRNS", struct.pack(f">{len(samples)}H", *samples))  # noqa: E731
+        too_big = "its tRNS chunk has a sample ({}) that is too big for a bit depth of {}"
+        for name, data, expected in (
+            ("grey, 8 bits, the largest value", png_of(128, 128, 8, 0, grey8, extra_chunks=[transparent(255)]), None),
+            ("grey, 8 bits, one more", png_of(128, 128, 8, 0, grey8, extra_chunks=[transparent(256)]), too_big.format(256, 8)),
+            ("grey, 16 bits, the largest value", png_of(128, 128, 16, 0, grey16, extra_chunks=[transparent(65535)]), None),
+            ("grey, 1 bit, the largest value", png_of(128, 128, 1, 0, grey1, extra_chunks=[transparent(1)]), None),
+            ("grey, 1 bit, one more", png_of(128, 128, 1, 0, grey1, extra_chunks=[transparent(2)]), too_big.format(2, 1)),
+            ("RGB, 8 bits, every sample in range", png_of(128, 128, 8, 2, rgb8, extra_chunks=[transparent(255, 0, 17)]), None),
+            ("RGB, 8 bits, the last sample out of range", png_of(128, 128, 8, 2, rgb8, extra_chunks=[transparent(0, 0, 300)]), too_big.format(300, 8)),
+            ("RGB, 8 bits, the first sample out of range", png_of(128, 128, 8, 2, rgb8, extra_chunks=[transparent(256, 0, 0)]), too_big.format(256, 8)),
+        ):
+            with self.subTest(name):
+                self.assertEqual([] if expected is None else [f"icon.png is not a complete PNG: {expected}"], verify_package.icon_problems(data))
+
     def test_chunks_that_go_before_or_after_the_palette_are_refused_in_the_wrong_place(self):
         indexed = bytes(128 * 129)
         palette = png_chunk(b"PLTE", bytes(6))
