@@ -26,7 +26,8 @@ using var client = new ObsClient();
 // The events are raised one at a time, on a thread of the thread pool, in the order in which OBS Studio sent them.
 client.CurrentProgramSceneChanged += (_, e) => Console.WriteLine($"On air now: {e.SceneName}");
 
-// OBS Studio announces a new scene twice, right after each other, and the client raises what OBS Studio sends, so skip a scene that was
+// OBS Studio announces a new scene twice, within a moment of each other (obs-websocket 5.7 does, see
+// https://github.com/obsproject/obs-websocket/issues/1364), and the client raises what OBS Studio sends, so skip a scene that was
 // announced a moment ago. A scene is told apart by its UUID or, when the obs-websocket of the OBS Studio is too old to send one (the client
 // gives an empty one then), by its name; and because only a moment counts, a scene that is renamed or removed leaves nothing behind.
 var announced = new Dictionary<string, long>();

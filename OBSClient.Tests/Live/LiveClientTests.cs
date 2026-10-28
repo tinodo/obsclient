@@ -209,6 +209,8 @@ namespace OBSStudioClient.Tests.Live
                     output.WriteLine($"SceneCreated as OBS Studio sent it: {raw.Data!.Value.GetRawText()}");
                 }
 
+                // At least Count, not exactly Count: obs-websocket 5.7 sends SceneCreated twice (https://github.com/obsproject/obs-websocket/issues/1364),
+                // and a later one may send it once.
                 Assert.True(announced >= Count, $"OBS Studio announced {announced} of the {Count} scenes that were created.");
                 Assert.True(allHandled, $"Only {Volatile.Read(ref handled)} of {announced} handlers ran: {string.Join("; ", failures)}");
                 Assert.Equal(announced, Volatile.Read(ref handled));
