@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Normally the sample uses the project of the library, and runs on .NET 10 (dotnet run, from this folder).
+    CI builds it the way a consumer of the package does: with the property OBSClientVersion set to the version of the package, and
+    the folder of the package that was just packed as the only source, for both target frameworks of the package. That is what shows
+    that the package can be used.
+  -->
+  <PropertyGroup Condition="'$(OBSClientVersion)' == ''">
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(OBSClientVersion)' != ''">
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(OBSClientVersion)' == ''">
+    <ProjectReference Include="..\..\OBSClient\OBSClient.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OBSClientVersion)' != ''">
+    <PackageReference Include="OBSClient" Version="$(OBSClientVersion)" />
+  </ItemGroup>
+
+</Project>

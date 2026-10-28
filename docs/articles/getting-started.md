@@ -101,3 +101,5 @@ bool muted = await client.ToggleInputMute("Microphone");  // returns the new sta
 - [Handling events](events.md): react to what happens in OBS Studio.
 - [Request batches](batches.md): several requests in one round trip.
 - [The test app](test-app.md): try every request by hand before you write code.
+- [A runnable sample](https://github.com/tinodo/obsclient/tree/main/samples/ConsoleSample) in the repository: it connects, lists the scenes and
+  prints the events it receives (`dotnet run --project samples/ConsoleSample`). CI builds it against the package on every change.

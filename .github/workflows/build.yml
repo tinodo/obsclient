@@ -36,7 +36,7 @@ jobs:
 
       - name: Check the tooling compiles
         if: matrix.os == 'ubuntu-latest'
-        run: python3 -m py_compile tools/verify-package.py tools/release_notes.py tools/compare-published.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
+        run: python3 -m py_compile tools/verify-package.py tools/release_notes.py tools/compare-published.py tools/make-icon.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
 
       # The protocol-derived code under OBSClient/Generated and the snapshot of the tests are generated from
       # tools/protocol/obs-websocket-protocol.json and tools/protocol/overlay.toml. They must be what the generator
@@ -114,11 +114,20 @@ jobs:
       - name: Pack
         run: dotnet pack OBSClient/OBSClient.csproj --configuration Release --no-build --output ./artifacts
 
-      # The package has to stay one thing: the library, its XML documentation, the README and the license. The protocol
+      # The package has to stay one thing: the library, its XML documentation, the README, the license and the icon. The protocol
       # definition and the code generator are inputs of the build, they are never shipped (not even embedded). Its symbol
       # package (the .snupkg next to it) is verified with it: the PDB of each target framework, with Source Link.
       - name: Verify the package is a single assembly, with its symbols
         run: python3 tools/verify-package.py ./artifacts/*.nupkg
+
+      # What a consumer does: the sample is built against the package that was just packed, for both of its target frameworks, with that
+      # folder as the only source (what the package needs is in the NuGet cache since the library was restored). Contents that are right
+      # can still make a package that cannot be used; this is what shows it.
+      - name: Build the sample against the package
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' OBSClient/OBSClient.csproj | head -n 1)
+          echo "Building the sample against OBSClient $version, from ./artifacts."
+          dotnet build samples/ConsoleSample/ConsoleSample.csproj --configuration Release -p:OBSClientVersion="$version" --source ./artifacts
 
       - name: Upload the package
         uses: actions/upload-artifact@v7

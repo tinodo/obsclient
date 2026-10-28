@@ -11,9 +11,10 @@
     <Description>A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.</Description>
     <PackageProjectUrl>https://tinodo.github.io/obsclient/</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/tinodo/obsclient.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>obs</PackageTags>
+    <PackageTags>obs;obs-studio;obs-websocket;websocket;streaming;dotnet;client</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Version>4.0.0-beta1</Version>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
@@ -39,6 +40,11 @@
       <PackagePath>\</PackagePath>
     </None>
     <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <!-- Drawn by tools/make-icon.py from docs/images/logo.svg. -->
+    <None Include="icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
