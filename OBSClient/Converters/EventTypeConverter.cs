@@ -17,7 +17,7 @@
     /// throw a <see cref="JsonException"/> from within the receive loop, which could tear down the connection.
     /// See <see href="https://github.com/tinodo/obsclient/issues/12"/>.
     /// </remarks>
-    public class EventTypeConverter : JsonConverter<EventType>
+    internal sealed class EventTypeConverter : JsonConverter<EventType>
     {
         private static readonly Dictionary<string, EventType> _eventTypes = Enum.GetValues<EventType>().ToDictionary(eventType => eventType.ToString(), StringComparer.Ordinal);
 

@@ -11,7 +11,7 @@ namespace OBSStudioClient.Messages
     using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
 
-    public partial class EventMessage
+    internal sealed partial class EventMessage
     {
         /// <summary>
         /// Gets the type of the arguments of each event.

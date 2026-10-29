@@ -17,7 +17,7 @@
     /// <param name="top">The top coordinate.</param>
     /// <param name="topSign">The sign for the top coordinate.</param>
     [method: JsonConstructor]
-    public class Crop(float bottom, string bottomSign, float left, string leftSign, float right, string rightSign, float top, string topSign)
+    public sealed class Crop(float bottom, string bottomSign, float left, string leftSign, float right, string rightSign, float top, string topSign)
     {
         /// <summary>
         /// Gets the bottom coordinate. 

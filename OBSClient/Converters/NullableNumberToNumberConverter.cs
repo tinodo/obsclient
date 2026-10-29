@@ -7,7 +7,7 @@
     /// <summary>
     /// Reads a nullable number as a number.
     /// </summary>
-    public class NullableNumberToNumberConverter : JsonConverter<float>
+    internal sealed class NullableNumberToNumberConverter : JsonConverter<float>
     {
         /// <summary>
         /// Converts a nullable number to a number.

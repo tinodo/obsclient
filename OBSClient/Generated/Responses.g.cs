@@ -25,7 +25,7 @@ namespace OBSStudioClient.Responses
     /// <param name="requestType">Echoed of <c>requestType</c>.</param>
     /// <param name="responseData">Object containing appropriate response data. {} if request does not provide any response data.</param>
     [method: JsonConstructor]
-    public class CallVendorResponse(string vendorName, string requestType, JsonElement? responseData) : IResponse
+    public sealed class CallVendorResponse(string vendorName, string requestType, JsonElement? responseData) : IResponse
     {
         /// <summary>
         /// Echoed of <c>vendorName</c>.
@@ -55,7 +55,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="canvases">Array of canvases.</param>
     [method: JsonConstructor]
-    public class CanvasListResponse(Canvas[] canvases) : IResponse
+    public sealed class CanvasListResponse(Canvas[] canvases) : IResponse
     {
         /// <summary>
         /// Array of canvases.
@@ -73,7 +73,7 @@ namespace OBSStudioClient.Responses
     /// <param name="inputUuid">UUID of the newly created input.</param>
     /// <param name="sceneItemId">ID of the newly created scene item.</param>
     [method: JsonConstructor]
-    public class CreateInputResponse(Guid inputUuid, int sceneItemId) : IResponse
+    public sealed class CreateInputResponse(Guid inputUuid, int sceneItemId) : IResponse
     {
         /// <summary>
         /// UUID of the newly created input.
@@ -96,7 +96,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneUuid">UUID of the created scene.</param>
     [method: JsonConstructor]
-    public class CreateSceneResponse(Guid sceneUuid) : IResponse
+    public sealed class CreateSceneResponse(Guid sceneUuid) : IResponse
     {
         /// <summary>
         /// UUID of the created scene.
@@ -114,7 +114,7 @@ namespace OBSStudioClient.Responses
     /// <param name="sceneName">Current preview scene name.</param>
     /// <param name="sceneUuid">Current preview scene UUID.</param>
     [method: JsonConstructor]
-    public class CurrentPreviewSceneNameResponse(string sceneName, Guid sceneUuid) : IResponse
+    public sealed class CurrentPreviewSceneNameResponse(string sceneName, Guid sceneUuid) : IResponse
     {
         /// <summary>
         /// Current preview scene name.
@@ -152,7 +152,7 @@ namespace OBSStudioClient.Responses
     /// <param name="sceneName">Current program scene name.</param>
     /// <param name="sceneUuid">Current program scene UUID.</param>
     [method: JsonConstructor]
-    public class CurrentProgramSceneNameResponse(string sceneName, Guid sceneUuid) : IResponse
+    public sealed class CurrentProgramSceneNameResponse(string sceneName, Guid sceneUuid) : IResponse
     {
         /// <summary>
         /// Current program scene name.
@@ -189,7 +189,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="defaultFilterSettings">Object of default settings for the filter kind.</param>
     [method: JsonConstructor]
-    public class DefaultFilterSettingsResponse(Dictionary<string, object> defaultFilterSettings) : IResponse
+    public sealed class DefaultFilterSettingsResponse(Dictionary<string, object> defaultFilterSettings) : IResponse
     {
         /// <summary>
         /// Object of default settings for the filter kind.
@@ -206,7 +206,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="defaultInputSettings">Object of default settings for the input kind.</param>
     [method: JsonConstructor]
-    public class DefaultInputSettingsResponse(Dictionary<string, object> defaultInputSettings) : IResponse
+    public sealed class DefaultInputSettingsResponse(Dictionary<string, object> defaultInputSettings) : IResponse
     {
         /// <summary>
         /// Object of default settings for the input kind.
@@ -224,7 +224,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sourceFilterKinds">Array of source filter kinds.</param>
     [method: JsonConstructor]
-    public class FilterKindListResponse(string[] sourceFilterKinds) : IResponse
+    public sealed class FilterKindListResponse(string[] sourceFilterKinds) : IResponse
     {
         /// <summary>
         /// Array of source filter kinds.
@@ -241,7 +241,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="filters">Array of filters.</param>
     [method: JsonConstructor]
-    public class FiltersResponse(Filter[] filters) : IResponse
+    public sealed class FiltersResponse(Filter[] filters) : IResponse
     {
         /// <summary>
         /// Array of filters.
@@ -258,7 +258,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="groups">Array of group names.</param>
     [method: JsonConstructor]
-    public class GroupsResponse(string[] groups) : IResponse
+    public sealed class GroupsResponse(string[] groups) : IResponse
     {
         /// <summary>
         /// Array of group names.
@@ -275,7 +275,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="hotkeys">Array of hotkey names.</param>
     [method: JsonConstructor]
-    public class HotkeysResponse(string[] hotkeys) : IResponse
+    public sealed class HotkeysResponse(string[] hotkeys) : IResponse
     {
         /// <summary>
         /// Array of hotkey names.
@@ -292,7 +292,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="imageData">Base64-encoded screenshot.</param>
     [method: JsonConstructor]
-    public class ImageDataResponse(string imageData) : IResponse
+    public sealed class ImageDataResponse(string imageData) : IResponse
     {
         /// <summary>
         /// Base64-encoded screenshot.
@@ -309,7 +309,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputAudioBalance">Audio balance value from 0.0-1.0.</param>
     [method: JsonConstructor]
-    public class InputAudioBalanceResponse(float inputAudioBalance) : IResponse
+    public sealed class InputAudioBalanceResponse(float inputAudioBalance) : IResponse
     {
         /// <summary>
         /// Audio balance value from 0.0-1.0.
@@ -326,7 +326,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="monitorType">Audio monitor type.</param>
     [method: JsonConstructor]
-    public class InputAudioMonitorTypeResponse(MonitorType monitorType) : IResponse
+    public sealed class InputAudioMonitorTypeResponse(MonitorType monitorType) : IResponse
     {
         /// <summary>
         /// Audio monitor type.
@@ -343,7 +343,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputAudioSyncOffset">Audio sync offset in milliseconds.</param>
     [method: JsonConstructor]
-    public class InputAudioSyncOffsetResponse(int inputAudioSyncOffset) : IResponse
+    public sealed class InputAudioSyncOffsetResponse(int inputAudioSyncOffset) : IResponse
     {
         /// <summary>
         /// Audio sync offset in milliseconds.
@@ -360,7 +360,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputAudioTracks">Object of audio tracks and associated enable states.</param>
     [method: JsonConstructor]
-    public class InputAudioTracksResponse(AudioTracks inputAudioTracks) : IResponse
+    public sealed class InputAudioTracksResponse(AudioTracks inputAudioTracks) : IResponse
     {
         /// <summary>
         /// Object of audio tracks and associated enable states.
@@ -378,7 +378,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputDeinterlaceFieldOrder">Deinterlace field order of the input.</param>
     [method: JsonConstructor]
-    public class InputDeinterlaceFieldOrderResponse(string inputDeinterlaceFieldOrder) : IResponse
+    public sealed class InputDeinterlaceFieldOrderResponse(string inputDeinterlaceFieldOrder) : IResponse
     {
         /// <summary>
         /// Deinterlace field order of the input.
@@ -396,7 +396,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputDeinterlaceMode">Deinterlace mode of the input.</param>
     [method: JsonConstructor]
-    public class InputDeinterlaceModeResponse(DeinterlaceMode inputDeinterlaceMode) : IResponse
+    public sealed class InputDeinterlaceModeResponse(DeinterlaceMode inputDeinterlaceMode) : IResponse
     {
         /// <summary>
         /// Deinterlace mode of the input.
@@ -413,7 +413,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputKinds">Array of input kinds.</param>
     [method: JsonConstructor]
-    public class InputKindsResponse(string[] inputKinds) : IResponse
+    public sealed class InputKindsResponse(string[] inputKinds) : IResponse
     {
         /// <summary>
         /// Array of input kinds.
@@ -430,7 +430,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputMuted">Whether the input is muted.</param>
     [method: JsonConstructor]
-    public class InputMutedResponse(bool inputMuted) : IResponse
+    public sealed class InputMutedResponse(bool inputMuted) : IResponse
     {
         /// <summary>
         /// Whether the input is muted.
@@ -448,7 +448,7 @@ namespace OBSStudioClient.Responses
     /// <param name="inputSettings">Object of settings for the input.</param>
     /// <param name="inputKind">The kind of the input.</param>
     [method: JsonConstructor]
-    public class InputSettingsResponse(Dictionary<string, object> inputSettings, string inputKind) : IResponse
+    public sealed class InputSettingsResponse(Dictionary<string, object> inputSettings, string inputKind) : IResponse
     {
         /// <summary>
         /// Object of settings for the input.
@@ -472,7 +472,7 @@ namespace OBSStudioClient.Responses
     /// <param name="inputVolumeMul">Volume setting in mul.</param>
     /// <param name="inputVolumeDb">Volume setting in dB.</param>
     [method: JsonConstructor]
-    public class InputVolumeResponse(float inputVolumeMul, float inputVolumeDb) : IResponse
+    public sealed class InputVolumeResponse(float inputVolumeMul, float inputVolumeDb) : IResponse
     {
         /// <summary>
         /// Volume setting in mul.
@@ -495,7 +495,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="inputs">Array of inputs.</param>
     [method: JsonConstructor]
-    public class InputsResponse(Input[] inputs) : IResponse
+    public sealed class InputsResponse(Input[] inputs) : IResponse
     {
         /// <summary>
         /// Array of inputs.
@@ -514,7 +514,7 @@ namespace OBSStudioClient.Responses
     /// <param name="mediaDuration">Total duration of the playing media in milliseconds. <c>null</c> if not playing.</param>
     /// <param name="mediaCursor">Position of the cursor in milliseconds. <c>null</c> if not playing.</param>
     [method: JsonConstructor]
-    public class MediaInputStatusResponse(MediaState mediaState, long? mediaDuration, long? mediaCursor) : IResponse
+    public sealed class MediaInputStatusResponse(MediaState mediaState, long? mediaDuration, long? mediaCursor) : IResponse
     {
         /// <summary>
         /// State of the media input.
@@ -543,7 +543,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="monitors">a list of detected monitors with some information.</param>
     [method: JsonConstructor]
-    public class MonitorListResponse(Monitor[] monitors) : IResponse
+    public sealed class MonitorListResponse(Monitor[] monitors) : IResponse
     {
         /// <summary>
         /// a list of detected monitors with some information.
@@ -560,7 +560,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="outputActive">Whether the output is active.</param>
     [method: JsonConstructor]
-    public class OutputActiveResponse(bool outputActive) : IResponse
+    public sealed class OutputActiveResponse(bool outputActive) : IResponse
     {
         /// <summary>
         /// Whether the output is active.
@@ -577,7 +577,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="outputPath">File name for the saved recording.</param>
     [method: JsonConstructor]
-    public class OutputPathResponse(string outputPath) : IResponse
+    public sealed class OutputPathResponse(string outputPath) : IResponse
     {
         /// <summary>
         /// File name for the saved recording.
@@ -594,7 +594,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="outputPaused">Whether the output is paused.</param>
     [method: JsonConstructor]
-    public class OutputPausedResponse(bool outputPaused) : IResponse
+    public sealed class OutputPausedResponse(bool outputPaused) : IResponse
     {
         /// <summary>
         /// Whether the output is paused.
@@ -611,7 +611,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="outputSettings">Output settings.</param>
     [method: JsonConstructor]
-    public class OutputSettingsResponse(Dictionary<string, object> outputSettings) : IResponse
+    public sealed class OutputSettingsResponse(Dictionary<string, object> outputSettings) : IResponse
     {
         /// <summary>
         /// Output settings.
@@ -635,7 +635,7 @@ namespace OBSStudioClient.Responses
     /// <param name="outputSkippedFrames">Number of frames skipped by the output's process.</param>
     /// <param name="outputTotalFrames">Total number of frames delivered by the output's process.</param>
     [method: JsonConstructor]
-    public class OutputStatusResponse(bool outputActive, bool outputReconnecting, string outputTimecode, long outputDuration, float outputCongestion, long outputBytes, long outputSkippedFrames, long outputTotalFrames) : IResponse
+    public sealed class OutputStatusResponse(bool outputActive, bool outputReconnecting, string outputTimecode, long outputDuration, float outputCongestion, long outputBytes, long outputSkippedFrames, long outputTotalFrames) : IResponse
     {
         /// <summary>
         /// Whether the output is active.
@@ -695,7 +695,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="outputs">Array of outputs.</param>
     [method: JsonConstructor]
-    public class OutputsResponse(Output[] outputs) : IResponse
+    public sealed class OutputsResponse(Output[] outputs) : IResponse
     {
         /// <summary>
         /// Array of outputs.
@@ -713,7 +713,7 @@ namespace OBSStudioClient.Responses
     /// <param name="currentProfileName">The name of the current profile.</param>
     /// <param name="profiles">Array of all available profiles.</param>
     [method: JsonConstructor]
-    public class ProfileListResponse(string currentProfileName, string[] profiles) : IResponse
+    public sealed class ProfileListResponse(string currentProfileName, string[] profiles) : IResponse
     {
         /// <summary>
         /// The name of the current profile.
@@ -737,7 +737,7 @@ namespace OBSStudioClient.Responses
     /// <param name="parameterValue">Value associated with the parameter. <c>null</c> if not set and no default.</param>
     /// <param name="defaultParameterValue">Default value associated with the parameter. <c>null</c> if no default.</param>
     [method: JsonConstructor]
-    public class ProfileParameterResponse(string? parameterValue, string? defaultParameterValue) : IResponse
+    public sealed class ProfileParameterResponse(string? parameterValue, string? defaultParameterValue) : IResponse
     {
         /// <summary>
         /// Value associated with the parameter. <c>null</c> if not set and no default.
@@ -760,7 +760,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="propertyItems">Array of items in the list property.</param>
     [method: JsonConstructor]
-    public class PropertyItemsResponse(PropertyItem[] propertyItems) : IResponse
+    public sealed class PropertyItemsResponse(PropertyItem[] propertyItems) : IResponse
     {
         /// <summary>
         /// Array of items in the list property.
@@ -777,7 +777,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="recordDirectory">Output directory.</param>
     [method: JsonConstructor]
-    public class RecordDirectoryResponse(string recordDirectory) : IResponse
+    public sealed class RecordDirectoryResponse(string recordDirectory) : IResponse
     {
         /// <summary>
         /// Output directory.
@@ -798,7 +798,7 @@ namespace OBSStudioClient.Responses
     /// <param name="outputDuration">Current duration in milliseconds for the output.</param>
     /// <param name="outputBytes">Number of bytes sent by the output.</param>
     [method: JsonConstructor]
-    public class RecordStatusResponse(bool outputActive, bool outputPaused, string outputTimecode, long outputDuration, long outputBytes) : IResponse
+    public sealed class RecordStatusResponse(bool outputActive, bool outputPaused, string outputTimecode, long outputDuration, long outputBytes) : IResponse
     {
         /// <summary>
         /// Whether the output is active.
@@ -839,7 +839,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="savedReplayPath">File path.</param>
     [method: JsonConstructor]
-    public class SavedReplayPathResponse(string savedReplayPath) : IResponse
+    public sealed class SavedReplayPathResponse(string savedReplayPath) : IResponse
     {
         /// <summary>
         /// File path.
@@ -857,7 +857,7 @@ namespace OBSStudioClient.Responses
     /// <param name="currentSceneCollectionName">The name of the current scene collection.</param>
     /// <param name="sceneCollections">Array of all available scene collections.</param>
     [method: JsonConstructor]
-    public class SceneCollectionListResponse(string currentSceneCollectionName, string[] sceneCollections) : IResponse
+    public sealed class SceneCollectionListResponse(string currentSceneCollectionName, string[] sceneCollections) : IResponse
     {
         /// <summary>
         /// The name of the current scene collection.
@@ -880,7 +880,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemBlendMode">Current blend mode.</param>
     [method: JsonConstructor]
-    public class SceneItemBlendModeResponse(BlendMode sceneItemBlendMode) : IResponse
+    public sealed class SceneItemBlendModeResponse(BlendMode sceneItemBlendMode) : IResponse
     {
         /// <summary>
         /// Current blend mode.
@@ -897,7 +897,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemEnabled">Whether the scene item is enabled. <c>true</c> for enabled, <c>false</c> for disabled.</param>
     [method: JsonConstructor]
-    public class SceneItemEnabledResponse(bool sceneItemEnabled) : IResponse
+    public sealed class SceneItemEnabledResponse(bool sceneItemEnabled) : IResponse
     {
         /// <summary>
         /// Whether the scene item is enabled. <c>true</c> for enabled, <c>false</c> for disabled.
@@ -914,7 +914,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemIdResponse(int sceneItemId) : IResponse
+    public sealed class SceneItemIdResponse(int sceneItemId) : IResponse
     {
         /// <summary>
         /// Numeric ID of the scene item.
@@ -931,7 +931,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemIndex">Index position of the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemIndexResponse(int sceneItemIndex) : IResponse
+    public sealed class SceneItemIndexResponse(int sceneItemIndex) : IResponse
     {
         /// <summary>
         /// Index position of the scene item.
@@ -950,7 +950,7 @@ namespace OBSStudioClient.Responses
     /// <param name="sourceName">Name of the source associated with the scene item.</param>
     /// <param name="sourceUuid">UUID of the source associated with the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemSourceResponse(string sourceName, string sourceUuid) : IResponse
+    public sealed class SceneItemSourceResponse(string sourceName, string sourceUuid) : IResponse
     {
         /// <summary>
         /// Name of the source associated with the scene item.
@@ -973,7 +973,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemTransform">Object containing scene item transform info.</param>
     [method: JsonConstructor]
-    public class SceneItemTransformResponse(SceneItemTransform sceneItemTransform) : IResponse
+    public sealed class SceneItemTransformResponse(SceneItemTransform sceneItemTransform) : IResponse
     {
         /// <summary>
         /// Object containing scene item transform info.
@@ -990,7 +990,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItemLocked">Whether the scene item is locked. <c>true</c> for locked, <c>false</c> for unlocked.</param>
     [method: JsonConstructor]
-    public class SceneItemlockedResponse(bool sceneItemLocked) : IResponse
+    public sealed class SceneItemlockedResponse(bool sceneItemLocked) : IResponse
     {
         /// <summary>
         /// Whether the scene item is locked. <c>true</c> for locked, <c>false</c> for unlocked.
@@ -1007,7 +1007,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="sceneItems">Array of scene items in the scene.</param>
     [method: JsonConstructor]
-    public class SceneItemsResponse(SceneItem[] sceneItems) : IResponse
+    public sealed class SceneItemsResponse(SceneItem[] sceneItems) : IResponse
     {
         /// <summary>
         /// Array of scene items in the scene.
@@ -1028,7 +1028,7 @@ namespace OBSStudioClient.Responses
     /// <param name="currentPreviewSceneUuid">Current preview scene UUID. <c>null</c> if not in studio mode or non-main canvas.</param>
     /// <param name="scenes">Array of scenes.</param>
     [method: JsonConstructor]
-    public class SceneListResponse(string? currentProgramSceneName, Guid? currentProgramSceneUuid, string? currentPreviewSceneName, Guid? currentPreviewSceneUuid, Scene[] scenes) : IResponse
+    public sealed class SceneListResponse(string? currentProgramSceneName, Guid? currentProgramSceneUuid, string? currentPreviewSceneName, Guid? currentPreviewSceneUuid, Scene[] scenes) : IResponse
     {
         /// <summary>
         /// Current program scene name. Can be <c>null</c> if non-main canvas or internal state desync.
@@ -1072,7 +1072,7 @@ namespace OBSStudioClient.Responses
     /// <param name="currentSceneTransitionKind">Kind of the current scene transition. Can be null.</param>
     /// <param name="transitions">Array of transitions.</param>
     [method: JsonConstructor]
-    public class SceneTransitionListResponse(string? currentSceneTransitionName, Guid? currentSceneTransitionUuid, string? currentSceneTransitionKind, Transition[] transitions) : IResponse
+    public sealed class SceneTransitionListResponse(string? currentSceneTransitionName, Guid? currentSceneTransitionUuid, string? currentSceneTransitionKind, Transition[] transitions) : IResponse
     {
         /// <summary>
         /// Name of the current scene transition. Can be null.
@@ -1108,7 +1108,7 @@ namespace OBSStudioClient.Responses
     /// <param name="transitionName">Name of the overridden scene transition, else <c>null</c>.</param>
     /// <param name="transitionDuration">Duration of the overridden scene transition, else <c>null</c>.</param>
     [method: JsonConstructor]
-    public class SceneTransitionResponse(string? transitionName, long? transitionDuration) : IResponse
+    public sealed class SceneTransitionResponse(string? transitionName, long? transitionDuration) : IResponse
     {
         /// <summary>
         /// Name of the overridden scene transition, else <c>null</c>.
@@ -1131,7 +1131,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="slotValue">Value associated with the slot. <c>null</c> if not set.</param>
     [method: JsonConstructor]
-    public class SlotValueResponse(object? slotValue) : IResponse
+    public sealed class SlotValueResponse(object? slotValue) : IResponse
     {
         /// <summary>
         /// Value associated with the slot. <c>null</c> if not set.
@@ -1149,7 +1149,7 @@ namespace OBSStudioClient.Responses
     /// <param name="videoActive">Whether the source is showing in Program.</param>
     /// <param name="videoShowing">Whether the source is showing in the UI (Preview, Projector, Properties)</param>
     [method: JsonConstructor]
-    public class SourceActiveResponse(bool videoActive, bool videoShowing) : IResponse
+    public sealed class SourceActiveResponse(bool videoActive, bool videoShowing) : IResponse
     {
         /// <summary>
         /// Whether the source is showing in Program.
@@ -1175,7 +1175,7 @@ namespace OBSStudioClient.Responses
     /// <param name="filterKind">The kind of filter.</param>
     /// <param name="filterSettings">Settings object associated with the filter.</param>
     [method: JsonConstructor]
-    public class SourceFilterResponse(bool filterEnabled, int filterIndex, string filterKind, Dictionary<string, object> filterSettings) : IResponse
+    public sealed class SourceFilterResponse(bool filterEnabled, int filterIndex, string filterKind, Dictionary<string, object> filterSettings) : IResponse
     {
         /// <summary>
         /// Whether the filter is enabled.
@@ -1215,7 +1215,7 @@ namespace OBSStudioClient.Responses
     /// <param name="mic3">Name of the Mic/Auxiliary Audio 3 input.</param>
     /// <param name="mic4">Name of the Mic/Auxiliary Audio 4 input.</param>
     [method: JsonConstructor]
-    public class SpecialInputsResponse(string? desktop1, string? desktop2, string? mic1, string? mic2, string? mic3, string? mic4) : IResponse
+    public sealed class SpecialInputsResponse(string? desktop1, string? desktop2, string? mic1, string? mic2, string? mic3, string? mic4) : IResponse
     {
         /// <summary>
         /// Name of the Desktop Audio input.
@@ -1272,7 +1272,7 @@ namespace OBSStudioClient.Responses
     /// <param name="webSocketSessionIncomingMessages">Total number of messages received by obs-websocket from the client.</param>
     /// <param name="webSocketSessionOutgoingMessages">Total number of messages sent by obs-websocket to the client.</param>
     [method: JsonConstructor]
-    public class StatsResponse(float cpuUsage, float memoryUsage, float availableDiskSpace, float activeFps, float averageFrameRenderTime, long renderSkippedFrames, long renderTotalFrames, long outputSkippedFrames, long outputTotalFrames, long webSocketSessionIncomingMessages, long webSocketSessionOutgoingMessages) : IResponse
+    public sealed class StatsResponse(float cpuUsage, float memoryUsage, float availableDiskSpace, float activeFps, float averageFrameRenderTime, long renderSkippedFrames, long renderTotalFrames, long outputSkippedFrames, long outputTotalFrames, long webSocketSessionIncomingMessages, long webSocketSessionOutgoingMessages) : IResponse
     {
         /// <summary>
         /// Current CPU usage in percent.
@@ -1350,7 +1350,7 @@ namespace OBSStudioClient.Responses
     /// <param name="streamServiceType">Stream service type, like <c>rtmp_custom</c> or <c>rtmp_common</c>.</param>
     /// <param name="streamServiceSettings">Stream service settings.</param>
     [method: JsonConstructor]
-    public class StreamServiceSettingsResponse(string streamServiceType, object streamServiceSettings) : IResponse
+    public sealed class StreamServiceSettingsResponse(string streamServiceType, object streamServiceSettings) : IResponse
     {
         /// <summary>
         /// Stream service type, like <c>rtmp_custom</c> or <c>rtmp_common</c>.
@@ -1373,7 +1373,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="studioModeEnabled">Whether studio mode is enabled.</param>
     [method: JsonConstructor]
-    public class StudioModeEnabledResponse(bool studioModeEnabled) : IResponse
+    public sealed class StudioModeEnabledResponse(bool studioModeEnabled) : IResponse
     {
         /// <summary>
         /// Whether studio mode is enabled.
@@ -1390,7 +1390,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="transitionCursor">Cursor position, between 0.0 and 1.0.</param>
     [method: JsonConstructor]
-    public class TransitionCursorResponse(float transitionCursor) : IResponse
+    public sealed class TransitionCursorResponse(float transitionCursor) : IResponse
     {
         /// <summary>
         /// Cursor position, between 0.0 and 1.0.
@@ -1407,7 +1407,7 @@ namespace OBSStudioClient.Responses
     /// </remarks>
     /// <param name="transitionKinds">Array of transition kinds.</param>
     [method: JsonConstructor]
-    public class TransitionKindsResponse(string[] transitionKinds) : IResponse
+    public sealed class TransitionKindsResponse(string[] transitionKinds) : IResponse
     {
         /// <summary>
         /// Array of transition kinds.
@@ -1430,7 +1430,7 @@ namespace OBSStudioClient.Responses
     /// <param name="platform">Name of the platform. Usually <c>windows</c>, <c>macos</c>, or <c>ubuntu</c> (linux flavor). Not guaranteed to be any of those.</param>
     /// <param name="platformDescription">Description of the platform, like <c>Windows 10 (10.0)</c>.</param>
     [method: JsonConstructor]
-    public class VersionResponse(string obsVersion, string obsWebSocketVersion, int rpcVersion, string[] availableRequests, string[] supportedImageFormats, string platform, string platformDescription) : IResponse
+    public sealed class VersionResponse(string obsVersion, string obsWebSocketVersion, int rpcVersion, string[] availableRequests, string[] supportedImageFormats, string platform, string platformDescription) : IResponse
     {
         /// <summary>
         /// Current OBS Studio version.
@@ -1488,7 +1488,7 @@ namespace OBSStudioClient.Responses
     /// <param name="outputWidth">Width of the output resolution in pixels.</param>
     /// <param name="outputHeight">Height of the output resolution in pixels.</param>
     [method: JsonConstructor]
-    public class VideoSettingsResponse(float fpsNumerator, float fpsDenominator, int baseWidth, int baseHeight, int outputWidth, int outputHeight) : IResponse
+    public sealed class VideoSettingsResponse(float fpsNumerator, float fpsDenominator, int baseWidth, int baseHeight, int outputWidth, int outputHeight) : IResponse
     {
         /// <summary>
         /// Numerator of the fractional FPS value.

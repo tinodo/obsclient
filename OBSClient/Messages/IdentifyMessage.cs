@@ -14,7 +14,7 @@
     /// <param name="authentication">The Authentication string.</param>
     /// <param name="eventSubscriptions">The events to subscribe to.</param>
     [method: JsonConstructor]
-    public class IdentifyMessage(int rpcVersion, string? authentication, EventSubscriptions eventSubscriptions) : IMessage
+    internal sealed class IdentifyMessage(int rpcVersion, string? authentication, EventSubscriptions eventSubscriptions) : IMessage
     {
         /// <summary>
         /// The requested RPC Version

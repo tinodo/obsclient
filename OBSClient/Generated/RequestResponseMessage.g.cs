@@ -11,7 +11,7 @@ namespace OBSStudioClient.Messages
     using OBSStudioClient.Enums;
     using OBSStudioClient.Responses;
 
-    public partial class RequestResponseMessage
+    public sealed partial class RequestResponseMessage
     {
         /// <summary>
         /// Gets the type of the response data of each request.

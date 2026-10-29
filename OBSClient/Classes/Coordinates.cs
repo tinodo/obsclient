@@ -13,7 +13,7 @@
     /// <param name="y">The Y coordinate.</param>
     /// <param name="ySign">The Y-Sign.</param>
     [method: JsonConstructor]
-    public class Coordinates(float x, string xSign, float y, string ySign)
+    public sealed class Coordinates(float x, string xSign, float y, string ySign)
     {
         /// <summary>
         /// Gets the X coordinate.

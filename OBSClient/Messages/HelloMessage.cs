@@ -14,7 +14,7 @@
     /// <param name="rpcVersion">RPC Version of OBS Studio WebSockets.</param>
     /// <param name="authentication">Optional authentication information.</param>
     [method: JsonConstructor]
-    public class HelloMessage(string obsWebSocketVersion, int rpcVersion, Authentication? authentication) : IMessage
+    internal sealed class HelloMessage(string obsWebSocketVersion, int rpcVersion, Authentication? authentication) : IMessage
     {
         /// <summary>
         /// Version of OBS Studio WebSockets.

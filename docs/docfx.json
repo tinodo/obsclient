@@ -12,8 +12,7 @@
       "properties": { "TargetFramework": "net8.0" },
       "memberLayout": "separatePages",
       "namespaceLayout": "nested",
-      "enumSortOrder": "declaringOrder",
-      "filter": "filter.yml"
+      "enumSortOrder": "declaringOrder"
     }
   ],
   "build": {

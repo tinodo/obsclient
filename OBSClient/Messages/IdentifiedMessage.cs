@@ -11,7 +11,7 @@
     /// </remarks>
     /// <param name="negotiatedRpcVersion">The negotiated RPC Version of OBS Studio WebSockets.</param>
     [method: JsonConstructor]
-    public class IdentifiedMessage(int negotiatedRpcVersion) : IMessage
+    internal sealed class IdentifiedMessage(int negotiatedRpcVersion) : IMessage
     {
         /// <summary>
         /// The negotiation OBS Studio WebSocket RPC Version.

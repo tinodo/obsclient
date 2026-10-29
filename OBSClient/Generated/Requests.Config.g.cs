@@ -15,7 +15,7 @@ namespace OBSStudioClient
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public partial class ObsClient
+    public sealed partial class ObsClient
     {
         /// <summary>
         /// Gets the value of a "slot" from the selected persistent data realm.
@@ -248,7 +248,7 @@ namespace OBSStudioClient.Messages
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public partial class RequestBatchMessage
+    public sealed partial class RequestBatchMessage
     {
         /// <summary>
         /// Adds a <c>GetPersistentData</c> request to the batch.

@@ -39,7 +39,7 @@
     /// response from OBS Studio in them.
     /// </para>
     /// </remarks>
-    public partial class ObsClient : INotifyPropertyChanged, IDisposable
+    public sealed partial class ObsClient : INotifyPropertyChanged, IDisposable
     {
         private readonly int _receiveBufferSize = 4096;
 
@@ -601,17 +601,6 @@
         /// </summary>
         public void Dispose()
         {
-            if (_disposed) return;
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Disposes of the <see cref="ObsClient"/>.
-        /// </summary>
-        /// <param name="disposing">A value indicating whether we already called the method.</param>
-        protected virtual void Dispose(bool disposing)
-        {
             lock (_syncRoot)
             {
                 if (_disposed)
@@ -622,12 +611,9 @@
                 _disposed = true;
             }
 
-            if (disposing)
-            {
-                // Stops AutoReconnect and ends the active session. The session's receive loop owns the socket and
-                // disposes it, and fails any request that is still waiting for a response.
-                this.Disconnect();
-            }
+            // Stops AutoReconnect and ends the active session. The session's receive loop owns the socket and
+            // disposes it, and fails any request that is still waiting for a response.
+            this.Disconnect();
 
             this._reconnectTimer.Dispose();
             this._eventsMap.Clear();

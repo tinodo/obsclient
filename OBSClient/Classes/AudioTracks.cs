@@ -15,7 +15,7 @@
     /// <param name="track5">A value indicating whether Audio Track 5 is enabled.</param>
     /// <param name="track6">A value indicating whether Audio Track 6 is enabled.</param>
     [method: JsonConstructor]
-    public class AudioTracks(bool track1, bool track2, bool track3, bool track4, bool track5, bool track6)
+    public sealed class AudioTracks(bool track1, bool track2, bool track3, bool track4, bool track5, bool track6)
     {
         /// <summary>
         /// Gets a value indicating whether Audio Track 1 is enabled.

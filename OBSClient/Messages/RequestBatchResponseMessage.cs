@@ -12,7 +12,7 @@
     /// <param name="requestId">The request identifier.</param>
     /// <param name="results">The responses to the individual requests.</param>
     [method: JsonConstructor]
-    public class RequestBatchResponseMessage(string requestId, RequestResponseMessage[] results) : IMessage
+    internal sealed class RequestBatchResponseMessage(string requestId, RequestResponseMessage[] results) : IMessage
     {
         /// <summary>
         /// The request identifier.

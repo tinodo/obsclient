@@ -13,7 +13,7 @@
     /// </remarks>
     /// <param name="haltOnFailure">Whether to stop processing requests when a failure occurs.</param>
     /// <param name="requestBatchExecutionType">The indication of how to process multiple requests in the batch.</param>
-    public partial class RequestBatchMessage(bool haltOnFailure = false, RequestBatchExecutionType requestBatchExecutionType = RequestBatchExecutionType.SerialRealtime) : IMessage
+    public sealed partial class RequestBatchMessage(bool haltOnFailure = false, RequestBatchExecutionType requestBatchExecutionType = RequestBatchExecutionType.SerialRealtime) : IMessage
     {
         /// <summary>
         /// The identifier of the request.

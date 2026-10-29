@@ -12,7 +12,7 @@
     /// </remarks>
     /// <param name="eventSubscriptions"></param>
     [method: JsonConstructor]
-    public class ReidentifyMessage(EventSubscriptions eventSubscriptions) : IMessage
+    internal sealed class ReidentifyMessage(EventSubscriptions eventSubscriptions) : IMessage
     {
         /// <summary>
         /// The events to subscribe to.

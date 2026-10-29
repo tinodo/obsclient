@@ -8,7 +8,7 @@
     /// <summary>
     /// Class for Request Messages
     /// </summary>
-    public class RequestMessage : IMessage
+    public sealed class RequestMessage : IMessage
     {
         /// <summary>
         /// The type of request.

@@ -11,7 +11,7 @@
     /// <param name="challenge">The challenge to be signed.</param>
     /// <param name="salt">The salt to use using signing.</param>
     [method: JsonConstructor]
-    public class Authentication(string challenge, string salt)
+    internal sealed class Authentication(string challenge, string salt)
     {
         /// <summary>
         /// Gets the challenge to be signed.

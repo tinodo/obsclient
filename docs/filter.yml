@@ -1,6 +1,0 @@
-# The JSON converters are an implementation detail of the wire format, so the reference leaves them out.
-# Filtering is hierarchical: excluding the namespace excludes every type in it.
-apiRules:
-- exclude:
-    uidRegex: ^OBSStudioClient\.Converters$
-    type: Namespace

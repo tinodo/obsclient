@@ -28,7 +28,7 @@
     /// <param name="sourceWidth">The source width.</param>
     /// <param name="width">The width.</param>
     [method: JsonConstructor]
-    public class SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Bounds boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width)
+    public sealed class SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Bounds boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width)
     {
         /// <summary>
         /// Gets the alignment of the scene transform.

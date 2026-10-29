@@ -20,7 +20,7 @@
     /// <param name="sourceName">The source name.</param>
     /// <param name="sourceType">The source type.</param>
     [method: JsonConstructor]
-    public class SceneItem(string? inputKind, bool? isGroup, BlendMode sceneItemBlendMode, bool sceneItemEnabled, int sceneItemId, int sceneItemIndex, bool sceneItemLocked, SceneItemTransform sceneItemTransform, string sourceName, SourceType sourceType)
+    public sealed class SceneItem(string? inputKind, bool? isGroup, BlendMode sceneItemBlendMode, bool sceneItemEnabled, int sceneItemId, int sceneItemIndex, bool sceneItemLocked, SceneItemTransform sceneItemTransform, string sourceName, SourceType sourceType)
     {
         /// <summary>
         /// Gets the input kind.

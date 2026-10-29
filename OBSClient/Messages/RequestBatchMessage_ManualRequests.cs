@@ -5,7 +5,7 @@ namespace OBSStudioClient.Messages
 
     // The requests that tools/protocol/generate.py does not write ([manual] in tools/protocol/overlay.toml): the client offers
     // them in another shape than the protocol does.
-    public partial class RequestBatchMessage
+    public sealed partial class RequestBatchMessage
     {
         /// <summary>
         /// Adds a request to trigger a hotkey using a sequence of keys.

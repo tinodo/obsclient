@@ -16,7 +16,7 @@
     /// Provides a class for PropertyItem
     /// </summary>
     [method: JsonConstructor]
-    public class PropertyItem(bool itemEnabled, string itemName, JsonElement? itemValue)
+    public sealed class PropertyItem(bool itemEnabled, string itemName, JsonElement? itemValue)
     {
         /// <summary>
         /// Gets a value indicating whether the items is enabled.
