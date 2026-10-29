@@ -16,10 +16,10 @@
 # workflow) with "Use workflow from" set to the tag. The attestation of the files says which ref and which commit the run was for, so
 # that is what makes it say where the files really come from.
 #
-# A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch) does everything up to the approval, for
-# the branch that it is started on: it checks and packs it, builds the test app, attests and verifies the files (of a branch, which a
-# check for a tag does not accept), shows the notes of the release in the summary of the run, and makes a draft release to prove that
-# one can be made (which is deleted again). It publishes nothing.
+# A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch, never from a tag) does everything up to the
+# approval, for the branch that it is started on: it checks and packs it, builds the test app, attests and verifies the files (of a
+# branch, which a check for a tag does not accept), shows the notes of the release in the summary of the run, and makes a draft
+# release to prove that one can be made (which is deleted again). It publishes nothing.
 #
 # One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
 #   nuget.org/account/trustedpublishing -> Add policy
@@ -69,6 +69,12 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
+            # A dry run is of a branch, never of a tag: what an attestation says about a tag is then always about a release, and the command
+            # in the notes of a release (which asks for the tag) never accepts the files of a dry run.
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              echo "::error::A dry run is of a branch, and this run is of the tag $GITHUB_REF_NAME: a tag is for a release. Start the dry run with 'Use workflow from' set to a branch."
+              exit 1
+            fi
             # A dry run builds the commit that it was started on (not the branch, which can move while it runs); there is no tag.
             ref="$GITHUB_SHA"
             tag=""
