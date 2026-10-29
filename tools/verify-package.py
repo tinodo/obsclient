@@ -12,11 +12,8 @@ that every PNG has it may only have the few that say how the picture is shown (t
 programs add (text, profiles, times, ...), which it does not need and which would have to be checked as well. The pixels themselves are
 not decoded (that is what an image library does, and a look at the icon). The package has to name the icon.
 
-The README is the page that nuget.org shows for the package, and nuget.org renders less than GitHub does: it drops a relative link (the
-page shows the text without a target) and shows raw HTML as text. So the README has to be in the package, with absolute links and
-images and without raw HTML (what is in a fenced code block or a code span is shown as it is, and is left alone). The scan is simple on
-purpose and errs towards reporting: an indented code block is not recognised as code (write code as a fenced block or a code span), and
-a code span ends with its paragraph.
+The README has to be in the package. What is in it is checked by ReadmeTests in the unit tests, which parse it with Markdig, the library
+that nuget.org renders it with: nuget.org drops a relative link and shows raw HTML as text, and a published version cannot be changed.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -41,6 +38,7 @@ REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
 ICON_NAME = "icon.png"
+README_NAME = "README.md"
 ICON_MAX_BYTES = 1024 * 1024  # nuget.org refuses a bigger icon
 ICON_MIN_PIXELS = 128  # what NuGet recommends
 ICON_MAX_RASTER_BYTES = 64 * 1024 * 1024  # what an icon may need once it is decoded: a PNG of 1 MB can claim much more, and is not read then
@@ -87,14 +85,6 @@ ALLOWED_SYMBOL_FILES = [
     rf"{ASSEMBLY_NAME}\.nuspec",
     rf"lib/(?P<framework>net\d+\.\d+)/{ASSEMBLY_NAME}\.pdb",
 ]
-
-README_NAME = "README.md"
-README_FENCE = re.compile(r"^ {0,3}(?:(`{3,})[^`]*|(~{3,}).*)$")
-README_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).+?(?<!`)\1(?!`)", re.DOTALL)
-README_LINK_TARGET = re.compile(r"\]\(\s*(<[^>\n]*>|[^)\s]*)")
-README_LINK_DEFINITION = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(?:\n[ \t]*)?(<[^>\n]*>|\S+)", re.MULTILINE)
-README_HTML = re.compile(r"<(?:[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?|/[A-Za-z][A-Za-z0-9-]*\s*|!--.*?--)>", re.DOTALL)
-URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 
 # What Source Link writes into a PDB (as UTF-8 JSON): the URL at which the file of a commit can be read.
 def source_link(repository):
@@ -301,60 +291,6 @@ def icon_problems(data):
     return problems
 
 
-def without_code(text):
-    """
-    The text of a README with its fenced code blocks and its code spans blanked out; the line breaks stay, so that a line number is still
-    right. A code span cannot cross the end of a paragraph (a blank line), so a backtick that is not closed hides nothing but its own
-    paragraph.
-    """
-    lines = []
-    fence = None
-    for line in text.splitlines():
-        if fence is None:
-            opening = README_FENCE.match(line)
-            fence = (opening.group(1) or opening.group(2)) if opening else None
-            lines.append("" if opening else line)
-        else:
-            stripped = line.strip()
-            if stripped and set(stripped) == {fence[0]} and len(stripped) >= len(fence):
-                fence = None
-            lines.append("")
-
-    def blank(match):
-        return re.sub(r"[^\n]", " ", match.group(0))
-
-    result = []
-    paragraph = []
-    for line in [*lines, ""]:
-        if line.strip():
-            paragraph.append(line)
-        else:
-            if paragraph:
-                result.extend(README_CODE_SPAN.sub(blank, "\n".join(paragraph)).split("\n"))
-                paragraph = []
-            result.append(line)
-    return "\n".join(result[:-1])
-
-
-def readme_problems(text):
-    problems = []
-    visible = without_code(text)
-
-    def line_of(match):
-        return visible.count("\n", 0, match.start()) + 1
-
-    targets = [*README_LINK_TARGET.finditer(visible), *README_LINK_DEFINITION.finditer(visible)]
-    for match in sorted(targets, key=lambda found: found.start()):
-        target = match.group(1).strip("<>")
-        if not target:
-            problems.append(f"{README_NAME} line {line_of(match)}: a link or an image without a target")
-        elif not target.startswith("#") and not URL_SCHEME.match(target):
-            problems.append(f'{README_NAME} line {line_of(match)}: the link or image "{target}" is relative: nuget.org drops it, so use an absolute URL')
-    for match in README_HTML.finditer(visible):
-        problems.append(f'{README_NAME} line {line_of(match)}: the raw HTML "{match.group(0)[:40]}" is not rendered by nuget.org, which shows it as text (code goes in a code span or a fenced block)')
-    return problems
-
-
 def verify_package(path):
     problems = []
     with zipfile.ZipFile(path) as package:
@@ -383,9 +319,7 @@ def verify_package(path):
         else:
             problems.append(f"{ICON_NAME} is missing")
 
-        if README_NAME in names:
-            problems.extend(readme_problems(package.read(README_NAME).decode("utf-8-sig", errors="replace")))
-        else:
+        if README_NAME not in names:
             problems.append(f"{README_NAME} is missing")
 
         nuspec_name = f"{ASSEMBLY_NAME}.nuspec"

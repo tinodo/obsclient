@@ -237,7 +237,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   the compatibility table of the documentation).
 - **The README of the package** *(after beta2)* has absolute links and no raw HTML now: nuget.org drops a relative link (the page of 4.0.0-beta2
   shows five of them without a target) and shows HTML as text (it showed `<ins>` around two phrases), and a published version cannot be
-  changed. CI (`tools/verify-package.py`) refuses a package whose README has either, so that the next version cannot be published with them.
+  changed. CI parses the README with Markdig, the parser of nuget.org (`ReadmeTests`), and fails on either, so that the next version cannot be
+  published with them.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:

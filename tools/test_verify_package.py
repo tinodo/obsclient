@@ -147,6 +147,12 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("icon.png is missing", output)
 
+    def test_a_package_without_a_readme_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"README.md": None}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("README.md is missing", output)
+
     def test_an_icon_that_is_not_a_png_is_refused(self):
         code, output = self.verify(packages=package_files(**{"icon.png": b"<svg/>" + b" " * 40}), symbols=symbol_files())
 
@@ -564,114 +570,6 @@ class VerifyPackageTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertIn("unexpected package dependency: Newtonsoft.Json", output)
-
-    def test_a_readme_with_absolute_links_and_code_passes(self):
-        readme = "\n".join(
-            [
-                "# ObsClient",
-                "[![Build](https://github.com/tinodo/obsclient/actions/workflows/build.yml/badge.svg)](https://github.com/tinodo/obsclient/actions)",
-                "See the [changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md#top), <https://example.com> and [below](#usage).",
-                "Write to <someone@example.com> or [here](mailto:someone@example.com).",
-                "A generic type in a span, `ILogger<ObsClient>`, and code in a block:",
-                "```csharp",
-                "var names = new List<string>();  // [a link](relative.md) and <b>bold</b>",
-                "```",
-                "[reference]: https://example.com/reference",
-            ]
-        )
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(0, code, output)
-
-    def test_a_relative_link_or_image_in_the_readme_is_refused_with_its_line(self):
-        readme = "# ObsClient\n\n```text\n[in code](ignored.md)\n```\n\nSee the [changelog](CHANGELOG.md) and ![logo](docs/images/logo.png).\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 7: the link or image "CHANGELOG.md" is relative', output)
-        self.assertIn('README.md line 7: the link or image "docs/images/logo.png" is relative', output)
-        self.assertNotIn("ignored.md", output)
-
-    def test_a_reference_a_missing_target_and_an_angled_target_in_the_readme_are_checked_too(self):
-        readme = "# ObsClient\n[a][ref], [b](), [c](<CONTRIBUTING.md>)\n\n[ref]: LICENSE\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn("README.md line 2: a link or an image without a target", output)
-        self.assertIn('README.md line 2: the link or image "CONTRIBUTING.md" is relative', output)
-        self.assertIn('README.md line 4: the link or image "LICENSE" is relative', output)
-
-    def test_raw_html_in_the_readme_is_refused(self):
-        readme = '# ObsClient\nA <ins>complete</ins> client.\n<!-- a comment -->\n<img src="https://example.com/a.png" />\n'
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 2: the raw HTML "<ins>" is not rendered by nuget.org', output)
-        self.assertIn('README.md line 2: the raw HTML "</ins>" is not rendered by nuget.org', output)
-        self.assertIn('README.md line 3: the raw HTML "<!-- a comment -->" is not rendered by nuget.org', output)
-        self.assertIn('README.md line 4: the raw HTML "<img src=', output)
-
-    def test_a_readme_with_a_byte_order_mark_and_windows_line_breaks_is_read_too(self):
-        readme = "\ufeff# ObsClient\r\n\r\n[changelog](CHANGELOG.md)\r\n".encode("utf-8")
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 3: the link or image "CHANGELOG.md" is relative', output)
-
-    def test_a_package_without_a_readme_is_refused(self):
-        code, output = self.verify(packages=package_files(**{"README.md": None}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn("README.md is missing", output)
-
-    def test_an_unclosed_backtick_hides_nothing_beyond_its_paragraph(self):
-        readme = "# ObsClient\n\nAn unclosed ` backtick.\n\nSee the [changelog](CHANGELOG.md).\n\nAnother ` unclosed one.\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 5: the link or image "CHANGELOG.md" is relative', output)
-
-    def test_a_code_span_can_go_on_in_the_next_line_of_its_paragraph(self):
-        readme = "# ObsClient\nA span `that goes on\nwith <b>html</b> and [a link](x.md)` and then plain text.\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(0, code, output)
-
-    def test_a_reference_can_have_its_destination_in_the_next_line(self):
-        absolute = "# ObsClient\n[ref]:\n    https://example.com/changelog\n"
-        relative = "# ObsClient\n[ref]:\n    CHANGELOG.md\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": absolute.encode()}), symbols=symbol_files())
-        self.assertEqual(0, code, output)
-
-        code, output = self.verify(packages=package_files(**{"README.md": relative.encode()}), symbols=symbol_files())
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 2: the link or image "CHANGELOG.md" is relative', output)
-
-    def test_a_code_span_of_three_backticks_is_not_a_fence(self):
-        readme = "# ObsClient\n```ILogger<T>``` is a span, not a fence.\nSee the [changelog](CHANGELOG.md).\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 3: the link or image "CHANGELOG.md" is relative', output)
-        self.assertNotIn("raw HTML", output)
-
-    def test_an_indented_code_block_is_not_recognised_as_code(self):
-        readme = "# ObsClient\n\n    var names = new List<string>();\n"
-
-        code, output = self.verify(packages=package_files(**{"README.md": readme.encode()}), symbols=symbol_files())
-
-        self.assertEqual(1, code)
-        self.assertIn('README.md line 3: the raw HTML "<string>" is not rendered by nuget.org', output)
-        self.assertIn("code goes in a code span or a fenced block", output)
 
     def test_symbols_without_source_link_are_refused(self):
         code, output = self.verify(symbols=symbol_files(**{"lib/net10.0/OBSClient.pdb": b"BSJB no link"}))
