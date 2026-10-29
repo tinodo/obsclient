@@ -113,14 +113,19 @@ namespace OBSStudioClient.Tests
 
             Assert.False(refused);
             Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
-            Assert.Equal(1, proxy.Accepted);
+
+            // How often the proxy is asked for one attempt depends on the runtime: the HTTP stack may try again after a reset (the macOS job
+            // with .NET 10 saw 3 connections for one attempt), so the test counts what came in and does not expect one.
+            var refusedAttempts = proxy.Accepted;
+            Assert.True(refusedAttempts >= 1, "The proxy did not see the attempt that it refused.");
             Assert.Equal(0, proxy.Open);
 
             proxy.Refuse(false);
             var connect = client.ConnectAsync(hostname: "127.0.0.1", port: proxy.Port);
             await server.HandshakeAsync().WithTimeoutAsync(Timeout);
             Assert.True(await connect.WithTimeoutAsync(Timeout));
-            Assert.Equal(2, proxy.Accepted);
+            Assert.Equal(refusedAttempts + 1, proxy.Accepted);
+            Assert.Equal(1, proxy.Open);
         }
     }
 }
