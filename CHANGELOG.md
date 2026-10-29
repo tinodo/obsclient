@@ -288,6 +288,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   repository on every push to `main` and every week, puts what it finds in the code scanning alerts, and publishes the results to scorecard.dev (see
   CONTRIBUTING). The CodeQL and protocol watch workflows ask for their write permission (`security-events`, `issues`) on their job now, and not on
   the workflow as a whole, so that every workflow only reads at the top.
+- **Dependency review** *(after beta2)*: a workflow reviews the dependencies that a pull request changes (the NuGet packages, the dotnet tool of
+  the documentation, the actions) and fails when the change brings in a package with a known vulnerability of moderate severity or worse; it is
+  advisory, not a required check (see CONTRIBUTING, *Dependency updates*).
 - **Build provenance** *(after beta2)*: the package, its symbols, the test app and the libraries inside the package have a signed
   [build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations) from now on: GitHub's statement
   that the `publish.yml` workflow of this repository built them, from the commit of the release, on a GitHub-hosted runner. The workflow
