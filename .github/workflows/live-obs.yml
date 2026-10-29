@@ -94,7 +94,9 @@ jobs:
           collection="obsclient-live-$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')"
           echo "::add-mask::$password"
 
-          printf '[General]\nEnableAutoUpdates=false\n' > "$config/global.ini"
+          # obs-websocket 5.3 (OBS Studio 30) keeps its settings in global.ini; 5.4 and later in config.json. Both are written, and each
+          # version reads the one that it knows: without its own, a version makes a new password and listens on the default port.
+          printf '[General]\nEnableAutoUpdates=false\n\n[OBSWebSocket]\nFirstLoad=false\nServerEnabled=true\nServerPort=%s\nAlertsEnabled=false\nAuthRequired=true\nServerPassword=%s\n' "$port" "$password" > "$config/global.ini"
           printf '[General]\nFirstRun=true\nConfirmOnExit=false\n\n[BasicWindow]\nSysTrayEnabled=false\n\n[Basic]\nSceneCollection=%s\n' "$collection" > "$config/user.ini"
           jq -n --arg password "$password" --argjson port "$port" \
             '{alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true, server_password: $password, server_port: $port}' \
