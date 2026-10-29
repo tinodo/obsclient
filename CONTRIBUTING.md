@@ -300,7 +300,10 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
    the version and the changelog, packs, builds the test app, attests and verifies the files, shows the release as it will be made in the
    summary of the run, and makes a draft release to prove that one can be made (which is deleted again). It publishes nothing and needs
    no tag.
-3. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
+3. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`). A release is only ever
+   made by a run of its own tag, because the attestation of its files (see *Build provenance*) says which ref and which commit the run
+   was for: the push starts it, and a run that is started by hand (*Run workflow*) has to have *Use workflow from* set to the tag, and
+   not to a branch (the first job refuses it). There is no input for a tag.
 4. Open the run in the Actions tab. The *Check the version*, *Pack*, *Build the test app* and *Prepare the release* jobs run first (the
    package and the test app are artifacts of the run; download them if you want to look). The *Publish to NuGet.org* job then waits for
    you: **Review deployments**, **Approve and deploy**. That one approval is the gate of every channel: GitHub Packages and the release
@@ -358,7 +361,7 @@ may be moved is in the table (the first job refuses the version, so nothing was 
 | No matching policy | The policy on nuget.org differs from the workflow: owner, repository, file name (`publish.yml`) or environment (`release`) |
 | Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
 | The job never starts | It is waiting for your approval |
-| The first job (*Check the version*) refuses the release | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
+| The first job (*Check the version*) refuses the release | The run is of a branch and not of a tag (push the tag, or start the workflow with *Use workflow from* set to the tag; to try it on a branch, tick *Dry run*), or the tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
 | The first job says that nuget.org lists the version already | A version is never built again: the package that was published can never be replaced, so a new build could not be matched with it (the symbols, the test app and the files of the release would come from another build). To finish a release that failed after the push, re-run the **failed jobs** of its run |
 | *Verify the tag still points at the commit that was packed* fails | The tag was moved while the release waited for your approval. Nothing was published (GitHub Packages and the release wait for nuget.org, so this is the first thing that is checked); release a new version |
 | *Verify the tag still points at the commit that was released* fails (in *Create the GitHub release*) | The tag was moved after the package was published. The release was not made. Move the tag back to the commit that the message names (`git push --force origin <commit>:refs/tags/vX.Y.Z`) and re-run the job, or make the release by hand |

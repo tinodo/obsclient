@@ -12,6 +12,10 @@
 #      pushes that same .nupkg to nuget.org, waits until nuget.org lists the version, checks that nuget.org serves that package, pushes
 #      the symbols, pushes the package to GitHub Packages, and creates the GitHub release.
 #
+# A release is only ever made by a run of its own tag: one that the push of the tag started, or one that is started by hand (Run
+# workflow) with "Use workflow from" set to the tag. The attestation of the files says which ref and which commit the run was for, so
+# that is what makes it say where the files really come from.
+#
 # A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch) does everything up to the approval, for
 # the branch that it is started on: it checks and packs it, builds the test app, attests and verifies the files (of a branch, which a
 # check for a tag does not accept), shows the notes of the release in the summary of the run, and makes a draft release to prove that
@@ -32,9 +36,6 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Existing tag to (re)publish, e.g. v4.0.0 (not used by a dry run)'
-        required: false
       dry_run:
         description: 'Dry run: check, pack and prepare everything for the branch that this is started on, and publish nothing'
         type: boolean
@@ -48,7 +49,7 @@ permissions:
 # that waits for the approval of the release holds its turn, so cancel it before you start over. A dry run only waits for another
 # run of the same branch.
 concurrency:
-  group: publish-${{ inputs.tag || github.ref_name }}
+  group: publish-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -65,29 +66,26 @@ jobs:
         id: which
         shell: bash
         env:
-          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
-          TAG_INPUT: ${{ inputs.tag }}
           DRY_RUN: ${{ inputs.dry_run }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
             # A dry run builds the commit that it was started on (not the branch, which can move while it runs); there is no tag.
             ref="$GITHUB_SHA"
             tag=""
           else
-            tag="${TAG_INPUT:-$GITHUB_REF_NAME}"
+            # A release is made by a run of its own tag, so that the attestation of the files (which names the ref and the commit of the
+            # run) says what was built, and the command in the notes of the release, which asks for that tag, holds.
+            if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+              echo "::error::A release is made by a run of its tag, and this run is of the branch $GITHUB_REF_NAME. Push the tag, or start the workflow with 'Use workflow from' set to the tag. To try the workflow on a branch, tick 'Dry run'."
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
             if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
               echo "::error::'$tag' is not a version tag (expected vX.Y.Z)."
               exit 1
             fi
-            if [ "$EVENT_NAME" = "push" ]; then
-              # The commit that the tag pointed at when it was pushed; a tag that is moved afterwards is not followed.
-              ref="$GITHUB_SHA"
-            else
-              # A manual run for an existing tag: its commit now. Fully qualified, so that a branch of the same name can never be
-              # packaged instead of the tag.
-              ref="refs/tags/$tag"
-            fi
+            # The commit that this run is of: the one that the tag pointed at when it was run, and a tag that is moved afterwards is not followed.
+            ref="$GITHUB_SHA"
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -307,21 +305,25 @@ jobs:
             libraries/lib/*/OBSClient.dll
 
       # What a person would check, checked here, before the approval: that GitHub has an attestation for every file, for these very
-      # bytes, by this workflow of this repository, for the commit and the ref of this run, from a GitHub-hosted runner. A run that cannot
-      # show that has published nothing yet. Each file gets three tries: the check asks GitHub, for the attestation and for the keys to
-      # check it, and that can fail for a moment.
+      # bytes, by this workflow of this repository, from a GitHub-hosted runner, for the ref and the commit that the notes of the release
+      # ask for: the tag, and the commit that was packed. A dry run has no tag: its files are of the branch that it was started on. A run
+      # that cannot show this has published nothing yet. Each file gets three tries: the check asks GitHub, for the attestation and for
+      # the keys to check it, and that can fail for a moment.
       - name: Verify the attestations
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SHA: ${{ needs.version.outputs.sha }}
         run: |
+          if [ "$DRY_RUN" = "true" ]; then ref="$GITHUB_REF"; else ref="refs/tags/$TAG"; fi
           verify() {
             for attempt in 1 2 3; do
               if gh attestation verify "$1" \
                 --repo "$GITHUB_REPOSITORY" \
                 --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-                --source-ref "$GITHUB_REF" \
-                --source-digest "$GITHUB_SHA" \
+                --source-ref "$ref" \
+                --source-digest "$SHA" \
                 --deny-self-hosted-runners; then
                 return 0
               fi
