@@ -52,14 +52,19 @@
         /// Gets the level in decibels for a specific channel index.
         /// </summary>
         /// <param name="channelIndex">The index of the channel.</param>
-        /// <returns>The level in decibels.</returns>
+        /// <returns>
+        /// The level of the channel in decibels: its first level (OBS Studio sends three numbers for a channel), and never less than -100 dB,
+        /// which is what a silent channel gives. <see cref="float.NegativeInfinity"/> when the input has no such channel: OBS Studio sends an
+        /// empty list of levels for some inputs, and a negative index is not a channel either.
+        /// </returns>
         public float GetLevelDb(int channelIndex)
         {
-            if (InputLevelsMul != null && InputLevelsMul.Length > channelIndex && InputLevelsMul[channelIndex].Length > 0)
+            if (InputLevelsMul != null && channelIndex >= 0 && InputLevelsMul.Length > channelIndex && InputLevelsMul[channelIndex].Length > 0)
             {
                 return AudioMath.MulToDb(InputLevelsMul[channelIndex][0]);
             }
-            return float.NegativeInfinity; // o un valore di default
+
+            return float.NegativeInfinity;
         }
     }
 }

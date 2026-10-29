@@ -366,6 +366,11 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - `KeyModifier` is marked `[Flags]`: the client always treated it as a combination of keys (`KeyModifier.Control | KeyModifier.Shift`
   is the modifiers of Ctrl+Shift, which `TriggerHotkeyByKeySequence` and its batch builder send as one flag for each key), but the
   type did not say so, so it printed and parsed a combination as a number.
+- **`InputVolumeMeterResponse.GetLevelDb` threw an `IndexOutOfRangeException` for a negative channel** (this was so in 3.0.1 as well),
+  while any other channel that is not there, such as an index that is too high, or every channel of an input for which OBS Studio sent an
+  empty list of levels (it does for some), gave `float.NegativeInfinity`. A negative index gives it too now, and the documentation says
+  what the method returns (a silent channel gives -100 dB, the floor). Found by the report of what the tests do not reach, which showed
+  that no test had called it.
 
 ### Compatibility
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
