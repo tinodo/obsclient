@@ -91,7 +91,6 @@ namespace OBSStudioClient.Tests.Live
 
                 using var stopChaos = new CancellationTokenSource(duration);
                 await ChaosAsync(proxy, stats, new Random(seed), stopChaos.Token);
-                proxy.Refuse(false);
 
                 // The trouble is over: the client has to find its way back (the reconnect timer ticks every 3 seconds), and do what it did.
                 var back = await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Connected, TimeSpan.FromSeconds(60));
@@ -103,7 +102,8 @@ namespace OBSStudioClient.Tests.Live
                 {
                     var version = await client.GetVersion().WithTimeoutAsync(TimeSpan.FromSeconds(20), "GetVersion did not answer after the trouble ended.");
                     output.WriteLine($"OBS Studio {version.ObsVersion}, obs-websocket {version.ObsWebSocketVersion}.");
-                    await client.BroadcastCustomEvent(JsonSerializer.SerializeToElement(new { soak = -1 }));
+                    await client.BroadcastCustomEvent(JsonSerializer.SerializeToElement(new { soak = -1 }))
+                        .WithTimeoutAsync(TimeSpan.FromSeconds(20), "BroadcastCustomEvent did not complete after the trouble ended.");
                     if (!await AsyncTestHelpers.WaitUntilAsync(() => cameBack.ContainsKey(-1), TimeSpan.FromSeconds(10)))
                     {
                         failures.Add("An event that OBS Studio was asked to send back did not arrive after the trouble ended.");
@@ -177,9 +177,10 @@ namespace OBSStudioClient.Tests.Live
                 {
                     stats.Unexpected($"OBS Studio refused a request that only reads: {exception.Message}");
                 }
-                catch (ObsClientException)
+                catch (ObsClientException exception) when (IsConnectionLoss(exception))
                 {
-                    // Not connected, or the connection was lost while the call waited: what a cut is supposed to do.
+                    // Not connected, or the connection was lost while the call waited: what a cut is supposed to do. Any other failure of
+                    // the client (a response of a type that it did not expect, a request that could not be queued) is not.
                     stats.Count(nameof(Stats.Refused));
                 }
                 catch (TimeoutException)
@@ -249,9 +250,16 @@ namespace OBSStudioClient.Tests.Live
             }
             finally
             {
+                // The trouble is over, all of it: a stall that is still under way would hold back the answers that the client waits for.
                 proxy.Refuse(false);
+                proxy.EndStall();
             }
         }
+
+        // What the client says when the connection is not there: before the call, or while the call waited (see ObsClient.cs).
+        private static bool IsConnectionLoss(ObsClientException exception) =>
+            exception.Message.StartsWith("Not connected.", StringComparison.Ordinal)
+            || exception.Message.StartsWith("The connection to OBS Studio was closed", StringComparison.Ordinal);
 
         private static Measurement Measure()
         {

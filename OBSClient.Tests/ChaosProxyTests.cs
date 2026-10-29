@@ -100,6 +100,58 @@ namespace OBSStudioClient.Tests
         }
 
         [Fact]
+        public async Task AStall_CanBeEndedAtOnce_AndWhatWasHeldBackArrivesThen()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            await using var proxy = new ChaosProxy("127.0.0.1", server.Port);
+            proxy.Start();
+            using var client = new ObsClient { RequestTimeout = 10000 };
+            var connect = client.ConnectAsync(hostname: "127.0.0.1", port: proxy.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            Assert.True(await connect.WithTimeoutAsync(Timeout));
+
+            proxy.Stall(TimeSpan.FromMinutes(5));
+            var call = client.GetSceneList();
+            var received = server.ReceiveRequestAsync(Timeout);
+
+            await Task.Delay(500);
+            Assert.False(received.IsCompleted, "The request got through a stall of five minutes.");
+
+            proxy.EndStall();
+            var (requestType, requestId, _) = await received;
+            await server.SendRequestSuccessAsync(requestType, requestId, new { scenes = Array.Empty<object>() });
+            Assert.Empty((await call.WithTimeoutAsync(Timeout)).Scenes);
+        }
+
+        [Fact]
+        public async Task TheTimerOfAStallThatWasEnded_DoesNotEndTheStallThatFollows()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            await using var proxy = new ChaosProxy("127.0.0.1", server.Port);
+            proxy.Start();
+            using var client = new ObsClient { RequestTimeout = 10000 };
+            var connect = client.ConnectAsync(hostname: "127.0.0.1", port: proxy.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+            Assert.True(await connect.WithTimeoutAsync(Timeout));
+
+            // The timer of the first stall runs out after 400 ms, in the middle of the second one.
+            proxy.Stall(TimeSpan.FromMilliseconds(400));
+            proxy.EndStall();
+            var watch = Stopwatch.StartNew();
+            proxy.Stall(TimeSpan.FromMilliseconds(2000));
+            var call = client.GetSceneList();
+
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            var arrivedAfter = watch.Elapsed;
+
+            Assert.True(arrivedAfter >= TimeSpan.FromMilliseconds(1700), $"The request arrived after {arrivedAfter.TotalMilliseconds:N0} ms, in a stall of 2000 ms.");
+            await server.SendRequestSuccessAsync(requestType, requestId, new { scenes = Array.Empty<object>() });
+            Assert.Empty((await call.WithTimeoutAsync(Timeout)).Scenes);
+        }
+
+        [Fact]
         public async Task ARefusedConnection_IsResetAtOnce_UntilTheProxyPassesConnectionsOnAgain()
         {
             await using var server = new FakeObsWebSocketServer();

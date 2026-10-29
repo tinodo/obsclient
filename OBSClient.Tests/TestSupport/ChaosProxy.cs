@@ -23,6 +23,7 @@ namespace OBSStudioClient.Tests.TestSupport
         private readonly CancellationTokenSource _stopped = new();
         private readonly object _stall = new();
         private Task _flowing = Task.CompletedTask;
+        private TaskCompletionSource? _stalled;
         private volatile bool _refusing;
         private Task? _accepting;
         private int _accepted;
@@ -75,17 +76,49 @@ namespace OBSStudioClient.Tests.TestSupport
         /// <param name="duration">How long. A stall that is under way is not extended or restarted.</param>
         public void Stall(TimeSpan duration)
         {
+            TaskCompletionSource stalled;
             lock (this._stall)
             {
-                if (!this._flowing.IsCompleted)
+                if (this._stalled is not null)
                 {
                     return;
                 }
 
-                var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                this._flowing = released.Task;
-                _ = Task.Delay(duration).ContinueWith(_ => released.TrySetResult(), TaskScheduler.Default);
+                stalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                this._stalled = stalled;
+                this._flowing = stalled.Task;
             }
+
+            // Ends this stall and no other: it may have been ended early, and another one begun, by the time that the delay is over.
+            _ = Task.Delay(duration).ContinueWith(_ => this.EndStall(stalled), TaskScheduler.Default);
+        }
+
+        /// <summary>Ends the stall that is under way, if there is one, at once: what was held back arrives.</summary>
+        public void EndStall()
+        {
+            TaskCompletionSource? stalled;
+            lock (this._stall)
+            {
+                stalled = this._stalled;
+            }
+
+            if (stalled is not null)
+            {
+                this.EndStall(stalled);
+            }
+        }
+
+        private void EndStall(TaskCompletionSource stalled)
+        {
+            lock (this._stall)
+            {
+                if (ReferenceEquals(this._stalled, stalled))
+                {
+                    this._stalled = null;
+                }
+            }
+
+            stalled.TrySetResult();
         }
 
         /// <summary>Makes the proxy accept connections and reset them at once, as a server that is starting up does, or lets it pass them on again.</summary>
@@ -97,6 +130,7 @@ namespace OBSStudioClient.Tests.TestSupport
         {
             this._stopped.Cancel();
             this._listener.Stop();
+            this.EndStall();
             this.Cut();
             if (this._accepting is not null)
             {
