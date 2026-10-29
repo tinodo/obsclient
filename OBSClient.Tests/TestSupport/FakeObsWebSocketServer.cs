@@ -24,6 +24,10 @@
     {
         private const string WebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+        // How long the server waits for the client by default. Generous on purpose: it only decides how long a test that has already gone wrong
+        // takes to fail, and a machine that is busy (a CI runner, a workstation) can take seconds to schedule a connection.
+        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+
         private readonly TcpListener _listener;
         private readonly SemaphoreSlim _connectionSignal = new(0);
         private Task? _acceptLoop;
@@ -147,7 +151,7 @@
         /// <param name="rpcVersion">The RPC version to advertise and negotiate.</param>
         public async Task<JsonDocument> HandshakeAsync(string? password = null, int rpcVersion = 1, TimeSpan? timeout = null)
         {
-            var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
+            var effectiveTimeout = timeout ?? DefaultTimeout;
             await WaitForConnectionAsync(effectiveTimeout).ConfigureAwait(false);
 
             const string salt = "testSaltValue1234567890==";
@@ -288,6 +292,28 @@
             return SendBytesAsync(Encoding.UTF8.GetBytes(json));
         }
 
+        /// <summary>
+        /// Sends one text message as several WebSocket frames, for the tests of a message that does not arrive in one piece.
+        /// </summary>
+        /// <param name="json">The message.</param>
+        /// <param name="fragments">The number of frames to split it into.</param>
+        public async Task SendFragmentedAsync(string json, int fragments)
+        {
+            if (_socket is null)
+            {
+                await WaitForConnectionAsync(DefaultTimeout).ConfigureAwait(false);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(json);
+            var size = (bytes.Length + fragments - 1) / fragments;
+            for (var offset = 0; offset < bytes.Length; offset += size)
+            {
+                var count = Math.Min(size, bytes.Length - offset);
+                var last = offset + count >= bytes.Length;
+                await _socket!.SendAsync(new ArraySegment<byte>(bytes, offset, count), WebSocketMessageType.Text, last, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private async Task SendJsonAsync(object payload)
         {
             await SendBytesAsync(JsonSerializer.SerializeToUtf8Bytes(payload)).ConfigureAwait(false);
@@ -297,7 +323,7 @@
         {
             if (_socket is null)
             {
-                await WaitForConnectionAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await WaitForConnectionAsync(DefaultTimeout).ConfigureAwait(false);
             }
 
             await _socket!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
