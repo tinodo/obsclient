@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
-## [4.0.0-beta2] - 2026-10-28
+## [4.0.0-beta2] - 2026-10-29
 
 The second prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 in the
 [changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md), where what is new since 4.0.0-beta1 is marked *after beta1*.
