@@ -59,9 +59,9 @@
         /// </returns>
         public float GetLevelDb(int channelIndex)
         {
-            if (InputLevelsMul != null && channelIndex >= 0 && InputLevelsMul.Length > channelIndex && InputLevelsMul[channelIndex].Length > 0)
+            if (InputLevelsMul != null && channelIndex >= 0 && InputLevelsMul.Length > channelIndex && InputLevelsMul[channelIndex] is { Length: > 0 } levels)
             {
-                return AudioMath.MulToDb(InputLevelsMul[channelIndex][0]);
+                return AudioMath.MulToDb(levels[0]);
             }
 
             return float.NegativeInfinity;

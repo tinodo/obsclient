@@ -30,9 +30,20 @@
         /// <returns>The matching <see cref="EventType"/>, or <see cref="EventType.Unknown"/> when unrecognized.</returns>
         public override EventType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType == JsonTokenType.String && reader.GetString() is { } value && _eventTypes.TryGetValue(value, out var eventType))
+            if (reader.TokenType == JsonTokenType.String)
             {
-                return eventType;
+                try
+                {
+                    if (reader.GetString() is { } value && _eventTypes.TryGetValue(value, out var eventType))
+                    {
+                        return eventType;
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Text that is not valid UTF-16 (half of a surrogate pair, escaped) cannot be read as a string, and is not the name of
+                    // an event type either: it is one that this version does not know, like any other.
+                }
             }
 
             reader.Skip();

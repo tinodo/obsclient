@@ -54,6 +54,19 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.
 
+**Property-based and fuzz tests** (`OBSClient.Tests/Fuzz`) use [FsCheck](https://fscheck.github.io/FsCheck/): where an example says that
+something works, a property says what has to be true of *all* input, and a generator brings the input. `PropertyTests` hold properties of
+plain functions (the converters, the conversion of levels to decibels, the references to scenes and inputs); a failure prints the case and
+the seed. `ReceiveFuzzTests` connect a client to the fake server and send it what a server could send but should not (`FrameGenerators`:
+members of the protocol with the wrong type or missing, JSON of other shapes, text that is not JSON, messages that are cut off, responses
+and events with their documented fields wrong), and check after each that the client is still connected and answers the next request, and
+that a response that cannot be read fails its own call at once. They run from a fixed seed, 300 cases each, so a run is the same every
+time. To look further: `OBS_FUZZ_CASES=20000 OBS_FUZZ_SEED=7 dotnet test OBSClient.Tests --filter Category=Fuzz` (with `--logger
+"console;verbosity=detailed"` it says how many of the responses were read, and how many events were raised). When a campaign finds
+something, keep the case as an example next to the fix (`ServerMisbehaviourTests`, `PropertyTests`): a fixed seed does not repeat it for ever.
+Hello and Identified frames are left out on purpose: a server does not send them after the handshake, and the client ends the connection
+for one that is broken.
+
 ### Keeping up with obs-websocket
 
 Most of the client is generated from obs-websocket's own protocol definition, so that it cannot drift from the protocol:
