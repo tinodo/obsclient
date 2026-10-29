@@ -11,8 +11,11 @@
         [JsonPropertyName("d")]
         public JsonElement D { get; private set; }
 
+        // Required: left out, the op code would be 0, which is the op code of a Hello, and a message without one is not a message. (The
+        // property needs an init accessor for this: System.Text.Json refuses a required property that cannot be set.)
+        [JsonRequired]
         [JsonPropertyName("op")]
-        public OpCode Op { get; }
+        public OpCode Op { get; init; }
 
         [JsonIgnore]
         public IMessage? Data { get; private set; }
@@ -56,7 +59,9 @@
 
         public void OnDeserialized()
         {
-            this.Data = this.Op switch
+            // The data of a message is an object. JSON null is read as no data at all, which no message has: the client cannot do anything
+            // with such a message, and it must be refused here, as it is not one (found by the fuzz tests).
+            IMessage? data = this.Op switch
             {
                 OpCode.Hello => this.D.Deserialize<HelloMessage>(),
                 OpCode.Identified => this.D.Deserialize<IdentifiedMessage>(),
@@ -65,6 +70,7 @@
                 OpCode.RequestBatchResponse => this.D.Deserialize<RequestBatchResponseMessage>(),
                 _ => throw new ObsClientException($"The OpCode {this.Op} is unexpected."),
             };
+            this.Data = data ?? throw new ObsClientException($"The message with the OpCode {this.Op} has no data.");
         }
 
         public void OnSerializing()

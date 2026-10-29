@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <!-- Property-based tests and the fuzz test (Fuzz/): generators of random input, and properties that have to hold for all of it. -->
+    <PackageReference Include="FsCheck" Version="3.6.0" />
     <!-- nuget.org renders the README of the package with Markdig: ReadmeTests parse it with the same parser. -->
     <PackageReference Include="Markdig" Version="1.4.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />

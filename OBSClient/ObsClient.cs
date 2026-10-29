@@ -825,8 +825,16 @@
             }
         }
 
-        private void CompleteRequest(ConnectionSession session, string requestId, IMessage response)
+        private void CompleteRequest(ConnectionSession session, string? requestId, IMessage response)
         {
+            // A response that names no request (the member is missing, or null) cannot be handed to anyone, and a null key throws in the
+            // dictionary, which would end the connection for a message that only has to be skipped. Found by the fuzz tests.
+            if (requestId is null)
+            {
+                _logger.LogWarning("Received a response without the ID of the request that it answers; it is ignored.");
+                return;
+            }
+
             // TryRemove + TrySetResult, never SetResult: the waiter may have timed out (and cancelled its
             // task) an instant before this response arrived, and that must not be able to throw here.
             if (session.Requests.TryRemove(requestId, out var tcs))
@@ -1099,7 +1107,8 @@
             {
                 using var document = JsonDocument.Parse(json);
                 var root = document.RootElement;
-                if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("op", out var opElement) || !opElement.TryGetInt32(out var opValue))
+                if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("op", out var opElement)
+                    || opElement.ValueKind != JsonValueKind.Number || !opElement.TryGetInt32(out var opValue))
                 {
                     return false;
                 }
@@ -1113,8 +1122,13 @@
 
                 return true;
             }
-            catch (JsonException)
+            catch (Exception)
             {
+                // This only looks at a message that could not be read, to tell what it was meant to be: whatever is wrong with it (it is not
+                // JSON, or text that cannot be converted, or a member of another type than the one that was asked for), it has no envelope
+                // to use, and that must not be the end of the connection.
+                op = default;
+                requestId = null;
                 return false;
             }
         }

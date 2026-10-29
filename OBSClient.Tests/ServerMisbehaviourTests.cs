@@ -118,6 +118,71 @@ namespace OBSStudioClient.Tests
             Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("could not be read and is ignored", StringComparison.Ordinal));
         }
 
+        // Found by the fuzz tests: the client looks for the op code of a message that it cannot read, to tell what it was the response to,
+        // and it asked a string, a boolean, an array and an object for an integer, which throws; that closed the connection.
+        [Theory]
+        [InlineData("{\"op\":\"5\",\"d\":{}}")]
+        [InlineData("{\"op\":null,\"d\":{}}")]
+        [InlineData("{\"op\":true,\"d\":{}}")]
+        [InlineData("{\"op\":[5],\"d\":{}}")]
+        [InlineData("{\"op\":{},\"d\":\"y5]T\"}")]
+        [InlineData("{\"op\":5.5,\"d\":{}}")]
+        [InlineData("{\"op\":4294967296,\"d\":{}}")]
+        public async Task AFrameWhoseOpCodeIsNotAnInteger_IsLoggedAndSkipped(string frame)
+        {
+            await using var server = new FakeObsWebSocketServer();
+            var logger = new ListLogger();
+            using var client = await ConnectAsync(server, logger);
+
+            await server.SendRawAsync(frame);
+
+            await AssertStillUsableAsync(client, server);
+            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("could not be read and is ignored", StringComparison.Ordinal));
+        }
+
+        // Found by the fuzz tests: a message without an op code was read as op code 0, which is a Hello, and a message whose data is null was
+        // read as a message without data; the client then did not know what to do with it, and that ended the connection. Neither is a message.
+        [Theory]
+        [InlineData("{\"d\":null}")]
+        [InlineData("{\"d\":{}}")]
+        [InlineData("{\"d\":{\"rpcVersion\":1}}")]
+        [InlineData("{\"op\":5,\"d\":null}")]
+        [InlineData("{\"op\":7,\"d\":null}")]
+        [InlineData("{\"op\":9,\"d\":null}")]
+        [InlineData("{\"op\":5}")]
+        [InlineData("{\"op\":7}")]
+        [InlineData("{\"op\":9}")]
+        public async Task AMessageWithoutAnOpCodeOrWithoutData_IsLoggedAndSkipped(string frame)
+        {
+            await using var server = new FakeObsWebSocketServer();
+            var logger = new ListLogger();
+            using var client = await ConnectAsync(server, logger);
+
+            await server.SendRawAsync(frame);
+
+            await AssertStillUsableAsync(client, server);
+            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("could not be read and is ignored", StringComparison.Ordinal));
+        }
+
+        // A response that does not say which request it answers: it cannot be given to anyone, and it must not take the connection with it
+        // (found by the fuzz tests: the missing ID reached a dictionary as a null key, which throws, and that ended the connection).
+        [Theory]
+        [InlineData("{\"op\":7,\"d\":{\"requestType\":\"GetSceneList\",\"requestStatus\":{\"result\":true,\"code\":100},\"responseData\":{\"scenes\":[]}}}")]
+        [InlineData("{\"op\":7,\"d\":{\"requestType\":\"GetSceneList\",\"requestId\":null,\"requestStatus\":{\"result\":true,\"code\":100},\"responseData\":{\"scenes\":[]}}}")]
+        [InlineData("{\"op\":9,\"d\":{\"results\":[]}}")]
+        [InlineData("{\"op\":9,\"d\":{\"requestId\":null,\"results\":[]}}")]
+        public async Task AResponseWithoutTheIdOfARequest_IsLoggedAndSkipped(string frame)
+        {
+            await using var server = new FakeObsWebSocketServer();
+            var logger = new ListLogger();
+            using var client = await ConnectAsync(server, logger);
+
+            await server.SendRawAsync(frame);
+
+            await AssertStillUsableAsync(client, server);
+            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("without the ID of the request", StringComparison.Ordinal));
+        }
+
         [Fact]
         public async Task AnEmptyFrame_IsSkipped()
         {

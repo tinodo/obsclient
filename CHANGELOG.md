@@ -277,6 +277,13 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   cuts, stalls and refuses the connection again and again while the client asks OBS Studio things all the time, and the client has to
   reconnect every time, get through the calls that it can, and not leak memory, threads or file descriptors (see CONTRIBUTING, *Live
   tests*). Nothing of this is in the package.
+- **Property-based tests and fuzz tests** *(after beta2)*: besides the examples, the client is tested with input that nobody wrote an
+  example for. [FsCheck](https://fscheck.github.io/FsCheck/) makes it (in the tests only: nothing of this is in the package): properties
+  of the converters, of the conversion of levels to decibels and of the references to scenes and inputs, and three fuzz tests that send a
+  connected client frames of every shape (members of the wrong type, members that are missing, JSON of another shape, text that is not
+  JSON, a message that is cut off, the response to a request and the data of an event with the fields of the protocol wrong or missing),
+  and check after each that the client goes on and answers the next request. They run from a fixed seed (300 cases each, a second or
+  two); `OBS_FUZZ_CASES` and `OBS_FUZZ_SEED` look further (see CONTRIBUTING). Their first runs found the defects listed under *Fixed*.
 - **OpenSSF Scorecard** *(after beta2)*: a workflow runs the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/tinodo/obsclient) of the
   repository on every push to `main` and every week, puts what it finds in the code scanning alerts, and publishes the results to scorecard.dev (see
   CONTRIBUTING). The CodeQL and protocol watch workflows ask for their write permission (`security-events`, `issues`) on their job now, and not on
@@ -393,6 +400,15 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   (the 4.0 betas had this too): the whole of its response is the UUID of the scene, obs-websocket before 5.4.0 has no UUIDs, and so
   it answers without data. The request did not fail, so the call does not: it returns `Guid.Empty`, and the name that was asked for
   identifies the scene. Any other response without data is still an error. Found by running the live tests against OBS Studio 30.0.2.
+- **A message from OBS Studio that is not as it should be could end the connection**, where the client promises to skip it: a message
+  whose `op` is not a number (a string, a boolean, `null`, an array, an object), a message without an `op` (it was read as op code 0, which
+  is a Hello), a message of which the data is `null`, and a response or a batch response that names no request (the `requestId` is missing
+  or `null`, which reached a dictionary as a null key). OBS Studio does not send such messages, but a plugin or a proxy between it and the
+  client might, and a client that is to run next to a stream should not be taken down by one. Each is logged and skipped now. Found by the
+  fuzz tests, which are new (see *Added*).
+- `InputVolumeMeterResponse.GetLevelDb` threw a `NullReferenceException` for a channel of which the list of levels is `null` (in a message
+  that is not as it should be), and `EventTypeConverter` threw for an event type that is not valid text (half of a surrogate pair,
+  escaped), where it promises `EventType.Unknown`. Both do what they promise now. Found by the property tests.
 
 ### Compatibility
 - **OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs** for scenes and inputs. What it reports has none: `Scene.SceneUuid`
