@@ -282,11 +282,15 @@ exercised when a version tag is pushed, or by a dry run (see *Releasing*), so do
 
 **Dependency review.** The *Dependency review* workflow (`.github/workflows/dependency-review.yml`) runs
 [`actions/dependency-review-action`](https://github.com/actions/dependency-review-action) on every pull request: it compares the
-dependencies of the pull request (the NuGet packages, the dotnet tool of the documentation, the actions) with those of `main`, and fails when
-the change brings in a package with a known vulnerability of moderate severity or worse. Dependabot's pull requests are checked like any other.
-It is advisory, like the macOS job: it is not one of the required checks of `main`, because it needs the dependency data that GitHub computes
-after a push (the workflow waits for it for up to three minutes), and a check that waits for a service should not be able to hold up every
-merge. Read what it says before you merge a pull request that it failed.
+dependencies of the pull request (the NuGet packages of the projects and the actions of the workflows) with those of `main`, and fails when
+the change brings in a package with a known vulnerability of moderate severity or worse, whatever scope the dependency graph gives it (the
+action only looks at runtime dependencies unless it is told otherwise, so the workflow names all the scopes). Dependabot's pull requests are
+checked like any other. It only sees what the dependency graph of GitHub lists, and that does not include the DocFX tool of the documentation
+(`.config/dotnet-tools.json`; `gh api repos/tinodo/obsclient/dependency-graph/sbom` does not list it): Dependabot still proposes its new
+releases, but this review does not check them for vulnerabilities, so read the release notes of a DocFX update (it builds the site, and
+nothing of it ships in the package). The review is advisory, like the macOS job: it is not one of the required checks of `main`, because it
+needs the dependency data that GitHub computes after a push (the workflow waits for it for up to three minutes), and a check that waits for a
+service should not be able to hold up every merge. Read what it says before you merge a pull request that it failed.
 
 The one dependency of the library, `Microsoft.Extensions.Logging.Abstractions`, is part of what its users get with it, so it is asked for at
 the oldest version that has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it
