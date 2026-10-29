@@ -71,12 +71,13 @@ def png_of_kind(kind, delta=0):
     return png_of(width, height, depth, color, bytes(size + delta), interlace=interlace, extra_chunks=palette)
 
 
-def nuspec(*dependencies, icon="icon.png"):
+def nuspec(*dependencies, icon="icon.png", license=("expression", "MIT")):
     items = "".join(f'<dependency id="{name}" version="8.0.0" />' for name in dependencies)
     icon_element = f"<icon>{icon}</icon>" if icon else ""
+    license_element = f'<license type="{license[0]}">{license[1]}</license>' if license else ""
     return (
         '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"><metadata><id>OBSClient</id>'
-        f"{icon_element}<dependencies><group targetFramework=\"net8.0\">{items}</group></dependencies></metadata></package>"
+        f"{icon_element}{license_element}<dependencies><group targetFramework=\"net8.0\">{items}</group></dependencies></metadata></package>"
     ).encode()
 
 
@@ -539,6 +540,34 @@ class VerifyPackageTests(unittest.TestCase):
 
         self.assertEqual(1, code)
         self.assertIn("the nuspec does not name icon.png as the icon of the package", output)
+
+    def test_a_package_without_its_license_file_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"LICENSE": None}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("LICENSE is missing", output)
+
+    def test_a_license_that_is_not_the_mit_expression_is_refused(self):
+        nuspecs = {
+            "a license file instead of an expression": nuspec("Microsoft.Extensions.Logging.Abstractions", license=("file", "LICENSE")),
+            "no license": nuspec("Microsoft.Extensions.Logging.Abstractions", license=None),
+            "another expression": nuspec("Microsoft.Extensions.Logging.Abstractions", license=("expression", "Apache-2.0")),
+            "an expression that is not the exact one": nuspec("Microsoft.Extensions.Logging.Abstractions", license=("expression", "MIT OR Apache-2.0")),
+        }
+        for name, content in nuspecs.items():
+            with self.subTest(name):
+                code, output = self.verify(packages=package_files(**{"OBSClient.nuspec": content}), symbols=symbol_files())
+
+                self.assertEqual(1, code)
+                self.assertIn("the nuspec does not declare the license of the package as the MIT expression", output)
+
+    def test_two_licenses_are_refused(self):
+        content = nuspec("Microsoft.Extensions.Logging.Abstractions").replace(b"</metadata>", b'<license type="file">LICENSE</license></metadata>')
+
+        code, output = self.verify(packages=package_files(**{"OBSClient.nuspec": content}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("the nuspec does not declare the license of the package as the MIT expression", output)
 
     def test_a_pdb_in_the_package_is_refused(self):
         code, output = self.verify(packages=package_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB"}), symbols=symbol_files())

@@ -5,6 +5,8 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 
 ## Before you start
 
+- Everyone who takes part in this project is asked to follow the [Code of Conduct](CODE_OF_CONDUCT.md). It also says how to report
+  behavior that breaks it.
 - For bugs or feature requests, please open an issue first using the provided templates so we can discuss the
   approach before you invest time in a PR.
 - Check [obs-websocket's protocol docs](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
@@ -35,6 +37,11 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
   and transparency, and image data that is as long as its header says, row by row), of at most 1 MB and at least 128 by 128 pixels. It has to be
   a plain image: besides the chunks that every PNG has it may only have `tRNS`, `sRGB`, `gAMA` and `pHYs`, and no metadata (text, colour profiles,
   times, ...), so save it without metadata; `tools/make-icon.py` writes none. The pixels are not decoded: look at the icon when you change it.
+- The license of the package is the SPDX expression `MIT` (`PackageLicenseExpression` in `OBSClient/OBSClient.csproj`), which is what nuget.org and
+  license scanners read; NuGet does not allow a license file next to an expression as the license, so the `LICENSE` file is packed as a plain
+  file (the license asks for its notice to be included with copies) and not named as the license. `tools/verify-package.py` checks both: the
+  expression in the nuspec, and the file in the package. The copyright line of the package is the one of `LICENSE`, and its release notes are the
+  GitHub release of its version (`v` and the `<Version>`).
 - The README is also the page of the package on nuget.org, which renders it with Markdig and with less than GitHub does: it drops a relative link
   (the page shows the text without a target) and shows raw HTML as text. So the README uses absolute links
   (`https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md`) and Markdown only (`**bold**`, not `<b>`). `ReadmeTests` parse it with Markdig as
