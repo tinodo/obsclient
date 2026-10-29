@@ -35,6 +35,9 @@ namespace OBSStudioClient.Tests.Live
 
         private static readonly TimeSpan WarmUp = TimeSpan.FromSeconds(5);
 
+        // How long the client is given, once the trouble is over, to find its way back and be answered.
+        private static readonly TimeSpan RecoveryTime = TimeSpan.FromSeconds(60);
+
         // What the client may log at a warning or an error when connections are cut: the read that was cut, and a handshake that a stall held up.
         private static readonly string[] ExpectedLogEntries = ["Handled Exception in ReceiverAsync", "did not complete the authentication handshake"];
 
@@ -93,14 +96,16 @@ namespace OBSStudioClient.Tests.Live
                 await ChaosAsync(proxy, stats, new Random(seed), stopChaos.Token);
 
                 // The trouble is over: the client has to find its way back (the reconnect timer ticks every 3 seconds), and do what it did.
-                var back = await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Connected, TimeSpan.FromSeconds(60));
+                var back = await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Connected, RecoveryTime);
                 if (!back)
                 {
-                    failures.Add($"The client was not connected again 60 seconds after the trouble ended (ConnectionState {client.ConnectionState}).");
+                    failures.Add($"The client was not connected again {RecoveryTime.TotalSeconds:N0} seconds after the trouble ended (ConnectionState {client.ConnectionState}).");
                 }
                 else
                 {
-                    var version = await client.GetVersion().WithTimeoutAsync(TimeSpan.FromSeconds(20), "GetVersion did not answer after the trouble ended.");
+                    // The connection that was cut last may not be known to be gone yet (the state still says Connected): a call that fails
+                    // because the connection is gone is made again, for as long as the client is given to find its way back.
+                    var version = await AnswerAsync(() => client.GetVersion(), "GetVersion did not answer after the trouble ended.");
                     output.WriteLine($"OBS Studio {version.ObsVersion}, obs-websocket {version.ObsWebSocketVersion}.");
                     await client.BroadcastCustomEvent(JsonSerializer.SerializeToElement(new { soak = -1 }))
                         .WithTimeoutAsync(TimeSpan.FromSeconds(20), "BroadcastCustomEvent did not complete after the trouble ended.");
@@ -260,6 +265,23 @@ namespace OBSStudioClient.Tests.Live
         private static bool IsConnectionLoss(ObsClientException exception) =>
             exception.Message.StartsWith("Not connected.", StringComparison.Ordinal)
             || exception.Message.StartsWith("The connection to OBS Studio was closed", StringComparison.Ordinal);
+
+        // A call after the trouble: it is made again while it fails because the connection is gone, until the recovery time is up.
+        private static async Task<T> AnswerAsync<T>(Func<Task<T>> call, string timeoutMessage)
+        {
+            var started = Stopwatch.GetTimestamp();
+            while (true)
+            {
+                try
+                {
+                    return await call().WithTimeoutAsync(TimeSpan.FromSeconds(20), timeoutMessage);
+                }
+                catch (ObsClientException exception) when (IsConnectionLoss(exception) && Stopwatch.GetElapsedTime(started) < RecoveryTime)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(500));
+                }
+            }
+        }
 
         private static Measurement Measure()
         {
