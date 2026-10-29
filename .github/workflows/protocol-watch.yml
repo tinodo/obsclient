@@ -11,12 +11,15 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   check:
     name: Check for a new obs-websocket version
     runs-on: ubuntu-latest
+    # The write permission is the job's, not the workflow's: it opens the issue.
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Checkout
