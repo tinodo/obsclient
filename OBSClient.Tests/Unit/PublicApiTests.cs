@@ -17,12 +17,13 @@ namespace OBSStudioClient.Tests.Unit
         [Fact]
         public void TheWireProtocol_IsNotPublic()
         {
-            // What the client and OBS Studio exchange to connect, to deliver an event and to answer a batch. An application gets what
-            // these carry through ObsClient and its events, and has no use for the messages themselves.
+            // What the client and OBS Studio exchange to connect, to deliver an event and to answer a batch, and what those messages are made of
+            // (their op codes, the names of the events, the modifier keys of a hotkey). An application gets what the messages carry through
+            // ObsClient and its events, and has no use for the messages themselves.
             string[] wire =
             [
                 "HelloMessage", "IdentifyMessage", "IdentifiedMessage", "ReidentifyMessage", "EventMessage", "RequestBatchResponseMessage",
-                "IMessage", "Authentication", "EventTypeConverter", "NullableNumberToNumberConverter",
+                "IMessage", "Authentication", "EventTypeConverter", "NullableNumberToNumberConverter", "OpCode", "EventType", "KeyModifiers",
             ];
 
             var exposed = PublicTypes.Select(type => type.Name).Intersect(wire).Order().ToList();
@@ -60,6 +61,85 @@ namespace OBSStudioClient.Tests.Unit
                 .ToList();
 
             Assert.Equal(["OBSStudioClient.Classes.Transition"], open);
+        }
+
+        [Fact]
+        public void EveryPublicType_IsUsedByTheApi_ExceptTheClientTheExceptionsAndTheResponses()
+        {
+            // A type is public because something in the API takes it, returns it, holds it, raises it or derives from it. One that nothing
+            // uses is dead, and it cannot be removed after 4.0.0 without breaking the code of someone: it goes now, or it is internal. The
+            // responses are left out because a batch hands them out as IResponse, and the exceptions because they are thrown.
+            var used = new HashSet<Type>();
+            foreach (var type in PublicTypes)
+            {
+                var related = new List<Type>();
+                if (type.BaseType is not null)
+                {
+                    related.Add(type.BaseType);
+                }
+
+                related.AddRange(type.GetInterfaces());
+                foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+                {
+                    switch (member)
+                    {
+                        case MethodBase { IsPublic: true } or MethodBase { IsFamily: true } or MethodBase { IsFamilyOrAssembly: true }:
+                            var method = (MethodBase)member;
+                            related.AddRange(method.GetParameters().Select(parameter => parameter.ParameterType));
+                            if (method is MethodInfo info)
+                            {
+                                related.Add(info.ReturnType);
+                            }
+
+                            break;
+                        case PropertyInfo property when property.GetMethod?.IsPublic == true || property.SetMethod?.IsPublic == true:
+                            related.Add(property.PropertyType);
+                            break;
+                        case FieldInfo { IsPublic: true } field:
+                            related.Add(field.FieldType);
+                            break;
+                        case EventInfo { AddMethod.IsPublic: true } @event:
+                            related.Add(@event.EventHandlerType!);
+                            break;
+                    }
+                }
+
+                foreach (var other in related.SelectMany(TypesIn).Where(other => other != type))
+                {
+                    used.Add(other);
+                }
+            }
+
+            var unused = PublicTypes
+                .Where(type => type != typeof(ObsClient)
+                    && type.Namespace is not ("OBSStudioClient.Exceptions" or "OBSStudioClient.Responses")
+                    && !used.Contains(type))
+                .Select(type => type.FullName)
+                .Order()
+                .ToList();
+
+            Assert.True(unused.Count == 0, "Public types that nothing in the API uses (remove them, or make them internal): " + string.Join(", ", unused) + ".");
+        }
+
+        // The type itself, and every type that it is made of: the element of an array, the arguments of a generic type.
+        private static IEnumerable<Type> TypesIn(Type type)
+        {
+            while (type.HasElementType)
+            {
+                type = type.GetElementType()!;
+            }
+
+            yield return type;
+            if (type.IsGenericType)
+            {
+                foreach (var argument in type.GetGenericArguments())
+                {
+                    foreach (var inner in TypesIn(argument))
+                    {
+                        yield return inner;
+                    }
+                }
+            }
         }
     }
 }

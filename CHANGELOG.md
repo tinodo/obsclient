@@ -135,17 +135,22 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   being called. `PropertyChanged` and the statistics events are not changed: they are still raised on the thread that causes the change,
   which can be the receive thread.
 
-- **The wire types are internal, and the classes are sealed** *(after beta2)*, so that 4.0.0 freezes an API that can grow but never has
-  to shrink: a type that is public cannot be made internal, and a class that others can derive from cannot be sealed, without breaking
-  the code that uses it, whereas the other way round breaks nobody. Compared with 4.0.0-beta2 (ApiCompat on the `net8.0` assemblies), ten
-  types left the public API, two members did, and 133 classes that could be derived from are sealed. A new test (`PublicApiTests`) keeps
-  it so.
+- **The wire types are internal, types that nothing used are gone, and the classes are sealed** *(after beta2)*, so that 4.0.0 freezes an
+  API that can grow but never has to shrink: a type that is public cannot be made internal, and a class that others can derive from cannot
+  be sealed, without breaking the code that uses it, whereas the other way round breaks nobody. Compared with 4.0.0-beta2 (ApiCompat on the
+  `net8.0` assemblies), 17 types left the public API, two members did, and 130 classes that could be derived from are sealed. A new test
+  (`PublicApiTests`) keeps it so.
   - What the client and OBS Studio exchange to connect, to deliver an event and to answer a batch is internal: `HelloMessage`,
     `IdentifyMessage`, `IdentifiedMessage`, `ReidentifyMessage`, `EventMessage`, `RequestBatchResponseMessage`, `Authentication` and
     `IMessage`, and so are the two JSON converters, `EventTypeConverter` and `NullableNumberToNumberConverter`, which were public by
     accident (the documentation site already left them out). An application gets what the messages carry from the methods and the events
     of `ObsClient`. `RequestBatchMessage`, `RequestMessage` and `RequestResponseMessage` stay public, because they are how a batch is built
     and read, and so does `IResponse`, the type of `RequestResponseMessage.ResponseData`.
+  - What the messages are made of is internal too, because nothing in the API takes, returns or raises it: the enums `OpCode` and
+    `EventType` (the events are raised as `ObsClient` events, with their own arguments) and the class `KeyModifiers`
+    (`TriggerHotkeyByKeySequence` takes the `KeyModifier` flags). `Crop`, `Coordinates`, `BalanceType` and `IconType` are removed: they were
+    left over from the protocol of obs-websocket 4, and no request returned them, no event carried them and nothing took them (like
+    `MonitorTypeResponse`, see above).
   - Every other class is sealed: `ObsClient`, the classes of the responses, of the events and of `OBSStudioClient.Classes`, and the batch
     messages that stay public. Not sealed are the exceptions (as in the framework) and `Transition`, which `TransitionResponse` extends.
     Code that derives from a sealed class no longer compiles: hold the object in a class of your own instead. `ObsClient` had nothing

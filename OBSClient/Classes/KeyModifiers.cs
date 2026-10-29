@@ -6,7 +6,7 @@
     /// <summary>
     /// Provides a class for KeyModifiers.
     /// </summary>
-    public sealed class KeyModifiers
+    internal sealed class KeyModifiers
     {
         /// <summary>
         /// Gets a value whether the SHIFT key is a modifier.

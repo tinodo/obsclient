@@ -124,8 +124,10 @@ from cannot be sealed, without breaking someone's code, whereas the other way ro
   override but `Dispose(bool)`, which is gone: `Dispose()` does it all.
 - **The types of the wire protocol are internal**: `HelloMessage`, `IdentifyMessage`, `IdentifiedMessage`, `ReidentifyMessage`,
   `EventMessage`, `RequestBatchResponseMessage`, `Authentication`, `IMessage` and the JSON converter `NullableNumberToNumberConverter` are
-  what the client and OBS Studio exchange to connect, to deliver an event and to answer a batch. What they carry reaches you through the
-  methods and the events of `ObsClient`. The types that build and read a batch stay public:
+  what the client and OBS Studio exchange to connect, to deliver an event and to answer a batch, and the enums `OpCode` and `EventType` and
+  the class `KeyModifiers` are what those messages are made of. What they carry reaches you through the methods and the events of
+  `ObsClient` (the events are raised as events, with their own arguments, and a hotkey takes the `KeyModifier` flags). The types that build
+  and read a batch stay public:
   [`RequestBatchMessage`](xref:OBSStudioClient.Messages.RequestBatchMessage), `RequestMessage` and `RequestResponseMessage` (see
   [Request batches](batches.md)).
 
@@ -144,6 +146,7 @@ from cannot be sealed, without breaking someone's code, whereas the other way ro
 | `TotalMessagesReceived`, `SessionMessagesReceived` | Counted WebSocket frames, so a large message counted several times | They count messages. |
 | `AddOpenSourceProjectorRequest`, `AddOpenVideoMixProjectorRequest` | Threw an `ArgumentException` for an invalid combination of monitor and geometry | Send what they are given and leave the check to obs-websocket, which answers an error. |
 | `MonitorTypeResponse` | Existed, but no request returned it | Removed (`GetInputAudioMonitorType` returns the `MonitorType`). |
+| `Crop`, `Coordinates`, `BalanceType`, `IconType` | Existed, but nothing used them: they were left over from the protocol of obs-websocket 4 | Removed. |
 | The constructors of `RequestMessage` that took a `dynamic` | `protected internal` | Removed. |
 | The package dependency | `Microsoft.Extensions.Logging` 9.0.9 | `Microsoft.Extensions.Logging.Abstractions` 8.0.0, which has the `ILogger` that the client uses. An application that makes its own logger with `LoggerFactory` references `Microsoft.Extensions.Logging` itself; one that gets its logger from dependency injection has it already. |
 

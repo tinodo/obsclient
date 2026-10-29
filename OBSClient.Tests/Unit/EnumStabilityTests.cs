@@ -5,25 +5,12 @@ namespace OBSStudioClient.Tests.Unit
 
     /// <summary>
     /// C# embeds enum constants in consuming assemblies, so renumbering a published enum silently breaks
-    /// already-compiled consumers after a library-only upgrade. These tests pin the numeric values that shipped
-    /// in 3.0.1; new members must be appended (or given explicit values), never inserted.
+    /// already-compiled consumers after a library-only upgrade. These tests pin the numeric values of RequestType that
+    /// shipped in 3.0.1; new members must be appended (or given explicit values), never inserted. (EventType is internal
+    /// since 4.0.0: nothing can be compiled against it.)
     /// </summary>
     public class EnumStabilityTests
     {
-        [Theory]
-        [InlineData(EventType.Unknown, -1)]
-        [InlineData(EventType.ExitStarted, 0)]
-        [InlineData(EventType.InputActiveStateChanged, 19)]
-        [InlineData(EventType.SourceFilterEnableStateChanged, 38)]
-        [InlineData(EventType.ScreenshotSaved, 56)]
-        [InlineData(EventType.CanvasCreated, 57)]
-        [InlineData(EventType.CanvasRemoved, 58)]
-        [InlineData(EventType.CanvasNameChanged, 59)]
-        public void EventType_PublishedValues_AreStable(EventType member, int expected)
-        {
-            Assert.Equal(expected, (int)member);
-        }
-
         [Theory]
         [InlineData(RequestType.GetVersion, 0)]
         [InlineData(RequestType.GetInputMute, 48)]
