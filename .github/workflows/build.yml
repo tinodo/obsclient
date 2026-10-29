@@ -77,10 +77,11 @@ jobs:
 
       # What the tests reach of the library, in the summary of the run, and held above a floor (tools/coverage-floor.json): a change that
       # takes tests away, or adds code that no test reaches, does not go unnoticed. On Linux only: the floor is the number of that run (a few
-      # tests only run there), and the reports of the other systems are kept as artifacts below. It also runs when the tests failed, as long
-      # as they wrote a report (a cancelled run, and one that did not get as far as the tests, are left alone).
+      # tests only run there), and the reports of the other systems are kept as artifacts below. It runs when the tests passed, and a run
+      # that passed without a report fails here (the coverage is no longer collected); after failed tests it runs as long as they wrote a
+      # report, and a cancelled run is left alone.
       - name: Summarize the coverage, and hold it above the floor
-        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && hashFiles('TestResults/**/coverage.cobertura.xml') != '' }}
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && (success() || hashFiles('TestResults/**/coverage.cobertura.xml') != '') }}
         run: python3 tools/coverage_summary.py "TestResults/**/coverage.cobertura.xml" --floor tools/coverage-floor.json --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
