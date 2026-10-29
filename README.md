@@ -7,7 +7,7 @@
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
 Currently implementing: [**obs-websocket 5.7.6 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md) (including multi-canvas support added in 5.7.0)  
 Targets `net8.0` and `net10.0`, the LTS releases of .NET (see [Compatibility](https://tinodo.github.io/obsclient/#compatibility)).  
-Our intent is to create a <ins>complete</ins> and <ins>easy to use</ins> client for OBS Studio.  
+Our intent is to create a **complete** and **easy to use** client for OBS Studio.  
 **Documentation, guides and the API reference: [tinodo.github.io/obsclient](https://tinodo.github.io/obsclient/)**
 
 ## Installation
@@ -19,7 +19,7 @@ From the command line: `dotnet add package OBSClient --version 4.0.0-beta2`
 `dotnet add package OBSClient` keeps installing the latest stable release, so name the version (or add `--prerelease`) to get it.
 Please report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
 
-Upgrading from 3.x? See [Moving from 3.x to 4.0](https://tinodo.github.io/obsclient/articles/migrating-to-4.html), and the *Breaking changes* in the [CHANGELOG](CHANGELOG.md).
+Upgrading from 3.x? See [Moving from 3.x to 4.0](https://tinodo.github.io/obsclient/articles/migrating-to-4.html), and the *Breaking changes* in the [CHANGELOG](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md).
 
 ## Sample usage
 
@@ -107,10 +107,10 @@ client.Dispose();
 
 ## Try it: the test app
 
-[`OBSClient.TestApp`](OBSClient.TestApp) is a Windows (WinUI 3) application to try every request and event of this library by hand
+[`OBSClient.TestApp`](https://github.com/tinodo/obsclient/tree/main/OBSClient.TestApp) is a Windows (WinUI 3) application to try every request and event of this library by hand
 against your own OBS Studio, and to compare what OBS Studio sends with what the client returns. Every
 [release](https://github.com/tinodo/obsclient/releases) has it as a download (`OBSClient.TestApp-<version>-win-x64.zip`: unzip it, start
-`OBSClient.TestApp.exe`), and every CI run publishes it as an artifact; see [CONTRIBUTING.md](CONTRIBUTING.md#the-test-app).
+`OBSClient.TestApp.exe`), and every CI run publishes it as an artifact; see [CONTRIBUTING.md](https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md#the-test-app).
 
 ## Staying in sync with obs-websocket
 
@@ -131,4 +131,4 @@ events, responses and enum values too.
 [![Docs](https://github.com/tinodo/obsclient/actions/workflows/docs.yml/badge.svg?branch=main)](https://tinodo.github.io/obsclient/)
 [![NuGet](https://img.shields.io/nuget/v/obsclient.svg?style=flat)](https://www.nuget.org/packages/obsclient)  
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and contribute, and [CHANGELOG.md](CHANGELOG.md) for release history.
+See [CONTRIBUTING.md](https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md) for how to build, test, and contribute, and [CHANGELOG.md](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md) for release history.
