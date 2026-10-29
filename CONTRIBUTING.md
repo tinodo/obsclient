@@ -305,8 +305,8 @@ repos/tinodo/obsclient/rulesets` and `gh api repos/tinodo/obsclient/actions/perm
 Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It checks the version and the
 changelog, packs **once** (the package, and next to it its symbols), checks that the package is a single assembly, builds the test app,
 attests where the files come from (see *Build provenance*) and writes the notes of the release. Then it waits for your approval, pushes
-that same `.nupkg` to nuget.org and, once that lists it, to GitHub Packages, and creates the GitHub release with the notes, the package
-and the test app.
+that same `.nupkg` to nuget.org and, once that lists it, to GitHub Packages, and creates the GitHub release with the notes, the package,
+the test app and the attestation of the files (`OBSClient.X.Y.Z.intoto.jsonl`, see *Build provenance*).
 
 **Trusted Publishing, in short.** No NuGet API key is stored anywhere. When the nuget.org job runs, GitHub signs a token that says
 "this is the workflow `publish.yml` of `tinodo/obsclient`, running in the environment `release`". nuget.org checks that against a
@@ -377,6 +377,12 @@ version:
 ```shell
 gh attestation verify OBSClient.X.Y.Z.nupkg --repo tinodo/obsclient --signer-workflow tinodo/obsclient/.github/workflows/publish.yml --source-ref refs/tags/vX.Y.Z
 ```
+
+The attestation is a file of the release as well: *Prepare the release* writes the Sigstore bundle of the one attestation (it covers all the
+files) as `OBSClient.X.Y.Z.intoto.jsonl` (JSON Lines, and the name that tools and the OpenSSF Scorecard look for as a provenance file), checks
+every file against that file too (`gh attestation verify <file> --bundle OBSClient.X.Y.Z.intoto.jsonl ...`, which does not ask GitHub for
+the attestation), and the release has it as an asset, with its SHA-256 in the notes. So the evidence stays with the release, and a download
+can be checked from the release alone.
 
 `--source-ref` is what tells a release from a dry run. A release is only made by a run of a tag, and a dry run is only of a branch (the
 first job refuses the other way round, each), so the ref of an attestation says which of the two made the files, and the command above,
