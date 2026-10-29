@@ -177,11 +177,15 @@ the trouble stops; and its memory, its threads and (on Linux) its file descripto
 from OBS Studio (and broadcasts a custom event, which OBS Studio forwards and forgets). The seed of the chaos is in the output of the test;
 `OBS_LIVE_SOAK_SEED` runs the same chaos again. The proxy itself is tried on every build (`ChaosProxyTests`, with the fake server).
 
-`.github/workflows/live-obs.yml` runs the same tests on Linux in CI: OBS Studio from the PPA of the OBS project, in a virtual display (Xvfb),
-with its own configuration and port (the runner is thrown away, so nothing is at risk there). It is experimental and **not a required
+`.github/workflows/live-obs.yml` runs the same tests on Linux in CI, against **two** OBS Studios: the newest release (from the PPA of the OBS
+project) and the one that Ubuntu 24.04 has itself, OBS Studio 30.0.2 with obs-websocket 5.3.4 (the PPA only keeps a version for a month, so it
+cannot be asked for an older one, and Ubuntu has no packages of 28 and 29). Each runs in a virtual display (Xvfb), with its own configuration and
+port (the runner is thrown away, so nothing is at risk there); the configuration is written in the files of both generations (`global.ini`, with
+the settings of obs-websocket 5.3, and `user.ini` and `config.json`). obs-websocket has UUIDs from 5.4.0 (OBS Studio 30.1.0), so the leg of 30.0.2
+sets `OBS_LIVE_UUIDS=0` and the tests that follow scenes and inputs by UUID are skipped there. It is experimental and **not a required
 check**. It runs when the client, its tests, the live tests or the workflow change, every week, and on request (*Actions, Live OBS tests, Run workflow*); a scheduled run
-that fails opens an issue (or adds to the open one). The log of OBS Studio is an artifact of the run. The weekly run, and a run on request,
-also run the soak test, for 10 minutes (the *Run workflow* form asks for the number: 0 leaves it out, 20 is the most); a pull request does not.
+that fails opens an issue (or adds to the open one). The log of each OBS Studio is an artifact of the run. The weekly run, and a run on request,
+also run the soak test, for 10 minutes, against the newest one (the *Run workflow* form asks for the number: 0 leaves it out, 20 is the most); a pull request does not.
 
 ### The documentation site
 

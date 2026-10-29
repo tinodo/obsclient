@@ -189,7 +189,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="The live tests against OBS Studio failed"
-          body="The scheduled run of the live tests failed: $RUN_URL. The log of OBS Studio is an artifact of the run. Either OBS Studio did something new (compare it with what the tests expect, and with docs/articles/events.md), or the client does something wrong."
+          body="The scheduled run of the live tests failed: $RUN_URL. Look at which OBS Studio it was (the newest, or the one of Ubuntu 24.04); the logs of OBS Studio are artifacts of the run. Either OBS Studio did something new (compare it with what the tests expect, and with docs/articles/events.md), or the client does something wrong."
           number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"

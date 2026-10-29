@@ -276,6 +276,11 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   makes the attestations and checks them before the release waits for approval, and `gh attestation verify` checks them for anyone (the
   notes of every release say how, and `SECURITY.md` has the command). nuget.org signs the package that it serves, so the `.nupkg` from
   nuget.org does not verify, but the libraries in it do (the DLL in your NuGet cache), and so does the `.nupkg` of the release page.
+- **Live tests on an older OBS Studio** *(after beta2)*: the live workflow runs against two OBS Studios, the newest and the one of
+  Ubuntu 24.04 (OBS Studio 30.0.2, with obs-websocket 5.3.4), so that "OBS Studio 28 and up" is not only said of the newest. Everything
+  that does not need UUIDs passes against 30.0.2 (including the comparison of the answers to every request that needs no parameters,
+  and a connection that is cut again and again); the lifecycle test of a scene and an input follows them by UUID, which obs-websocket has
+  from 5.4.0 (OBS Studio 30.1.0), and is skipped there. 28 and 29 are not tested: Ubuntu 24.04 has no packages of them. See *Compatibility*.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:
@@ -371,8 +376,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   empty list of levels (it does for some), gave `float.NegativeInfinity`. A negative index gives it too now, and the documentation says
   what the method returns (a silent channel gives -100 dB, the floor). Found by the report of what the tests do not reach, which showed
   that no test had called it.
+- **`CreateScene` threw "OBS Studio returned an empty response" for a scene that OBS Studio had made**, on an OBS Studio before 30.1.0
+  (the 4.0 betas had this too): the whole of its response is the UUID of the scene, obs-websocket before 5.4.0 has no UUIDs, and so
+  it answers without data. The request did not fail, so the call does not: it returns `Guid.Empty`, and the name that was asked for
+  identifies the scene. Any other response without data is still an error. Found by running the live tests against OBS Studio 30.0.2.
 
 ### Compatibility
+- **OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs** for scenes and inputs. What it reports has empty ones
+  (`Guid.Empty`), `CreateScene` returns `Guid.Empty`, and a `Scene`, an `Input` or a `SceneItem` that it gave you converts to a reference
+  by name; give such an OBS Studio names. Everything else is tested against OBS Studio 30.0.2 (obs-websocket 5.3.4) and against the
+  newest release (32.2.0 in CI, 33.0.0 on a workstation); 28 and 29 are not tested.
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
 - The response and event types are what they were in 3.0.1 (the same constructors and properties, checked field by field),
