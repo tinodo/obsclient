@@ -2,6 +2,8 @@
 # workflows), and fails when it brings in a package that has a known vulnerability of moderate severity or worse. Dependabot's pull requests
 # go through it like any other, so that an update that brings in a vulnerable dependency is seen at once.
 # It only sees what the dependency graph of GitHub lists, and that is not the DocFX tool of the documentation (.config/dotnet-tools.json).
+# GitHub generates its alerts for actions only for semantic versions, not for the commit SHAs that the actions here are pinned to, and the
+# review reads the same data: do not count on it for a vulnerability in an action.
 # It is advisory: it is not one of the required checks of main (see CONTRIBUTING.md, "Dependency updates").
 name: Dependency review
 
