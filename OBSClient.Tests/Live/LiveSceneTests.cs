@@ -21,7 +21,7 @@ namespace OBSStudioClient.Tests.Live
         // How long the list of scenes, or of inputs, of OBS Studio may take to follow the announcement of a removal.
         private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(5);
 
-        [LiveChangesFact]
+        [LiveUuidChangesFact]
         public async Task ASceneWithAnInput_CanBeCreatedChangedRenamedSwitchedToAndRemoved_AndEveryEventIsRaisedAsObsStudioSentIt()
         {
             await using var session = await LiveSession.ConnectAsync(WithTransforms, removeLeftovers: true);

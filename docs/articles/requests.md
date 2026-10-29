@@ -52,6 +52,13 @@ await client.SetSceneItemEnabled(
 A reference that identifies nothing (`default`), and a required argument that is `null`, are refused with an `ArgumentException`
 before anything is sent.
 
+> [!NOTE]
+> An OBS Studio before 30.1 (obs-websocket before 5.4) has no UUIDs, and sends none. The `Scene.SceneUuid` that you get is then empty
+> (`Guid.Empty`), and the `Input.InputUuid` and `SceneItem.SourceUuid` are `null` (they are nullable). `CreateScene` returns `Guid.Empty`
+> for the scene that it made. A `Scene`, an `Input` or a `SceneItem` that it gave you still converts to a reference by *name* (that is what
+> the conversion does when there is no UUID, empty or `null`). Give such an OBS Studio names: it does not know the UUID fields of a request,
+> so a scene or an input that is given by its UUID alone is refused, as a request that is missing its name.
+
 ## Canvases
 
 OBS Studio can have more than one canvas (obs-websocket 5.7.0 and later). A request that looks up a scene or a source *by name*

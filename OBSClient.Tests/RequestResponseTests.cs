@@ -80,6 +80,52 @@
         }
 
         [Fact]
+        public async Task CreateScene_AnsweredWithoutData_GivesAnEmptyUuid_AsObsStudioBefore30_1Answers()
+        {
+            // obs-websocket before 5.4.0 (OBS Studio before 30.1.0) has no UUIDs: it answers CreateScene, which made the scene, with
+            // no data at all. The request did not fail, so the call does not either (found with OBS Studio 30.0.2).
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+
+            var call = client.CreateScene("A scene");
+            var (requestType, requestId, requestData) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("CreateScene", requestType);
+            Assert.Equal("A scene", requestData!.Value.GetProperty("sceneName").GetString());
+            await server.SendRequestSuccessAsync(requestType, requestId);
+
+            Assert.Equal(Guid.Empty, await call.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task CreateScene_AnsweredWithItsUuid_GivesTheUuid()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var sceneUuid = Guid.NewGuid();
+
+            var call = client.CreateScene("A scene");
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { sceneUuid });
+
+            Assert.Equal(sceneUuid, await call.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task AnyOtherRequest_AnsweredWithoutData_IsStillAnError()
+        {
+            // Only the response that is nothing but a UUID can be empty; for the others it is not what OBS Studio sends, and it is said.
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+
+            var call = client.GetVersion();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            await server.SendRequestSuccessAsync(requestType, requestId);
+
+            var exception = await Assert.ThrowsAsync<ObsClientException>(() => call.WithTimeoutAsync(Timeout));
+            Assert.Contains("empty response", exception.GetBaseException().Message);
+        }
+
+        [Fact]
         public async Task SendRequest_NoResponseWithinTimeout_ThrowsTimeoutException()
         {
             await using var server = new FakeObsWebSocketServer();

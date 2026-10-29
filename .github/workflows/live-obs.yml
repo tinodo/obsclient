@@ -1,15 +1,16 @@
-# Runs the live tests (OBSClient.Tests/Live) against a real OBS Studio on Linux: OBS Studio from the PPA of the OBS project, in a
-# virtual display (Xvfb, with the software OpenGL of Mesa), with a configuration of its own and a WebSocket port of its own. The runner is
-# thrown away afterwards, so nothing of anybody is at risk here. On a developer machine, where several versions of OBS Studio can be
-# installed and running, use tools/live/run-live-tests.ps1 instead (CONTRIBUTING.md, "Live tests"): it makes the same kind of private copy
-# there, and always starts it with --portable.
+# Runs the live tests (OBSClient.Tests/Live) against a real OBS Studio on Linux, in a virtual display (Xvfb, with the software OpenGL of
+# Mesa), with a configuration of its own and a WebSocket port of its own: against the newest release (from the PPA of the OBS project), and
+# against the older one that Ubuntu 24.04 itself has (OBS Studio 30.0.2, with obs-websocket 5.3), so that "OBS Studio 28 and up" is
+# not only said of the newest. The runner is thrown away afterwards, so nothing of anybody is at risk here. On a developer machine, where
+# several versions of OBS Studio can be installed and running, use tools/live/run-live-tests.ps1 instead (CONTRIBUTING.md, "Live tests"):
+# it makes the same kind of private copy there, and always starts it with --portable.
 #
 # Experimental: this is not a required check. It runs when the client, its tests, the live tests or this workflow change, every week, and on
 # request; a scheduled run that fails opens an issue.
 #
-# The weekly run, and a run on request, also runs the soak test (OBSClient.Tests/Live/LiveSoakTests.cs): a few minutes of a connection that
-# is cut, stalled and refused again and again, through a proxy, while the client asks OBS Studio things all the time. A pull request does not
-# run it. "Run workflow" asks for the number of minutes (10 by default, 0 leaves it out, 20 at most).
+# The weekly run, and a run on request, also runs the soak test (OBSClient.Tests/Live/LiveSoakTests.cs) against the newest OBS Studio: a few
+# minutes of a connection that is cut, stalled and refused again and again, through a proxy, while the client asks OBS Studio things all the
+# time. A pull request does not run it. "Run workflow" asks for the number of minutes (10 by default, 0 leaves it out, 20 at most).
 name: Live OBS tests
 
 on:
@@ -42,9 +43,20 @@ concurrency:
 
 jobs:
   live:
-    name: Live tests (OBS Studio on Linux)
+    name: Live tests (OBS Studio ${{ matrix.name }}, Linux)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      # An OBS Studio that fails does not stop the other: what each of them does is what this is for.
+      fail-fast: false
+      matrix:
+        include:
+          - obs: latest
+            name: newest
+            uuids: '1'
+          - obs: ubuntu
+            name: of Ubuntu 24.04
+            uuids: '0'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,11 +66,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # The PPA of the OBS project has the newest release that Ubuntu 24.04 gets. The recommended packages are left out: they include a
-      # kernel module (v4l2loopback) for the virtual camera, which nothing here uses.
+      # The PPA of the OBS project has the newest release that Ubuntu 24.04 gets (and keeps an older one for a month: it cannot be asked for
+      # one that is older); the archive of Ubuntu itself has OBS Studio 30.0.2, which does not change. The recommended packages are left
+      # out: they include a kernel module (v4l2loopback) for the virtual camera, which nothing here uses.
       - name: Install OBS Studio and a virtual display
+        env:
+          OBS: ${{ matrix.obs }}
         run: |
-          sudo add-apt-repository -y ppa:obsproject/obs-studio
+          if [ "$OBS" = latest ]; then
+            sudo add-apt-repository -y ppa:obsproject/obs-studio
+          fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends obs-studio xvfb libgl1-mesa-dri libxcb-cursor0 jq
           apt-cache policy obs-studio | head -n 4
@@ -79,7 +96,10 @@ jobs:
           collection="obsclient-live-$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')"
           echo "::add-mask::$password"
 
-          printf '[General]\nEnableAutoUpdates=false\n' > "$config/global.ini"
+          # OBS Studio 31 and later keeps what a person chose (the scene collection, the first run) in user.ini, and 30 and earlier in
+          # global.ini, which also has the settings of obs-websocket 5.3 (5.4 and later have config.json): each version reads the files that
+          # it knows, and one that does not find its own makes a new password, listens on the default port, and starts an Untitled collection.
+          printf '[General]\nEnableAutoUpdates=false\nFirstRun=true\nConfirmOnExit=false\n\n[BasicWindow]\nSysTrayEnabled=false\n\n[Basic]\nSceneCollection=%s\nSceneCollectionFile=%s\n\n[OBSWebSocket]\nFirstLoad=false\nServerEnabled=true\nServerPort=%s\nAlertsEnabled=false\nAuthRequired=true\nServerPassword=%s\n' "$collection" "$collection" "$port" "$password" > "$config/global.ini"
           printf '[General]\nFirstRun=true\nConfirmOnExit=false\n\n[BasicWindow]\nSysTrayEnabled=false\n\n[Basic]\nSceneCollection=%s\n' "$collection" > "$config/user.ini"
           jq -n --arg password "$password" --argjson port "$port" \
             '{alerts_enabled: false, auth_required: true, first_load: false, server_enabled: true, server_password: $password, server_port: $port}' \
@@ -124,24 +144,29 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           MINUTES: ${{ inputs.soak_minutes }}
+          OBS: ${{ matrix.obs }}
         run: |
           minutes="${MINUTES:-10}"
           case "$minutes" in
             ''|*[!0-9]*) echo "::error::soak_minutes has to be a whole number of minutes, not '$minutes'."; exit 1 ;;
           esac
-          if [ "$EVENT" = "pull_request" ]; then minutes=0; fi
+          # Not in a pull request, and only against the newest OBS Studio: the soak test is about the client, and one is enough.
+          if [ "$EVENT" = "pull_request" ] || [ "$OBS" != latest ]; then minutes=0; fi
           if [ "$minutes" -gt 20 ]; then minutes=20; fi
           echo "OBS_LIVE_SOAK_SECONDS=$((minutes * 60))" >> "$GITHUB_ENV"
           echo "The soak test runs for $minutes minutes."
 
+      # OBS_LIVE_UUIDS: an OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs, so the tests that follow things by UUID are skipped.
       - name: Run the live tests
+        env:
+          OBS_LIVE_UUIDS: ${{ matrix.uuids }}
         run: dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release --framework net10.0 --filter "FullyQualifiedName~.Live." --logger "console;verbosity=detailed"
 
       - name: Keep the logs of OBS Studio
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: obs-logs
+          name: obs-logs-${{ matrix.obs }}
           path: |
             ${{ env.OBS_HOME }}/obs-stdout.log
             ${{ env.OBS_HOME }}/xvfb.log
@@ -164,7 +189,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="The live tests against OBS Studio failed"
-          body="The scheduled run of the live tests failed: $RUN_URL. The log of OBS Studio is an artifact of the run. Either OBS Studio did something new (compare it with what the tests expect, and with docs/articles/events.md), or the client does something wrong."
+          body="The scheduled run of the live tests failed: $RUN_URL. Look at which OBS Studio it was (the newest, or the one of Ubuntu 24.04); the logs of OBS Studio are artifacts of the run. Either OBS Studio did something new (compare it with what the tests expect, and with docs/articles/events.md), or the client does something wrong."
           number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"

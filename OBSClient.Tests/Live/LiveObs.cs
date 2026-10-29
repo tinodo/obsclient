@@ -25,6 +25,8 @@ namespace OBSStudioClient.Tests.Live
     /// Studio of its own, with a scene collection that it names after the run, and sets both: an OBS Studio of somebody else (another
     /// version that is running on the same machine, with a port that is not the one of this run) is refused, and nothing in it is changed.</item>
     /// <item><c>OBS_LIVE_SOAK_SECONDS</c>: how long the soak test runs (<see cref="LiveSoakTests"/>). Without it that test is skipped.</item>
+    /// <item><c>OBS_LIVE_UUIDS=0</c>: this OBS Studio has no UUIDs for its scenes and inputs (obs-websocket has them from 5.4.0, OBS Studio from
+    /// 30.1.0): the tests that follow them by UUID are skipped. The live workflow sets it for the OBS Studio of Ubuntu 24.04 (30.0.2).</item>
     /// </list>
     /// </remarks>
     internal static class LiveObs
@@ -54,6 +56,9 @@ namespace OBSStudioClient.Tests.Live
 
         /// <summary>Gets how long the soak test runs, in seconds (<c>OBS_LIVE_SOAK_SECONDS</c>): 0 when it is off.</summary>
         public static int SoakSeconds => int.TryParse(Environment.GetEnvironmentVariable("OBS_LIVE_SOAK_SECONDS"), out var seconds) && seconds > 0 ? seconds : 0;
+
+        /// <summary>Gets a value that indicates whether the OBS Studio has UUIDs for its scenes and inputs: it does, unless <c>OBS_LIVE_UUIDS</c> is 0 (obs-websocket has them from 5.4.0, OBS Studio from 30.1.0).</summary>
+        public static bool HasUuids => Environment.GetEnvironmentVariable("OBS_LIVE_UUIDS") != "0";
 
         /// <summary>A name for a scene or an input that no other run uses, and that <see cref="LiveSession.RemoveLeftoversAsync"/> recognises.</summary>
         /// <param name="what">What it is called for.</param>
@@ -101,6 +106,31 @@ namespace OBSStudioClient.Tests.Live
             else if (LiveObs.Password.Length == 0)
             {
                 this.Skip = LiveObs.NoPassword;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A test that creates and removes scenes and inputs and follows them by UUID, as <see cref="LiveChangesFactAttribute"/>: it is skipped as well
+    /// when <c>OBS_LIVE_UUIDS</c> is 0, for an OBS Studio before 30.1.0 (obs-websocket before 5.4.0), which has no UUIDs.
+    /// </summary>
+    internal sealed class LiveUuidChangesFactAttribute : FactAttribute
+    {
+        public const string NoUuids = "This live test follows scenes and inputs by UUID, which obs-websocket has from 5.4.0 (OBS Studio 30.1.0): OBS_LIVE_UUIDS=0 says that this OBS Studio has none.";
+
+        public LiveUuidChangesFactAttribute()
+        {
+            if (!LiveObs.IsConfigured)
+            {
+                this.Skip = LiveObs.NotConfigured;
+            }
+            else if (!LiveObs.MayChange)
+            {
+                this.Skip = LiveObs.ChangesNotAllowed;
+            }
+            else if (!LiveObs.HasUuids)
+            {
+                this.Skip = NoUuids;
             }
         }
     }
@@ -237,7 +267,9 @@ namespace OBSStudioClient.Tests.Live
             var scenes = await this.Client.GetSceneList();
             foreach (var scene in scenes.Scenes.Where(scene => scene.SceneName.StartsWith(LiveObs.NamePrefix, StringComparison.Ordinal)))
             {
-                await this.TryRemoveAsync(() => this.Client.RemoveScene(SceneRef.FromUuid(scene.SceneUuid)));
+                // An OBS Studio before 30.1.0 has no UUIDs (they are empty): the scene is removed by its name.
+                var reference = scene.SceneUuid == Guid.Empty ? SceneRef.FromName(scene.SceneName) : SceneRef.FromUuid(scene.SceneUuid);
+                await this.TryRemoveAsync(() => this.Client.RemoveScene(reference));
             }
         }
 
