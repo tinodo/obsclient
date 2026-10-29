@@ -331,9 +331,8 @@ jobs:
             return 1
           }
           for file in assets/* libraries/lib/*/OBSClient.dll; do
-            echo "::group::$file"
             verify "$file"
-            echo "::endgroup::"
+            echo "Verified the attestation of $(sha256sum "$file")"
           done
 
       # The text of the release: the notes of the version from CHANGELOG.md, how to install it, and the assets with their SHA-256.
