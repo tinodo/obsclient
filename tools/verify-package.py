@@ -12,6 +12,9 @@ that every PNG has it may only have the few that say how the picture is shown (t
 programs add (text, profiles, times, ...), which it does not need and which would have to be checked as well. The pixels themselves are
 not decoded (that is what an image library does, and a look at the icon). The package has to name the icon.
 
+The README has to be in the package. What is in it is checked by ReadmeTests in the unit tests, which parse it with Markdig, the library
+that nuget.org renders it with: nuget.org drops a relative link and shows raw HTML as text, and a published version cannot be changed.
+
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
 Source Link names the repository that was built, which is the one of GITHUB_REPOSITORY on GitHub Actions (so a fork's own CI
@@ -35,6 +38,7 @@ REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
 ICON_NAME = "icon.png"
+README_NAME = "README.md"
 ICON_MAX_BYTES = 1024 * 1024  # nuget.org refuses a bigger icon
 ICON_MIN_PIXELS = 128  # what NuGet recommends
 ICON_MAX_RASTER_BYTES = 64 * 1024 * 1024  # what an icon may need once it is decoded: a PNG of 1 MB can claim much more, and is not read then
@@ -314,6 +318,9 @@ def verify_package(path):
             problems.extend(icon_problems(package.read(ICON_NAME)))
         else:
             problems.append(f"{ICON_NAME} is missing")
+
+        if README_NAME not in names:
+            problems.append(f"{README_NAME} is missing")
 
         nuspec_name = f"{ASSEMBLY_NAME}.nuspec"
         if nuspec_name in names:

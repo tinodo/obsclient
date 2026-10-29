@@ -27,6 +27,12 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
   and transparency, and image data that is as long as its header says, row by row), of at most 1 MB and at least 128 by 128 pixels. It has to be
   a plain image: besides the chunks that every PNG has it may only have `tRNS`, `sRGB`, `gAMA` and `pHYs`, and no metadata (text, colour profiles,
   times, ...), so save it without metadata; `tools/make-icon.py` writes none. The pixels are not decoded: look at the icon when you change it.
+- The README is also the page of the package on nuget.org, which renders it with Markdig and with less than GitHub does: it drops a relative link
+  (the page shows the text without a target) and shows raw HTML as text. So the README uses absolute links
+  (`https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md`) and Markdown only (`**bold**`, not `<b>`). `ReadmeTests` parse it with Markdig as
+  well, so the parser decides what is a link, what is HTML and what is code, and fail on a relative link or image, a link without a target and raw
+  HTML; `tools/verify-package.py` checks that the package has the README. A published version cannot be changed, so a mistake in the README stays
+  on nuget.org until the next version.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.

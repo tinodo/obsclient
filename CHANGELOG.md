@@ -235,6 +235,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   against the package that was just packed, for both target frameworks, which shows that the package can be used. The target frameworks
   are `net8.0` and `net10.0`, the LTS releases: .NET 8 reaches the end of its support on 10 November 2026, and its target stays in the 4.x packages (see
   the compatibility table of the documentation).
+- **The README of the package** *(after beta2)* has absolute links and no raw HTML now: nuget.org drops a relative link (the page of 4.0.0-beta2
+  shows five of them without a target) and shows HTML as text (it showed `<ins>` around two phrases), and a published version cannot be
+  changed. CI parses the README with Markdig, the parser of nuget.org (`ReadmeTests`), and fails on either, so that the next version cannot be
+  published with them.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:

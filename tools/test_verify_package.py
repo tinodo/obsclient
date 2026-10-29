@@ -147,6 +147,12 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("icon.png is missing", output)
 
+    def test_a_package_without_a_readme_is_refused(self):
+        code, output = self.verify(packages=package_files(**{"README.md": None}), symbols=symbol_files())
+
+        self.assertEqual(1, code)
+        self.assertIn("README.md is missing", output)
+
     def test_an_icon_that_is_not_a_png_is_refused(self):
         code, output = self.verify(packages=package_files(**{"icon.png": b"<svg/>" + b" " * 40}), symbols=symbol_files())
 
