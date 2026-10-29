@@ -1,0 +1,40 @@
+# Looks at what a pull request changes in the dependencies of the repository (the NuGet packages of the projects and the actions of the
+# workflows), and fails when it brings in a package that has a known vulnerability of moderate severity or worse. Dependabot's pull requests
+# go through it like any other, so that an update that brings in a vulnerable dependency is seen at once.
+# It only sees what the dependency graph of GitHub lists, and that is not the DocFX tool of the documentation (.config/dotnet-tools.json).
+# GitHub generates its alerts for actions only for semantic versions, not for the commit SHAs that the actions here are pinned to, and the
+# review reads the same data: do not count on it for a vulnerability in an action.
+# It is advisory: it is not one of the required checks of main (see CONTRIBUTING.md, "Dependency updates").
+name: Dependency review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Review the changes in the dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          # By default the action only fails for dependencies of the runtime scope. The dependency graph gives that scope to every package of
+          # this repository today (the packages of the tests too), but the scope is its to decide: name all of them, so that a dependency
+          # that is reported as a development or an unknown one is not skipped.
+          fail-on-scopes: runtime, development, unknown
+          # GitHub computes the dependencies of a commit a moment after it is pushed: wait for that, instead of failing on it.
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 180
+          # The findings are in the summary of the run. A comment in the pull request would need a token that can write to it.
+          comment-summary-in-pr: never
