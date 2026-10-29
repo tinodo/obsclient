@@ -207,7 +207,10 @@ overlay or the generator. When a change alters how the library is used, update t
 
 ## Pull requests
 
-- CI (build, test, CodeQL) must pass before a PR can be merged.
+- The checks of `main` must pass before a PR can be merged: *Build & Test* on Ubuntu and Windows, *Build Test App (WinUI 3)*, *CodeQL* and
+  *Pack (single assembly)*, on a branch that is up to date with `main`. Every conversation on the pull request, the comments of the Copilot
+  review included, has to be resolved. The other checks (macOS, the docs build, the live tests) are not required, but read them: they are
+  there for a reason.
 - GitHub Copilot automatically reviews pull requests in this repository; please address or respond to its comments.
 - Describe what changed and why; link the related issue if any.
 
@@ -236,6 +239,21 @@ The one dependency of the library, `Microsoft.Extensions.Logging.Abstractions`, 
 the oldest version that has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it
 update too. No version update is proposed for it, whatever the version (a security update still is, see `.github/dependabot.yml`);
 raise it by hand when the library needs something that a newer version has.
+
+## Repository settings (maintainers)
+
+These settings are not in the repository, so this table is where they are written down: if you change one, change the table too (`gh api
+repos/tinodo/obsclient/rulesets` and `gh api repos/tinodo/obsclient/actions/permissions/workflow` show what is set).
+
+| Where | What | Why |
+| --- | --- | --- |
+| Settings, Rules: *Require CI and Copilot review on main* | A pull request is required (no approval: there is one maintainer). The checks listed under *Pull requests* must pass on a branch that is up to date, and the conversations must be resolved. Copilot reviews every push. `main` cannot be deleted or force-pushed. The owner can bypass the rules | `main` only gets what CI has built, tested and scanned. The bypass is for a broken pipeline, not for a pull request whose checks have not passed |
+| Settings, Rules: *Release tags are immutable* | The tags `v*` cannot be deleted or moved. The owner can bypass, which the recovery under *When it fails* needs | A tag names what was published and what the release was built from: the publish workflow checks that it did not move |
+| Settings, Actions, General | The token of a workflow is read-only by default (each workflow and job asks for what it needs with `permissions:`), a workflow cannot approve a pull request, and an action must be pinned to a full-length commit SHA | A workflow, or an action in it, only gets what it asks for, and cannot approve its own pull request |
+| Settings, General | The head branch of a pull request is deleted when it is merged. Squash, merge and rebase are all allowed | No stale branches |
+| Settings, Code security | Dependabot alerts and security updates, secret scanning with push protection, and private vulnerability reporting are on | See `SECURITY.md` and *Dependency updates* |
+| Settings, Pages | Source: GitHub Actions | The *Docs* workflow deploys the site |
+| Settings, Environments | `release` (see *Releasing*) and `github-pages` | |
 
 ## Releasing (maintainers)
 
