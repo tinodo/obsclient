@@ -1,0 +1,58 @@
+# The OpenSSF Scorecard of this repository (https://scorecard.dev/viewer/?uri=github.com/tinodo/obsclient): automated checks of how the
+# project is run (pinned actions, the permissions of the workflow tokens, dependency updates, code scanning, a security policy, ...), each
+# with a score from 0 to 10. The results go to the code scanning alerts of the repository and are published to scorecard.dev, which makes
+# the page of the project and its badge. The score is a prompt for improvements and not a gate: nothing here fails a pull request.
+#
+# Scorecard only accepts the results of a workflow that keeps to its rules (see "Workflow Restrictions" in
+# https://github.com/ossf/scorecard-action): no top-level env or defaults, no write permission on the workflow as a whole, `id-token: write`
+# on this job alone, and in this job only the actions checkout, upload-artifact, codeql-action/upload-sarif and scorecard-action.
+# So do not add steps to this workflow, and do not give it an env.
+name: Scorecard
+
+on:
+  # Scorecard supports these two triggers: the results are those of the default branch.
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: '41 4 * * 3'
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # To upload the results to the code scanning alerts.
+      security-events: write
+      # The OIDC token with which scorecard.dev checks that the results come from this workflow (publish_results). The checkout of a
+      # public repository needs no other permission.
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      # Kept for five days, so that the result of a run can be looked at in the run.
+      - name: Upload the results
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload the results to code scanning
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: results.sarif

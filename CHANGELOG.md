@@ -270,6 +270,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   cuts, stalls and refuses the connection again and again while the client asks OBS Studio things all the time, and the client has to
   reconnect every time, get through the calls that it can, and not leak memory, threads or file descriptors (see CONTRIBUTING, *Live
   tests*). Nothing of this is in the package.
+- **OpenSSF Scorecard** *(after beta2)*: a workflow runs the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/tinodo/obsclient) of the
+  repository on every push to `main` and every week, puts what it finds in the code scanning alerts, and publishes the results to scorecard.dev (see
+  CONTRIBUTING). The CodeQL and protocol watch workflows ask for their write permission (`security-events`, `issues`) on their job now, and not on
+  the workflow as a whole, so that every workflow only reads at the top.
 - **Build provenance** *(after beta2)*: the package, its symbols, the test app and the libraries inside the package have a signed
   [build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations) from now on: GitHub's statement
   that the `publish.yml` workflow of this repository built them, from the commit of the release, on a GitHub-hosted runner. The workflow

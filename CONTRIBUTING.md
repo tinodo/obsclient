@@ -263,6 +263,21 @@ the oldest version that has what the library uses (8.0.0): a library that asks f
 update too. No version update is proposed for it, whatever the version (a security update still is, see `.github/dependabot.yml`);
 raise it by hand when the library needs something that a newer version has.
 
+## OpenSSF Scorecard
+
+The *Scorecard* workflow (`.github/workflows/scorecard.yml`) runs the [OpenSSF Scorecard](https://scorecard.dev) on every push to `main` and every
+Wednesday: automated checks of how the project is run (pinned actions, the permissions of the workflow tokens, dependency updates, code scanning, a
+security policy, and more), each with a score from 0 to 10. The findings are in the code scanning alerts of the repository (*Security*, *Code
+scanning*, the tool *Scorecard*), and the results are published at <https://scorecard.dev/viewer/?uri=github.com/tinodo/obsclient>. The score is a
+prompt for improvements and not a gate: nothing fails a pull request because of it. Some of the checks cannot be met by a project with one
+maintainer (a second reviewer for every change, contributors from several organizations), so a score of 10 is not the goal: the findings that
+can be acted on are.
+
+Scorecard only accepts the results of a workflow that keeps to its rules: no `env` or `defaults`, no write permission on the workflow as a whole,
+`id-token: write` on its one job, and in that job only the actions checkout, upload-artifact, codeql-action/upload-sarif and scorecard-action.
+So do not add steps to `scorecard.yml`. Its *Token-Permissions* check also looks at the other workflows: they ask for read access at the top
+(`permissions: contents: read`) and give a write permission to the one job that needs it.
+
 ## Repository settings (maintainers)
 
 These settings are not in the repository, so this table is where they are written down: if you change one, change the table too (`gh api
