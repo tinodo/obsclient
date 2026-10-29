@@ -26,3 +26,19 @@ We'll do our best to acknowledge your report promptly and keep you updated as we
 [obs-websocket](https://github.com/obsproject/obs-websocket) protocol. It does not itself expose a network service;
 most security-relevant concerns involve how connection credentials (the OBS WebSocket password) and received data
 are handled by the client and by consuming applications.
+
+## Verifying a release
+
+The package and the test app of every release are built by the `publish.yml` workflow of this repository, on GitHub-hosted runners, and
+have a signed [build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations): GitHub's
+statement of which workflow built the file, from which commit. The libraries inside the package have one as well. Check a file you
+downloaded from a [release](https://github.com/tinodo/obsclient/releases) with the [GitHub CLI](https://cli.github.com/):
+
+```shell
+gh attestation verify OBSClient.4.0.0.nupkg --repo tinodo/obsclient --signer-workflow tinodo/obsclient/.github/workflows/publish.yml --source-ref refs/tags/v4.0.0
+```
+
+nuget.org signs the package that it serves, so the `.nupkg` that a restore downloads from nuget.org is not byte for byte the file of
+the release page, and does not verify. The libraries in it are the same, so run the command on
+`~/.nuget/packages/obsclient/<version>/lib/net8.0/OBSClient.dll` (or `net10.0`) to check the library that your application loads.
+The notes of every release repeat this with its version. The two prereleases that came before it (4.0.0-beta1 and 4.0.0-beta2) have no attestation.

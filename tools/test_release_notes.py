@@ -145,6 +145,25 @@ class ComposeTests(unittest.TestCase):
         self.assertTrue(text.endswith("issues).\n"))
         self.assertFalse(text.endswith("\n\n"))
 
+    def test_it_says_how_to_check_where_the_files_come_from(self):
+        text = release_notes.compose("4.0.0", "v4.0.0", "Notes.", self.ASSETS)
+
+        self.assertIn(
+            "gh attestation verify OBSClient.4.0.0.nupkg --repo tinodo/obsclient "
+            "--signer-workflow tinodo/obsclient/.github/workflows/publish.yml --source-ref refs/tags/v4.0.0\n",
+            text,
+        )
+        self.assertLess(text.index("## Assets"), text.index("## Verify"))
+        self.assertLess(text.index("## Verify"), text.index("Found a problem?"))
+
+    def test_the_check_names_the_tag_and_the_folder_in_the_nuget_cache_of_that_version(self):
+        text = release_notes.compose("4.0.0-RC.1", "v4.0.0-RC.1", "Notes.", self.ASSETS)
+
+        self.assertIn("gh attestation verify OBSClient.4.0.0-RC.1.nupkg ", text)
+        self.assertIn("--source-ref refs/tags/v4.0.0-RC.1\n", text)
+        # NuGet keeps a package in a folder named with the lower case of its ID and of its version.
+        self.assertIn("`~/.nuget/packages/obsclient/4.0.0-rc.1/lib/net8.0/OBSClient.dll`", text)
+
 
 class CommandLineTests(unittest.TestCase):
     def setUp(self):
@@ -207,6 +226,7 @@ class CommandLineTests(unittest.TestCase):
         # SHA-256 of "abc", from the specification of the algorithm.
         self.assertIn("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  OBSClient.4.0.0.nupkg", text)
         self.assertIn("The stable release.", text)
+        self.assertIn("gh attestation verify OBSClient.4.0.0.nupkg", text)
         self.assertNotIn("\r", text)
 
     def test_compose_refuses_a_file_that_is_not_there(self):

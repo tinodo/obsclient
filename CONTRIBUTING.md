@@ -269,9 +269,10 @@ repos/tinodo/obsclient/rulesets` and `gh api repos/tinodo/obsclient/actions/perm
 ## Releasing (maintainers)
 
 Publishing is one workflow, `.github/workflows/publish.yml`, started by pushing a version tag. It checks the version and the
-changelog, packs **once** (the package, and next to it its symbols), checks that the package is a single assembly, builds the test app
-and writes the notes of the release. Then it waits for your approval, pushes that same `.nupkg` to nuget.org and, once that lists it, to
-GitHub Packages, and creates the GitHub release with the notes, the package and the test app.
+changelog, packs **once** (the package, and next to it its symbols), checks that the package is a single assembly, builds the test app,
+attests where the files come from (see *Build provenance*) and writes the notes of the release. Then it waits for your approval, pushes
+that same `.nupkg` to nuget.org and, once that lists it, to GitHub Packages, and creates the GitHub release with the notes, the package
+and the test app.
 
 **Trusted Publishing, in short.** No NuGet API key is stored anywhere. When the nuget.org job runs, GitHub signs a token that says
 "this is the workflow `publish.yml` of `tinodo/obsclient`, running in the environment `release`". nuget.org checks that against a
@@ -295,10 +296,14 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
    section is the text of the GitHub release: what is new, what breaks, what is fixed. A version without a section that has a date is
    refused by the first job of the workflow, before anything is built.
 2. Optional, and worth it after a change of the workflow or of one of its actions: a **dry run**. Actions, *Publish Package*, *Run
-   workflow*, pick the branch (or `main`), tick *Dry run*. It does everything up to the approval, for what is on that branch: it checks
-   the version and the changelog, packs, builds the test app, shows the release as it will be made in the summary of the run, and makes a
-   draft release to prove that one can be made (which is deleted again). It publishes nothing and needs no tag.
-3. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`).
+   workflow*, pick the branch (or `main`; never a tag, which the workflow refuses), tick *Dry run*. It does everything up to the approval,
+   for what is on that branch: it checks the version and the changelog, packs, builds the test app, attests and verifies the files, shows
+   the release as it will be made in the summary of the run, and makes a draft release to prove that one can be made (which is deleted
+   again). It publishes nothing and needs no tag.
+3. `git switch main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z` (the tag has to equal `<Version>`). A release is only ever
+   made by a run of its own tag, because the attestation of its files (see *Build provenance*) says which ref and which commit the run
+   was for: the push starts it, and a run that is started by hand (*Run workflow*) has to have *Use workflow from* set to the tag, and
+   not to a branch (the first job refuses it). There is no input for a tag.
 4. Open the run in the Actions tab. The *Check the version*, *Pack*, *Build the test app* and *Prepare the release* jobs run first (the
    package and the test app are artifacts of the run; download them if you want to look). The *Publish to NuGet.org* job then waits for
    you: **Review deployments**, **Approve and deploy**. That one approval is the gate of every channel: GitHub Packages and the release
@@ -325,6 +330,27 @@ Symbols*, tick *NuGet.org Symbol Server*). `tools/verify-package.py` makes sure 
 but the PDBs, and that they carry Source Link (and that the package itself has no PDB). The symbols are pushed once the package is
 listed, and a failure to push them is a warning, not a failed release.
 
+**Build provenance.** The *Prepare the release* job makes a signed
+[build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations) (`actions/attest`) for the
+package, its symbols, the test app and the two libraries in the package (`lib/net8.0/OBSClient.dll`, `lib/net10.0/OBSClient.dll`), and
+then checks each of them with `gh attestation verify`, before anything waits for your approval. An attestation is GitHub's statement
+that this workflow of this repository made a file, from this commit and ref, on a GitHub-hosted runner. It is signed with a certificate
+that Sigstore issues for that one run, and kept with the repository (and, as the repository is public, in a public transparency log). It
+is made in a job of its own: that job restores and builds nothing, and the jobs that do have no `id-token` permission, so no package that
+a build pulls in can ask for the token that signs. This is how anyone checks a download, and the notes of every release say so, with its
+version:
+
+```shell
+gh attestation verify OBSClient.X.Y.Z.nupkg --repo tinodo/obsclient --signer-workflow tinodo/obsclient/.github/workflows/publish.yml --source-ref refs/tags/vX.Y.Z
+```
+
+`--source-ref` is what tells a release from a dry run. A release is only made by a run of a tag, and a dry run is only of a branch (the
+first job refuses the other way round, each), so the ref of an attestation says which of the two made the files, and the command above,
+which asks for a tag, never accepts the files of a dry run. nuget.org signs the package that it serves,
+which changes that file and not what is in it: the `.nupkg` from nuget.org does not verify (the one on the release page does), and the
+libraries in it do. After a restore, the same command on `~/.nuget/packages/obsclient/X.Y.Z/lib/net8.0/OBSClient.dll` checks the library
+that runs.
+
 ### When it fails
 
 Re-run the **failed jobs** in the Actions tab (not *all jobs*, and not a new run for the tag): they use the commit and the artifacts of
@@ -337,11 +363,13 @@ may be moved is in the table (the first job refuses the version, so nothing was 
 | No matching policy | The policy on nuget.org differs from the workflow: owner, repository, file name (`publish.yml`) or environment (`release`) |
 | Push is unauthorized | The policy is not owned by the account that owns the package, or its scope does not allow new versions of `OBSClient` |
 | The job never starts | It is waiting for your approval |
-| The first job (*Check the version*) refuses the release | The tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
+| The first job (*Check the version*) refuses the release | The run is of a branch and not of a tag (push the tag, or start the workflow with *Use workflow from* set to the tag; to try it on a branch, tick *Dry run*), or it is a dry run of a tag (a dry run is of a branch), or the tag is not `vX.Y.Z` (or `vX.Y.Z-suffix`), differs from `<Version>`, is not on `main`, or `CHANGELOG.md` has no section for the version, or the section has no date (`Unreleased`). Nothing was published. Fix it on `main`, move the tag to the new commit (`git push origin :refs/tags/vX.Y.Z`, `git tag -d vX.Y.Z`, tag again), and push it |
 | The first job says that nuget.org lists the version already | A version is never built again: the package that was published can never be replaced, so a new build could not be matched with it (the symbols, the test app and the files of the release would come from another build). To finish a release that failed after the push, re-run the **failed jobs** of its run |
 | *Verify the tag still points at the commit that was packed* fails | The tag was moved while the release waited for your approval. Nothing was published (GitHub Packages and the release wait for nuget.org, so this is the first thing that is checked); release a new version |
 | *Verify the tag still points at the commit that was released* fails (in *Create the GitHub release*) | The tag was moved after the package was published. The release was not made. Move the tag back to the commit that the message names (`git push --force origin <commit>:refs/tags/vX.Y.Z`) and re-run the job, or make the release by hand |
 | *Wait until NuGet.org lists the version* fails | nuget.org did not list the version within 30 minutes: it may have failed its validation (look at the page of the version; you also get an e-mail). Re-run the job when it is fine |
+| *Attest where the files come from* fails (in *Prepare the release*) | Most likely the job lacks `id-token: write` or `attestations: write` (it has both), or GitHub or Sigstore did not answer. Nothing was published: the approval comes after this job. Re-run the failed job |
+| *Verify the attestations* fails (in *Prepare the release*) | GitHub has no attestation for a file that matches this run (the output of the failed file says which check did not hold: the workflow, the ref, the commit, a self-hosted runner, or no attestation at all). Nothing was published. Re-run the failed job, which makes the attestations again |
 | *Verify that NuGet.org serves the package that was packed* fails | nuget.org lists this version, but not the package that this run packed: another run, or an earlier attempt for the same version, published first (the push skips a duplicate). The step names the files that differ. Nothing after it ran: no symbols, no GitHub Packages, no release. Find the run that published, and if that package is the wrong one, release a new version (a published version can never be replaced) |
 | A warning that the symbols were not pushed | The package is published. Re-run the *Publish to NuGet.org* job: it skips the package as a duplicate and pushes the symbols |
 | *Create the GitHub release* fails | Re-run it. It updates a release that exists (a draft too: it is published after its files are uploaded), so it is safe after a release that was made by hand. A release is only made the latest one when its version is the newest stable one |

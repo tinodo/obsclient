@@ -34,6 +34,8 @@ TEST_APP_DESCRIPTION = (
     "unknown; compare the checksum below."
 )
 PACKAGE_DESCRIPTION = "The package: the exact file that was pushed to nuget.org and to GitHub Packages."
+ATTESTATIONS = "https://docs.github.com/en/actions/concepts/security/artifact-attestations"
+PUBLISH_WORKFLOW = f"{REPOSITORY}/.github/workflows/publish.yml"
 
 
 class ReleaseNotesError(Exception):
@@ -134,8 +136,26 @@ def compose(version, tag, notes, assets):
         "SHA-256:\n\n"
         f"```text\n{checksums}\n```"
     )
+    parts.append(verification(version, tag))
     parts.append(f"Found a problem? Please report it in an [issue](https://github.com/{REPOSITORY}/issues).")
     return "\n\n".join(parts) + "\n"
+
+
+def verification(version, tag):
+    """How to check where the files of a release come from: the build provenance attestation that the publish workflow made."""
+    package = f"{PACKAGE_ID}.{version}.nupkg"
+    cached = f"~/.nuget/packages/{PACKAGE_ID.lower()}/{version.lower()}/lib/net8.0/{PACKAGE_ID}.dll"
+    return (
+        "## Verify\n\n"
+        f"The files above, and the libraries inside the package, have a signed [build provenance attestation]({ATTESTATIONS}): "
+        "GitHub states that the `publish.yml` workflow of this repository made them, from the commit of this release, on a "
+        "GitHub-hosted runner. Check one with the [GitHub CLI](https://cli.github.com/):\n\n"
+        "```shell\n"
+        f"gh attestation verify {package} --repo {REPOSITORY} --signer-workflow {PUBLISH_WORKFLOW} --source-ref refs/tags/{tag}\n"
+        "```\n\n"
+        "nuget.org signs the package that it serves, so the `.nupkg` from nuget.org is not byte for byte the file above. To check the "
+        f"library that you use, run the same command on the DLL in your NuGet cache: `{cached}`."
+    )
 
 
 def read_changelog(path):

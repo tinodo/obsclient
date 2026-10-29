@@ -6,14 +6,20 @@
 #   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0), give the section of that version in CHANGELOG.md its date,
 #      and merge both to main.
 #   2. git tag v4.0.0 && git push origin v4.0.0   (the tag must equal <Version> and be on main)
-#   3. This workflow checks the version and the changelog, packs once, builds the test app and writes the notes of the release.
+#   3. This workflow checks the version and the changelog, packs once, builds the test app, attests where the files come from (a signed
+#      build provenance attestation, which it verifies at once) and writes the notes of the release.
 #      Then it waits for your approval of the deployment to the `release` environment (a published version is permanent),
 #      pushes that same .nupkg to nuget.org, waits until nuget.org lists the version, checks that nuget.org serves that package, pushes
 #      the symbols, pushes the package to GitHub Packages, and creates the GitHub release.
 #
-# A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch) does everything up to the approval, for
-# the branch that it is started on: it checks and packs it, builds the test app, shows the notes of the release in the summary of
-# the run, and makes a draft release to prove that one can be made (which is deleted again). It publishes nothing.
+# A release is only ever made by a run of its own tag: one that the push of the tag started, or one that is started by hand (Run
+# workflow) with "Use workflow from" set to the tag. The attestation of the files says which ref and which commit the run was for, so
+# that is what makes it say where the files really come from.
+#
+# A dry run (Actions, Publish Package, Run workflow, "Dry run" ticked, from any branch, never from a tag) does everything up to the
+# approval, for the branch that it is started on: it checks and packs it, builds the test app, attests and verifies the files (of a
+# branch, which a check for a tag does not accept), shows the notes of the release in the summary of the run, and makes a draft
+# release to prove that one can be made (which is deleted again). It publishes nothing.
 #
 # One-time setup required on nuget.org (see https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
 #   nuget.org/account/trustedpublishing -> Add policy
@@ -30,9 +36,6 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Existing tag to (re)publish, e.g. v4.0.0 (not used by a dry run)'
-        required: false
       dry_run:
         description: 'Dry run: check, pack and prepare everything for the branch that this is started on, and publish nothing'
         type: boolean
@@ -46,7 +49,7 @@ permissions:
 # that waits for the approval of the release holds its turn, so cancel it before you start over. A dry run only waits for another
 # run of the same branch.
 concurrency:
-  group: publish-${{ inputs.tag || github.ref_name }}
+  group: publish-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -63,29 +66,32 @@ jobs:
         id: which
         shell: bash
         env:
-          # Passed through the environment, never interpolated into the script: a tag name can contain shell syntax.
-          TAG_INPUT: ${{ inputs.tag }}
           DRY_RUN: ${{ inputs.dry_run }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
+            # A dry run is of a branch, never of a tag: what an attestation says about a tag is then always about a release, and the command
+            # in the notes of a release (which asks for the tag) never accepts the files of a dry run.
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              echo "::error::A dry run is of a branch, and this run is of the tag $GITHUB_REF_NAME: a tag is for a release. Start the dry run with 'Use workflow from' set to a branch."
+              exit 1
+            fi
             # A dry run builds the commit that it was started on (not the branch, which can move while it runs); there is no tag.
             ref="$GITHUB_SHA"
             tag=""
           else
-            tag="${TAG_INPUT:-$GITHUB_REF_NAME}"
+            # A release is made by a run of its own tag, so that the attestation of the files (which names the ref and the commit of the
+            # run) says what was built, and the command in the notes of the release, which asks for that tag, holds.
+            if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+              echo "::error::A release is made by a run of its tag, and this run is of the branch $GITHUB_REF_NAME. Push the tag, or start the workflow with 'Use workflow from' set to the tag. To try the workflow on a branch, tick 'Dry run'."
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
             if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
               echo "::error::'$tag' is not a version tag (expected vX.Y.Z)."
               exit 1
             fi
-            if [ "$EVENT_NAME" = "push" ]; then
-              # The commit that the tag pointed at when it was pushed; a tag that is moved afterwards is not followed.
-              ref="$GITHUB_SHA"
-            else
-              # A manual run for an existing tag: its commit now. Fully qualified, so that a branch of the same name can never be
-              # packaged instead of the tag.
-              ref="refs/tags/$tag"
-            fi
+            # The commit that this run is of: the one that the tag pointed at when it was run, and a tag that is moved afterwards is not followed.
+            ref="$GITHUB_SHA"
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -253,10 +259,17 @@ jobs:
           # As long as the package: a release that failed is finished by re-running its failed jobs, which need all three artifacts.
           retention-days: 90
 
+  # The files are attested here, and not in the jobs that built them: this job restores nothing and builds nothing, so no package that a
+  # build pulls in (a restore can run code) is able to ask for the token that signs an attestation. All that it has is the files of
+  # those jobs, the pinned actions, and the scripts of the commit that was packed.
   prepare-release:
     name: Prepare the release
     needs: [version, pack, test-app]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # the token that Sigstore turns into the short-lived certificate that signs an attestation
+      attestations: write # to store the attestation with the repository
     env:
       VERSION: ${{ needs.version.outputs.version }}
       TAG: ${{ needs.version.outputs.tag }}
@@ -265,6 +278,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
 
       - name: Download the package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -277,6 +291,57 @@ jobs:
         with:
           name: test-app
           path: ./assets
+
+      # The libraries are attested on their own as well: nuget.org signs the package that it serves, which changes that file but not what
+      # is in it, so whoever has the libraries from nuget.org (the NuGet cache of a restore holds them) can check them, too.
+      - name: Take the libraries out of the package
+        run: unzip -q "assets/OBSClient.$VERSION.nupkg" 'lib/*/OBSClient.dll' -d libraries
+
+      # What a build provenance attestation says: this workflow of this repository made these files, from this commit and ref, on a
+      # GitHub-hosted runner. It is signed with a certificate that Sigstore issues for this run, and kept with the repository (a public
+      # repository's attestations are also in a public transparency log). A dry run attests too, so that this is tried before a release,
+      # but what it attests came from a branch, which a check for the tag of a release (CONTRIBUTING.md, "Releasing") does not accept.
+      - name: Attest where the files come from
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            assets/*.nupkg
+            assets/*.snupkg
+            assets/*.zip
+            libraries/lib/*/OBSClient.dll
+
+      # What a person would check, checked here, before the approval: that GitHub has an attestation for every file, for these very
+      # bytes, by this workflow of this repository, from a GitHub-hosted runner, for the ref and the commit that the notes of the release
+      # ask for: the tag, and the commit that was packed. A dry run has no tag: its files are of the branch that it was started on. A run
+      # that cannot show this has published nothing yet. Each file gets three tries: the check asks GitHub, for the attestation and for
+      # the keys to check it, and that can fail for a moment.
+      - name: Verify the attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SHA: ${{ needs.version.outputs.sha }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then ref="$GITHUB_REF"; else ref="refs/tags/$TAG"; fi
+          verify() {
+            for attempt in 1 2 3; do
+              if gh attestation verify "$1" \
+                --repo "$GITHUB_REPOSITORY" \
+                --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+                --source-ref "$ref" \
+                --source-digest "$SHA" \
+                --deny-self-hosted-runners; then
+                return 0
+              fi
+              echo "Attempt $attempt of 3 failed for $1."
+              [ "$attempt" = 3 ] || sleep 15
+            done
+            return 1
+          }
+          for file in assets/* libraries/lib/*/OBSClient.dll; do
+            verify "$file"
+            echo "Verified the attestation of $(sha256sum "$file")"
+          done
 
       # The text of the release: the notes of the version from CHANGELOG.md, how to install it, and the assets with their SHA-256.
       - name: Write the notes of the release
