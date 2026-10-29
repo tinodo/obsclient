@@ -25,7 +25,7 @@ namespace OBSStudioClient.Events
     /// <param name="canvasName">Name of the new canvas.</param>
     /// <param name="canvasUuid">UUID of the new canvas.</param>
     [method: JsonConstructor]
-    public class CanvasCreatedEventArgs(string canvasName, Guid canvasUuid) : EventArgs
+    public sealed class CanvasCreatedEventArgs(string canvasName, Guid canvasUuid) : EventArgs
     {
         /// <summary>
         /// Name of the new canvas.
@@ -51,7 +51,7 @@ namespace OBSStudioClient.Events
     /// <param name="oldCanvasName">Old name of the canvas.</param>
     /// <param name="canvasName">New name of the canvas.</param>
     [method: JsonConstructor]
-    public class CanvasNameChangedEventArgs(Guid canvasUuid, string oldCanvasName, string canvasName) : EventArgs
+    public sealed class CanvasNameChangedEventArgs(Guid canvasUuid, string oldCanvasName, string canvasName) : EventArgs
     {
         /// <summary>
         /// UUID of the canvas.
@@ -82,7 +82,7 @@ namespace OBSStudioClient.Events
     /// <param name="canvasName">Name of the removed canvas.</param>
     /// <param name="canvasUuid">UUID of the removed canvas.</param>
     [method: JsonConstructor]
-    public class CanvasRemovedEventArgs(string canvasName, Guid canvasUuid) : EventArgs
+    public sealed class CanvasRemovedEventArgs(string canvasName, Guid canvasUuid) : EventArgs
     {
         /// <summary>
         /// Name of the removed canvas.
@@ -107,7 +107,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="videoActive">Whether the input is active.</param>
     [method: JsonConstructor]
-    public class InputActiveStateChangedEventArgs(string inputName, Guid inputUuid, bool videoActive) : EventArgs
+    public sealed class InputActiveStateChangedEventArgs(string inputName, Guid inputUuid, bool videoActive) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -138,7 +138,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputAudioBalance">New audio balance value of the input.</param>
     [method: JsonConstructor]
-    public class InputAudioBalanceChangedEventArgs(string inputName, Guid inputUuid, float inputAudioBalance) : EventArgs
+    public sealed class InputAudioBalanceChangedEventArgs(string inputName, Guid inputUuid, float inputAudioBalance) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -169,7 +169,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="monitorType">New monitor type of the input.</param>
     [method: JsonConstructor]
-    public class InputAudioMonitorTypeChangedEventArgs(string inputName, Guid inputUuid, MonitorType monitorType) : EventArgs
+    public sealed class InputAudioMonitorTypeChangedEventArgs(string inputName, Guid inputUuid, MonitorType monitorType) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -200,7 +200,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputAudioSyncOffset">New sync offset in milliseconds.</param>
     [method: JsonConstructor]
-    public class InputAudioSyncOffsetChangedEventArgs(string inputName, Guid inputUuid, int inputAudioSyncOffset) : EventArgs
+    public sealed class InputAudioSyncOffsetChangedEventArgs(string inputName, Guid inputUuid, int inputAudioSyncOffset) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -231,7 +231,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputAudioTracks">Object of audio tracks along with their associated enable states.</param>
     [method: JsonConstructor]
-    public class InputAudioTracksChangedEventArgs(string inputName, Guid inputUuid, AudioTracks inputAudioTracks) : EventArgs
+    public sealed class InputAudioTracksChangedEventArgs(string inputName, Guid inputUuid, AudioTracks inputAudioTracks) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -265,7 +265,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputSettings">The settings configured to the input when it was created.</param>
     /// <param name="defaultInputSettings">The default settings for the input.</param>
     [method: JsonConstructor]
-    public class InputCreatedEventArgs(string inputName, Guid inputUuid, string inputKind, string unversionedInputKind, Dictionary<string, object> inputSettings, Dictionary<string, object> defaultInputSettings) : EventArgs
+    public sealed class InputCreatedEventArgs(string inputName, Guid inputUuid, string inputKind, string unversionedInputKind, Dictionary<string, object> inputSettings, Dictionary<string, object> defaultInputSettings) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -324,7 +324,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputMuted">Whether the input is muted.</param>
     [method: JsonConstructor]
-    public class InputMuteStateChangedEventArgs(string inputName, Guid inputUuid, bool inputMuted) : EventArgs
+    public sealed class InputMuteStateChangedEventArgs(string inputName, Guid inputUuid, bool inputMuted) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -355,7 +355,7 @@ namespace OBSStudioClient.Events
     /// <param name="oldInputName">Old name of the input.</param>
     /// <param name="inputName">New name of the input.</param>
     [method: JsonConstructor]
-    public class InputNameChangedEventArgs(Guid inputUuid, string oldInputName, string inputName) : EventArgs
+    public sealed class InputNameChangedEventArgs(Guid inputUuid, string oldInputName, string inputName) : EventArgs
     {
         /// <summary>
         /// UUID of the input.
@@ -385,7 +385,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputName">Name of the input.</param>
     /// <param name="inputUuid">UUID of the input.</param>
     [method: JsonConstructor]
-    public class InputNameEventArgs(string inputName, Guid inputUuid) : EventArgs
+    public sealed class InputNameEventArgs(string inputName, Guid inputUuid) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -411,7 +411,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="inputSettings">New settings object of the input.</param>
     [method: JsonConstructor]
-    public class InputSettingsChangedEventArgs(string inputName, Guid inputUuid, Dictionary<string, object> inputSettings) : EventArgs
+    public sealed class InputSettingsChangedEventArgs(string inputName, Guid inputUuid, Dictionary<string, object> inputSettings) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -442,7 +442,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="videoShowing">Whether the input is showing.</param>
     [method: JsonConstructor]
-    public class InputShowStateChangedEventArgs(string inputName, Guid inputUuid, bool videoShowing) : EventArgs
+    public sealed class InputShowStateChangedEventArgs(string inputName, Guid inputUuid, bool videoShowing) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -474,7 +474,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputVolumeMul">New volume level multiplier.</param>
     /// <param name="inputVolumeDb">New volume level in dB.</param>
     [method: JsonConstructor]
-    public class InputVolumeChangedEventArgs(string inputName, Guid inputUuid, float inputVolumeMul, float inputVolumeDb) : EventArgs
+    public sealed class InputVolumeChangedEventArgs(string inputName, Guid inputUuid, float inputVolumeMul, float inputVolumeDb) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -509,7 +509,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="inputs">Array of active inputs with their associated volume levels.</param>
     [method: JsonConstructor]
-    public class InputVolumeMetersEventArgs(InputVolumeMeterResponse[] inputs) : EventArgs
+    public sealed class InputVolumeMetersEventArgs(InputVolumeMeterResponse[] inputs) : EventArgs
     {
         /// <summary>
         /// Array of active inputs with their associated volume levels.
@@ -528,7 +528,7 @@ namespace OBSStudioClient.Events
     /// <param name="inputUuid">UUID of the input.</param>
     /// <param name="mediaAction">Action performed on the input. See <c>ObsMediaInputAction</c> enum.</param>
     [method: JsonConstructor]
-    public class MediaInputActionTriggeredEventArgs(string inputName, Guid inputUuid, ObsMediaInputAction mediaAction) : EventArgs
+    public sealed class MediaInputActionTriggeredEventArgs(string inputName, Guid inputUuid, ObsMediaInputAction mediaAction) : EventArgs
     {
         /// <summary>
         /// Name of the input.
@@ -558,7 +558,7 @@ namespace OBSStudioClient.Events
     /// <param name="outputActive">Whether the output is active.</param>
     /// <param name="outputState">The specific state of the output.</param>
     [method: JsonConstructor]
-    public class OutputStateChangedEventArgs(bool outputActive, ObsOutputState outputState) : EventArgs
+    public sealed class OutputStateChangedEventArgs(bool outputActive, ObsOutputState outputState) : EventArgs
     {
         /// <summary>
         /// Whether the output is active.
@@ -581,7 +581,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="profiles">Updated list of profiles.</param>
     [method: JsonConstructor]
-    public class ProfileListEventArgs(string[] profiles) : EventArgs
+    public sealed class ProfileListEventArgs(string[] profiles) : EventArgs
     {
         /// <summary>
         /// Updated list of profiles.
@@ -598,7 +598,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="profileName">Name of the current profile.</param>
     [method: JsonConstructor]
-    public class ProfileNameEventArgs(string profileName) : EventArgs
+    public sealed class ProfileNameEventArgs(string profileName) : EventArgs
     {
         /// <summary>
         /// Name of the current profile.
@@ -616,7 +616,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="newOutputPath">File name that the output has begun writing to.</param>
     [method: JsonConstructor]
-    public class RecordFileChangedEventArgs(string newOutputPath) : EventArgs
+    public sealed class RecordFileChangedEventArgs(string newOutputPath) : EventArgs
     {
         /// <summary>
         /// File name that the output has begun writing to.
@@ -635,7 +635,7 @@ namespace OBSStudioClient.Events
     /// <param name="outputState">The specific state of the output.</param>
     /// <param name="outputPath">File name for the saved recording, if record stopped. <c>null</c> otherwise.</param>
     [method: JsonConstructor]
-    public class RecordStateChangedEventArgs(bool outputActive, ObsOutputState outputState, string? outputPath) : EventArgs
+    public sealed class RecordStateChangedEventArgs(bool outputActive, ObsOutputState outputState, string? outputPath) : EventArgs
     {
         /// <summary>
         /// Whether the output is active.
@@ -664,7 +664,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="savedReplayPath">Path of the saved replay file.</param>
     [method: JsonConstructor]
-    public class ReplayBufferSavedEventArgs(string savedReplayPath) : EventArgs
+    public sealed class ReplayBufferSavedEventArgs(string savedReplayPath) : EventArgs
     {
         /// <summary>
         /// Path of the saved replay file.
@@ -681,7 +681,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="sceneCollections">Updated list of scene collections.</param>
     [method: JsonConstructor]
-    public class SceneCollectionListEventArgs(string[] sceneCollections) : EventArgs
+    public sealed class SceneCollectionListEventArgs(string[] sceneCollections) : EventArgs
     {
         /// <summary>
         /// Updated list of scene collections.
@@ -698,7 +698,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="sceneCollectionName">Name of the current scene collection.</param>
     [method: JsonConstructor]
-    public class SceneCollectionNameEventArgs(string sceneCollectionName) : EventArgs
+    public sealed class SceneCollectionNameEventArgs(string sceneCollectionName) : EventArgs
     {
         /// <summary>
         /// Name of the current scene collection.
@@ -720,7 +720,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     /// <param name="sceneItemIndex">Index position of the item.</param>
     [method: JsonConstructor]
-    public class SceneItemCreatedEventArgs(string sceneName, Guid sceneUuid, string sourceName, Guid sourceUuid, int sceneItemId, int sceneItemIndex) : EventArgs
+    public sealed class SceneItemCreatedEventArgs(string sceneName, Guid sceneUuid, string sourceName, Guid sourceUuid, int sceneItemId, int sceneItemIndex) : EventArgs
     {
         /// <summary>
         /// Name of the scene the item was added to.
@@ -770,7 +770,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     /// <param name="sceneItemEnabled">Whether the scene item is enabled (visible)</param>
     [method: JsonConstructor]
-    public class SceneItemEnableStateChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, bool sceneItemEnabled) : EventArgs
+    public sealed class SceneItemEnableStateChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, bool sceneItemEnabled) : EventArgs
     {
         /// <summary>
         /// Name of the scene the item is in.
@@ -807,7 +807,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneUuid">UUID of the scene.</param>
     /// <param name="sceneItems">Array of scene item objects.</param>
     [method: JsonConstructor]
-    public class SceneItemListReindexedEventArgs(string sceneName, Guid sceneUuid, BasicSceneItem[] sceneItems) : EventArgs
+    public sealed class SceneItemListReindexedEventArgs(string sceneName, Guid sceneUuid, BasicSceneItem[] sceneItems) : EventArgs
     {
         /// <summary>
         /// Name of the scene.
@@ -839,7 +839,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     /// <param name="sceneItemLocked">Whether the scene item is locked.</param>
     [method: JsonConstructor]
-    public class SceneItemLockStateChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, bool sceneItemLocked) : EventArgs
+    public sealed class SceneItemLockStateChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, bool sceneItemLocked) : EventArgs
     {
         /// <summary>
         /// Name of the scene the item is in.
@@ -878,7 +878,7 @@ namespace OBSStudioClient.Events
     /// <param name="sourceUuid">UUID of the underlying source (input/scene)</param>
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemRemovedEventArgs(string sceneName, Guid sceneUuid, string sourceName, Guid sourceUuid, int sceneItemId) : EventArgs
+    public sealed class SceneItemRemovedEventArgs(string sceneName, Guid sceneUuid, string sourceName, Guid sourceUuid, int sceneItemId) : EventArgs
     {
         /// <summary>
         /// Name of the scene the item was removed from.
@@ -921,7 +921,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneUuid">UUID of the scene the item is in.</param>
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemSelectedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId) : EventArgs
+    public sealed class SceneItemSelectedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId) : EventArgs
     {
         /// <summary>
         /// Name of the scene the item is in.
@@ -953,7 +953,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneItemId">Numeric ID of the scene item.</param>
     /// <param name="sceneItemTransform">New transform/crop info of the scene item.</param>
     [method: JsonConstructor]
-    public class SceneItemTransformChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, SceneItemTransform sceneItemTransform) : EventArgs
+    public sealed class SceneItemTransformChangedEventArgs(string sceneName, Guid sceneUuid, int sceneItemId, SceneItemTransform sceneItemTransform) : EventArgs
     {
         /// <summary>
         /// The name of the scene the item is in.
@@ -988,7 +988,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="scenes">Updated array of scenes.</param>
     [method: JsonConstructor]
-    public class SceneListEventArgs(Scene[] scenes) : EventArgs
+    public sealed class SceneListEventArgs(Scene[] scenes) : EventArgs
     {
         /// <summary>
         /// Updated array of scenes.
@@ -1007,7 +1007,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneUuid">UUID of the new scene.</param>
     /// <param name="isGroup">Whether the new scene is a group.</param>
     [method: JsonConstructor]
-    public class SceneModifiedEventArgs(string sceneName, Guid sceneUuid, bool isGroup) : EventArgs
+    public sealed class SceneModifiedEventArgs(string sceneName, Guid sceneUuid, bool isGroup) : EventArgs
     {
         /// <summary>
         /// Name of the new scene.
@@ -1038,7 +1038,7 @@ namespace OBSStudioClient.Events
     /// <param name="oldSceneName">Old name of the scene.</param>
     /// <param name="sceneName">New name of the scene.</param>
     [method: JsonConstructor]
-    public class SceneNameChangedEventArgs(Guid sceneUuid, string oldSceneName, string sceneName) : EventArgs
+    public sealed class SceneNameChangedEventArgs(Guid sceneUuid, string oldSceneName, string sceneName) : EventArgs
     {
         /// <summary>
         /// UUID of the scene.
@@ -1068,7 +1068,7 @@ namespace OBSStudioClient.Events
     /// <param name="sceneName">Name of the scene that was switched to.</param>
     /// <param name="sceneUuid">UUID of the scene that was switched to.</param>
     [method: JsonConstructor]
-    public class SceneNameEventArgs(string sceneName, Guid sceneUuid) : EventArgs
+    public sealed class SceneNameEventArgs(string sceneName, Guid sceneUuid) : EventArgs
     {
         /// <summary>
         /// Name of the scene that was switched to.
@@ -1092,7 +1092,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="savedScreenshotPath">Path of the saved image file.</param>
     [method: JsonConstructor]
-    public class ScreenshotSavedEventArgs(string savedScreenshotPath) : EventArgs
+    public sealed class ScreenshotSavedEventArgs(string savedScreenshotPath) : EventArgs
     {
         /// <summary>
         /// Path of the saved image file.
@@ -1114,7 +1114,7 @@ namespace OBSStudioClient.Events
     /// <param name="filterSettings">The settings configured to the filter when it was created.</param>
     /// <param name="defaultFilterSettings">The default settings for the filter.</param>
     [method: JsonConstructor]
-    public class SourceFilterCreatedEventArgs(string sourceName, string filterName, string filterKind, int filterIndex, Dictionary<string, object> filterSettings, Dictionary<string, object> defaultFilterSettings) : EventArgs
+    public sealed class SourceFilterCreatedEventArgs(string sourceName, string filterName, string filterKind, int filterIndex, Dictionary<string, object> filterSettings, Dictionary<string, object> defaultFilterSettings) : EventArgs
     {
         /// <summary>
         /// Name of the source the filter was added to.
@@ -1163,7 +1163,7 @@ namespace OBSStudioClient.Events
     /// <param name="filterName">Name of the filter.</param>
     /// <param name="filterEnabled">Whether the filter is enabled.</param>
     [method: JsonConstructor]
-    public class SourceFilterEnableStateChangedEventArgs(string sourceName, string filterName, bool filterEnabled) : EventArgs
+    public sealed class SourceFilterEnableStateChangedEventArgs(string sourceName, string filterName, bool filterEnabled) : EventArgs
     {
         /// <summary>
         /// Name of the source the filter is on.
@@ -1194,7 +1194,7 @@ namespace OBSStudioClient.Events
     /// <param name="oldFilterName">Old name of the filter.</param>
     /// <param name="filterName">New name of the filter.</param>
     [method: JsonConstructor]
-    public class SourceFilterNameChangedEventArgs(string sourceName, string oldFilterName, string filterName) : EventArgs
+    public sealed class SourceFilterNameChangedEventArgs(string sourceName, string oldFilterName, string filterName) : EventArgs
     {
         /// <summary>
         /// The source the filter is on.
@@ -1224,7 +1224,7 @@ namespace OBSStudioClient.Events
     /// <param name="sourceName">Name of the source the filter was on.</param>
     /// <param name="filterName">Name of the filter.</param>
     [method: JsonConstructor]
-    public class SourceFilterRemovedEventArgs(string sourceName, string filterName) : EventArgs
+    public sealed class SourceFilterRemovedEventArgs(string sourceName, string filterName) : EventArgs
     {
         /// <summary>
         /// Name of the source the filter was on.
@@ -1250,7 +1250,7 @@ namespace OBSStudioClient.Events
     /// <param name="filterName">Name of the filter.</param>
     /// <param name="filterSettings">New settings object of the filter.</param>
     [method: JsonConstructor]
-    public class SourceFilterSettingsChangedEventArgs(string sourceName, string filterName, Dictionary<string, object> filterSettings) : EventArgs
+    public sealed class SourceFilterSettingsChangedEventArgs(string sourceName, string filterName, Dictionary<string, object> filterSettings) : EventArgs
     {
         /// <summary>
         /// Name of the source the filter is on.
@@ -1280,7 +1280,7 @@ namespace OBSStudioClient.Events
     /// <param name="sourceName">Name of the source.</param>
     /// <param name="filters">Array of filter objects.</param>
     [method: JsonConstructor]
-    public class SourceFiltersEventArgs(string sourceName, Filter[] filters) : EventArgs
+    public sealed class SourceFiltersEventArgs(string sourceName, Filter[] filters) : EventArgs
     {
         /// <summary>
         /// Name of the source.
@@ -1303,7 +1303,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="studioModeEnabled">True == Enabled, False == Disabled.</param>
     [method: JsonConstructor]
-    public class StudioModeStateChangedEventArgs(bool studioModeEnabled) : EventArgs
+    public sealed class StudioModeStateChangedEventArgs(bool studioModeEnabled) : EventArgs
     {
         /// <summary>
         /// True == Enabled, False == Disabled.
@@ -1320,7 +1320,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="transitionDuration">Transition duration in milliseconds.</param>
     [method: JsonConstructor]
-    public class TransitionDurationEventArgs(int transitionDuration) : EventArgs
+    public sealed class TransitionDurationEventArgs(int transitionDuration) : EventArgs
     {
         /// <summary>
         /// Transition duration in milliseconds.
@@ -1338,7 +1338,7 @@ namespace OBSStudioClient.Events
     /// <param name="transitionName">Name of the new transition.</param>
     /// <param name="transitionUuid">UUID of the new transition.</param>
     [method: JsonConstructor]
-    public class TransitionNameEventArgs(string transitionName, Guid transitionUuid) : EventArgs
+    public sealed class TransitionNameEventArgs(string transitionName, Guid transitionUuid) : EventArgs
     {
         /// <summary>
         /// Name of the new transition.
@@ -1363,7 +1363,7 @@ namespace OBSStudioClient.Events
     /// <param name="eventType">Vendor-provided event typedef.</param>
     /// <param name="eventData">Vendor-provided event data. {} if event does not provide any data.</param>
     [method: JsonConstructor]
-    public class VendorEventEventArgs(string vendorName, string eventType, object? eventData) : EventArgs
+    public sealed class VendorEventEventArgs(string vendorName, string eventType, object? eventData) : EventArgs
     {
         /// <summary>
         /// Name of the vendor emitting the event.

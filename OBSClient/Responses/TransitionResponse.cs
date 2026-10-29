@@ -5,7 +5,7 @@
     using System.Text.Json.Serialization;
 
     /// <summary>
-    /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message (<see cref="IMessage"/>) returned by OBS Studio after sending a successful GetCurrentSceneTransition request.
+    /// Provides the Response Data (<see cref="IResponse"/>) in the Response Message returned by OBS Studio after sending a successful GetCurrentSceneTransition request.
     /// Also used as the Request Data in the Request Message sent to OBS Studio in a SetCurrentSceneTransitionSettings request.
     /// </summary>
     /// <remarks>
@@ -19,7 +19,7 @@
     /// <param name="transitionName">The name of the transition.</param>
     /// <param name="transitionUuid">The uuid of the transition.</param>
     [method: JsonConstructor]
-    public class TransitionResponse(float? transitionDuration, Dictionary<string, object>? transitionSettings, bool transitionConfigurable, bool transitionFixed, string transitionKind, string transitionName, Guid transitionUuid) : Transition(transitionConfigurable, transitionFixed, transitionKind, transitionName, transitionUuid), IResponse
+    public sealed class TransitionResponse(float? transitionDuration, Dictionary<string, object>? transitionSettings, bool transitionConfigurable, bool transitionFixed, string transitionKind, string transitionName, Guid transitionUuid) : Transition(transitionConfigurable, transitionFixed, transitionKind, transitionName, transitionUuid), IResponse
     {
         /// <summary>
         /// Gets the duration of the transition.

@@ -12,7 +12,7 @@
     /// <param name="sceneName">The scene name.</param>
     /// <param name="sceneUuid">The scene uuid.</param>
     [method: JsonConstructor]
-    public class Scene(int? sceneIndex, string sceneName, Guid sceneUuid)
+    public sealed class Scene(int? sceneIndex, string sceneName, Guid sceneUuid)
     {
         /// <summary>
         /// Gets the scene index. <see langword="null"/> when the scene belongs to a non-main canvas.

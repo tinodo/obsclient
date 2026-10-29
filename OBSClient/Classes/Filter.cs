@@ -14,7 +14,7 @@
     /// <param name="filterName">The filter name.</param>
     /// <param name="filterSettings">The <see cref="FilterSettings"/>.</param>
     [method: JsonConstructor]
-    public class Filter(bool filterEnabled, int filterIndex, string filterKind, string filterName, Dictionary<string, object> filterSettings)
+    public sealed class Filter(bool filterEnabled, int filterIndex, string filterKind, string filterName, Dictionary<string, object> filterSettings)
     {
         /// <summary>
         /// Gets a value indicating whether the filter is enabled.

@@ -113,6 +113,22 @@ but there are two things to know:
   compile, because a method with an optional parameter does not fit a delegate type without it. Use a lambda:
   `Func<Task<bool>> enabled = () => client.GetStudioModeEnabled();`.
 
+### The classes are sealed, and the wire types are internal
+
+4.0 freezes an API that can grow but never has to shrink: a type that is public cannot be made internal, and a class that others can derive
+from cannot be sealed, without breaking someone's code, whereas the other way round breaks nobody. So:
+
+- **The classes are sealed**: [`ObsClient`](xref:OBSStudioClient.ObsClient), the classes of the responses and of the events, and the other
+  classes of the API. Only the exceptions (as in the framework) and `Transition`, which `TransitionResponse` extends, are not. Code that
+  derives from a sealed class no longer compiles: hold the object in a class of your own instead. `ObsClient` had nothing virtual to
+  override but `Dispose(bool)`, which is gone: `Dispose()` does it all.
+- **The types of the wire protocol are internal**: `HelloMessage`, `IdentifyMessage`, `IdentifiedMessage`, `ReidentifyMessage`,
+  `EventMessage`, `RequestBatchResponseMessage`, `Authentication`, `IMessage` and the JSON converter `NullableNumberToNumberConverter` are
+  what the client and OBS Studio exchange to connect, to deliver an event and to answer a batch. What they carry reaches you through the
+  methods and the events of `ObsClient`. The types that build and read a batch stay public:
+  [`RequestBatchMessage`](xref:OBSStudioClient.Messages.RequestBatchMessage), `RequestMessage` and `RequestResponseMessage` (see
+  [Request batches](batches.md)).
+
 ### Other signatures
 
 | What | 3.x | 4.0 |

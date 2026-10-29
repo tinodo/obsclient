@@ -12,7 +12,7 @@ namespace OBSStudioClient.Events
     /// </remarks>
     /// <param name="eventData">The data that the client broadcast.</param>
     [JsonConverter(typeof(CustomEventEventArgsConverter))]
-    public class CustomEventEventArgs(JsonElement? eventData) : EventArgs
+    public sealed class CustomEventEventArgs(JsonElement? eventData) : EventArgs
     {
         /// <summary>
         /// The data that the client gave to <c>BroadcastCustomEvent</c>, as it sent it.

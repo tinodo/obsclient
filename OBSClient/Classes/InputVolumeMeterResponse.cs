@@ -11,7 +11,7 @@
     /// <param name="inputName">The input name.</param>
     /// <param name="unversionedInputKind">The unversioned input kind. OBS Studio does not send it with the volume meters, so it is <see langword="null"/>.</param>
     [method: JsonConstructor]
-    public class InputVolumeMeterResponse(float[][] inputLevelsMul, string? inputKind, string inputName, string? unversionedInputKind)
+    public sealed class InputVolumeMeterResponse(float[][] inputLevelsMul, string? inputKind, string inputName, string? unversionedInputKind)
     {
         /// <summary>
         /// Gets the input kind: <see langword="null"/>, because OBS Studio does not send it with the volume meters

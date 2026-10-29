@@ -5,7 +5,7 @@ namespace OBSStudioClient
 
     // The requests that tools/protocol/generate.py does not write ([manual] in tools/protocol/overlay.toml): the client offers
     // them in another shape than the protocol does.
-    public partial class ObsClient
+    public sealed partial class ObsClient
     {
         /// <summary>
         /// Triggers a hotkey using a sequence of keys.

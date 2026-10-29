@@ -11,7 +11,7 @@ namespace OBSStudioClient.Classes
     /// <param name="sceneItemId">The numeric ID of the scene item.</param>
     /// <param name="sceneItemIndex">The index position of the scene item.</param>
     [method: JsonConstructor]
-    public class BasicSceneItem(int sceneItemId, int sceneItemIndex)
+    public sealed class BasicSceneItem(int sceneItemId, int sceneItemIndex)
     {
         /// <summary>
         /// Gets the numeric ID of the scene item.

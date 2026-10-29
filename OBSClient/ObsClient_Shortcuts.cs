@@ -5,7 +5,7 @@ namespace OBSStudioClient
 
     // Shortcuts: methods that are not requests of the protocol, but make a request that has a choice of fields easier to use.
     // They call the generated methods of the request.
-    public partial class ObsClient
+    public sealed partial class ObsClient
     {
         /// <summary>
         /// Sets the volume setting of an input, in mul.

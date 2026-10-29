@@ -5,7 +5,7 @@
     /// <summary>
     /// Provides arguments for the ConnectionClosed event.
     /// </summary>
-    public class ConnectionClosedEventArgs : EventArgs
+    public sealed class ConnectionClosedEventArgs : EventArgs
     {
         /// <summary>
         /// Get the <see cref="WebSocketCloseCode"/> containing the reason for closing the session.

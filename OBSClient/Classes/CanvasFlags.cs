@@ -14,7 +14,7 @@
     /// <param name="sceneRef">A value indicating whether scenes on this canvas are reference counted.</param>
     /// <param name="ephemeral">A value indicating whether the canvas is not saved to disk.</param>
     [method: JsonConstructor]
-    public class CanvasFlags(bool main, bool activate, bool mixAudio, bool sceneRef, bool ephemeral)
+    public sealed class CanvasFlags(bool main, bool activate, bool mixAudio, bool sceneRef, bool ephemeral)
     {
         /// <summary>
         /// Gets a value indicating whether this is the main canvas.

@@ -132,7 +132,7 @@ def emit_dto(source: Source, dto: Dto, noun: str) -> None:
     for f in bound:
         source.add(1, f'/// <param name="{pm.identifier(f.field.name)}">{xml(sentence(f.field.description))}</param>')
     source.add(1, "[method: JsonConstructor]")
-    source.add(1, f"public class {dto.name}({ctor}) : {dto.base}")
+    source.add(1, f"public sealed class {dto.name}({ctor}) : {dto.base}")
     source.add(1, "{")
     for index, f in enumerate(bound + unbound):
         if index:
@@ -189,7 +189,7 @@ def emit_response_registry(model: Model) -> str:
     source.add(1, "using OBSStudioClient.Enums;")
     source.add(1, "using OBSStudioClient.Responses;")
     source.add()
-    source.add(1, "public partial class RequestResponseMessage")
+    source.add(1, "public sealed partial class RequestResponseMessage")
     source.add(1, "{")
     source.add(2, "/// <summary>")
     source.add(2, "/// Gets the type of the response data of each request.")
@@ -217,7 +217,7 @@ def emit_event_registry(model: Model) -> str:
     source.add(1, "using OBSStudioClient.Enums;")
     source.add(1, "using OBSStudioClient.Events;")
     source.add()
-    source.add(1, "public partial class EventMessage")
+    source.add(1, "internal sealed partial class EventMessage")
     source.add(1, "{")
     source.add(2, "/// <summary>")
     source.add(2, "/// Gets the type of the arguments of each event.")
@@ -252,7 +252,7 @@ def emit_events(model: Model) -> str:
     source.add(1, "using OBSStudioClient.Events;")
     source.add()
     source.add(0, "#pragma warning disable CS0067 // The event handlers are called through a MulticastDelegate, which is not detected by the compiler.")
-    source.add(1, "public partial class ObsClient")
+    source.add(1, "public sealed partial class ObsClient")
     source.add(1, "{")
     category = None
     first = True
@@ -558,7 +558,7 @@ def emit_requests(model: Model, requests: list[pm.Request]) -> str:
     for using in REQUEST_USINGS:
         source.add(1, f"using {using};")
     source.add()
-    source.add(1, "public partial class ObsClient")
+    source.add(1, "public sealed partial class ObsClient")
     source.add(1, "{")
     emit_request_methods(source, model, requests)
     source.add(1, "}")
@@ -570,7 +570,7 @@ def emit_requests(model: Model, requests: list[pm.Request]) -> str:
         if using != "OBSStudioClient.Messages":
             source.add(1, f"using {using};")
     source.add()
-    source.add(1, "public partial class RequestBatchMessage")
+    source.add(1, "public sealed partial class RequestBatchMessage")
     source.add(1, "{")
     emit_batch_builders(source, model, requests)
     source.add(1, "}")

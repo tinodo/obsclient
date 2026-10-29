@@ -15,7 +15,7 @@ namespace OBSStudioClient
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public partial class ObsClient
+    public sealed partial class ObsClient
     {
         /// <summary>
         /// Gets the status of the stream output.
@@ -76,7 +76,7 @@ namespace OBSStudioClient.Messages
     using System.Text.Json;
     using System.Text.Json.Serialization;
 
-    public partial class RequestBatchMessage
+    public sealed partial class RequestBatchMessage
     {
         /// <summary>
         /// Adds a <c>GetStreamStatus</c> request to the batch.

@@ -15,7 +15,7 @@
     /// <param name="outputName">The output name.</param>
     /// <param name="outputWidth">The output width.</param>
     [method: JsonConstructor]
-    public class Output(bool outputActive, Dictionary<string, bool> outputFlags, int outputHeight, string outputKind, string outputName, int outputWidth)
+    public sealed class Output(bool outputActive, Dictionary<string, bool> outputFlags, int outputHeight, string outputKind, string outputName, int outputWidth)
     {
         /// <summary>
         /// Gets a value indicating whether the output is active.

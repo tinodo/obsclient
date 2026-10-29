@@ -16,7 +16,7 @@ namespace OBSStudioClient.Messages
     /// <param name="eventIntent">The subscribed events.</param>
     /// <param name="rawEventData">The json data for the event data.</param>
     [method: JsonConstructor]
-    public partial class EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData) : IMessage, IJsonOnDeserialized
+    internal sealed partial class EventMessage(EventType eventType, EventSubscriptions eventIntent, JsonElement? rawEventData) : IMessage, IJsonOnDeserialized
     {
         // The type of the arguments of each event (_responseTypeMap) is generated from the protocol:
         // see Generated/EventMessage.g.cs.

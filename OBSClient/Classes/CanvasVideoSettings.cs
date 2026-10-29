@@ -16,7 +16,7 @@
     /// <param name="outputWidth">The width of the output resolution in pixels.</param>
     /// <param name="outputHeight">The height of the output resolution in pixels.</param>
     [method: JsonConstructor]
-    public class CanvasVideoSettings(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
+    public sealed class CanvasVideoSettings(float? fpsNumerator, float? fpsDenominator, int? baseWidth, int? baseHeight, int? outputWidth, int? outputHeight)
     {
         /// <summary>
         /// Gets the numerator of the fractional frames per second value.

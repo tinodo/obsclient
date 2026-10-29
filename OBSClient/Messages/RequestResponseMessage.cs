@@ -19,7 +19,7 @@ namespace OBSStudioClient.Messages
     /// <param name="requestStatus">The status of the request.</param>
     /// <param name="rawResponseData"> The raw JSON response data</param>
     [method: JsonConstructor]
-    public partial class RequestResponseMessage(RequestType requestType, string requestId, RequestStatus requestStatus, JsonElement? rawResponseData) : IMessage, IJsonOnDeserialized
+    public sealed partial class RequestResponseMessage(RequestType requestType, string requestId, RequestStatus requestStatus, JsonElement? rawResponseData) : IMessage, IJsonOnDeserialized
     {
         // The type of the response data of each request (_responseTypeMap) is generated from the protocol:
         // see Generated/RequestResponseMessage.g.cs.
@@ -61,7 +61,7 @@ namespace OBSStudioClient.Messages
         /// <exception cref="NotImplementedException">Not implemented.</exception>
         /// <exception cref="NotSupportedException">The response data is unknown.</exception>
         /// <exception cref="ObsClientException">Deserialization failed</exception>
-        public void OnDeserialized()
+        void IJsonOnDeserialized.OnDeserialized()
         {
             if (!_responseTypeMap.TryGetValue(this.RequestType, out Type? responseType))
             {

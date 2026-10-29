@@ -14,7 +14,7 @@
     /// <param name="canvasFlags">The capability flags of the canvas.</param>
     /// <param name="canvasVideoSettings">The video settings of the canvas.</param>
     [method: JsonConstructor]
-    public class Canvas(string canvasName, Guid canvasUuid, CanvasFlags canvasFlags, CanvasVideoSettings canvasVideoSettings)
+    public sealed class Canvas(string canvasName, Guid canvasUuid, CanvasFlags canvasFlags, CanvasVideoSettings canvasVideoSettings)
     {
         /// <summary>
         /// Gets the canvas name.

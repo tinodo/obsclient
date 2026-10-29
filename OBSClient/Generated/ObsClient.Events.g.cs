@@ -12,7 +12,7 @@ namespace OBSStudioClient
     using OBSStudioClient.Events;
 
 #pragma warning disable CS0067 // The event handlers are called through a MulticastDelegate, which is not detected by the compiler.
-    public partial class ObsClient
+    public sealed partial class ObsClient
     {
         //
         // General Events

@@ -13,7 +13,7 @@
     /// <param name="code">The requests <see cref="RequestStatusCode"/>.</param>
     /// <param name="comment">The comment in case of an error.</param>
     [method: JsonConstructor]
-    public class RequestStatus(bool result, RequestStatusCode code, string? comment)
+    public sealed class RequestStatus(bool result, RequestStatusCode code, string? comment)
     {
         /// <summary>
         /// Gets a value indicating whether the request was successful.

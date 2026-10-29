@@ -2,6 +2,7 @@ namespace OBSStudioClient.Tests.Conformance
 {
     using System.Reflection;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
@@ -63,7 +64,7 @@ namespace OBSStudioClient.Tests.Conformance
                     sent.Clone());
                 try
                 {
-                    message.OnDeserialized();
+                    ((IJsonOnDeserialized)message).OnDeserialized();
                 }
                 catch (Exception exception)
                 {

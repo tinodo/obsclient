@@ -15,7 +15,7 @@
     /// Provides a class for Input.
     /// </summary>
     [method: JsonConstructor]
-    public class Input(string inputKind, string inputName, string unversionedInputKind)
+    public sealed class Input(string inputKind, string inputName, string unversionedInputKind)
     {
         /// <summary>
         /// Gets the input kind.

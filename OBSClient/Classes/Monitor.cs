@@ -15,7 +15,7 @@
     /// <param name="monitorPositionY">The monitors y position.</param>
     /// <param name="monitorWidth">The monitor height.</param>
     [method: JsonConstructor]
-    public class Monitor(int monitorHeight, int monitorIndex, string monitorName, int monitorPositionX, int monitorPositionY, int monitorWidth)
+    public sealed class Monitor(int monitorHeight, int monitorIndex, string monitorName, int monitorPositionX, int monitorPositionY, int monitorWidth)
     {
         /// <summary>
         /// Gets the monitor height.
