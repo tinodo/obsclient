@@ -72,9 +72,9 @@ def expand(patterns):
 
 
 def read(paths, package):
-    """Merges the reports. Returns {file: {line: hits}} and {file: {line: (branches hit, branches)}}."""
+    """Merges the reports. Returns {file: {line: hits}} and {file: {line: {class: (branches hit, branches)}}}."""
     lines = defaultdict(dict)
-    branches = defaultdict(dict)
+    branches = defaultdict(lambda: defaultdict(dict))
     for path in paths:
         try:
             root = ET.parse(path).getroot()
@@ -86,9 +86,13 @@ def read(paths, package):
             raise CoverageError(f"{path} has no package '{package}'.")
 
         for candidate in packages:
-            # A file is in several classes (partial classes, the state machines of async methods, lambdas): its lines are merged by number.
+            # A file is in several classes (partial classes, the state machines of async methods, lambdas): a line is reached when any of
+            # them reached it. The branches are not merged by line: two classes can have a decision of their own on the same line (a
+            # conditional, and a lambda that is written on it), so they are kept by class, and summed. The same class in another report
+            # (the other target framework) is the same decisions again: the most that either reached.
             for item in candidate.iter("class"):
                 name = normalize(item.get("filename", ""))
+                owner = item.get("name", "")
                 for line in item.iter("line"):
                     number = int(line.get("number"))
                     lines[name][number] = max(lines[name].get(number, 0), int(line.get("hits", "0")))
@@ -96,8 +100,8 @@ def read(paths, package):
                         match = CONDITION.search(line.get("condition-coverage", ""))
                         if match:
                             hit, total = int(match.group(1)), int(match.group(2))
-                            previous = branches[name].get(number, (0, 0))
-                            branches[name][number] = (max(previous[0], hit), max(previous[1], total))
+                            previous = branches[name][number].get(owner, (0, 0))
+                            branches[name][number][owner] = (max(previous[0], hit), max(previous[1], total))
     return lines, branches
 
 
@@ -108,9 +112,10 @@ def totals(lines, branches, select):
             continue
         line_count += len(entries)
         line_hit += sum(1 for hits in entries.values() if hits > 0)
-        for hit, total in branches.get(name, {}).values():
-            branch_count += total
-            branch_hit += hit
+        for owners in branches.get(name, {}).values():
+            for hit, total in owners.values():
+                branch_count += total
+                branch_hit += hit
     return Totals(line_count, line_hit, branch_count, branch_hit)
 
 
@@ -130,9 +135,14 @@ def read_floor(path):
     try:
         with open(path, encoding="utf-8") as stream:
             floor = json.load(stream)
-        return float(floor["lines"]), float(floor["branches"])
+        values = (float(floor["lines"]), float(floor["branches"]))
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise CoverageError(f'Cannot use the floor in {path} (expected {{"lines": 86.0, "branches": 76.0}}): {error}') from error
+
+    # NaN is not below anything, and a negative floor is never held: a floor that is not a percentage would hold nothing, silently.
+    if not all(0.0 <= value <= 100.0 for value in values):
+        raise CoverageError(f"The floor in {path} has to be two percentages between 0 and 100, not {values[0]} and {values[1]}.")
+    return values
 
 
 def below_floor(hand_written, floor):

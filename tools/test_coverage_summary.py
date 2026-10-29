@@ -78,7 +78,26 @@ class ReadTests(CoverageTestCase):
 
         _, branches = self.read(net8, net10)
 
-        self.assertEqual({1: (2, 2)}, branches["Client.cs"])
+        self.assertEqual({1: {"C0": (2, 2)}}, {number: dict(owners) for number, owners in branches["Client.cs"].items()})
+
+    def test_two_classes_with_a_decision_on_the_same_line_keep_a_decision_each(self):
+        # A conditional, and a lambda that is written on the same line: the closure of the lambda is a class of its own.
+        text = report([("Client.cs", [line(1, 1, "100% (2/2)")]), ("Client.cs", [line(1, 1, "0% (0/2)")])])
+
+        lines, branches = self.read(text)
+
+        self.assertEqual({1: 1}, lines["Client.cs"])
+        found = coverage_summary.totals(lines, branches, lambda name: True)
+        self.assertEqual((4, 2), (found.branches, found.branches_hit))
+        self.assertEqual(50.0, found.branch_rate)
+
+    def test_the_same_two_classes_in_the_other_report_are_not_counted_again(self):
+        text = report([("Client.cs", [line(1, 1, "100% (2/2)")]), ("Client.cs", [line(1, 1, "0% (0/2)")])])
+
+        lines, branches = self.read(text, text)
+
+        found = coverage_summary.totals(lines, branches, lambda name: True)
+        self.assertEqual((4, 2), (found.branches, found.branches_hit))
 
     def test_only_the_assembly_of_the_library_is_counted(self):
         lines, _ = self.read(report([("Client.cs", [line(1, 1)])]))
@@ -107,7 +126,7 @@ class TotalsTests(unittest.TestCase):
             "Other.g.cs": {1: 0},
             "Generated/Hand.cs": {1: 1},
         }
-        branches = {"ObsClient.cs": {1: (1, 2)}, "Generated/Requests.g.cs": {1: (2, 2)}}
+        branches = {"ObsClient.cs": {1: {"A": (1, 2)}}, "Generated/Requests.g.cs": {1: {"A": (2, 2)}}}
 
         hand_written = coverage_summary.totals(lines, branches, lambda name: not coverage_summary.is_generated(name))
         generated = coverage_summary.totals(lines, branches, coverage_summary.is_generated)
@@ -193,6 +212,19 @@ class CommandLineTests(CoverageTestCase):
 
         self.assertEqual(1, code)
         self.assertIn("Cannot use the floor", printed)
+
+    def test_a_floor_that_is_not_a_percentage_is_refused(self):
+        # A report with no coverage at all must not pass because of a floor that nothing is below: NaN, a negative number, one over 100.
+        empty = self.write("empty.xml", report([("Client.cs", [line(1, 0, "0% (0/2)")])]))
+
+        for text in ('{"lines": "NaN", "branches": "NaN"}', '{"lines": NaN, "branches": 50}', '{"lines": -5, "branches": 50}',
+                     '{"lines": 50, "branches": 100.5}', '{"lines": "Infinity", "branches": 50}'):
+            with self.subTest(text):
+                code, printed = self.run_main(empty, "--floor", self.write("floor.json", text))
+
+                self.assertEqual(1, code)
+                self.assertIn("::error::", printed)
+                self.assertIn("floor", printed)
 
     def test_the_summary_is_appended_as_markdown(self):
         path = self.make_report()
