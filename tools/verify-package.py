@@ -12,6 +12,10 @@ that every PNG has it may only have the few that say how the picture is shown (t
 programs add (text, profiles, times, ...), which it does not need and which would have to be checked as well. The pixels themselves are
 not decoded (that is what an image library does, and a look at the icon). The package has to name the icon.
 
+The license of the package has to be declared as an SPDX expression, MIT, which is what nuget.org and license scanners read (a license file named
+as the license, or no license, is refused), and the LICENSE file has to be in the package next to it: the license asks for its notice to be
+included with copies.
+
 The README has to be in the package. What is in it is checked by ReadmeTests in the unit tests, which parse it with Markdig, the library
 that nuget.org renders it with: nuget.org drops a relative link and shows raw HTML as text, and a published version cannot be changed.
 
@@ -39,6 +43,8 @@ ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
 ICON_NAME = "icon.png"
 README_NAME = "README.md"
+LICENSE_NAME = "LICENSE"
+LICENSE_EXPRESSION = "MIT"  # the SPDX expression of the license of the package
 ICON_MAX_BYTES = 1024 * 1024  # nuget.org refuses a bigger icon
 ICON_MIN_PIXELS = 128  # what NuGet recommends
 ICON_MAX_RASTER_BYTES = 64 * 1024 * 1024  # what an icon may need once it is decoded: a PNG of 1 MB can claim much more, and is not read then
@@ -322,6 +328,9 @@ def verify_package(path):
         if README_NAME not in names:
             problems.append(f"{README_NAME} is missing")
 
+        if LICENSE_NAME not in names:
+            problems.append(f"{LICENSE_NAME} is missing")
+
         nuspec_name = f"{ASSEMBLY_NAME}.nuspec"
         if nuspec_name in names:
             root = ElementTree.fromstring(package.read(nuspec_name))
@@ -335,6 +344,9 @@ def verify_package(path):
             icons = [element.text for element in root.iter() if element.tag.rsplit("}", 1)[-1] == "icon"]
             if icons != [ICON_NAME]:
                 problems.append(f"the nuspec does not name {ICON_NAME} as the icon of the package")
+            licenses = [(element.get("type"), element.text) for element in root.iter() if element.tag.rsplit("}", 1)[-1] == "license"]
+            if licenses != [("expression", LICENSE_EXPRESSION)]:
+                problems.append(f"the nuspec does not declare the license of the package as the {LICENSE_EXPRESSION} expression")
         else:
             problems.append(f"{nuspec_name} is missing")
 
