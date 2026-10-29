@@ -53,9 +53,11 @@ A reference that identifies nothing (`default`), and a required argument that is
 before anything is sent.
 
 > [!NOTE]
-> An OBS Studio before 30.1 (obs-websocket before 5.4) has no UUIDs. What it reports has empty ones (`Guid.Empty`), and `CreateScene`
-> returns `Guid.Empty` for the scene that it made, so a `Scene`, an `Input` or a `SceneItem` that it gave you converts to a reference by
-> *name* (that is what the conversion does when there is no UUID). Give such an OBS Studio names: it ignores a UUID that you made up.
+> An OBS Studio before 30.1 (obs-websocket before 5.4) has no UUIDs, and sends none. The `Scene.SceneUuid` that you get is then empty
+> (`Guid.Empty`), and the `Input.InputUuid` and `SceneItem.SourceUuid` are `null` (they are nullable). `CreateScene` returns `Guid.Empty`
+> for the scene that it made. A `Scene`, an `Input` or a `SceneItem` that it gave you still converts to a reference by *name* (that is what
+> the conversion does when there is no UUID, empty or `null`). Give such an OBS Studio names: it does not know the UUID fields of a request,
+> so a scene or an input that is given by its UUID alone is refused, as a request that is missing its name.
 
 ## Canvases
 

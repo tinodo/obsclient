@@ -382,9 +382,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   identifies the scene. Any other response without data is still an error. Found by running the live tests against OBS Studio 30.0.2.
 
 ### Compatibility
-- **OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs** for scenes and inputs. What it reports has empty ones
-  (`Guid.Empty`), `CreateScene` returns `Guid.Empty`, and a `Scene`, an `Input` or a `SceneItem` that it gave you converts to a reference
-  by name; give such an OBS Studio names. Everything else is tested against OBS Studio 30.0.2 (obs-websocket 5.3.4) and against the
+- **OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs** for scenes and inputs. What it reports has none: `Scene.SceneUuid`
+  is empty (`Guid.Empty`), and `Input.InputUuid` and `SceneItem.SourceUuid` are `null`; `CreateScene` returns `Guid.Empty`; and a `Scene`,
+  an `Input` or a `SceneItem` that it gave you converts to a reference by name. Give such an OBS Studio names (it refuses a scene or an
+  input that is given by its UUID alone). Everything else is tested against OBS Studio 30.0.2 (obs-websocket 5.3.4) and against the
   newest release (32.2.0 in CI, 33.0.0 on a workstation); 28 and 29 are not tested.
 - The numeric values of `EventType` and `RequestType` are unchanged: new members are appended (and `EventType.Unknown`
   is `-1`), so assemblies compiled against 3.0.x keep working with respect to those enums.
