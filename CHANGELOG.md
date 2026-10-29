@@ -270,6 +270,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   cuts, stalls and refuses the connection again and again while the client asks OBS Studio things all the time, and the client has to
   reconnect every time, get through the calls that it can, and not leak memory, threads or file descriptors (see CONTRIBUTING, *Live
   tests*). Nothing of this is in the package.
+- **Build provenance** *(after beta2)*: the package, its symbols, the test app and the libraries inside the package have a signed
+  [build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations) from now on: GitHub's statement
+  that the `publish.yml` workflow of this repository built them, from the commit of the release, on a GitHub-hosted runner. The workflow
+  makes the attestations and checks them before the release waits for approval, and `gh attestation verify` checks them for anyone (the
+  notes of every release say how, and `SECURITY.md` has the command). nuget.org signs the package that it serves, so the `.nupkg` from
+  nuget.org does not verify, but the libraries in it do (the DLL in your NuGet cache), and so does the `.nupkg` of the release page.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:
