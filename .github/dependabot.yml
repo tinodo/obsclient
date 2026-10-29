@@ -7,7 +7,11 @@
 # malicious code, is usually withdrawn before it can reach this repository. Security updates are not delayed.
 version: 2
 updates:
-  # The actions that the workflows in .github/workflows use, in one pull request.
+  # The actions that the workflows in .github/workflows use, in one pull request. Every action is pinned to the full commit SHA of one
+  # of its releases, with the version in a comment (`uses: actions/checkout@<sha> # v7.0.1`), and the repository setting "Require
+  # actions to be pinned to a full-length commit SHA" makes a workflow fail when one is not: a tag can be moved to other code, a
+  # commit cannot. So a new release of an action reaches the workflows only through the pull request that Dependabot opens (it
+  # changes the SHA and the comment together), where CI and the review see it first.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -15,12 +19,9 @@ updates:
       day: monday
       time: "06:00"
       timezone: Europe/Amsterdam
-    # Three days, not the week of the packages. The workflows use the moving major tag of an action (@v4), so a release within a
-    # major version reaches them at once, and the cooldown only holds back the step to the next major version. A week would
-    # skip that step for an action that is released about every week, like github/codeql-action: the tag of its newest major
-    # version is almost always younger than that when Dependabot looks.
+    # The same week as the packages: an action that is published by mistake, or with malicious code, is usually withdrawn within it.
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       actions:
         patterns:
