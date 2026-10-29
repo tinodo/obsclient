@@ -68,9 +68,10 @@ namespace OBSStudioClient.Tests
             Assert.Equal(receivedBefore + Encoding.UTF8.GetByteCount(answer), client.TotalBytesReceived);
             Assert.Equal(receivedBefore + Encoding.UTF8.GetByteCount(answer), client.SessionBytesReceived);
 
-            // What was written is counted when the write is done, which can be after the answer was read.
-            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.TotalMessagesSent == 2, Timeout));
-            Assert.Equal(2, client.SessionMessagesSent);
+            // What was written is counted when the write is done, which can be after the answer was read. The session message counter is the
+            // last of the four that a write updates, so once it says 2 the others are done too.
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.SessionMessagesSent == 2, Timeout));
+            Assert.Equal(2, client.TotalMessagesSent);
             Assert.Equal(sentBefore + Encoding.UTF8.GetByteCount(requestText), client.TotalBytesSent);
             Assert.Equal(sentBefore + Encoding.UTF8.GetByteCount(requestText), client.SessionBytesSent);
         }

@@ -156,7 +156,8 @@ namespace OBSStudioClient.Tests
         {
             await using var server = new FakeObsWebSocketServer();
             server.Start();
-            using var client = new ObsClient();
+            var logger = new ListLogger();
+            using var client = new ObsClient(logger);
 
             var connect = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
             await server.WaitForConnectionAsync(Timeout);
@@ -167,6 +168,11 @@ namespace OBSStudioClient.Tests
 
             Assert.False(await connect.WithTimeoutAsync(Timeout, "ConnectAsync was still waiting after OBS Studio sent an identified that cannot be read."));
             Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => client.ConnectionState == ConnectionState.Disconnected, Timeout));
+
+            // The attempt ended because the unreadable message was fatal, and not because the handshake ran out of time (which is also false,
+            // after ten seconds, and logs a warning instead): an unreadable Identified that is ignored would only be told apart by this.
+            Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("receiver loop", StringComparison.Ordinal));
+            Assert.DoesNotContain(logger.Entries, entry => entry.Message.Contains("did not complete the authentication handshake", StringComparison.Ordinal));
         }
 
         [Fact]
