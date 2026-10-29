@@ -286,6 +286,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   makes the attestations and checks them before the release waits for approval, and `gh attestation verify` checks them for anyone (the
   notes of every release say how, and `SECURITY.md` has the command). nuget.org signs the package that it serves, so the `.nupkg` from
   nuget.org does not verify, but the libraries in it do (the DLL in your NuGet cache), and so does the `.nupkg` of the release page.
+  The attestation is also a file of every release, `OBSClient.<version>.intoto.jsonl` (a Sigstore bundle for all the files):
+  `gh attestation verify <file> --bundle ...` checks a file against it without asking GitHub for the attestation.
 - **Live tests on an older OBS Studio** *(after beta2)*: the live workflow runs against two OBS Studios, the newest and the one of
   Ubuntu 24.04 (OBS Studio 30.0.2, with obs-websocket 5.3.4), so that "OBS Studio 28 and up" is not only said of the newest. Everything
   that does not need UUIDs passes against 30.0.2 (including the comparison of the answers to every request that needs no parameters,

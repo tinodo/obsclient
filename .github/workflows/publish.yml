@@ -1,6 +1,7 @@
 # Publishes OBSClient whenever a vX.Y.Z tag is pushed: the NuGet package (with its symbols) to nuget.org, via Trusted
-# Publishing/OIDC - no long-lived API key - and to GitHub Packages, and the GitHub release, with the notes, the package and the
-# test app. Keep this separate from build.yml: CI runs on every push/PR, publishing only runs on a deliberate version tag.
+# Publishing/OIDC - no long-lived API key - and to GitHub Packages, and the GitHub release, with the notes, the package, the test
+# app and the attestation of where the files come from. Keep this separate from build.yml: CI runs on every push/PR, publishing only
+# runs on a deliberate version tag.
 #
 # Release process (details and troubleshooting: CONTRIBUTING.md, "Releasing"):
 #   1. Bump <Version> in OBSClient/OBSClient.csproj (e.g. to 4.0.0), give the section of that version in CHANGELOG.md its date,
@@ -302,6 +303,7 @@ jobs:
       # repository's attestations are also in a public transparency log). A dry run attests too, so that this is tried before a release,
       # but what it attests came from a branch, which a check for the tag of a release (CONTRIBUTING.md, "Releasing") does not accept.
       - name: Attest where the files come from
+        id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -310,11 +312,25 @@ jobs:
             assets/*.zip
             libraries/lib/*/OBSClient.dll
 
+      # The attestation as a file of the release: one Sigstore bundle for all the files, in the JSON Lines format and with the name that
+      # tools (and the OpenSSF Scorecard) look for in a release for a provenance file, *.intoto.jsonl. With it a file can be checked
+      # without asking GitHub for the attestation (`gh attestation verify --bundle`), and it stays with the release.
+      - name: Keep the attestation as a file of the release
+        shell: bash
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          mkdir attestation
+          jq -c . "$BUNDLE" > "attestation/OBSClient.$VERSION.intoto.jsonl"
+          [ -s "attestation/OBSClient.$VERSION.intoto.jsonl" ] || { echo "::error::The attestation file is empty."; exit 1; }
+          sha256sum "attestation/OBSClient.$VERSION.intoto.jsonl"
+
       # What a person would check, checked here, before the approval: that GitHub has an attestation for every file, for these very
       # bytes, by this workflow of this repository, from a GitHub-hosted runner, for the ref and the commit that the notes of the release
-      # ask for: the tag, and the commit that was packed. A dry run has no tag: its files are of the branch that it was started on. A run
-      # that cannot show this has published nothing yet. Each file gets three tries: the check asks GitHub, for the attestation and for
-      # the keys to check it, and that can fail for a moment.
+      # ask for: the tag, and the commit that was packed. A dry run has no tag: its files are of the branch that it was started on. And
+      # that the file of the release is enough on its own: the same check for every file, with the attestation taken from that file. A run
+      # that cannot show this has published nothing yet. Each check gets three tries: it asks GitHub, for the attestation and for the keys
+      # to check it (the keys only, with the file), and that can fail for a moment.
       - name: Verify the attestations
         shell: bash
         env:
@@ -323,9 +339,12 @@ jobs:
           SHA: ${{ needs.version.outputs.sha }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then ref="$GITHUB_REF"; else ref="refs/tags/$TAG"; fi
+          bundle="attestation/OBSClient.$VERSION.intoto.jsonl"
           verify() {
+            file="$1"
+            shift
             for attempt in 1 2 3; do
-              if gh attestation verify "$1" \
+              if gh attestation verify "$file" "$@" \
                 --repo "$GITHUB_REPOSITORY" \
                 --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
                 --source-ref "$ref" \
@@ -333,7 +352,7 @@ jobs:
                 --deny-self-hosted-runners; then
                 return 0
               fi
-              echo "Attempt $attempt of 3 failed for $1."
+              echo "Attempt $attempt of 3 failed for $file."
               [ "$attempt" = 3 ] || sleep 15
             done
             return 1
@@ -342,6 +361,10 @@ jobs:
             verify "$file"
             echo "Verified the attestation of $(sha256sum "$file")"
           done
+          for file in assets/* libraries/lib/*/OBSClient.dll; do
+            verify "$file" --bundle "$bundle"
+            echo "Verified the attestation in $bundle of $(sha256sum "$file")"
+          done
 
       # The text of the release: the notes of the version from CHANGELOG.md, how to install it, and the assets with their SHA-256.
       - name: Write the notes of the release
@@ -349,6 +372,7 @@ jobs:
           python3 tools/release_notes.py compose "$VERSION" "$TAG" \
             --asset "assets/OBSClient.$VERSION.nupkg" \
             --asset "assets/OBSClient.TestApp-$VERSION-win-x64.zip" \
+            --asset "attestation/OBSClient.$VERSION.intoto.jsonl" \
             --output release-notes.md
           {
             echo "### The release $TAG, as it will be made"
@@ -364,7 +388,15 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  # Only for a dry run: proves that the release can be made (the notes, and the upload of the two files), with a draft that has
+      - name: Upload the attestation
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: attestation
+          path: attestation/OBSClient.${{ env.VERSION }}.intoto.jsonl
+          if-no-files-found: error
+          retention-days: 90
+
+  # Only for a dry run: proves that the release can be made (the notes, and the upload of the three files), with a draft that has
   # nothing to do with the tag, and that is deleted again, whatever happens.
   release-dry-run:
     name: Try the release (a draft, deleted again)
@@ -389,6 +421,12 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: test-app
+          path: ./assets
+
+      - name: Download the attestation
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: attestation
           path: ./assets
 
       - name: Download the notes
@@ -426,7 +464,7 @@ jobs:
           trap cleanup EXIT
 
           gh release create "$draft" --draft --target "$GITHUB_SHA" --title "Dry run of $TAG" --notes-file release-notes.md \
-            "assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip"
+            "assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip" "assets/OBSClient.$VERSION.intoto.jsonl"
 
           id=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$draft\") | .id")
           if [ -z "$id" ]; then
@@ -435,8 +473,8 @@ jobs:
           fi
 
           assets=$(gh api "repos/$GH_REPO/releases/$id" --jq '[.assets[] | select(.state == "uploaded")] | length')
-          echo "The draft release has $assets of 2 files, uploaded."
-          [ "$assets" = "2" ] || { echo "::error::The draft release has $assets of its 2 files."; exit 1; }
+          echo "The draft release has $assets of 3 files, uploaded."
+          [ "$assets" = "3" ] || { echo "::error::The draft release has $assets of its 3 files."; exit 1; }
 
   publish-nuget-org:
     name: Publish to NuGet.org
@@ -603,6 +641,12 @@ jobs:
           name: test-app
           path: ./assets
 
+      - name: Download the attestation
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: attestation
+          path: ./assets
+
       - name: Download the notes
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -614,7 +658,7 @@ jobs:
       - name: Create the release
         shell: bash
         run: |
-          files=("assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip")
+          files=("assets/OBSClient.$VERSION.nupkg" "assets/OBSClient.TestApp-$VERSION-win-x64.zip" "assets/OBSClient.$VERSION.intoto.jsonl")
 
           # A release becomes the latest one only when it is the newest stable version: finishing an older one (a re-run, a recovery)
           # must not take that place from a newer one.

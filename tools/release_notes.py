@@ -34,6 +34,10 @@ TEST_APP_DESCRIPTION = (
     "unknown; compare the checksum below."
 )
 PACKAGE_DESCRIPTION = "The package: the exact file that was pushed to nuget.org and to GitHub Packages."
+ATTESTATION_DESCRIPTION = (
+    "The build provenance attestation of the files above and of the libraries in the package (a Sigstore bundle). "
+    "With it the files can be checked without asking GitHub for the attestation, see *Verify*."
+)
 ATTESTATIONS = "https://docs.github.com/en/actions/concepts/security/artifact-attestations"
 PUBLISH_WORKFLOW = f"{REPOSITORY}/.github/workflows/publish.yml"
 
@@ -103,6 +107,8 @@ def describe(name):
         return PACKAGE_DESCRIPTION
     if "TestApp" in name and name.endswith(".zip"):
         return TEST_APP_DESCRIPTION
+    if name.endswith(".intoto.jsonl"):
+        return ATTESTATION_DESCRIPTION
     return ""
 
 
@@ -144,6 +150,7 @@ def compose(version, tag, notes, assets):
 def verification(version, tag):
     """How to check where the files of a release come from: the build provenance attestation that the publish workflow made."""
     package = f"{PACKAGE_ID}.{version}.nupkg"
+    bundle = f"{PACKAGE_ID}.{version}.intoto.jsonl"
     cached = f"~/.nuget/packages/{PACKAGE_ID.lower()}/{version.lower()}/lib/net8.0/{PACKAGE_ID}.dll"
     return (
         "## Verify\n\n"
@@ -152,6 +159,12 @@ def verification(version, tag):
         "GitHub-hosted runner. Check one with the [GitHub CLI](https://cli.github.com/):\n\n"
         "```shell\n"
         f"gh attestation verify {package} --repo {REPOSITORY} --signer-workflow {PUBLISH_WORKFLOW} --source-ref refs/tags/{tag}\n"
+        "```\n\n"
+        f"The attestation is also a file of this release, `{bundle}`. With it the command does not ask GitHub for the attestation "
+        "(it still fetches the keys that check the signature):\n\n"
+        "```shell\n"
+        f"gh attestation verify {package} --bundle {bundle} --repo {REPOSITORY} --signer-workflow {PUBLISH_WORKFLOW} "
+        f"--source-ref refs/tags/{tag}\n"
         "```\n\n"
         "nuget.org signs the package that it serves, so the `.nupkg` from nuget.org is not byte for byte the file above. To check the "
         f"library that you use, run the same command on the DLL in your NuGet cache: `{cached}`."

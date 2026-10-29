@@ -109,7 +109,11 @@ class NotesOfTests(unittest.TestCase):
 
 
 class ComposeTests(unittest.TestCase):
-    ASSETS = [("OBSClient.4.0.0.nupkg", "a" * 64), ("OBSClient.TestApp-4.0.0-win-x64.zip", "b" * 64)]
+    ASSETS = [
+        ("OBSClient.4.0.0.nupkg", "a" * 64),
+        ("OBSClient.TestApp-4.0.0-win-x64.zip", "b" * 64),
+        ("OBSClient.4.0.0.intoto.jsonl", "c" * 64),
+    ]
 
     def test_a_prerelease_says_so_and_a_release_does_not(self):
         prerelease = release_notes.compose("4.0.0-beta2", "v4.0.0-beta2", "Notes.", self.ASSETS)
@@ -136,8 +140,10 @@ class ComposeTests(unittest.TestCase):
 
         self.assertIn("| `OBSClient.4.0.0.nupkg` | The package: the exact file that was pushed", text)
         self.assertIn("| `OBSClient.TestApp-4.0.0-win-x64.zip` | The test app.", text)
+        self.assertIn("| `OBSClient.4.0.0.intoto.jsonl` | The build provenance attestation of the files above", text)
         self.assertIn("\n" + "a" * 64 + "  OBSClient.4.0.0.nupkg\n", text)
         self.assertIn("\n" + "b" * 64 + "  OBSClient.TestApp-4.0.0-win-x64.zip\n", text)
+        self.assertIn("\n" + "c" * 64 + "  OBSClient.4.0.0.intoto.jsonl\n", text)
 
     def test_the_text_ends_with_one_newline(self):
         text = release_notes.compose("4.0.0", "v4.0.0", "Notes.", self.ASSETS)
@@ -155,6 +161,22 @@ class ComposeTests(unittest.TestCase):
         )
         self.assertLess(text.index("## Assets"), text.index("## Verify"))
         self.assertLess(text.index("## Verify"), text.index("Found a problem?"))
+
+    def test_it_says_how_to_check_with_the_attestation_that_is_a_file_of_the_release(self):
+        text = release_notes.compose("4.0.0", "v4.0.0", "Notes.", self.ASSETS)
+
+        self.assertIn("The attestation is also a file of this release, `OBSClient.4.0.0.intoto.jsonl`.", text)
+        self.assertIn(
+            "gh attestation verify OBSClient.4.0.0.nupkg --bundle OBSClient.4.0.0.intoto.jsonl --repo tinodo/obsclient "
+            "--signer-workflow tinodo/obsclient/.github/workflows/publish.yml --source-ref refs/tags/v4.0.0\n",
+            text,
+        )
+
+    def test_the_file_of_the_attestation_is_named_for_the_version_like_the_package(self):
+        text = release_notes.compose("4.0.0-RC.1", "v4.0.0-RC.1", "Notes.", self.ASSETS)
+
+        self.assertIn("`OBSClient.4.0.0-RC.1.intoto.jsonl`", text)
+        self.assertIn("gh attestation verify OBSClient.4.0.0-RC.1.nupkg --bundle OBSClient.4.0.0-RC.1.intoto.jsonl ", text)
 
     def test_the_check_names_the_tag_and_the_folder_in_the_nuget_cache_of_that_version(self):
         text = release_notes.compose("4.0.0-RC.1", "v4.0.0-RC.1", "Notes.", self.ASSETS)
