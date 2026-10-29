@@ -53,8 +53,10 @@ jobs:
         include:
           - obs: latest
             name: newest
+            uuids: '1'
           - obs: ubuntu
             name: of Ubuntu 24.04
+            uuids: '0'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -154,7 +156,10 @@ jobs:
           echo "OBS_LIVE_SOAK_SECONDS=$((minutes * 60))" >> "$GITHUB_ENV"
           echo "The soak test runs for $minutes minutes."
 
+      # OBS_LIVE_UUIDS: an OBS Studio before 30.1.0 (obs-websocket before 5.4.0) has no UUIDs, so the tests that follow things by UUID are skipped.
       - name: Run the live tests
+        env:
+          OBS_LIVE_UUIDS: ${{ matrix.uuids }}
         run: dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release --framework net10.0 --filter "FullyQualifiedName~.Live." --logger "console;verbosity=detailed"
 
       - name: Keep the logs of OBS Studio

@@ -78,6 +78,16 @@ namespace OBSStudioClient.Messages
 
                 if (this.RequestStatus.Result)
                 {
+                    // The whole of the response of CreateScene is the UUID of the scene, and obs-websocket before 5.4.0 (OBS Studio before
+                    // 30.1.0) has no UUIDs: it sends no response data, for a scene that was made. The request did not fail, so it does not
+                    // throw: the UUID is empty (the name that was asked for identifies the scene), as it is in the other responses of such an
+                    // OBS Studio. Any other response without data is not what OBS Studio sends.
+                    if (this.RequestType == RequestType.CreateScene)
+                    {
+                        this.ResponseData = new CreateSceneResponse(Guid.Empty);
+                        return;
+                    }
+
                     throw new ObsClientException("OBS Studio returned an empty response.");
                 }
 
