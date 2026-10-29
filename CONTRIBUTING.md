@@ -44,10 +44,12 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
   GitHub release of its version (`v` and the `<Version>`).
 - The README is also the page of the package on nuget.org, which renders it with Markdig and with less than GitHub does: it drops a relative link
   (the page shows the text without a target) and shows raw HTML as text. So the README uses absolute links
-  (`https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md`) and Markdown only (`**bold**`, not `<b>`). `ReadmeTests` parse it with Markdig as
-  well, so the parser decides what is a link, what is HTML and what is code, and fail on a relative link or image, a link without a target and raw
-  HTML; `tools/verify-package.py` checks that the package has the README. A published version cannot be changed, so a mistake in the README stays
-  on nuget.org until the next version.
+  (`https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md`) and Markdown only (`**bold**`, not `<b>`), and its images come from a domain
+  that nuget.org renders images from (`img.shields.io`, the badge of a GitHub workflow, ...: the list is in the documentation of nuget.org, "Allowed
+  domains for images and badges", and the one in `ReadmeTests`; the badge of the Scorecard is drawn by shields.io for that reason, and not by
+  `api.scorecard.dev`). `ReadmeTests` parse it with Markdig as well, so the parser decides what is a link, what is HTML and what is code, and
+  fail on a relative link or image, a link without a target, raw HTML and an image from another domain; `tools/verify-package.py` checks that the
+  package has the README. A published version cannot be changed, so a mistake in the README stays on nuget.org until the next version.
 
 The test suite runs against an in-process fake obs-websocket server (`OBSClient.Tests/TestSupport`), so you do not
 need a running copy of OBS Studio to run or write most tests.
