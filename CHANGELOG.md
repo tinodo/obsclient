@@ -266,7 +266,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   tools that scan the licenses of the packages of an application read the expression and show the license by its name; the `LICENSE` file is
   in the package as well, because the license asks for its notice to be included with copies. The package also says whose copyright it is,
   and its release notes are the GitHub release of its version. CI checks the expression and the file (`tools/verify-package.py`).
-- **A Code of Conduct** *(after beta2)*: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) is the Contributor Covenant 2.1, word for word, with a private
+- **A Code of Conduct** *(after beta2)*: [`CODE_OF_CONDUCT.md`](https://github.com/tinodo/obsclient/blob/main/CODE_OF_CONDUCT.md) is the Contributor Covenant 2.1, word for word, with a private
   report on GitHub as the way to report behavior that breaks it.
 - **Tests of what goes wrong** *(after beta2)*: the client is tested against a server that misbehaves and a connection that fails, not
   only against one that behaves. Tests with the fake server cover the counters of the traffic, a Hello or an Identified that cannot be
