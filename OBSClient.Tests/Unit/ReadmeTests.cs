@@ -88,6 +88,14 @@ namespace OBSStudioClient.Tests.Unit
         }
 
         [Fact]
+        public void AFragmentOnlyTarget_IsAcceptedForALinkButNotForAnImage()
+        {
+            var problems = Problems("# Usage\n\nSee [below](#usage) and ![logo](#usage).\n");
+
+            Assert.Equal(new[] { "line 3: the link or image \"#usage\" is relative: nuget.org drops it, so use an absolute URL" }, problems);
+        }
+
+        [Fact]
         public void AnEscapedBacktick_DoesNotStartACodeSpan()
         {
             var problems = Problems("# Title\n\n\\`[changes](CHANGELOG.md)\\`\n");
@@ -143,11 +151,13 @@ namespace OBSStudioClient.Tests.Unit
             foreach (var link in document.Descendants<LinkInline>())
             {
                 var url = link.Url ?? string.Empty;
+                var isAnchor = !link.IsImage && url.StartsWith('#');
+                var isAbsolute = Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" or "mailto";
                 if (url.Length == 0)
                 {
                     found.Add((link.Line, link.Column, $"line {link.Line + 1}: a link or an image without a target"));
                 }
-                else if (!url.StartsWith('#') && !(Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" or "mailto"))
+                else if (!isAnchor && !isAbsolute)
                 {
                     found.Add((link.Line, link.Column, $"line {link.Line + 1}: the link or image \"{url}\" is relative: nuget.org drops it, so use an absolute URL"));
                 }
