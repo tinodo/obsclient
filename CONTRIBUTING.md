@@ -160,10 +160,20 @@ running) on one machine, and the arguments of a start decide which configuration
 To point the read-only tests at an OBS Studio of your own, set `OBS_LIVE_PORT` and `OBS_LIVE_PASSWORD` (and `OBS_LIVE_HOST`); the tests that
 change something stay skipped. `-WebSocketDebug` has the copy of OBS Studio log every message of its WebSocket server, to see what it did.
 
+**The soak test** (`LiveSoakTests`) runs for minutes, and only when `OBS_LIVE_SOAK_SECONDS` says for how long: `-SoakMinutes 30` does that
+(`-Filter "FullyQualifiedName~LiveSoakTests"` runs only that test). The client connects to OBS Studio through a proxy (`ChaosProxy`) that cuts
+the connection with a reset, stalls it, and refuses it, at random, while the client asks OBS Studio things all the time (requests, a batch, an
+event that OBS Studio sends back). It has to go on working: every call ends within the request timeout, in a failure that says that the
+connection is gone; every connection that ended is reported with `ConnectionClosed`; the client is connected again, and does what it did, when
+the trouble stops; and its memory, its threads and (on Linux) its file descriptors do not grow with the number of connections. It only reads
+from OBS Studio (and broadcasts a custom event, which OBS Studio forwards and forgets). The seed of the chaos is in the output of the test;
+`OBS_LIVE_SOAK_SEED` runs the same chaos again. The proxy itself is tried on every build (`ChaosProxyTests`, with the fake server).
+
 `.github/workflows/live-obs.yml` runs the same tests on Linux in CI: OBS Studio from the PPA of the OBS project, in a virtual display (Xvfb),
 with its own configuration and port (the runner is thrown away, so nothing is at risk there). It is experimental and **not a required
 check**. It runs when the client, its tests, the live tests or the workflow change, every week, and on request (*Actions, Live OBS tests, Run workflow*); a scheduled run
-that fails opens an issue (or adds to the open one). The log of OBS Studio is an artifact of the run.
+that fails opens an issue (or adds to the open one). The log of OBS Studio is an artifact of the run. The weekly run, and a run on request,
+also run the soak test, for 10 minutes (the *Run workflow* form asks for the number: 0 leaves it out, 20 is the most); a pull request does not.
 
 ### The documentation site
 

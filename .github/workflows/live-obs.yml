@@ -6,6 +6,10 @@
 #
 # Experimental: this is not a required check. It runs when the client, its tests, the live tests or this workflow change, every week, and on
 # request; a scheduled run that fails opens an issue.
+#
+# The weekly run, and a run on request, also runs the soak test (OBSClient.Tests/Live/LiveSoakTests.cs): a few minutes of a connection that
+# is cut, stalled and refused again and again, through a proxy, while the client asks OBS Studio things all the time. A pull request does not
+# run it. "Run workflow" asks for the number of minutes (10 by default, 0 leaves it out, 20 at most).
 name: Live OBS tests
 
 on:
@@ -23,6 +27,11 @@ on:
   schedule:
     - cron: '43 5 * * 2'
   workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: 'How long the soak test runs, in minutes (0 leaves it out, 20 at most)'
+        type: number
+        default: 10
 
 permissions:
   contents: read
@@ -35,7 +44,7 @@ jobs:
   live:
     name: Live tests (OBS Studio on Linux)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -110,6 +119,20 @@ jobs:
           echo "::error::The WebSocket server of OBS Studio did not come up on port $port within 90 seconds."
           tail -n 40 "$home/obs-stdout.log"
           exit 1
+
+      - name: Set how long the soak test runs
+        env:
+          EVENT: ${{ github.event_name }}
+          MINUTES: ${{ inputs.soak_minutes }}
+        run: |
+          minutes="${MINUTES:-10}"
+          case "$minutes" in
+            ''|*[!0-9]*) echo "::error::soak_minutes has to be a whole number of minutes, not '$minutes'."; exit 1 ;;
+          esac
+          if [ "$EVENT" = "pull_request" ]; then minutes=0; fi
+          if [ "$minutes" -gt 20 ]; then minutes=20; fi
+          echo "OBS_LIVE_SOAK_SECONDS=$((minutes * 60))" >> "$GITHUB_ENV"
+          echo "The soak test runs for $minutes minutes."
 
       - name: Run the live tests
         run: dotnet test OBSClient.Tests/OBSClient.Tests.csproj --configuration Release --framework net10.0 --filter "FullyQualifiedName~.Live." --logger "console;verbosity=detailed"

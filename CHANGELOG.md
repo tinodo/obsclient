@@ -262,6 +262,14 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   shows five of them without a target) and shows HTML as text (it showed `<ins>` around two phrases), and a published version cannot be
   changed. CI parses the README with Markdig, the parser of nuget.org (`ReadmeTests`), and fails on either, so that the next version cannot be
   published with them.
+- **Tests of what goes wrong** *(after beta2)*: the client is tested against a server that misbehaves and a connection that fails, not
+  only against one that behaves. Tests with the fake server cover the counters of the traffic, a Hello or an Identified that cannot be
+  read, a handshake that is never completed, a request that OBS Studio is not ready for (asked again as often as `MaxRequestRetries`
+  says, and no more), a client that was never connected or that was disposed, and 1100 events held up by a slow handler (none is lost,
+  and they stay in order). A **soak test** runs against a real OBS Studio every week, and on request for as long as you ask: a proxy
+  cuts, stalls and refuses the connection again and again while the client asks OBS Studio things all the time, and the client has to
+  reconnect every time, get through the calls that it can, and not leak memory, threads or file descriptors (see CONTRIBUTING, *Live
+  tests*). Nothing of this is in the package.
 
 ### Fixed
 - Request fields that could not be sent, or were sent wrongly:

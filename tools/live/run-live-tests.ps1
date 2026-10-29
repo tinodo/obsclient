@@ -40,6 +40,11 @@
 .PARAMETER StartupSeconds
     How long to wait for OBS Studio to start (120).
 
+.PARAMETER SoakMinutes
+    Runs the soak test as well, for this many minutes (it is off by default): the client goes through a proxy that cuts, stalls and refuses
+    the connection again and again while it asks OBS Studio things all the time, and has to go on working (OBSClient.Tests/Live/LiveSoakTests.cs).
+    It changes nothing in the copy of OBS Studio. A few minutes already cuts the connection dozens of times; 30 to 60 is a long run.
+
 .PARAMETER WebSocketDebug
     Has the copy of OBS Studio log every message of its WebSocket server (--websocket_debug), for finding out what OBS Studio did. The log is
     kept in %LOCALAPPDATA%\obsclient-live\last-run, with what the tests sent in it: do not share it.
@@ -52,6 +57,9 @@
 
 .EXAMPLE
     pwsh tools/live/run-live-tests.ps1 -ObsPath C:\Tools\OBS-Studio-33.0.0-Windows-x64 -Filter "FullyQualifiedName~LiveSceneTests"
+
+.EXAMPLE
+    pwsh tools/live/run-live-tests.ps1 -SoakMinutes 30 -Filter "FullyQualifiedName~LiveSoakTests"
 #>
 #requires -Version 5.1
 [CmdletBinding()]
@@ -62,6 +70,7 @@ param(
     [string]$Framework = 'net10.0',
     [string]$Filter = 'FullyQualifiedName~.Live.',
     [int]$StartupSeconds = 120,
+    [int]$SoakMinutes = 0,
     [switch]$WebSocketDebug,
     [switch]$KeepObsRunning
 )
@@ -298,7 +307,7 @@ try {
 
     Write-Host "The copy of OBS Studio is up, and the only one that listens on port $port. Running the live tests."
     $saved = @{}
-    $names = 'OBS_LIVE_HOST', 'OBS_LIVE_PORT', 'OBS_LIVE_PASSWORD', 'OBS_LIVE_ALLOW_CHANGES', 'OBS_LIVE_COLLECTION'
+    $names = 'OBS_LIVE_HOST', 'OBS_LIVE_PORT', 'OBS_LIVE_PASSWORD', 'OBS_LIVE_ALLOW_CHANGES', 'OBS_LIVE_COLLECTION', 'OBS_LIVE_SOAK_SECONDS'
     foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
         $env:OBS_LIVE_HOST = '127.0.0.1'
@@ -306,6 +315,8 @@ try {
         $env:OBS_LIVE_PASSWORD = $password
         $env:OBS_LIVE_ALLOW_CHANGES = '1'
         $env:OBS_LIVE_COLLECTION = $collection
+        # Not what an earlier shell left behind: the soak test runs when this run asks for it.
+        $env:OBS_LIVE_SOAK_SECONDS = if ($SoakMinutes -gt 0) { "$($SoakMinutes * 60)" } else { $null }
         & dotnet test (Join-Path $repository 'OBSClient.Tests') -c $Configuration -f $Framework --filter $Filter --logger 'console;verbosity=detailed'
         $exitCode = $LASTEXITCODE
     } finally {

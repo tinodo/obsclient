@@ -24,6 +24,7 @@ namespace OBSStudioClient.Tests.Live
     /// only against an OBS Studio whose current scene collection has exactly that name. <c>tools/live/run-live-tests.ps1</c> starts an OBS
     /// Studio of its own, with a scene collection that it names after the run, and sets both: an OBS Studio of somebody else (another
     /// version that is running on the same machine, with a port that is not the one of this run) is refused, and nothing in it is changed.</item>
+    /// <item><c>OBS_LIVE_SOAK_SECONDS</c>: how long the soak test runs (<see cref="LiveSoakTests"/>). Without it that test is skipped.</item>
     /// </list>
     /// </remarks>
     internal static class LiveObs
@@ -50,6 +51,9 @@ namespace OBSStudioClient.Tests.Live
 
         /// <summary>Gets a value that indicates whether the tests may change the OBS Studio: they are allowed to, and they know which scene collection to expect in it.</summary>
         public static bool MayChange => Environment.GetEnvironmentVariable("OBS_LIVE_ALLOW_CHANGES") == "1" && Collection.Length > 0;
+
+        /// <summary>Gets how long the soak test runs, in seconds (<c>OBS_LIVE_SOAK_SECONDS</c>): 0 when it is off.</summary>
+        public static int SoakSeconds => int.TryParse(Environment.GetEnvironmentVariable("OBS_LIVE_SOAK_SECONDS"), out var seconds) && seconds > 0 ? seconds : 0;
 
         /// <summary>A name for a scene or an input that no other run uses, and that <see cref="LiveSession.RemoveLeftoversAsync"/> recognises.</summary>
         /// <param name="what">What it is called for.</param>
@@ -97,6 +101,24 @@ namespace OBSStudioClient.Tests.Live
             else if (LiveObs.Password.Length == 0)
             {
                 this.Skip = LiveObs.NoPassword;
+            }
+        }
+    }
+
+    /// <summary>The soak test: a test against a real OBS Studio that runs for minutes. It is skipped without <c>OBS_LIVE_PORT</c>, and without <c>OBS_LIVE_SOAK_SECONDS</c>.</summary>
+    internal sealed class LiveSoakFactAttribute : FactAttribute
+    {
+        public const string NotWanted = "The soak test runs for as long as OBS_LIVE_SOAK_SECONDS says (the launcher has -SoakMinutes), and is off without it. See CONTRIBUTING.md, Live tests.";
+
+        public LiveSoakFactAttribute()
+        {
+            if (!LiveObs.IsConfigured)
+            {
+                this.Skip = LiveObs.NotConfigured;
+            }
+            else if (LiveObs.SoakSeconds == 0)
+            {
+                this.Skip = NotWanted;
             }
         }
     }
