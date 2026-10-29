@@ -14,7 +14,9 @@ not decoded (that is what an image library does, and a look at the icon). The pa
 
 The README is the page that nuget.org shows for the package, and nuget.org renders less than GitHub does: it drops a relative link (the
 page shows the text without a target) and shows raw HTML as text. So the README has to be in the package, with absolute links and
-images and without raw HTML (what is in a code block or a code span is shown as it is, and is left alone).
+images and without raw HTML (what is in a fenced code block or a code span is shown as it is, and is left alone). The scan is simple on
+purpose and errs towards reporting: an indented code block is not recognised as code (write code as a fenced block or a code span), and
+a code span ends with its paragraph.
 
 Next to every package there has to be its symbol package (.snupkg): the debug symbols (PDB) of each target framework and
 nothing else, and the PDBs have to carry Source Link, so that a debugger can show the source of the commit that was built.
@@ -87,10 +89,10 @@ ALLOWED_SYMBOL_FILES = [
 ]
 
 README_NAME = "README.md"
-README_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+README_FENCE = re.compile(r"^ {0,3}(?:(`{3,})[^`]*|(~{3,}).*)$")
 README_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).+?(?<!`)\1(?!`)", re.DOTALL)
 README_LINK_TARGET = re.compile(r"\]\(\s*(<[^>\n]*>|[^)\s]*)")
-README_LINK_DEFINITION = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(<[^>\n]*>|\S*)", re.MULTILINE)
+README_LINK_DEFINITION = re.compile(r"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(?:\n[ \t]*)?(<[^>\n]*>|\S+)", re.MULTILINE)
 README_HTML = re.compile(r"<(?:[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?|/[A-Za-z][A-Za-z0-9-]*\s*|!--.*?--)>", re.DOTALL)
 URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 
@@ -300,20 +302,38 @@ def icon_problems(data):
 
 
 def without_code(text):
-    """The text of a README with its code blocks and code spans blanked out; the line breaks stay, so that a line number is still right."""
+    """
+    The text of a README with its fenced code blocks and its code spans blanked out; the line breaks stay, so that a line number is still
+    right. A code span cannot cross the end of a paragraph (a blank line), so a backtick that is not closed hides nothing but its own
+    paragraph.
+    """
     lines = []
     fence = None
     for line in text.splitlines():
         if fence is None:
             opening = README_FENCE.match(line)
-            fence = opening.group(1) if opening else None
+            fence = (opening.group(1) or opening.group(2)) if opening else None
             lines.append("" if opening else line)
         else:
             stripped = line.strip()
             if stripped and set(stripped) == {fence[0]} and len(stripped) >= len(fence):
                 fence = None
             lines.append("")
-    return README_CODE_SPAN.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), "\n".join(lines))
+
+    def blank(match):
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    result = []
+    paragraph = []
+    for line in [*lines, ""]:
+        if line.strip():
+            paragraph.append(line)
+        else:
+            if paragraph:
+                result.extend(README_CODE_SPAN.sub(blank, "\n".join(paragraph)).split("\n"))
+                paragraph = []
+            result.append(line)
+    return "\n".join(result[:-1])
 
 
 def readme_problems(text):
@@ -331,7 +351,7 @@ def readme_problems(text):
         elif not target.startswith("#") and not URL_SCHEME.match(target):
             problems.append(f'{README_NAME} line {line_of(match)}: the link or image "{target}" is relative: nuget.org drops it, so use an absolute URL')
     for match in README_HTML.finditer(visible):
-        problems.append(f'{README_NAME} line {line_of(match)}: the raw HTML "{match.group(0)[:40]}" is not rendered by nuget.org, which shows it as text')
+        problems.append(f'{README_NAME} line {line_of(match)}: the raw HTML "{match.group(0)[:40]}" is not rendered by nuget.org, which shows it as text (code goes in a code span or a fenced block)')
     return problems
 
 
