@@ -16,6 +16,14 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 - .NET SDK 8.0 and 10.0 (the library multi-targets both; see `OBSClient/OBSClient.csproj`).
 - `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` restores and builds the library and runs the tests. It works on
   Windows, Linux and macOS, and is what CI runs on each of them.
+- CI also measures what the tests reach of the library (`--collect:"XPlat Code Coverage"`), and `tools/coverage_summary.py` puts it in the
+  summary of the Linux run: the lines and the branches of the hand-written code, the generated code under `OBSClient/Generated` on its own, and
+  the files with the most lines that no test reaches. The same step fails when the hand-written code is reached for less than the floor in
+  `tools/coverage-floor.json`, so a change that takes tests away, or adds code that has none, does not go unnoticed. Raise the floor when the
+  coverage has gone up (keep a margin of about two points: a few tests only run on one system); lower it only when code that was reached is
+  gone on purpose, and say why in the pull request. Locally, `dotnet test OBSClient.Tests/OBSClient.Tests.csproj --collect:"XPlat Code Coverage"
+  --results-directory ./TestResults`, then `python tools/coverage_summary.py "TestResults/**/coverage.cobertura.xml" --floor tools/coverage-floor.json`
+  (the number of another system differs a little from the one of Linux, which is the one that the floor is for).
 - `dotnet build OBSClient.sln` builds everything, including the WinUI 3 test app (`OBSClient.TestApp`, see below), so it needs
   Windows and the .NET 10 SDK; on Linux and macOS it fails with NETSDK1100. CI builds the test app on its own Windows job.
 - `samples/ConsoleSample` is a small program that uses the library (`dotnet run --project samples/ConsoleSample`, with OBS Studio running).

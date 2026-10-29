@@ -36,7 +36,7 @@ jobs:
 
       - name: Check the tooling compiles
         if: matrix.os == 'ubuntu-latest'
-        run: python3 -m py_compile tools/verify-package.py tools/release_notes.py tools/compare-published.py tools/make-icon.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
+        run: python3 -m py_compile tools/verify-package.py tools/release_notes.py tools/compare-published.py tools/coverage_summary.py tools/make-icon.py tools/protocol/protocol_model.py tools/protocol/generate.py tools/protocol/update.py
 
       # The protocol-derived code under OBSClient/Generated and the snapshot of the tests are generated from
       # tools/protocol/obs-websocket-protocol.json and tools/protocol/overlay.toml. They must be what the generator
@@ -74,6 +74,15 @@ jobs:
           --logger "trx;LogFilePrefix=test-results"
           --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
+
+      # What the tests reach of the library, in the summary of the run, and held above a floor (tools/coverage-floor.json): a change that
+      # takes tests away, or adds code that no test reaches, does not go unnoticed. On Linux only: the floor is the number of that run (a few
+      # tests only run there), and the reports of the other systems are kept as artifacts below. It runs when the tests passed, and a run
+      # that passed without a report fails here (the coverage is no longer collected); after failed tests it runs as long as they wrote a
+      # report, and a cancelled run is left alone.
+      - name: Summarize the coverage, and hold it above the floor
+        if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && (success() || hashFiles('TestResults/**/coverage.cobertura.xml') != '') }}
+        run: python3 tools/coverage_summary.py "TestResults/**/coverage.cobertura.xml" --floor tools/coverage-floor.json --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
         if: always()
