@@ -3,7 +3,7 @@
     /// <summary>
     /// Op Codes.
     /// </summary>
-    public enum OpCode
+    internal enum OpCode
     {
         /// <summary>
         /// Hello.

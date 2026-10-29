@@ -17,11 +17,12 @@
         [InlineData("CanvasRemoved", EventType.CanvasRemoved)]
         [InlineData("CanvasNameChanged", EventType.CanvasNameChanged)]
         [InlineData("CurrentProgramSceneChanged", EventType.CurrentProgramSceneChanged)]
-        public void Read_KnownEventTypeName_ReturnsMatchingEnumValue(string json, EventType expected)
+        // The expected member is an object: a test method is public, and EventType is internal.
+        public void Read_KnownEventTypeName_ReturnsMatchingEnumValue(string json, object expected)
         {
             var result = JsonSerializer.Deserialize<EventType>($"\"{json}\"");
 
-            Assert.Equal(expected, result);
+            Assert.Equal(expected, (object)result);
         }
 
         [Theory]

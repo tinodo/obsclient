@@ -289,7 +289,7 @@ def emit_events(model: Model) -> str:
 # -- enums ------------------------------------------------------------------------------------------------------------
 
 
-def emit_enum(model: Model, enum: str, members: list[tuple[str, int, str]], summary: str, converter: str) -> str:
+def emit_enum(model: Model, enum: str, members: list[tuple[str, int, str]], summary: str, converter: str, visibility: str = "public") -> str:
     source = Source(model)
     source.add(0, "namespace OBSStudioClient.Enums")
     source.add(0, "{")
@@ -303,7 +303,7 @@ def emit_enum(model: Model, enum: str, members: list[tuple[str, int, str]], summ
     source.add(1, "/// that use this enum. A member keeps its value (they are listed in tools/protocol/overlay.toml); new members get the next number.")
     source.add(1, "/// </remarks>")
     source.add(1, f"[JsonConverter(typeof({converter}))]")
-    source.add(1, f"public enum {enum}")
+    source.add(1, f"{visibility} enum {enum}")
     source.add(1, "{")
     for index, (name, value, description) in enumerate(members):
         if index:
@@ -797,7 +797,9 @@ def generate(model: Model) -> dict[Path, str]:
         "The requests that obs-websocket knows.", "JsonStringEnumConverter")
     files[GENERATED / "EventType.g.cs"] = emit_enum(
         model, "EventType", ordinal_members(model, "EventType", event_descriptions),
-        "The events that obs-websocket knows. Unknown stands for an event type this version of the client does not know.", "EventTypeConverter")
+        "The events that obs-websocket knows. Unknown stands for an event type this version of the client does not know.", "EventTypeConverter",
+        # Nothing in the API takes, returns or raises it: the client matches the events of OBS Studio to its own events with it.
+        visibility="internal")
     for category in CATEGORY_ORDER + sorted({r.category for r in model.requests} - set(CATEGORY_ORDER)):
         requests = [r for r in model.generated_requests() if r.category == category]
         if requests:

@@ -19,7 +19,7 @@ namespace OBSStudioClient.Enums
     /// that use this enum. A member keeps its value (they are listed in tools/protocol/overlay.toml); new members get the next number.
     /// </remarks>
     [JsonConverter(typeof(EventTypeConverter))]
-    public enum EventType
+    internal enum EventType
     {
         /// <summary>
         /// An event type that this version of the client does not recognize, for example one that obs-websocket introduced after this client was released. No handler is invoked for it.

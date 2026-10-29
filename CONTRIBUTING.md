@@ -202,8 +202,9 @@ overlay or the generator. When a change alters how the library is used, update t
 - Update `README.md` if you change public API surface or behavior, and the articles in `docs/` if you change how the library is used.
 - Start closed: a new class is `sealed`, and a new type is `internal` unless an application needs it. Opening one later breaks nobody, but a
   type that is public cannot be made internal, and a class that others can derive from cannot be sealed, without breaking someone. The
-  tests in `OBSClient.Tests/Unit/PublicApiTests.cs` fail for a class that is not sealed, and for a public message or interface that is not
-  on their list; one that should be public or open on purpose is added to them in the same pull request, with the reason.
+  tests in `OBSClient.Tests/Unit/PublicApiTests.cs` fail for a class that is not sealed, for a public message or interface that is not
+  on their list, and for a public type that nothing in the API uses; one that should be public or open on purpose is added to them in the
+  same pull request, with the reason.
 
 ## Pull requests
 
