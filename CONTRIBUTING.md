@@ -213,11 +213,16 @@ Dependabot (`.github/dependabot.yml`) looks at the GitHub Actions of the workflo
 `OBSClient.sln` and the DocFX tool of the documentation) every Monday morning. The routine updates of each ecosystem come in one pull
 request: all the actions together, and all the minor and patch updates of the packages together. A major update of a package gets a pull
 request of its own, so that it can be read before it is merged; the default limit of five open pull requests per ecosystem is not changed,
-because a lower one would let an unmerged major update hold back the routine ones. A package release has to be a week old before it is
-proposed (the *cooldown*), which keeps a package that was published by mistake, or with malicious code, out of the repository in most
-cases; for an action it is three days, because the workflows use the moving major tag of an action (`@v4`), so a release within a major
-version reaches them at once and the cooldown only holds back the step to the next major version. Security updates are not delayed.
-Dependabot alerts and security updates are on.
+because a lower one would let an unmerged major update hold back the routine ones. A package or action release has to be a week old before it
+is proposed (the *cooldown*), which keeps one that was published by mistake, or with malicious code, out of the repository in most cases.
+Security updates are not delayed. Dependabot alerts and security updates are on.
+
+**The actions are pinned.** Every `uses:` in `.github/workflows` is the full commit SHA of a release, with the version in a comment
+(`uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`), and the repository setting *Require actions to be pinned to a
+full-length commit SHA* makes a workflow fail when one is not. A tag of an action can be moved to other code, a commit cannot, which matters most
+for `publish.yml`: its jobs hold the token that becomes a nuget.org API key. When you add or change a step, look the SHA up with
+`gh api repos/OWNER/REPO/commits/vX.Y.Z --jq .sha` (the tag in the comment has to point at it); Dependabot keeps both the SHA and the comment
+current, so every release of an action, also within a major version, comes as a pull request.
 
 These are pull requests like any other: CI builds and tests them, and the Docs workflow builds the site when DocFX is updated. Read the
 release notes of a major update before you merge it, and be careful with the actions of `publish.yml`: a change to that workflow is only
