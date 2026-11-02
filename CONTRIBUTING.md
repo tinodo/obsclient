@@ -47,7 +47,8 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
   (`https://github.com/tinodo/obsclient/blob/main/CONTRIBUTING.md`) and Markdown only (`**bold**`, not `<b>`), and its images come from a domain
   that nuget.org renders images from (`img.shields.io`, the badge of a GitHub workflow, ...: the list is in the documentation of nuget.org, "Allowed
   domains for images and badges", and the one in `ReadmeTests`; the badge of the Scorecard is drawn by shields.io for that reason, and not by
-  `api.scorecard.dev`). `ReadmeTests` parse it with Markdig as well, so the parser decides what is a link, what is HTML and what is code, and
+  `api.scorecard.dev`). `ReadmeTests` parse it with Markdig as well, in the version that nuget.org runs (see *Dependency updates*), so the parser
+  decides what is a link, what is HTML and what is code, and
   fail on a relative link or image, a link without a target, raw HTML and an image from another domain; `tools/verify-package.py` checks that the
   package has the README. A published version cannot be changed, so a mistake in the README stays on nuget.org until the next version.
 
@@ -299,6 +300,14 @@ The one dependency of the library, `Microsoft.Extensions.Logging.Abstractions`, 
 the oldest version that has what the library uses (8.0.0): a library that asks for a newer one makes every application that uses it
 update too. No version update is proposed for it, whatever the version (a security update still is, see `.github/dependabot.yml`);
 raise it by hand when the library needs something that a newer version has.
+
+**Markdig is held at the version that nuget.org runs.** `ReadmeTests` (in `OBSClient.Tests`) parse the README the way nuget.org does, so the
+Markdig that they use has to be the one of nuget.org, and that is not the newest: `Markdig.Signed` 0.37.0 in the `Directory.Packages.props` of
+[NuGetGallery](https://github.com/NuGet/NuGetGallery), checked on 2026-11-02 (`Markdig` 0.37.0 is built from the same source commit). A newer
+version can read something differently from what nuget.org shows, and a published version cannot be changed. So no version update is proposed
+for it (a security update still is, see `.github/dependabot.yml`), and a test fails when its version is changed. When NuGetGallery raises it
+(`gh api repos/NuGet/NuGetGallery/contents/Directory.Packages.props -H "Accept: application/vnd.github.raw"` shows it), raise the version in
+`OBSClient.Tests/OBSClient.Tests.csproj` and in `ReadmeTests`, and run those tests.
 
 ## OpenSSF Scorecard
 

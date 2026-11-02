@@ -41,6 +41,20 @@ namespace OBSStudioClient.Tests.Unit
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
             TimeSpan.FromSeconds(1));
 
+        // These tests are meant to parse the README the way nuget.org does, so the version of Markdig is the one that nuget.org runs (Markdig.Signed
+        // in the Directory.Packages.props of NuGetGallery: 0.37.0 on 2026-11-02, built from the same source as Markdig 0.37.0), and not the newest:
+        // what a newer version fixed is not what the README will meet. Dependabot leaves it alone. When NuGetGallery raises it, raise it here and in
+        // OBSClient.Tests.csproj together, and run these tests (CONTRIBUTING.md, "Dependency updates").
+        [Fact]
+        public void TheTestsParseWithTheMarkdigThatNugetOrgRuns()
+        {
+            var version = typeof(MarkdownPipelineBuilder).Assembly.GetName().Version;
+
+            Assert.True(
+                version == new Version(0, 37, 0, 0),
+                $"ReadmeTests parse with Markdig {version}, and nuget.org runs 0.37.0: read the comment of this test, and CONTRIBUTING.md, before you change either.");
+        }
+
         [Fact]
         public void TheReadmeOfThePackage_IsShownByNugetOrgAsItIsWritten()
         {
