@@ -58,3 +58,12 @@ updates:
           - version-update:semver-major
           - version-update:semver-minor
           - version-update:semver-patch
+      # The one package of the tests that is not kept current on purpose: ReadmeTests parse the README with Markdig, the way nuget.org does,
+      # so its version is the one that nuget.org runs (0.37.0 on 2026-11-02: Markdig.Signed in the Directory.Packages.props of NuGetGallery),
+      # and not the newest. It is raised by hand when NuGetGallery raises it (CONTRIBUTING.md, "Dependency updates"). The update types are
+      # named, as above, so that a security update is still proposed.
+      - dependency-name: Markdig
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
