@@ -5,6 +5,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [4.0.0-rc.1] - 2026-11-03
+
+The first release candidate of 4.0.0, for trying out. The public API is closed now, so what changes between this version and 4.0.0 is fixes
+for what is found with it. That includes a mistake in the API itself, if somebody finds one: after 4.0.0 it could no longer be corrected
+without a new major version. This version contains everything that is listed under 4.0.0 in the
+[changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md), where what is new since 4.0.0-beta2 is marked *after beta2*. Read the
+*Breaking changes* there to see what you have to change, and report what you find in an
+[issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain `dotnet add package OBSClient`: use
+`dotnet add package OBSClient --version 4.0.0-rc.1` (or `--prerelease` for the newest prerelease). The GitHub release of this version has the
+package, the test app and the attestation of where the files come from as downloads.
+
+What is new since 4.0.0-beta2, in short:
+
+- **The public API is closed**, so that it can grow but never has to shrink. 17 types and two members left it: 13 types are internal now
+  (what the client and OBS Studio exchange to connect, to deliver an event and to answer a batch, the two JSON converters, and what the
+  messages are made of), and four that nothing used are gone (`Crop`, `Coordinates`, `BalanceType` and `IconType`). 130 classes are sealed,
+  `ObsClient` among them. Code that only calls the methods of `ObsClient` and handles its events is not affected, whether it was compiled
+  against 4.0.0-beta2 or not. Code that derives from one of the sealed classes no longer compiles, so hold the object in a class of your own
+  instead, and code that used one of the types that left has to stop using it.
+- **Fixed**: a message from OBS Studio that is not as it should be could end the connection or throw (an `op` that is not a number or is
+  missing, `null` data, a response that names no request, an event type that is not valid text, a list of levels that is `null`); found by new
+  fuzz tests. `CreateScene` threw for a scene that an OBS Studio before 30.1.0 had made (it sends no UUID), and `GetLevelDb` threw for a channel
+  that is not there.
+- **The package**: the license is the SPDX expression `MIT` (the `LICENSE` file is in the package as well), the package says whose copyright
+  it is, and its release notes are the GitHub release of its version. The README has absolute links and no raw HTML: nuget.org drops what it
+  cannot show, and a published version cannot be changed.
+- **Tested more**: against a server that misbehaves, a connection that fails again and again (a soak test against a real OBS Studio, every
+  week), input that nobody wrote an example for (property-based and fuzz tests), and an older OBS Studio (30.0.2) next to the newest one.
+- **Where the files come from**: the package, its symbols, the test app and the libraries in the package have a signed build provenance
+  attestation, which is also a file of the release (`OBSClient.4.0.0-rc.1.intoto.jsonl`); the notes of the release say how to check it.
+- **The project**: a Code of Conduct, a weekly OpenSSF Scorecard, and a review of the dependencies that a pull request changes.
+
 ## [4.0.0-beta2] - 2026-10-29
 
 The second prerelease of 4.0.0, for trying out: it contains everything that is listed under 4.0.0 in the
