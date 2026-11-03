@@ -49,7 +49,7 @@ if (await client.ConnectAsync(password: "secret"))
 <div class="oc-banner">
 <i class="bi bi-info-circle"></i>
 <div>
-<strong>4.0 is in beta.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6.
+<strong>4.0 is a release candidate.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6.
 Using 3.x? <a href="articles/migrating-to-4.md">Moving from 3.x to 4.0</a> lists what changes.
 </div>
 </div>

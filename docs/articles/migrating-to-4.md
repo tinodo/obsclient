@@ -9,9 +9,9 @@ to light when every request and field was checked against the protocol definitio
 compiles. This page lists what does not, what behaves differently, and what is new.
 
 > [!NOTE]
-> 4.0 is in beta. Install it with `dotnet add package OBSClient --prerelease`, and report what you find in an
-> [issue](https://github.com/tinodo/obsclient/issues). The public API can still change before 4.0.0. The
-> [changelog](../changelog.md) has the complete list.
+> 4.0 is a release candidate. Install it with `dotnet add package OBSClient --prerelease`, and report what you find in an
+> [issue](https://github.com/tinodo/obsclient/issues). The public API is closed: what changes before 4.0.0 is fixes for what is
+> found, and a mistake in the API if somebody finds one. The [changelog](../changelog.md) has the complete list.
 
 Code that was compiled against 3.x **has to be recompiled**: a signature changed, even where the call looks the same.
 
