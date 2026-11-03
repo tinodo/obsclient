@@ -365,9 +365,12 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
 ### Each release
 
 1. Bump `<Version>` in `OBSClient/OBSClient.csproj` (and the version in the *Installation* of the README), write the section of that
-   version in `CHANGELOG.md` and give it its date (`## [4.0.0-beta2] - 2026-11-02`), and merge to `main` with a pull request. That
+   version in `CHANGELOG.md` and give it its date (`## [4.0.0-rc.1] - 2026-11-03`), and merge to `main` with a pull request. That
    section is the text of the GitHub release: what is new, what breaks, what is fixed. A version without a section that has a date is
-   refused by the first job of the workflow, before anything is built.
+   refused by the first job of the workflow, before anything is built. Read what the docs say about the version as well:
+   `git grep -n -i -E "\bbeta\b|prerelease|release candidate"` (outside the changelog, the tools, the tests and the workflows) finds
+   the README and the pages of the docs that call the current version a beta, a release candidate or a prerelease, or that tell how to
+   install it. What is history (what happened in an earlier version) stays.
 2. Optional, and worth it after a change of the workflow or of one of its actions: a **dry run**. Actions, *Publish Package*, *Run
    workflow*, pick the branch (or `main`; never a tag, which the workflow refuses), tick *Dry run*. It does everything up to the approval,
    for what is on that branch: it checks the version and the changelog, packs, builds the test app, attests and verifies the files, shows
@@ -385,8 +388,9 @@ A policy for a public repository is active at once. The package ID `OBSClient` i
    nuget.org lists the version** (it validates a package first, which takes a few minutes), **checks that the package that nuget.org
    serves is the one that was packed** (`tools/compare-published.py`: file by file, nuget.org adds only its signature), and then pushes
    the symbols. *Publish to GitHub Packages* follows. When both are done, the *Create the GitHub release* job makes the release: titled
-   with the tag, a prerelease when the version has a suffix, with the notes, two files, `OBSClient.X.Y.Z.nupkg` (the package that was
-   published) and `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the test app), and the SHA-256 of both in its text. Have a look at it.
+   with the tag, a prerelease when the version has a suffix, with the notes, three files, `OBSClient.X.Y.Z.nupkg` (the package that was
+   published), `OBSClient.TestApp-X.Y.Z-win-x64.zip` (the test app) and `OBSClient.X.Y.Z.intoto.jsonl` (the attestation, see *Build
+   provenance*), and the SHA-256 of all three in its text. Have a look at it.
 
 Only one run for a version is active at a time (the workflow has a concurrency group per tag): a second run for the same tag waits for
 the first to end, and then stops at the first job, because nuget.org lists the version by then. A run that waits for your approval holds
