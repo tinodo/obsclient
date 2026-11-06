@@ -25,5 +25,11 @@
         /// </summary>
         [JsonPropertyName("results")]
         public RequestResponseMessage[] Results { get; } = results ?? [];
+
+        /// <summary>
+        /// Gets the number of this message in the order in which the client read the messages of OBS Studio (see ObsClient_Ingress.cs), or 0 when it is not known.
+        /// </summary>
+        [JsonIgnore]
+        public long IngressSequence { get; set; }
     }
 }
