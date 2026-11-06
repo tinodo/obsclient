@@ -84,6 +84,31 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Contains(SimReplay.Compare(initial, events, h.Sim.Snapshot()), problem => problem.StartsWith("The scenes that the events leave", StringComparison.Ordinal));
         }
 
+        [Fact]
+        public void TheStateOfARemovedInputThatObsStudioKeepsAlive_IsFollowedToo()
+        {
+            var h = new SimHarness(SimQuirks.Ideal);
+            var scene = h.Sim.External.CreateScene("A");
+            var (mic, _) = h.Sim.External.CreateInput(scene, "Mic", "wasapi_input_capture");
+            h.Settle();
+            var initial = h.Sim.Snapshot();
+            h.ClearLog();
+
+            // The scene item keeps the input alive, and OBS Studio goes on announcing what happens to it.
+            h.Sim.External.RemoveInput(mic);
+            h.Sim.External.SetMute(mic, true);
+            h.Sim.External.SetVolumeDb(mic, -12);
+            h.Settle();
+            var final = h.Sim.Snapshot();
+            var all = h.Log.Select(entry => entry.Message).ToArray();
+
+            Assert.True(final.Inputs.Single(input => input.Uuid == mic).Removed, "The input has to be alive and removed for this test to mean anything.");
+            Assert.Empty(SimReplay.Compare(initial, all, final));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "InputVolumeChanged"), final), problem => problem.StartsWith("The removed inputs that OBS Studio still holds", StringComparison.Ordinal));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "InputMuteStateChanged"), final), problem => problem.StartsWith("The removed inputs that OBS Studio still holds", StringComparison.Ordinal));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "InputRemoved"), final), problem => problem.Contains("input", StringComparison.Ordinal));
+        }
+
         private static SimMessage[] Without(SimMessage[] messages, string eventType)
         {
             return messages.Where(message => !message.Json.Contains($"\"{eventType}\"", StringComparison.Ordinal)).ToArray();

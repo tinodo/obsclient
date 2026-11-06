@@ -252,6 +252,17 @@ namespace OBSStudioClient.Tests.Simulation
                 "inputs",
                 inputs.Values.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.Mul)}"),
                 final.Inputs.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.VolumeMul)}"));
+
+            // OBS goes on announcing the mute state and the volume of a removed input that it keeps alive, and what the events say of it has to be right too.
+            // No event tells that OBS destroyed a removed input, so which ones are compared is what the final state still holds.
+            var retained = final.Inputs.Where(input => input.Removed).OrderBy(input => input.Uuid).ToArray();
+            Same(
+                problems,
+                "removed inputs that OBS Studio still holds",
+                retained.Select(input => inputs.TryGetValue(input.Uuid, out var replayedInput) && replayedInput.Removed
+                    ? $"{replayedInput.Uuid:D} \"{replayedInput.Name}\" {replayedInput.Kind}{Audio(replayedInput.Kind, replayedInput.Muted, replayedInput.Mul)}"
+                    : $"{input.Uuid:D} (not announced as removed)"),
+                retained.Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.VolumeMul)}"));
             return problems;
         }
 
