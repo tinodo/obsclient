@@ -97,6 +97,12 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     known.Provisional = false;
                     known.State = SourceState.Live;
+
+                    // What inferred it was a read of scene items: it says that the scene exists, not that the list of scenes has it, and the list
+                    // lags behind creations. Now that an event announced it, it gets the grace that an announced scene gets.
+                    known.Confirmed = false;
+                    known.CreatedSeq = this._seq;
+                    known.CreatedAt = this._now;
                     this._scenesScope.MarkDirty();
                 }
 

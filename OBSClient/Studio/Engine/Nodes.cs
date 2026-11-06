@@ -85,11 +85,11 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets or sets the state of the source.</summary>
         public SourceState State { get; set; } = SourceState.Live;
 
-        /// <summary>Gets the number of the message that made the model know the source.</summary>
-        public long CreatedSeq { get; }
+        /// <summary>Gets or sets the number of the message that made the model know the source.</summary>
+        public long CreatedSeq { get; set; }
 
-        /// <summary>Gets the time at which the model got to know the source.</summary>
-        public TimeSpan CreatedAt { get; }
+        /// <summary>Gets or sets the time at which the model got to know the source.</summary>
+        public TimeSpan CreatedAt { get; set; }
 
         /// <summary>Gets or sets whether a read that was sent after the model got to know the source lists it.</summary>
         public bool Confirmed { get; set; }

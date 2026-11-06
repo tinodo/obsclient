@@ -210,9 +210,29 @@ namespace OBSStudioClient.Studio.Engine
             this._gone.Clear();
             this._goneItems.Clear();
             this._removedUnknown.Clear();
+            // What the model believes about the lifecycle of a source comes from the events that this connection saw, and the reads that follow: on
+            // a new connection it starts as it does on a first one. A scene or an input that was Detached can be live now (OBS was started again
+            // from a collection that has it): a scene that the list has is live, and an input that is in the list is, until an event removes it.
+            this._unresolved.Clear();
             foreach (var scene in this._scenes.Values)
             {
                 scene.ItemsKnown = false;
+                scene.RemovedAnnounced = false;
+                scene.RemovalUnresolved = false;
+                if (scene.State == SourceState.Detached && !scene.Provisional)
+                {
+                    scene.State = SourceState.Live;
+                }
+            }
+
+            foreach (var input in this._inputs.Values)
+            {
+                input.RemovedAnnounced = false;
+                input.RemovalUnresolved = false;
+                if (input.State == SourceState.Detached)
+                {
+                    input.State = SourceState.Live;
+                }
             }
 
             foreach (var scope in this.AllScopes())

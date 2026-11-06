@@ -159,12 +159,20 @@ namespace OBSStudioClient.Studio.Engine
         // What happened to a source that OBS removed: it was destroyed, it is kept alive, or the model cannot tell yet.
         private RemovalOutcome OutcomeOfRemoval(Guid uuid, bool authoritative)
         {
-            if (this.RefCount(uuid) > 0)
+            var users = this.RefCount(uuid);
+            if (authoritative)
             {
-                return RemovalOutcome.KeptAlive;
+                return users > 0 ? RemovalOutcome.KeptAlive : RemovalOutcome.Destroyed;
             }
 
-            return authoritative || this.ReferencesComplete() ? RemovalOutcome.Destroyed : RemovalOutcome.Unknown;
+            // Until every scene item is known a count is what is known so far: a scene item that is not read yet can use the source, and the one
+            // that is known can go and leave it with none that the model knows of.
+            if (!this.ReferencesComplete())
+            {
+                return RemovalOutcome.Unknown;
+            }
+
+            return users > 0 ? RemovalOutcome.KeptAlive : RemovalOutcome.Destroyed;
         }
 
         private enum RemovalOutcome

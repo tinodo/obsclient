@@ -482,5 +482,209 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(new[] { "A", "B", "Scene" }, scenes.Select(scene => scene.Name).ToArray());
             Assert.Equal(new[] { 0, 1, 2 }, scenes.Select(scene => scene.Index).ToArray());
         }
+
+        [Fact]
+        public void ASceneThatAnItemReadInferred_AndAnEventAnnouncesLater_GetsTheGraceOfAnAnnouncedScene()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var parent = h.World.AddScene("Parent");
+            var child = Guid.NewGuid();
+            h.World.Items[child] = [];
+            h.World.AddItem(parent, child, "Child", isScene: true);
+            var t0 = TimeSpan.Zero;
+            var listed = false;
+
+            (int, object?) Lagging(ReadRequest request)
+            {
+                // The list of scenes gets the scene one and a half seconds after its event.
+                if (request.Kind == ReadKind.Scenes && !listed && h.Now - t0 >= TimeSpan.FromSeconds(1.5))
+                {
+                    h.World.Scenes.Insert(0, (child, "Child"));
+                    listed = true;
+                }
+
+                return h.World.Answer(request);
+            }
+
+            // A read of the scene items found the scene before anything else told that it exists.
+            h.Start();
+            h.SettleWithTime(Lagging);
+            Assert.Single(h.Engine.Snapshot().DetachedScenes);
+            h.Engine.TakeChanges();
+
+            t0 = h.Now;
+            EngineEvents.SceneCreated(h, child, "Child");
+            h.SettleWithTime(Lagging);
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Contains(snapshot.Scenes, scene => scene.Name == "Child");
+            Assert.Empty(snapshot.DetachedScenes);
+            Assert.DoesNotContain(h.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.Repaired);
+        }
+
+        [Fact]
+        public void ASourceThatTwoScenesUse_IsNotDestroyed_WhenItsOnlyKnownSceneItemGoesBeforeTheOtherSceneIsRead()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var b = h.World.AddScene("B");
+            var a = h.World.AddScene("A");
+            var x = h.World.AddInput("X");
+            var itemA = h.World.AddItem(a, x, "X");
+            h.World.AddItem(b, x, "X");
+            var failB = 1;
+
+            (int, object?) Answer(ReadRequest request)
+            {
+                return request.Kind == ReadKind.Items && request.Target == b && failB-- > 0 ? (500, null) : h.World.Answer(request);
+            }
+
+            h.Start();
+            h.Complete(h.Take()!, Answer);
+            h.Complete(h.Take()!, Answer);
+
+            // The scene items of A are known, those of B are not (that read failed): the model knows one scene item that uses X.
+            EngineEvents.InputRemoved(h, x, "X");
+            h.World.Items[a].Clear();
+            EngineEvents.ItemRemoved(h, a, "A", itemA, x, "X");
+            h.SettleWithTime(Answer);
+
+            var snapshot = h.Engine.Snapshot();
+            var input = Assert.Single(snapshot.Inputs);
+            Assert.Equal(SourceState.Detached, input.State);
+            Assert.Single(snapshot.Scenes.Single(scene => scene.Name == "B").Items);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ASceneThatOBSAnswers600For_WhileTheListStillHasIt_IsReadAgainAfterAWait_UntilTheListLetsItGo()
+        {
+            Guid gaming = Guid.Empty;
+            var h = Started(world => gaming = world.AddScene("Gaming"));
+
+            // OBS is removing the scene: the list still has it, and its scene items cannot be read any more.
+            (int, object?) Answer(ReadRequest request)
+            {
+                return request.Kind == ReadKind.Items && request.Target == gaming ? (600, null) : h.World.Answer(request);
+            }
+
+            EngineEvents.ItemCreated(h, gaming, "Gaming", 9, 0, Guid.NewGuid(), "X");
+            h.Settle(Answer);
+
+            Assert.NotNull(h.Engine.NextWake);
+
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == gaming);
+            h.World.Items.Remove(gaming);
+            h.SettleWithTime(Answer);
+
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Name == "Gaming");
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void AnInputThatOBSAnswers600ForTheAudioOf_WhileTheListStillHasIt_IsReadAgainAfterAWait()
+        {
+            var h = Started(world => world.AddInput("Mic", "wasapi_input_capture", 2));
+            h.End();
+            h.Start();
+            var failing = true;
+
+            (int, object?) Answer(ReadRequest request)
+            {
+                return request.Kind == ReadKind.AudioMute && failing ? (600, null) : h.World.Answer(request);
+            }
+
+            h.Settle(Answer);
+            Assert.NotNull(h.Engine.NextWake);
+
+            failing = false;
+            h.SettleWithTime(Answer);
+
+            Assert.True(h.Engine.IsSettled);
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void ASceneThatAnItemReadFindsAndThatWasRemovedBeforeTheModelKnewIt_StaysRemoved_WhenAListThatLagsHasIt()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var parent = h.World.AddScene("Parent");
+            var child = Guid.NewGuid();
+            h.World.Items[child] = [];
+            h.World.AddItem(parent, child, "Child", isScene: true);
+            var listReads = 0;
+
+            (int, object?) Answer(ReadRequest request)
+            {
+                // The list does not have the scene at first (OBS keeps it alive and does not list it), and then it does (it lags behind removals).
+                if (request.Kind == ReadKind.Scenes && listReads++ == 1)
+                {
+                    h.World.Scenes.Insert(0, (child, "Child"));
+                }
+
+                return h.World.Answer(request);
+            }
+
+            h.Start();
+            EngineEvents.SceneRemoved(h, child, "Child");
+            h.SettleWithTime(Answer);
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.DoesNotContain(snapshot.Scenes, scene => scene.Name == "Child");
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == child);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ASceneThatWasKeptAliveOnOneConnection_IsLiveOnTheNext_WhenTheListHasIt()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var parent = h.World.AddScene("Parent");
+            var child = h.World.AddScene("Child");
+            h.World.AddItem(parent, child, "Child", isScene: true);
+            h.Start();
+            h.SettleWithTime();
+            EngineEvents.SceneRemoved(h, child, "Child");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == child);
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == child);
+
+            // OBS is started again from a collection that has the scene as a scene of its own.
+            h.End();
+            h.World.Scenes.Insert(0, (child, "Child"));
+            h.Start();
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Contains(snapshot.Scenes, scene => scene.Name == "Child");
+            Assert.Empty(snapshot.DetachedScenes);
+        }
+
+        [Fact]
+        public void AnInputThatWasKeptAliveOnOneConnection_IsLiveOnTheNext_WhenNothingUsesItAnyMore()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var gaming = h.World.AddScene("Gaming");
+            var mic = h.World.AddInput("Mic");
+            h.World.AddItem(gaming, mic, "Mic");
+            h.Start();
+            h.SettleWithTime();
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+
+            // OBS is started again from a collection where the input is on its own.
+            h.End();
+            h.World.Items[gaming].Clear();
+            h.Start();
+            h.SettleWithTime();
+
+            Assert.Equal(SourceState.Live, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }

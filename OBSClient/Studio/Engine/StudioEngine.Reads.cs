@@ -200,8 +200,10 @@ namespace OBSStudioClient.Studio.Engine
                 }
                 else
                 {
-                    // OBS does not have the scene any more (its removal may not have arrived yet): the list of scenes decides.
+                    // OBS does not have the scene any more (its removal may not have arrived yet): the list of scenes decides, and the scene
+                    // items are read again after a wait for as long as the scene is there, so that nothing is left unread without a wake-up.
                     this._scenesScope.MarkDirty();
+                    this.Retry(scene.ItemsScope);
                 }
             }
             else
@@ -247,8 +249,10 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (notFound)
             {
-                // The input is gone (its removal may not have arrived yet): the list of inputs decides.
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the audio state is read again
+                // after a wait for as long as the input is there (the list can still have it for a while).
                 this._inputsScope.MarkDirty();
+                this.Retry(input.AudioScope);
             }
             else if (muteResponse is { RequestStatus.Result: false } && muteResponse.RequestStatus.Code == RequestStatusCode.InvalidResourceState)
             {
@@ -533,16 +537,26 @@ namespace OBSStudioClient.Studio.Engine
             if (entry.SourceType == SourceType.OBS_SOURCE_TYPE_SCENE || entry.IsGroup == true)
             {
                 var group = entry.IsGroup == true;
+
+                // An event told that OBS removed it before the model knew it: that stays true. Whether OBS keeps it alive is decided by the scene items.
+                var removed = this._removedUnknown.Contains(sourceUuid);
                 var scene = new SceneNode(sourceUuid, entry.SourceName, -1, this._seq, this._now, confirmed: true)
                 {
                     IsGroup = group,
-                    Provisional = !group,
-                    State = group ? SourceState.Live : SourceState.Detached,
-                    Announced = true,
+                    Provisional = !group && !removed,
+                    State = group && !removed ? SourceState.Live : SourceState.Detached,
+                    Announced = !removed,
+                    RemovedAnnounced = removed,
+                    RemovalUnresolved = removed,
                 };
                 this._scenes[sourceUuid] = scene;
+                if (removed)
+                {
+                    this._unresolved.Add(sourceUuid);
+                }
+
                 scene.ItemsScope.MarkDirty();
-                if (!group)
+                if (!group && !removed)
                 {
                     // The list of scenes may only lag: it is read again, and a scene that it has is live.
                     this._scenesScope.MarkDirty();
