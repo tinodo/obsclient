@@ -14,28 +14,34 @@ namespace OBSStudioClient.Tests.Studio
         private const int Steps = 200;
         private const int DefaultSeeds = 25;
 
+        // A retention of this many seconds (of virtual time) is more than twice what a read may take (10 seconds), and far less than the default (5 minutes).
+        private const int ShortRetention = 25;
+
         private static int Seeds => ReadNumber("OBSCLIENT_SIM_SEEDS", DefaultSeeds);
 
         private static int FirstSeed => ReadNumber("OBSCLIENT_SIM_FIRST", 1);
 
         [Theory]
-        [InlineData("Ideal", 50, false)]
-        [InlineData("Ideal", 50, true)]
-        [InlineData("Real", 50, false)]
-        [InlineData("Real", 50, true)]
-        [InlineData("Real", 4, false)]
-        [InlineData("Real", 4, true)]
-        [InlineData("Hostile", 50, false)]
-        [InlineData("Hostile", 50, true)]
-        [InlineData("Hostile", 4, true)]
-        public void After_a_random_walk_the_model_holds_what_OBS_Studio_holds(string quirks, int maxBatch, bool reconnects)
+        [InlineData("Ideal", 50, false, 0)]
+        [InlineData("Ideal", 50, true, 0)]
+        [InlineData("Real", 50, false, 0)]
+        [InlineData("Real", 50, true, 0)]
+        [InlineData("Real", 4, false, 0)]
+        [InlineData("Real", 4, true, 0)]
+        [InlineData("Hostile", 50, false, 0)]
+        [InlineData("Hostile", 50, true, 0)]
+        [InlineData("Hostile", 4, true, 0)]
+        [InlineData("Real", 50, true, ShortRetention)]
+        [InlineData("Hostile", 50, false, ShortRetention)]
+        [InlineData("Hostile", 4, true, ShortRetention)]
+        public void After_a_random_walk_the_model_holds_what_OBS_Studio_holds(string quirks, int maxBatch, bool reconnects, int retentionSeconds)
         {
             var failures = new List<string>();
             var walks = 0;
             foreach (var seed in SeedRange(FirstSeed, Seeds))
             {
                 walks++;
-                var result = Run(seed, quirks, maxBatch, reconnects);
+                var result = Run(seed, quirks, maxBatch, reconnects, retentionSeconds);
                 if (result.Problem is not null)
                 {
                     failures.Add(result.Problem);
@@ -75,6 +81,21 @@ namespace OBSStudioClient.Tests.Studio
         {
             Assert.Equal(new[] { int.MaxValue - 1, int.MaxValue }, SeedRange(int.MaxValue - 1, 10));
             Assert.Equal(new[] { int.MaxValue }, SeedRange(int.MaxValue, 5));
+        }
+
+        [Fact]
+        public void The_walks_with_a_short_retention_let_go_of_what_they_remember()
+        {
+            var letGo = 0L;
+            for (var seed = 1; seed <= 20; seed++)
+            {
+                var result = Run(seed, "Hostile", 4, reconnects: true, ShortRetention);
+                Assert.Null(result.Problem);
+                letGo += result.LetGo;
+            }
+
+            // If nothing was let go of, the walks that use a short retention would prove nothing about it.
+            Assert.True(letGo > 200, $"Only {letGo} things were let go of.");
         }
 
         [Fact]
@@ -174,7 +195,7 @@ namespace OBSStudioClient.Tests.Studio
             return db <= -100 ? 0 : Math.Pow(10, db / 20);
         }
 
-        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects)
+        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0)
         {
             var presets = quirks switch
             {
@@ -183,7 +204,16 @@ namespace OBSStudioClient.Tests.Studio
                 "Hostile" => SimQuirks.Hostile,
                 _ => throw new ArgumentOutOfRangeException(nameof(quirks), quirks, null),
             };
-            return EngineSimRun.Execute(seed, presets, quirks, Steps, reconnects, new StudioEngineOptions { MaxBatch = maxBatch });
+            var options = new StudioEngineOptions { MaxBatch = maxBatch };
+            if (retentionSeconds > 0)
+            {
+                // Much shorter than the default, so that the walks (a minute or two of virtual time) let go of what they remember, and show that nothing needs more
+                // than what the messages that it guards against take: a read that is given up after 10 seconds, and the lag of OBS Studio.
+                options.TombstoneRetention = TimeSpan.FromSeconds(retentionSeconds);
+                options.TombstoneCleanupInterval = TimeSpan.FromSeconds(1);
+            }
+
+            return EngineSimRun.Execute(seed, presets, quirks, Steps, reconnects, options);
         }
 
         private static int ReadNumber(string name, int fallback)

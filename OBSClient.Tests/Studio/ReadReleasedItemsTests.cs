@@ -7,14 +7,16 @@ namespace OBSStudioClient.Tests.Studio
     /// </summary>
     public class ReadReleasedItemsTests
     {
+        private static readonly TimeSpan Zero = TimeSpan.Zero;
+
         [Fact]
         public void ASourceIsHeld_WhileASceneItemThatUsedItIs()
         {
             var held = new ReadReleasedItems();
             var scene = Guid.NewGuid();
             var source = Guid.NewGuid();
-            held.Add(new ItemKey(scene, 1), source);
-            held.Add(new ItemKey(scene, 2), source);
+            held.Add(new ItemKey(scene, 1), source, Zero);
+            held.Add(new ItemKey(scene, 2), source, Zero);
 
             Assert.True(held.Holds(source));
             Assert.True(held.Remove(new ItemKey(scene, 1)));
@@ -41,8 +43,8 @@ namespace OBSStudioClient.Tests.Studio
             var first = Guid.NewGuid();
             var second = Guid.NewGuid();
 
-            held.Add(key, first);
-            held.Add(key, second);
+            held.Add(key, first, Zero);
+            held.Add(key, second, Zero);
 
             Assert.Equal(1, held.Count);
             Assert.False(held.Holds(first));
@@ -56,9 +58,9 @@ namespace OBSStudioClient.Tests.Studio
             var scene = Guid.NewGuid();
             var other = Guid.NewGuid();
             var source = Guid.NewGuid();
-            held.Add(new ItemKey(scene, 1), source);
-            held.Add(new ItemKey(scene, 2), source);
-            held.Add(new ItemKey(other, 1), source);
+            held.Add(new ItemKey(scene, 1), source, Zero);
+            held.Add(new ItemKey(scene, 2), source, Zero);
+            held.Add(new ItemKey(other, 1), source, Zero);
 
             held.RemoveScene(scene);
 
@@ -75,9 +77,9 @@ namespace OBSStudioClient.Tests.Studio
             var scene = Guid.NewGuid();
             var source = Guid.NewGuid();
             var other = Guid.NewGuid();
-            held.Add(new ItemKey(scene, 1), source);
-            held.Add(new ItemKey(scene, 2), other);
-            held.Add(new ItemKey(Guid.NewGuid(), 1), source);
+            held.Add(new ItemKey(scene, 1), source, Zero);
+            held.Add(new ItemKey(scene, 2), other, Zero);
+            held.Add(new ItemKey(Guid.NewGuid(), 1), source, Zero);
 
             held.RemoveSource(source);
 
@@ -93,12 +95,36 @@ namespace OBSStudioClient.Tests.Studio
         {
             var held = new ReadReleasedItems();
             var source = Guid.NewGuid();
-            held.Add(new ItemKey(Guid.NewGuid(), 1), source);
+            held.Add(new ItemKey(Guid.NewGuid(), 1), source, Zero);
 
             held.Clear();
 
             Assert.Equal(0, held.Count);
             Assert.False(held.Holds(source));
+        }
+
+        [Fact]
+        public void Prune_LetsGoOfTheSceneItemsThatWereHeldBeforeATime_AndOfTheirSources()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var oldSource = Guid.NewGuid();
+            var newSource = Guid.NewGuid();
+            var sharedSource = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), oldSource, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(scene, 2), sharedSource, TimeSpan.FromSeconds(2));
+            held.Add(new ItemKey(scene, 3), sharedSource, TimeSpan.FromSeconds(10));
+            held.Add(new ItemKey(scene, 4), newSource, TimeSpan.FromSeconds(10));
+
+            // What was held at the time itself stays.
+            var pruned = held.Prune(TimeSpan.FromSeconds(10));
+
+            Assert.Equal(2, pruned);
+            Assert.Equal(2, held.Count);
+            Assert.False(held.Holds(oldSource));
+            Assert.True(held.Holds(sharedSource));
+            Assert.True(held.Holds(newSource));
+            Assert.Equal(0, held.Prune(TimeSpan.FromSeconds(10)));
         }
     }
 }

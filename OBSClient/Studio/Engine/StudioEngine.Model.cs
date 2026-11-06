@@ -34,10 +34,10 @@ namespace OBSStudioClient.Studio.Engine
         private void ReleaseItem(ItemNode item, bool fromRead = false, bool doubtful = false)
         {
             item.Scene.Items.Remove(item.Id);
-            this._goneItems.Add(item.Key);
+            this._goneItems.Add(item.Key, this._now);
             if (fromRead || doubtful)
             {
-                this._readReleased.Add(item.Key, item.SourceUuid);
+                this._readReleased.Add(item.Key, item.SourceUuid, this._now);
             }
 
             if (this._refs.TryGetValue(item.SourceUuid, out var set))
@@ -278,7 +278,7 @@ namespace OBSStudioClient.Studio.Engine
             this._unresolved.Remove(input.Uuid);
             this._removedUnknown.Remove(input.Uuid);
             this._inputs.Remove(input.Uuid);
-            this._gone.Add(input.Uuid);
+            this._gone.Add(input.Uuid, SourceKind.Input, this._seq, this._now);
             this._readReleased.RemoveSource(input.Uuid);
             if (input.Announced)
             {
@@ -302,7 +302,7 @@ namespace OBSStudioClient.Studio.Engine
             this._unresolved.Remove(scene.Uuid);
             this._removedUnknown.Remove(scene.Uuid);
             this._scenes.Remove(scene.Uuid);
-            this._gone.Add(scene.Uuid);
+            this._gone.Add(scene.Uuid, SourceKind.Scene, this._seq, this._now);
             this._readReleased.RemoveSource(scene.Uuid);
             if (wasLive && !scene.IsGroup)
             {

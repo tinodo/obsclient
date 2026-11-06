@@ -80,6 +80,7 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             this.UpdateState();
+            this.CleanUp();
         }
 
         private void OnSceneCreated(SceneModifiedEventArgs e)
@@ -140,7 +141,7 @@ namespace OBSStudioClient.Studio.Engine
             {
                 // Not known (yet): a copy of its creation that arrives later must not bring it back. A list that has it still decides whether
                 // OBS keeps it alive for a scene item.
-                this._removedUnknown.Add(e.SceneUuid);
+                this._removedUnknown.Add(e.SceneUuid, SourceKind.Scene, this._seq, this._now);
                 return;
             }
 
@@ -232,7 +233,7 @@ namespace OBSStudioClient.Studio.Engine
             if (!this._inputs.TryGetValue(e.InputUuid, out var input))
             {
                 // Not known (yet): see OnSceneRemoved.
-                this._removedUnknown.Add(e.InputUuid);
+                this._removedUnknown.Add(e.InputUuid, SourceKind.Input, this._seq, this._now);
                 return;
             }
 
@@ -346,7 +347,7 @@ namespace OBSStudioClient.Studio.Engine
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene) || !scene.Items.TryGetValue(e.SceneItemId, out var item))
             {
                 // Not known (yet): a read that was sent before the removal must not bring the item back.
-                this._goneItems.Add(key);
+                this._goneItems.Add(key, this._now);
                 return;
             }
 
