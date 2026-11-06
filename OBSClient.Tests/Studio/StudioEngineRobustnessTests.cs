@@ -915,10 +915,13 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
-        // A read of the scene items of a scene that the model doubted, taken before OBS removed the scene, says that OBS had it then: it says nothing of what
-        // OBS did with it when it removed it. The answer arrives after the event of the removal, and must not be taken for a word about that.
-        [Fact]
-        public void ASceneThatAnItemReadInferred_AndThatOBSRemovesWhileACheckOfItIsUnderWay_IsNotKeptByTheLateAnswerOfThatCheck()
+        // A read of the scene items of a scene that the model doubted, taken before OBS removed the scene, says that OBS had the scene then: it says nothing of
+        // what OBS did with it when it removed it. The answer arrives after the event of the removal, and must not be taken for a word about that. The creation
+        // event of the scene can come in between (OBS sends it late, and the model had only inferred the scene), which makes the scene Live.
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ASceneThatAnItemReadInferred_AndThatOBSRemovesWhileACheckOfItIsUnderWay_IsNotKeptByTheLateAnswerOfThatCheck(bool itsCreationEventComesFirst)
         {
             var h = new EngineHarness();
             h.World.AddScene("Scene");
@@ -944,6 +947,11 @@ namespace OBSStudioClient.Tests.Studio
 
             // OBS removes the child, which nothing shows, and destroys it; the event comes, and then the answer of the read that was taken before.
             h.World.Items.Remove(child);
+            if (itsCreationEventComesFirst)
+            {
+                EngineEvents.SceneCreated(h, child, "Child");
+            }
+
             EngineEvents.SceneRemoved(h, child, "Child");
             h.Complete(check, request => answers[request]);
             h.SettleWithTime();
