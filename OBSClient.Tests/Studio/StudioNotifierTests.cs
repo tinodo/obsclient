@@ -190,6 +190,55 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AContextThatCannotBePostedTo_DoesNotStopTheDeliveryForGood()
+        {
+            var context = new HeldContext { Failing = true };
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(context, NullLogger.Instance, 100, recorder.Recovered);
+
+            // The context refuses what is posted to it (it was closed, or is closing): the notifications are dropped, and do not count as waiting.
+            notifier.Enqueue(recorder.Note("lost"));
+            notifier.Enqueue(recorder.Note("lost too"));
+            await StudioRig.EventuallyAsync(() => notifier.WaitingCount == 0, "the notifications that the context refused to be let go of");
+
+            // When it takes them again, the delivery goes on: it was not left stuck by what went wrong.
+            context.Failing = false;
+            notifier.Enqueue(recorder.Note("later"));
+            await StudioRig.EventuallyAsync(() => context.Count == 1, "a notification to be posted after the failure");
+            context.RunAll();
+
+            Assert.Equal(new[] { "later" }, recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+        }
+
+        [Fact]
+        public async Task WhenTheContextRefusesTheRecovery_NotificationsAreAcceptedAgain()
+        {
+            var context = new HeldContext();
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(context, NullLogger.Instance, 2, recorder.Recovered);
+            notifier.Enqueue(recorder.Note("n1"));
+            notifier.Enqueue(recorder.Note("n2"));
+            await StudioRig.EventuallyAsync(() => context.Count == 2, "the notifications to be posted");
+
+            // The third is one too many: the recovery takes its place, and the context refuses it. Nothing would run the recovery, which is what makes the
+            // notifier accept notifications again, so the refusal has to do it.
+            context.Failing = true;
+            notifier.Enqueue(recorder.Note("n3"));
+            await StudioRig.EventuallyAsync(() => notifier.WaitingCount == 2, "the recovery to be refused by the context");
+            context.Failing = false;
+
+            // The two that are posted still count, so the next one is one too many again: that it is not simply dropped shows that notifications are accepted,
+            // and the recovery that takes its place is posted.
+            notifier.Enqueue(recorder.Note("n4"));
+            await StudioRig.EventuallyAsync(() => context.Count == 3, "a recovery to be posted after the refusal");
+            context.RunAll();
+
+            Assert.Equal(new[] { "n1", "n2", "recovered" }, recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+        }
+
+        [Fact]
         public void TheCapacity_MustBeAtLeastOne()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new StudioNotifier(null, NullLogger.Instance, 0, () => { }));

@@ -48,6 +48,9 @@ namespace OBSStudioClient.Studio
     {
         private static readonly TimeSpan ClosingTimeout = TimeSpan.FromSeconds(5);
 
+        // The longest wait that the model asks a timer or a request for: they take whole milliseconds as an int.
+        private static readonly TimeSpan LongestTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
         private readonly ObsClient _client;
         private readonly bool _ownsClient;
         private readonly ObsStudioOptions _options;
@@ -63,8 +66,9 @@ namespace OBSStudioClient.Studio
         // The number of the call of ConnectAsync that has the connection: only that call may end it (see AbandonConnect). Under _stateLock.
         private int _connectTicket;
 
-        // What ends the call of ConnectAsync that is under way, or null: DisconnectAsync and Dispose cancel it. Under _stateLock.
-        private CancellationTokenSource? _connecting;
+        // The call of ConnectAsync that is under way, or null: what ends it (DisconnectAsync and Dispose cancel it), and what says that it has ended. A call is
+        // under way from the moment that it enters Connecting until it has unwound: it owns the state until then, and no other call can start. Under _stateLock.
+        private ConnectCall? _call;
 
         /// <summary>
         /// Creates an <see cref="ObsStudio"/> with a new <see cref="ObsClient"/>, which it disposes of when it is disposed.
@@ -236,9 +240,19 @@ namespace OBSStudioClient.Studio
 
         private static void Validate(ObsStudioOptions options)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.ReadTimeout, TimeSpan.Zero, nameof(options.ReadTimeout));
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.SynchronizationTimeout, TimeSpan.Zero, nameof(options.SynchronizationTimeout));
+            ValidateTimeout(options.ReadTimeout, nameof(options.ReadTimeout));
+            ValidateTimeout(options.SynchronizationTimeout, nameof(options.SynchronizationTimeout));
             ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxPendingNotifications, 1, nameof(options.MaxPendingNotifications));
+        }
+
+        // A timeout is waited for in whole milliseconds, by a wait that cannot be longer than int.MaxValue of them (about 24.8 days): a time that is not in that range
+        // would fail later (after the connection was made), or be taken for no time at all.
+        private static void ValidateTimeout(TimeSpan timeout, string name)
+        {
+            if (timeout < TimeSpan.FromMilliseconds(1) || timeout > LongestTimeout)
+            {
+                throw new ArgumentOutOfRangeException(name, timeout, "A timeout must be between 1 millisecond and 24 days.");
+            }
         }
 
         /// <summary>
@@ -265,7 +279,7 @@ namespace OBSStudioClient.Studio
 
             // What ends the call from outside: the token of the caller, and DisconnectAsync and Dispose, which cancel it while the call is under way.
             using var connecting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            if (!this.TryEnterConnecting(connecting, out var ticket))
+            if (!this.TryEnterConnecting(connecting, out var ticket, out var call))
             {
                 throw new InvalidOperationException($"The studio is {this._state}: connect when it is Disconnected.");
             }
@@ -322,12 +336,12 @@ namespace OBSStudioClient.Studio
                 }
                 catch (TimeoutException)
                 {
-                    this.AbandonConnect(ticket);
+                    this.AbandonConnect(ticket, call);
                     throw new TimeoutException($"OBS Studio did not deliver its scenes and inputs within {this._options.SynchronizationTimeout}. The connection was closed.");
                 }
                 catch
                 {
-                    this.AbandonConnect(ticket);
+                    this.AbandonConnect(ticket, call);
                     throw;
                 }
                 finally
@@ -337,7 +351,7 @@ namespace OBSStudioClient.Studio
             }
             finally
             {
-                this.ForgetConnecting(connecting);
+                this.ForgetConnecting(call);
             }
         }
 
@@ -345,17 +359,30 @@ namespace OBSStudioClient.Studio
         /// Closes the connection to OBS Studio. The model keeps the last values that it knew (<see cref="IsStale"/>). The task completes when the connection is closed.
         /// </summary>
         /// <exception cref="ObjectDisposedException">The <see cref="ObsStudio"/> is disposed.</exception>
-        /// <exception cref="TimeoutException">The connection was not closed within ten seconds.</exception>
+        /// <exception cref="TimeoutException">The connection was not closed within ten seconds, or the call of <see cref="ConnectAsync"/> that this ended did not end within that time.</exception>
         /// <remarks>
-        /// A call of <see cref="ConnectAsync"/> that is under way is ended: it throws an <see cref="OperationCanceledException"/>.
+        /// A call of <see cref="ConnectAsync"/> that is under way is ended: it throws an <see cref="OperationCanceledException"/>. This returns when that call has ended, so
+        /// that <see cref="ConnectAsync"/> can be called again as soon as it has returned.
         /// </remarks>
         public async Task DisconnectAsync()
         {
             ObjectDisposedException.ThrowIf(this._disposed, this);
-            this.CancelConnecting();
+            var callEnded = this.CancelConnecting();
             this._client.Disconnect();
             await this._host.WaitUntilDisconnectedAsync(this.DisconnectTimeout).ConfigureAwait(false);
             await this.WaitForClientDisconnectedAsync(this.DisconnectTimeout).ConfigureAwait(false);
+            if (callEnded is not null)
+            {
+                try
+                {
+                    await callEnded.WaitAsync(this.DisconnectTimeout).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    throw new TimeoutException($"The call of ConnectAsync that was under way did not end within {this.DisconnectTimeout}.");
+                }
+            }
+
             if (this._client.ConnectionState != ConnectionState.Disconnected)
             {
                 throw new TimeoutException($"The connection to OBS Studio was not closed within {this.DisconnectTimeout}.");
@@ -365,8 +392,9 @@ namespace OBSStudioClient.Studio
         /// <summary>
         /// Waits until the model has applied everything that has arrived and has nothing left to read.
         /// </summary>
-        /// <param name="timeout">How long to wait, or null to wait for as long as it takes.</param>
+        /// <param name="timeout">How long to wait, or null (or <see cref="Timeout.InfiniteTimeSpan"/>) to wait for as long as it takes. It can be up to 24 days.</param>
         /// <param name="cancellationToken">A token that ends the wait.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative, or longer than 24 days.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection (or it ended during the wait).</exception>
         /// <exception cref="TimeoutException">The model was not up to date within the time.</exception>
         /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
@@ -377,6 +405,10 @@ namespace OBSStudioClient.Studio
         public async Task WaitUntilSettledAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(this._disposed, this);
+            if (timeout is { } given && given != Timeout.InfiniteTimeSpan && (given < TimeSpan.Zero || given > LongestTimeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "The timeout must be between zero and 24 days, or Timeout.InfiniteTimeSpan.");
+            }
 
             // The host is given a token that ends with the time or the cancellation, so that it forgets the wait when this call ends.
             using var limit = timeout is { } span ? new CancellationTokenSource(span) : null;
@@ -471,6 +503,22 @@ namespace OBSStudioClient.Studio
             return this._everSynchronized && state != ObsStudioState.Synchronized;
         }
 
+        // Called by the model: changes the state only when it is what the model saw. A call of ConnectAsync owns the state while it is under way, and what the
+        // model decided about an older connection must not take it away.
+        internal bool TrySetState(ObsStudioState expected, ObsStudioState state)
+        {
+            lock (this._stateLock)
+            {
+                if (this._state != expected)
+                {
+                    return false;
+                }
+
+                this.SetState(state);
+                return true;
+            }
+        }
+
         // Whether the model has been complete at any time: before that, the objects are new to the application.
         internal bool EverSynchronized
         {
@@ -534,8 +582,9 @@ namespace OBSStudioClient.Studio
         }
 
         // Enters Connecting for a call of ConnectAsync, which is then the call that can be ended from outside. Under the lock of the state, so that this is
-        // one step with a disposal (a studio that is disposed of is never made to connect) and with another call of ConnectAsync.
-        private bool TryEnterConnecting(CancellationTokenSource connecting, out int ticket)
+        // one step with a disposal (a studio that is disposed of is never made to connect) and with another call of ConnectAsync. The state is Connecting until the
+        // call has unwound (it is the call that says Disconnected, when it fails), so no other call can enter before that.
+        private bool TryEnterConnecting(CancellationTokenSource connecting, out int ticket, out ConnectCall call)
         {
             lock (this._stateLock)
             {
@@ -543,45 +592,58 @@ namespace OBSStudioClient.Studio
                 if (this._state != ObsStudioState.Disconnected)
                 {
                     ticket = 0;
+                    call = null!;
                     return false;
                 }
 
                 ticket = ++this._connectTicket;
-                this._connecting = connecting;
+                call = new ConnectCall(connecting);
+                this._call = call;
                 this.SetState(ObsStudioState.Connecting);
                 return true;
             }
         }
 
-        // The call of ConnectAsync that is under way, if there is one, ends: a connection that it has not made yet is not made.
-        private void CancelConnecting()
+        // The call of ConnectAsync that is under way, if there is one, ends: a connection that it has not made yet is not made. Returns a task that completes when
+        // the call has unwound, or null when there was none.
+        private Task? CancelConnecting()
         {
-            CancellationTokenSource? connecting;
+            ConnectCall? call;
             lock (this._stateLock)
             {
-                connecting = this._connecting;
+                call = this._call;
+            }
+
+            if (call is null)
+            {
+                return null;
             }
 
             try
             {
-                connecting?.Cancel();
+                call.Source.Cancel();
             }
             catch (ObjectDisposedException)
             {
                 // The call has ended, and has disposed of its source.
             }
+
+            return call.Ended;
         }
 
-        // The call of ConnectAsync ended: it can no longer be ended from outside (and its source is disposed of by the call, not before).
-        private void ForgetConnecting(CancellationTokenSource connecting)
+        // The call of ConnectAsync ended: it can no longer be ended from outside (and its source is disposed of by the call, not before), and whoever waits for it
+        // to unwind (DisconnectAsync) is told.
+        private void ForgetConnecting(ConnectCall call)
         {
             lock (this._stateLock)
             {
-                if (ReferenceEquals(this._connecting, connecting))
+                if (ReferenceEquals(this._call, call))
                 {
-                    this._connecting = null;
+                    this._call = null;
                 }
             }
+
+            call.End();
         }
 
         // A call of ConnectAsync ended before it connected anything.
@@ -633,31 +695,36 @@ namespace OBSStudioClient.Studio
         }
 
         // A call of ConnectAsync failed or was cancelled: what it connected must not stay connected, and the client must not keep trying. Only the call that
-        // has the connection may end it. A newer call has its own: the state can be Disconnected before the older call has unwound (the application
-        // disconnected meanwhile), and the application can connect again then. The check and the end are one step with the entry of a call. The notification
-        // of the client about it is raised after the lock is let go of: a handler is the application's.
-        private void AbandonConnect(int ticket)
+        // has the connection may end it (the ticket: a call cannot start while another one has the state, but the check costs nothing and the end is not undone by
+        // a call that was left behind). The check and the end are one step with the entry of a call. The call is over for everybody else when it has ended what it
+        // connected: the notification of the client about that is raised after that, and after the lock is let go of, because a handler is the application's, and
+        // can wait for something that needs the call to be over (the DisconnectAsync of another thread, for example).
+        private void AbandonConnect(int ticket, ConnectCall call)
         {
             this.BeforeAbandon?.Invoke();
             Action? raise = null;
             lock (this._stateLock)
             {
-                if (this._connectTicket != ticket)
+                if (this._connectTicket == ticket)
                 {
-                    return;
+                    try
+                    {
+                        raise = this._client.DisconnectDeferred();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+
+                    this.SetState(ObsStudioState.Disconnected);
                 }
 
-                try
+                if (ReferenceEquals(this._call, call))
                 {
-                    raise = this._client.DisconnectDeferred();
+                    this._call = null;
                 }
-                catch (ObjectDisposedException)
-                {
-                }
-
-                this.SetState(ObsStudioState.Disconnected);
             }
 
+            call.End();
             raise?.Invoke();
         }
 
@@ -780,6 +847,23 @@ namespace OBSStudioClient.Studio
             }
 
             this.RaiseResynchronized();
+        }
+
+        // A call of ConnectAsync that is under way.
+        private sealed class ConnectCall(CancellationTokenSource source)
+        {
+            private readonly TaskCompletionSource _ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // What ends the call from outside.
+            public CancellationTokenSource Source { get; } = source;
+
+            // Completes when the call has unwound.
+            public Task Ended => this._ended.Task;
+
+            public void End()
+            {
+                this._ended.TrySetResult();
+            }
         }
     }
 }

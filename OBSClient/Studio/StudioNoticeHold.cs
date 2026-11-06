@@ -49,6 +49,13 @@ namespace OBSStudioClient.Studio
             this._seen.Clear();
         }
 
+        /// <summary>Forgets what is held, without handing it over: the model has stopped, and nothing will raise it.</summary>
+        public void Clear()
+        {
+            this._held.Clear();
+            this._seen.Clear();
+        }
+
         private sealed class Comparer : IEqualityComparer<(object Entity, string Property)>
         {
             public static readonly Comparer Instance = new();

@@ -30,9 +30,11 @@ namespace OBSStudioClient.Studio
         private readonly ILogger _logger;
         private readonly int _capacity;
         private readonly Action _recover;
+        private readonly Action _recovery;
         private int _waiting;
         private int _delivering;
         private bool _overflowed;
+        private bool _postFailed;
         private volatile bool _stopped;
 
         /// <summary>Initializes a new instance of the <see cref="StudioNotifier"/> class.</summary>
@@ -47,6 +49,7 @@ namespace OBSStudioClient.Studio
             this._logger = logger;
             this._capacity = capacity;
             this._recover = recover;
+            this._recovery = this.Recover;
         }
 
         /// <summary>Gets the number of notifications that wait to be raised. It is for tests.</summary>
@@ -81,7 +84,7 @@ namespace OBSStudioClient.Studio
                 {
                     this._overflowed = true;
                     overflowed = true;
-                    raise = this.Recover;
+                    raise = this._recovery;
                 }
                 else if (waiting == BacklogWarning)
                 {
@@ -140,8 +143,7 @@ namespace OBSStudioClient.Studio
                     }
                     else
                     {
-                        // What the context has not run yet when the notifier is stopped is not raised: the application may be tearing down what the handlers use.
-                        this._context.Post(_ => this.RunPosted(raise), null);
+                        this.PostToContext(raise);
                     }
                 }
 
@@ -151,6 +153,35 @@ namespace OBSStudioClient.Studio
                 if (this._stopped || this._queue.IsEmpty || Interlocked.CompareExchange(ref this._delivering, 1, 0) != 0)
                 {
                     return;
+                }
+            }
+        }
+
+        // What the context has not run yet when the notifier is stopped is not raised: the application may be tearing down what the handlers use. A context
+        // that cannot be posted to (it has been closed) must not stop the delivery for good: what could not be posted is dropped, and counted as no longer waiting.
+        // When that was the recovery, notifications are accepted again, as they are when it runs: nothing would run it.
+        private void PostToContext(Action raise)
+        {
+            try
+            {
+                this._context!.Post(_ => this.RunPosted(raise), null);
+                this._postFailed = false;
+            }
+            catch (Exception ex)
+            {
+                Interlocked.Decrement(ref this._waiting);
+                if (ReferenceEquals(raise, this._recovery))
+                {
+                    lock (this._gate)
+                    {
+                        this._overflowed = false;
+                    }
+                }
+
+                if (!this._postFailed)
+                {
+                    this._postFailed = true;
+                    this._logger.LogError(ex, "The context for the notifications of the studio model could not be posted to. The notifications that it cannot take are dropped.");
                 }
             }
         }

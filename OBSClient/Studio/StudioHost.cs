@@ -133,9 +133,19 @@ namespace OBSStudioClient.Studio
                 throw new InvalidOperationException("The ObsClient is used by another ObsStudio already: an ObsClient can have only one.");
             }
 
-            this._client.PropertyChanged += this.OnClientPropertyChanged;
-            this._timer = this._time.CreateTimer(_ => this.Post(new HostItem { Kind = HostItemKind.Wake }), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            this._loop = Task.Run(this.RunAsync);
+            // The tap is this host's from here on: when something fails before the loop runs, it and the observation of the client are let go of, or a client
+            // that the application owns could not be given to another ObsStudio.
+            try
+            {
+                this._client.PropertyChanged += this.OnClientPropertyChanged;
+                this._timer = this._time.CreateTimer(_ => this.Post(new HostItem { Kind = HostItemKind.Wake }), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                this._loop = Task.Run(this.RunAsync);
+            }
+            catch
+            {
+                this.Stop();
+                throw;
+            }
         }
 
         /// <summary>Stops the loop, and the observation of the client.</summary>
@@ -283,9 +293,10 @@ namespace OBSStudioClient.Studio
             }
             finally
             {
-                // Nothing will settle the model or end a connection any more.
+                // Nothing will settle the model or end a connection any more, and nothing will raise what was held for the application.
                 this.FailWaiters(new ObjectDisposedException(nameof(ObsStudio)));
                 this.ReleaseDisconnectWaiters();
+                this._held.Clear();
                 this.PublishWaiterCounts();
             }
         }
@@ -355,7 +366,10 @@ namespace OBSStudioClient.Studio
                 case HostItemKind.Disconnect:
                     if (this._session == 0)
                     {
-                        this._studio.SetState(ObsStudioState.Disconnected);
+                        // No connection is left to wait for. What the client was going to restore ends here; a call of ConnectAsync that is under way owns the
+                        // state (Connecting, or what the end of its connection left), and says Disconnected itself when it has unwound: Disconnected here would let
+                        // the application connect again while that call is still on its way.
+                        this._studio.TrySetState(ObsStudioState.Reconnecting, ObsStudioState.Disconnected);
                         item.Waiter!.TrySetResult();
                     }
                     else
@@ -495,9 +509,9 @@ namespace OBSStudioClient.Studio
         // The connection ended while the client was going to restore it, and it is not going to any more: nothing starts a connection but the application.
         private void ReconsiderReconnecting()
         {
-            if (this._session == 0 && this._studio.State == ObsStudioState.Reconnecting && !this._client.AutoReconnect)
+            if (this._session == 0 && !this._client.AutoReconnect)
             {
-                this._studio.SetState(ObsStudioState.Disconnected);
+                this._studio.TrySetState(ObsStudioState.Reconnecting, ObsStudioState.Disconnected);
             }
         }
 

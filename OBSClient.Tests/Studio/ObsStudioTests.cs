@@ -836,15 +836,12 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public async Task AnOlderCallOfConnectAsync_ThatWasEndedWhileItWaited_DoesNotReplaceTheAttemptOfANewerCall()
+        public async Task DisconnectAsync_WaitsForTheCallOfConnectAsyncThatItEnds_AndNoOtherCallCanStartBeforeThat()
         {
             await using var rig = StudioRig.Create(world => world.AddScene("Gaming"), new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(4) });
             var beginCalls = 0;
-            var connectCalls = 0;
             using var releaseFirst = new ManualResetEventSlim();
-            using var releaseSecond = new ManualResetEventSlim();
             var firstWaits = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var secondIsReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             rig.Studio.BeforeBegin = () =>
             {
                 if (Interlocked.Increment(ref beginCalls) == 1)
@@ -853,29 +850,55 @@ namespace OBSStudioClient.Tests.Studio
                     releaseFirst.Wait(Timeout);
                 }
             };
-            rig.Studio.BeforeConnect = () =>
-            {
-                if (Interlocked.Increment(ref connectCalls) == 1)
-                {
-                    secondIsReady.TrySetResult();
-                    releaseSecond.Wait(Timeout);
-                }
-            };
 
-            // The first call waits for the client to be closed (as it does when a connection ended a moment ago). The application disconnects, and connects
-            // again: the second call is the one that the model waits for.
+            // The first call is held where it has waited for the client to be closed (as it does when a connection ended a moment ago).
             var first = Task.Run(() => rig.ConnectAsync());
             await firstWaits.Task.WithTimeoutAsync(Timeout);
-            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
-            var second = Task.Run(() => rig.ConnectAsync());
-            await secondIsReady.Task.WithTimeoutAsync(Timeout);
 
-            // The first call goes on, and has been ended: it must not take the place of the attempt of the second, nor end it.
+            // The application disconnects: the call is ended, and the disconnection is not complete before the call has unwound. Until then the call has the state,
+            // and another one cannot start: two calls that connect at the same time would share the one client.
+            var disconnecting = rig.Studio.DisconnectAsync();
+            await Task.Delay(300);
+            Assert.False(disconnecting.IsCompleted);
+            Assert.Equal(ObsStudioState.Connecting, rig.Studio.State);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => rig.ConnectAsync());
+
             releaseFirst.Set();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
-            releaseSecond.Set();
+            await disconnecting.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
 
-            await second.WithTimeoutAsync(Timeout);
+            // The application can connect at once.
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+            Assert.True(rig.Studio.Scenes.Contains("Gaming"));
+        }
+
+        [Fact]
+        public async Task ConnectAsync_CanBeCalledAgainAtOnce_WhateverMomentDisconnectAsyncEndedTheCallAt()
+        {
+            await using var rig = StudioRig.Create(world => world.AddScene("Gaming"));
+
+            // The call is ended at every stage of its connection: before it asks the client, while the client connects, while the model is read, and after.
+            for (var i = 0; i < 30; i++)
+            {
+                var connecting = Task.Run(() => rig.ConnectAsync());
+                await StudioRig.EventuallyAsync(() => rig.Studio.State != ObsStudioState.Disconnected, "the call to have the state");
+                await Task.Delay(i);
+                await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+                try
+                {
+                    await connecting.WithTimeoutAsync(Timeout);
+                }
+                catch (Exception ex) when (ex is OperationCanceledException or ObsNotConnectedException)
+                {
+                }
+
+                Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+                Assert.Equal(ConnectionState.Disconnected, rig.Studio.Client.ConnectionState);
+            }
+
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
             Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
             Assert.True(rig.Studio.Scenes.Contains("Gaming"));
         }
@@ -1024,7 +1047,7 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public async Task AFailedCallThatIsStillUnwinding_DoesNotEndTheConnectionOfANewerCall()
+        public async Task AFailedCallThatIsStillUnwinding_HasTheState_UntilItHasEndedWhatItConnected()
         {
             await using var rig = StudioRig.Create(world => world.AddScene("Gaming"));
             rig.Responder.AnswerBatches = false;
@@ -1045,13 +1068,22 @@ namespace OBSStudioClient.Tests.Studio
             rig.Responder.AbortConnection();
             await atTheAbandon.Task.WithTimeoutAsync(Timeout);
 
-            // While the first call is held, the application disconnects and connects again: the connection is the new call's.
-            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
-            rig.Responder.AnswerBatches = true;
-            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            // The call is held where it ends what it connected, and it has the state: the application that disconnects waits for the call to unwind, and a new
+            // call cannot start (it would find the connection of the older one, which that is about to end).
+            Assert.Equal(ObsStudioState.Synchronizing, rig.Studio.State);
+            var disconnecting = rig.Studio.DisconnectAsync();
+            await Task.Delay(300);
+            Assert.False(disconnecting.IsCompleted);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => rig.ConnectAsync());
             release.Set();
 
             await Assert.ThrowsAsync<ObsNotConnectedException>(() => first.WithTimeoutAsync(Timeout));
+            await disconnecting.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+            Assert.Equal(ConnectionState.Disconnected, rig.Studio.Client.ConnectionState);
+
+            rig.Responder.AnswerBatches = true;
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
             Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
             Assert.Equal(ConnectionState.Connected, rig.Studio.Client.ConnectionState);
             Assert.True(rig.Studio.Scenes.Contains("Gaming"));
@@ -1072,11 +1104,13 @@ namespace OBSStudioClient.Tests.Studio
             var connecting = Task.Run(() => rig.ConnectAsync());
             await atTheConnection.Task.WithTimeoutAsync(Timeout);
 
-            // The application asks to disconnect while the call is getting ready to connect: the call must not connect after that.
-            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+            // The application asks to disconnect while the call is getting ready to connect: the call must not connect after that, and the disconnection
+            // is complete when the call has unwound.
+            var disconnecting = rig.Studio.DisconnectAsync();
             release.Set();
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connecting.WithTimeoutAsync(Timeout));
+            await disconnecting.WithTimeoutAsync(Timeout);
             Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
             Assert.Equal(ConnectionState.Disconnected, rig.Studio.Client.ConnectionState);
         }
@@ -1164,6 +1198,55 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Throws<InvalidOperationException>(() => new ObsStudio(client));
         }
 
+        [Theory]
+        [InlineData(0.001)]
+        [InlineData(0.9)]
+        public void ATimeoutThatIsNotAWholeMillisecond_IsRefused(double milliseconds)
+        {
+            // It would be taken for no time at all.
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { ReadTimeout = TimeSpan.FromMilliseconds(milliseconds) }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(milliseconds) }));
+        }
+
+        [Fact]
+        public void ATimeoutThatNoWaitCanTake_IsRefusedWhenTheOptionsAreGiven_NotWhenItIsUsed()
+        {
+            // Such a time fails when it is waited for, which is after the connection was made.
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { ReadTimeout = TimeSpan.FromDays(25) }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { ReadTimeout = TimeSpan.MaxValue }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromDays(25) }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { SynchronizationTimeout = TimeSpan.MaxValue }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { SynchronizationTimeout = System.Threading.Timeout.InfiniteTimeSpan }));
+
+            // The limits themselves are accepted.
+            using var studio = new ObsStudio(new ObsStudioOptions { ReadTimeout = TimeSpan.FromMilliseconds(1), SynchronizationTimeout = TimeSpan.FromMilliseconds(int.MaxValue) });
+        }
+
+        [Fact]
+        public async Task WaitUntilSettledAsync_RefusesATimeoutThatCannotBeWaitedFor()
+        {
+            await using var rig = await StudioRig.ConnectedAsync();
+
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => rig.Studio.WaitUntilSettledAsync(TimeSpan.FromSeconds(-1)));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => rig.Studio.WaitUntilSettledAsync(TimeSpan.FromDays(25)));
+
+            // No limit, by null or by the infinite time, and a limit of the longest time: the model is settled, so they return.
+            await rig.Studio.WaitUntilSettledAsync().WithTimeoutAsync(Timeout);
+            await rig.Studio.WaitUntilSettledAsync(System.Threading.Timeout.InfiniteTimeSpan).WithTimeoutAsync(Timeout);
+            await rig.Studio.WaitUntilSettledAsync(TimeSpan.FromMilliseconds(int.MaxValue)).WithTimeoutAsync(Timeout);
+        }
+
+        [Fact]
+        public void WhenTheStudioCannotStart_AClientThatWasGivenIsLetGoOf()
+        {
+            using var client = new ObsClient();
+
+            Assert.Throws<InvalidOperationException>(() => new ObsStudio(client, new ObsStudioOptions { TimeProvider = new FailingTimeProvider() }));
+
+            // The client is the application's own: it is not left with the observation of a studio that was never made.
+            using var studio = new ObsStudio(client);
+        }
+
         [Fact]
         public async Task AnObsClientThatWasGiven_IsDisconnected_NotDisposed_WhenTheStudioIsDisposed()
         {
@@ -1174,6 +1257,15 @@ namespace OBSStudioClient.Tests.Studio
 
             // It can still be used: it was not made by the studio.
             Assert.False(await client.ConnectAsync(hostname: "127.0.0.1", port: FreePort()));
+        }
+
+        // A source of time that cannot make a timer: the studio cannot start with it.
+        private sealed class FailingTimeProvider : TimeProvider
+        {
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                throw new InvalidOperationException("No timers.");
+            }
         }
 
         // A context that runs what is posted to it, in order, on one thread of its own, as the thread of a user interface does.
