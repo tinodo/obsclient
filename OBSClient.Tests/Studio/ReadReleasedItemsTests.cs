@@ -128,6 +128,51 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void Remove_SaysWhenNoSceneItemThatIsHeldUsesTheSourceAnyMore()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var source = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), source, Zero);
+            held.Add(new ItemKey(scene, 2), source, Zero);
+
+            var freed = new List<Guid>();
+            Assert.True(held.Remove(new ItemKey(scene, 1), freed));
+            Assert.Empty(freed);
+            Assert.True(held.Remove(new ItemKey(scene, 2), freed));
+            Assert.Equal(new[] { source }, freed);
+
+            // A scene item that is not held frees nothing, and a source is in the list of the caller once.
+            Assert.False(held.Remove(new ItemKey(scene, 2), freed));
+            held.Add(new ItemKey(scene, 3), source, Zero);
+            Assert.True(held.Remove(new ItemKey(scene, 3), freed));
+            Assert.Equal(new[] { source }, freed);
+        }
+
+        [Fact]
+        public void RemoveScene_SaysWhichSourcesNoSceneItemThatIsHeldUsesAnyMore()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var other = Guid.NewGuid();
+            var gone = Guid.NewGuid();
+            var goneTwice = Guid.NewGuid();
+            var shared = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), gone, Zero);
+            held.Add(new ItemKey(scene, 2), goneTwice, Zero);
+            held.Add(new ItemKey(scene, 3), goneTwice, Zero);
+            held.Add(new ItemKey(scene, 4), shared, Zero);
+            held.Add(new ItemKey(other, 1), shared, Zero);
+
+            var freed = new List<Guid>();
+            held.RemoveScene(scene, freed);
+
+            // The source that a scene item of another scene that is held still used is not freed, and a source is told once however many scene items went.
+            Assert.Equal(new[] { gone, goneTwice }.OrderBy(uuid => uuid), freed.OrderBy(uuid => uuid));
+            Assert.True(held.Holds(shared));
+        }
+
+        [Fact]
         public void Prune_SaysWhichSourcesNoSceneItemThatIsHeldUsesAnyMore()
         {
             var held = new ReadReleasedItems();

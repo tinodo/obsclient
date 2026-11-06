@@ -342,12 +342,15 @@ namespace OBSStudioClient.Studio.Engine
         {
             var key = new ItemKey(e.SceneUuid, e.SceneItemId);
 
-            // A read was ahead of this event (see HeldByRead): as far as the events go the scene item is gone now too.
-            this._readReleased.Remove(key);
+            // A read was ahead of this event (see HeldByRead): as far as the events go the scene item is gone now too. When it was the last that was held for its
+            // source, a read says whether OBS still has the source (see CheckFreed).
+            var freed = this._readReleased.Count > 0 ? new List<Guid>() : null;
+            this._readReleased.Remove(key, freed);
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene) || !scene.Items.TryGetValue(e.SceneItemId, out var item))
             {
                 // Not known (yet): a read that was sent before the removal must not bring the item back.
                 this._goneItems.Add(key, this._now);
+                this.CheckFreed(freed);
                 return;
             }
 
@@ -364,6 +367,7 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             this.NormalizeItems(scene);
+            this.CheckFreed(freed);
         }
 
         private void OnItemsReindexed(SceneItemListReindexedEventArgs e)

@@ -231,6 +231,148 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void AnInputThatIsStillHeldFor_IsLetGoOf_WhenTheEventOfTheLastSceneItemThatIsHeldForItArrives()
+        {
+            Guid doomed = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemId = 0;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemId = world.AddItem(doomed, mic, "Mic");
+            });
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            LaterAMessageArrives(h, TimeSpan.FromSeconds(1), "Other");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+
+            // The check is done and OBS still lists the input (a global audio input that is assigned to a channel), but a scene item that a read took away used it
+            // when OBS removed it: the input stays, and it is judged when the hold ends.
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            Assert.Equal(1, h.Engine.HeldItemCount);
+
+            // The event of that scene item arrives, long before the retention is over: nothing that the model knows uses the input, and nothing is held for it. The count
+            // does not decide (a scene item that OBS made for the input can still be on its way): a read of the list does.
+            EngineEvents.ItemRemoved(h, doomed, "Doomed", itemId, mic, "Mic");
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            var lists = 0;
+            h.SettleWithTime(request =>
+            {
+                lists += request.Kind == ReadKind.Inputs ? 1 : 0;
+                return h.World.Answer(request);
+            });
+
+            Assert.Equal(1, lists);
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, h.Engine.HeldItemCount);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void AnInputThatIsStillHeldFor_IsLetGoOf_WhenAnEventRemovesTheSceneThatTheSceneItemsThatAreHeldForItWereIn()
+        {
+            Guid a = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(a, mic, "Mic");
+            });
+
+            // OBS removes the input and keeps it alive for the scene item, and then removes the scene item: a read finds it gone and holds it, and the list of inputs
+            // (read for the check) has the input still.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            Assert.Equal(1, h.Engine.HeldItemCount);
+
+            // OBS removes the scene: what a read took away from it went with it (no event tells about it), so nothing is held for the input any more. The count does not
+            // decide (see above): a read of the list does.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == a);
+            h.World.Items.Remove(a);
+            EngineEvents.SceneRemoved(h, a, "A");
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            var lists = 0;
+            h.SettleWithTime(request =>
+            {
+                lists += request.Kind == ReadKind.Inputs ? 1 : 0;
+                return h.World.Answer(request);
+            });
+
+            Assert.Equal(1, lists);
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, h.Engine.HeldItemCount);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Theory]
+        [InlineData("an event")]
+        [InlineData("the answer to a read")]
+        [InlineData("the look for the next read")]
+        public void WhenWhatWasHeldForTheLastThingThatTheEngineWaitedForIsLetGoOf_TheEngineIsSynchronized(string whenTheTimeIsUp)
+        {
+            var h = new EngineHarness(new StudioEngineOptions { TombstoneRetention = Quick.TombstoneRetention, TombstoneCleanupInterval = Quick.TombstoneCleanupInterval });
+            var a = h.World.AddScene("A");
+            var mic = h.World.AddInput("Mic", "wasapi_input_capture", 2);
+            h.World.AddItem(a, mic, "Mic");
+
+            // OBS does not answer the reads of the audio state of the input for as long as the test lasts: the model is not complete, and the reads are repeated.
+            (int Code, object? Data) Answer(ReadRequest request)
+            {
+                return request.Kind is ReadKind.AudioMute or ReadKind.AudioVolume ? (702, null) : h.World.Answer(request);
+            }
+
+            h.Start();
+            h.Settle(Answer);
+            Assert.Equal(StudioEngineState.Synchronizing, h.Engine.State);
+
+            // OBS removes the input and keeps it alive for the scene item, and then removes the scene item: a read finds it gone and holds it, and the list of inputs
+            // (read for the check) has the input still, so it stays Detached while something is held for it.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.Settle(Answer);
+            Assert.Equal(1, h.Engine.HeldItemCount);
+            Assert.Equal(StudioEngineState.Synchronizing, h.Engine.State);
+            Assert.False(h.Engine.IsSettled);
+
+            // The audio state of the input is the last that the engine waits for, and the time for what was held for the input is up when the engine looks at what it
+            // remembers: the input goes, and with it what the engine waited for. Whatever the message that it looks at, the engine is left in the state of its model.
+            var wake = h.Engine.NextWake;
+            ReadTicket? sent = null;
+            if (whenTheTimeIsUp == "the answer to a read")
+            {
+                h.Advance(wake!.Value - h.Now);
+                sent = h.Take();
+                Assert.NotNull(sent);
+            }
+
+            h.Advance(TimeSpan.FromMinutes(2));
+            switch (whenTheTimeIsUp)
+            {
+                case "an event":
+                    h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1 << 10);
+                    break;
+                case "the answer to a read":
+                    h.Complete(sent!, Answer);
+                    break;
+                default:
+                    Assert.Null(h.Take());
+                    break;
+            }
+
+            Assert.Equal(0, h.Engine.HeldItemCount);
+            Assert.True(h.Engine.IsSettled);
+            Assert.Equal(StudioEngineState.Synchronized, h.Engine.State);
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
         public void TheSceneItemsThatWentWithASceneThatAReadFoundGone_AreLetGoOfByTimeWhenTheirSourceLivesOn()
         {
             Guid doomed = Guid.Empty;

@@ -11,7 +11,8 @@ namespace OBSStudioClient.Studio.Engine
     /// and nothing is said of the scene items themselves. A scene item is let go of when its event arrives, when the source that it used is destroyed, when an
     /// event removes the scene that it was in (the removal of a scene item that came before arrived before that event), and after a time: the event does not
     /// always come (nothing is said of the scene items of a scene that OBS removed and keeps alive, or that went), and what the events could still tell arrives
-    /// within seconds.
+    /// within seconds. Whichever way a scene item is let go of, the caller can be told which sources nothing is held for any more: the engine looks at them again
+    /// (a read says whether OBS has them when an event let go of the scene item, and the count decides when the time was up).
     /// </remarks>
     internal sealed class ReadReleasedItems
     {
@@ -38,16 +39,11 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Lets go of a scene item: its removal arrived, or it does not matter any more.</summary>
         /// <param name="key">The scene item.</param>
+        /// <param name="freed">Gets the source that it used when no scene item that is held uses it any more, when the caller wants it.</param>
         /// <returns>Whether it was held.</returns>
-        public bool Remove(ItemKey key)
+        public bool Remove(ItemKey key, List<Guid>? freed = null)
         {
-            if (!this._items.Remove(key, out var held))
-            {
-                return false;
-            }
-
-            this.Release(held.Source);
-            return true;
+            return this.RemoveOne(key, freed, freed is null ? null : new HashSet<Guid>(freed));
         }
 
         /// <summary>Gets whether a scene item that is held used the source.</summary>
@@ -60,16 +56,18 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Lets go of the scene items of a scene.</summary>
         /// <param name="scene">The scene.</param>
-        public void RemoveScene(Guid scene)
+        /// <param name="freed">Gets the sources that no scene item that is held uses any more, when the caller wants them.</param>
+        public void RemoveScene(Guid scene, List<Guid>? freed = null)
         {
             if (this._items.Count == 0)
             {
                 return;
             }
 
+            var reported = freed is null ? null : new HashSet<Guid>(freed);
             foreach (var key in this._items.Keys.Where(key => key.Scene == scene).ToArray())
             {
-                this.Remove(key);
+                this.RemoveOne(key, freed, reported);
             }
         }
 
@@ -99,15 +97,11 @@ namespace OBSStudioClient.Studio.Engine
                 return 0;
             }
 
-            var old = this._items.Where(item => item.Value.At < before).Select(item => (item.Key, item.Value.Source)).ToArray();
+            var old = this._items.Where(item => item.Value.At < before).Select(item => item.Key).ToArray();
             var reported = freed is null ? null : new HashSet<Guid>(freed);
-            foreach (var (key, source) in old)
+            foreach (var key in old)
             {
-                this.Remove(key);
-                if (reported is not null && !this._users.ContainsKey(source) && reported.Add(source))
-                {
-                    freed!.Add(source);
-                }
+                this.RemoveOne(key, freed, reported);
             }
 
             return old.Length;
@@ -118,6 +112,24 @@ namespace OBSStudioClient.Studio.Engine
         {
             this._items.Clear();
             this._users.Clear();
+        }
+
+        // Lets go of a scene item, and tells the caller when that was the last scene item that is held for its source. A source is told once, whatever the list of
+        // the caller had in it before (reported: what the list has already).
+        private bool RemoveOne(ItemKey key, List<Guid>? freed, HashSet<Guid>? reported)
+        {
+            if (!this._items.Remove(key, out var held))
+            {
+                return false;
+            }
+
+            this.Release(held.Source);
+            if (reported is not null && !this._users.ContainsKey(held.Source) && reported.Add(held.Source))
+            {
+                freed!.Add(held.Source);
+            }
+
+            return true;
         }
 
         private void Release(Guid source)

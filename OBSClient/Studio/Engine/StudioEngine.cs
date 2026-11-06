@@ -326,6 +326,10 @@ namespace OBSStudioClient.Studio.Engine
             {
                 this._scenesScope.MarkDirty();
             }
+
+            // Judging a source again can destroy what was the last that the model waited for (an input that was removed, whose audio state cannot be read): the state
+            // that the callers set before this look at what is remembered does not know. Every caller gets the state that goes with the model that it is left with.
+            this.UpdateState();
         }
 
         /// <summary>
