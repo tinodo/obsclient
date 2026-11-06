@@ -82,7 +82,10 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached)
             {
-                if (fromRead)
+                // A scene that was only inferred to exist (a scene item that a read found shows it) was not seen to be removed: it can be a live scene
+                // that the list of scenes does not have yet, or one that a scene item keeps alive that the model does not know yet. Not a count, but a
+                // read says whether OBS still has it (a scene that an event told of is destroyed by a count: see above).
+                if (fromRead || (scene.Provisional && !scene.RemovedAnnounced))
                 {
                     this.RequireCheck(scene);
                     scene.ItemsScope.MarkDirty();
@@ -324,11 +327,22 @@ namespace OBSStudioClient.Studio.Engine
         // A scene that OBS removed, because an event told so, or because a read showed that it does not exist (repaired).
         private void RemoveScene(SceneNode scene, bool repaired)
         {
-            if (scene.State != SourceState.Live)
+            // A scene that the model only inferred to exist (see EnsureItemSource) is Detached already; when an event removes it, what OBS did with it is
+            // decided as for any scene: it was destroyed when no scene item that the model knows uses it, or it is kept alive.
+            var inferred = scene.State == SourceState.Detached && scene.Provisional;
+            if (scene.State != SourceState.Live && !inferred)
             {
                 return;
             }
 
+            scene.Provisional = false;
+
+            // A check that was under way asked whether OBS has the scene (it asked about a scene that was only inferred, and a creation event can have made
+            // it Live since). An answer that was taken before this event says that OBS had it then: nothing about what OBS did with it when it removed it.
+            // The event is the word now, and the scene items decide what it did.
+            scene.CheckAfter = 0;
+            scene.RemovalUnresolved = false;
+            this._unresolved.Remove(scene.Uuid);
             if (repaired)
             {
                 this.Emit(StudioChangeKind.Repaired, scene.Uuid, 0, scene.Name.Value);
@@ -350,7 +364,7 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             scene.State = SourceState.Detached;
-            if (!scene.IsGroup)
+            if (!inferred && !scene.IsGroup)
             {
                 this.CloseSceneGap(scene);
             }
@@ -360,7 +374,8 @@ namespace OBSStudioClient.Studio.Engine
                 this._programScope.MarkDirty();
             }
 
-            if (scene.Announced)
+            // A scene that was only inferred was announced as a detached scene already.
+            if (!inferred && scene.Announced)
             {
                 this.Emit(StudioChangeKind.SourceDetached, scene.Uuid, 0, scene.Name.Value);
             }
