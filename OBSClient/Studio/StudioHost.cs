@@ -52,6 +52,8 @@ namespace OBSStudioClient.Studio
         private readonly CancellationTokenSource _stopping = new();
         private readonly List<TaskCompletionSource> _settleWaiters = new();
         private readonly List<TaskCompletionSource> _disconnectWaiters = new();
+        private int _settleWaiterCount;
+        private int _disconnectWaiterCount;
         private Task _loop = Task.CompletedTask;
         private ITimer? _timer;
         private TimeSpan? _armedFor;
@@ -89,6 +91,7 @@ namespace OBSStudioClient.Studio
             Settle,
             Disconnect,
             ReconnectChanged,
+            Prune,
         }
 
         /// <summary>Gets what is published now.</summary>
@@ -114,6 +117,12 @@ namespace OBSStudioClient.Studio
         /// model would.
         /// </summary>
         internal Action<ReadTicket>? BeforeReadApplied { get; set; }
+
+        /// <summary>Gets the number of waits for the model to settle that the loop holds. It is for tests.</summary>
+        internal int SettleWaiterCount => Volatile.Read(ref this._settleWaiterCount);
+
+        /// <summary>Gets the number of waits for the end of the connection that the loop holds. It is for tests.</summary>
+        internal int DisconnectWaiterCount => Volatile.Read(ref this._disconnectWaiterCount);
 
         /// <summary>Starts the loop, and the observation of the client.</summary>
         public void Start()
@@ -156,25 +165,60 @@ namespace OBSStudioClient.Studio
             Interlocked.CompareExchange(ref this._attempt, null, attempt);
         }
 
-        /// <summary>Returns a task that completes when everything that had arrived before the call has been applied and no read is pending.</summary>
-        public Task WaitUntilSettledAsync()
+        /// <summary>
+        /// Returns a task that completes when everything that had arrived before the call has been applied and no read is pending. When the token ends first,
+        /// the task is cancelled and the loop forgets the wait.
+        /// </summary>
+        public Task WaitUntilSettledAsync(CancellationToken cancellationToken)
         {
-            var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!this.Post(new HostItem { Kind = HostItemKind.Settle, Waiter = waiter }))
-            {
-                waiter.TrySetException(new ObjectDisposedException(nameof(ObsStudio)));
-            }
-
-            return waiter.Task;
+            return this.AddWaiter(HostItemKind.Settle, cancellationToken);
         }
 
-        /// <summary>Returns a task that completes when the connection that the client had is over, and the model knows.</summary>
-        public Task WaitUntilDisconnectedAsync()
+        /// <summary>
+        /// Returns a task that completes when the connection that the client had is over, and the model knows. It is for the end of the connection that the
+        /// application just asked for; when the model has not been told within the time, it is a <see cref="TimeoutException"/>, and the loop forgets the wait.
+        /// </summary>
+        public async Task WaitUntilDisconnectedAsync(TimeSpan timeout)
+        {
+            using var limit = new CancellationTokenSource(timeout);
+            try
+            {
+                await this.AddWaiter(HostItemKind.Disconnect, limit.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (limit.IsCancellationRequested)
+            {
+                throw new TimeoutException($"The model was not told within {timeout} that the connection ended.");
+            }
+        }
+
+        // Asks the loop to keep a wait, and to forget it when the token ends: a wait that ended without being forgotten would stay in the loop for as long as the
+        // model does not settle, or the connection does not end.
+        private Task AddWaiter(HostItemKind kind, CancellationToken cancellationToken)
         {
             var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!this.Post(new HostItem { Kind = HostItemKind.Disconnect, Waiter = waiter }))
+            if (!this.Post(new HostItem { Kind = kind, Waiter = waiter }))
             {
-                waiter.TrySetResult();
+                // The loop has ended: nothing will end a connection or settle the model any more.
+                if (kind == HostItemKind.Disconnect)
+                {
+                    waiter.TrySetResult();
+                }
+                else
+                {
+                    waiter.TrySetException(new ObjectDisposedException(nameof(ObsStudio)));
+                }
+
+                return waiter.Task;
+            }
+
+            if (cancellationToken.CanBeCanceled)
+            {
+                var registration = cancellationToken.Register(() =>
+                {
+                    waiter.TrySetCanceled(cancellationToken);
+                    this.Post(new HostItem { Kind = HostItemKind.Prune });
+                });
+                _ = waiter.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
             }
 
             return waiter.Task;
@@ -238,7 +282,10 @@ namespace OBSStudioClient.Studio
             }
             finally
             {
+                // Nothing will settle the model or end a connection any more.
                 this.FailWaiters(new ObjectDisposedException(nameof(ObsStudio)));
+                this.ReleaseDisconnectWaiters();
+                this.PublishWaiterCounts();
             }
         }
 
@@ -316,12 +363,17 @@ namespace OBSStudioClient.Studio
                     }
 
                     break;
+                case HostItemKind.Prune:
+                    this._settleWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    this._disconnectWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    break;
             }
 
             this.PumpReads(now);
             this.PublishStep(before);
             this.ReleaseWaiters();
             this.ArmTimer(now);
+            this.PublishWaiterCounts();
         }
 
         private void HandleIngress(IngressItem ingress, TimeSpan now)
@@ -367,16 +419,18 @@ namespace OBSStudioClient.Studio
                     var current = Volatile.Read(ref this._attempt);
                     if (current is null || current.Session == ingress.SessionId)
                     {
+                        // A call of ConnectAsync that has not succeeded owns the state until it has unwound: it ends the connection, and then says
+                        // Disconnected. A state that is published before (Disconnected, or Reconnecting) would let the application connect again while
+                        // the older call is still on its way to end the connection that it made.
+                        var owned = current is not null && !current.Task.IsCompletedSuccessfully;
                         current?.TrySetException(new ObsNotConnectedException("The connection to OBS Studio ended before the model was complete."));
-                        this._studio.SetState(this._client.AutoReconnect ? ObsStudioState.Reconnecting : ObsStudioState.Disconnected);
+                        if (!owned)
+                        {
+                            this._studio.SetState(this._client.AutoReconnect ? ObsStudioState.Reconnecting : ObsStudioState.Disconnected);
+                        }
                     }
 
-                    foreach (var waiter in this._disconnectWaiters)
-                    {
-                        waiter.TrySetResult();
-                    }
-
-                    this._disconnectWaiters.Clear();
+                    this.ReleaseDisconnectWaiters();
                     break;
                 case IngressKind.Event:
                     if (ingress.SessionId == this._session)
@@ -567,6 +621,23 @@ namespace OBSStudioClient.Studio
             }
 
             this._settleWaiters.Clear();
+        }
+
+        // The connection is over, or the loop has ended: whoever waits for the end of the connection has what it waited for.
+        private void ReleaseDisconnectWaiters()
+        {
+            foreach (var waiter in this._disconnectWaiters)
+            {
+                waiter.TrySetResult();
+            }
+
+            this._disconnectWaiters.Clear();
+        }
+
+        private void PublishWaiterCounts()
+        {
+            Volatile.Write(ref this._settleWaiterCount, this._settleWaiters.Count);
+            Volatile.Write(ref this._disconnectWaiterCount, this._disconnectWaiters.Count);
         }
 
         // Wakes the loop when the engine wants to read something later (a read that waits for its turn, or that is repeated after a wait).

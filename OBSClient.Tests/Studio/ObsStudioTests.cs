@@ -639,6 +639,132 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AWaitThatTimedOutOrWasCancelled_IsForgottenByTheModel()
+        {
+            await using var rig = await StudioRig.ConnectedAsync();
+            rig.Responder.AnswerBatches = false;
+            var created = Guid.NewGuid();
+            rig.Responder.Change(world =>
+            {
+                world.Scenes.Insert(0, (created, "New"));
+                world.Items[created] = [];
+            });
+            await rig.Responder.SendEventAsync("SceneCreated", new { sceneName = "New", sceneUuid = created, isGroup = false }, 4);
+            await StudioRig.EventuallyAsync(() => rig.Studio.Scenes.Contains("New"), "the new scene");
+
+            // The model stays unsettled, so the waits are not ended by it: each of them ends with its time or its token.
+            for (var i = 0; i < 10; i++)
+            {
+                await Assert.ThrowsAsync<TimeoutException>(() => rig.Studio.WaitUntilSettledAsync(TimeSpan.FromMilliseconds(20)));
+                using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => rig.Studio.WaitUntilSettledAsync(cancellationToken: cancellation.Token));
+            }
+
+            await StudioRig.EventuallyAsync(() => rig.Studio.Host.SettleWaiterCount == 0, "the model to forget the waits that ended");
+        }
+
+        [Fact]
+        public async Task AConnectionThatEndsBeforeTheModelIsComplete_IsNotPublishedAsEnded_BeforeTheFailedCallHasUnwound()
+        {
+            await using var rig = StudioRig.Create();
+            rig.Responder.AnswerBatches = false;
+            var atTheAbandon = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            rig.Studio.BeforeAbandon = () =>
+            {
+                atTheAbandon.TrySetResult();
+                release.Wait(Timeout);
+            };
+
+            var connecting = rig.ConnectAsync();
+            await StudioRig.EventuallyAsync(() => rig.Responder.Batches >= 1, "the first read to be sent");
+            rig.Responder.AbortConnection();
+            await atTheAbandon.Task.WithTimeoutAsync(Timeout);
+
+            // The model has been told that the connection ended, and the call has failed, but it has not ended what it connected yet. The state is not
+            // Disconnected (or Reconnecting) before it has: a handler of that state could connect again, and the older call would then end that connection.
+            Assert.Equal(ObsStudioState.Synchronizing, rig.Studio.State);
+            release.Set();
+
+            await Assert.ThrowsAsync<ObsNotConnectedException>(() => connecting.WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+        }
+
+        [Fact]
+        public async Task AFailedCallThatIsStillUnwinding_DoesNotEndTheConnectionOfANewerCall()
+        {
+            await using var rig = StudioRig.Create(world => world.AddScene("Gaming"));
+            rig.Responder.AnswerBatches = false;
+            var atTheAbandon = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            var abandons = 0;
+            rig.Studio.BeforeAbandon = () =>
+            {
+                if (Interlocked.Increment(ref abandons) == 1)
+                {
+                    atTheAbandon.TrySetResult();
+                    release.Wait(Timeout);
+                }
+            };
+
+            var first = rig.ConnectAsync();
+            await StudioRig.EventuallyAsync(() => rig.Responder.Batches >= 1, "the first read to be sent");
+            rig.Responder.AbortConnection();
+            await atTheAbandon.Task.WithTimeoutAsync(Timeout);
+
+            // While the first call is held, the application disconnects and connects again: the connection is the new call's.
+            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+            rig.Responder.AnswerBatches = true;
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            release.Set();
+
+            await Assert.ThrowsAsync<ObsNotConnectedException>(() => first.WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+            Assert.Equal(ConnectionState.Connected, rig.Studio.Client.ConnectionState);
+            Assert.True(rig.Studio.Scenes.Contains("Gaming"));
+        }
+
+        [Fact]
+        public async Task DisconnectAsync_WhenTheClientDoesNotCloseInTime_ThrowsATimeout()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
+            rig.Studio.DisconnectTimeout = TimeSpan.FromMilliseconds(400);
+            using var release = new ManualResetEventSlim();
+            var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.Host.AfterIngressPosted = item =>
+            {
+                // The model was told that the connection ended, and the receive loop of the client, which is what closes the connection, does not go on: it
+                // is held in the call that told the model (a handler of the client that does not return holds it in the same way).
+                if (item.Kind == IngressKind.SessionEnded)
+                {
+                    blocked.TrySetResult();
+                    release.Wait(Timeout);
+                }
+            };
+
+            await Assert.ThrowsAsync<TimeoutException>(() => rig.Studio.DisconnectAsync());
+            await blocked.Task.WithTimeoutAsync(Timeout);
+            release.Set();
+            await StudioRig.EventuallyAsync(() => rig.Studio.Client.ConnectionState == ConnectionState.Disconnected, "the client to close the connection");
+        }
+
+        [Fact]
+        public async Task DisconnectAsync_WhenTheStudioIsDisposedMeanwhile_IsNotLeftWaiting()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
+
+            // The end of the connection never reaches the model: the observation of the client is stopped before it can (as a disposal does).
+            rig.Studio.Client.SetIngressTap(null);
+            var disconnecting = rig.Studio.DisconnectAsync();
+            await StudioRig.EventuallyAsync(() => rig.Studio.Host.DisconnectWaiterCount == 1, "the model to hold the wait");
+
+            rig.Studio.Dispose();
+
+            // It ends with the model, and not after the ten seconds that the wait for the model is allowed.
+            await disconnecting.WithTimeoutAsync(TimeSpan.FromSeconds(3));
+        }
+
+        [Fact]
         public async Task TheConstructors_RefuseWhatCannotWork()
         {
             Assert.Throws<ArgumentNullException>(() => new ObsStudio((ObsClient)null!));
