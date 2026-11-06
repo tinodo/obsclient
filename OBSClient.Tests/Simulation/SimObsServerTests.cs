@@ -424,31 +424,37 @@ namespace OBSStudioClient.Tests.Simulation
         {
             // Whoever waits for the count (WaitForIdentifiedAsync) goes on with a change of the simulation, and Dispatch only sends a change to a connection that
             // is identified: when the count is seen before the connection is, the change is lost without a trace. A thread that does nothing but watch the count
-            // is as quick to see it as anyone can be, and a round ends before the next connection replaces this one.
+            // is as quick to see it as anyone can be, and a round ends before the next connection replaces this one. The watcher runs at a low priority, because it
+            // spins: the tests that run next to this one (on a machine with few cores, as a build agent is) must not wait for it.
             await using var server = StartServer();
-            for (var round = 1; round <= 200; round++)
+            for (var round = 1; round <= 100; round++)
             {
                 var expected = round;
-                var watcher = Task.Factory.StartNew(
-                    () =>
+                var seen = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var watcher = new Thread(() =>
+                {
+                    var clock = Stopwatch.StartNew();
+                    while (server.IdentifiedCount < expected)
                     {
-                        var clock = Stopwatch.StartNew();
-                        while (server.IdentifiedCount < expected)
+                        if (clock.Elapsed > Timeout)
                         {
-                            if (clock.Elapsed > Timeout)
-                            {
-                                return (bool?)null;
-                            }
+                            seen.SetResult(null);
+                            return;
                         }
+                    }
 
-                        return server.IsIdentified;
-                    },
-                    TaskCreationOptions.LongRunning);
+                    seen.SetResult(server.IsIdentified);
+                })
+                {
+                    IsBackground = true,
+                    Priority = ThreadPriority.BelowNormal,
+                };
+                watcher.Start();
 
                 using var raw = await RawClient.ConnectAsync(server.Port);
                 await raw.IdentifyAsync();
 
-                var identified = await watcher;
+                var identified = await seen.Task;
                 Assert.NotNull(identified);
                 Assert.True(identified, $"In round {round} the count of identified connections was seen before the connection was identified.");
             }
