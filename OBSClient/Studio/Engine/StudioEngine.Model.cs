@@ -66,7 +66,7 @@ namespace OBSStudioClient.Studio.Engine
             return this._readReleased.Holds(sourceUuid);
         }
 
-        // The scene items of a scene that was destroyed went with it: no event tells about them.
+        // The scene items of a scene that an event removed went with it: no event tells about them.
         private void ForgetReadReleased(Guid sceneUuid)
         {
             this._readReleased.RemoveScene(sceneUuid);
@@ -312,7 +312,15 @@ namespace OBSStudioClient.Studio.Engine
             // OBS sends no SceneItemRemoved for the items of a scene that goes, and destroys the inputs that only these items used. When a read decided
             // it, that is not known of the inputs and scenes that these scene items showed: the scene items that the model knows of the other scenes can be
             // behind what OBS has by then, and a read says whether OBS still has them.
-            this.ForgetReadReleased(scene.Uuid);
+            // What an earlier read took away from the scene is let go of with it when an event removed the scene: the event of a scene item that OBS removed before
+            // arrived before this one, so what is still held went with the scene, and nothing tells about it. When a read decided it, the events lag behind the
+            // reads: the removal of a scene item that an earlier read found gone (and the events about the sources that it showed) can still be on its way,
+            // and what is held for it stays until that event arrives, the source is destroyed, or the time is up.
+            if (!decidedByRead)
+            {
+                this.ForgetReadReleased(scene.Uuid);
+            }
+
             foreach (var item in scene.Items.Values.ToArray())
             {
                 this.ReleaseItem(item, doubtful: decidedByRead);

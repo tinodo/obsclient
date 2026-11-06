@@ -8,7 +8,8 @@ namespace OBSStudioClient.Studio.Engine
     /// arrives. The model does not count such a scene item among the ones that use a source, but it does not conclude from the count that OBS destroyed
     /// a source while one of them used it either: see <c>StudioEngine.HeldByRead</c>. The scene items that went with a scene that a read said OBS does not have
     /// are held too: the events about the sources that they showed (OBS removed one, and made another scene item that uses it) can still be on their way,
-    /// and nothing is said of the scene items themselves. A scene item is let go of when its event arrives, and when the source that it used is destroyed.
+    /// and nothing is said of the scene items themselves. A scene item is let go of when its event arrives, when the source that it used is destroyed, and when
+    /// an event removes the scene that it was in (the removal of a scene item that came before arrived before that event).
     /// </remarks>
     internal sealed class ReadReleasedItems
     {
