@@ -468,6 +468,53 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public async Task TheIdentifyOfAConnectionThatWasReplacedMeanwhile_IsNeitherPublishedNorCounted()
+        {
+            // The first connection sent its Identify, which passed its checks, and is held there. A second connection replaces it (the server resets the
+            // first), and then the first Identify goes on: it must not make the first connection identified, or count it, or make the server say that
+            // the second connection, which did not identify itself, is identified.
+            await using var server = StartServer();
+            var hold = new IdentifyHold(server);
+            using var first = await RawClient.ConnectAsync(server.Port);
+            using var firstHello = await first.ReceiveAsync();
+            await first.SendAsync("""{"op":1,"d":{"rpcVersion":1}}""");
+            await hold.Held;
+
+            // The Hello of the second connection is sent after the server made it the connection that counts, and reset the first.
+            using var second = await RawClient.ConnectAsync(server.Port);
+            using var secondHello = await second.ReceiveAsync();
+            hold.Release();
+
+            Assert.False(await hold.Decided);
+            Assert.Equal(0, server.IdentifiedCount);
+            Assert.False(server.IsIdentified);
+
+            await second.SendAsync("""{"op":1,"d":{"rpcVersion":1}}""");
+            using var identified = await second.ReceiveAsync();
+            Assert.Equal(SimOp.Identified, identified!.RootElement.GetProperty("op").GetInt32());
+            Assert.Equal(1, server.IdentifiedCount);
+            Assert.True(server.IsIdentified);
+        }
+
+        [Fact]
+        public async Task TheIdentifyOfAConnectionThatWasResetMeanwhile_IsNeitherPublishedNorCounted()
+        {
+            await using var server = StartServer();
+            var hold = new IdentifyHold(server);
+            using var raw = await RawClient.ConnectAsync(server.Port);
+            using var hello = await raw.ReceiveAsync();
+            await raw.SendAsync("""{"op":1,"d":{"rpcVersion":1}}""");
+            await hold.Held;
+
+            server.AbortConnection();
+            hold.Release();
+
+            Assert.False(await hold.Decided);
+            Assert.Equal(0, server.IdentifiedCount);
+            Assert.False(server.IsIdentified);
+        }
+
+        [Fact]
         public async Task AnEventSubscriptionThatIsAnUnsigned64BitNumber_IsAccepted_AndEveryEventIsSent()
         {
             // obs-websocket reads the mask as a 64 bit unsigned number, so the largest value is a valid mask: all bits set, every category subscribed.
@@ -672,6 +719,42 @@ namespace OBSStudioClient.Tests.Simulation
                     _waiters.Add((condition, done));
                     return done.Task.WaitAsync(TimeSpan.FromSeconds(20));
                 }
+            }
+        }
+
+        // Holds the Identify of the first connection when it has passed its checks, until Release is called, and tells what the server decided about it.
+        private sealed class IdentifyHold
+        {
+            private readonly ManualResetEventSlim _release = new();
+            private readonly TaskCompletionSource _held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> _decided = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public IdentifyHold(SimObsServer server)
+            {
+                server.BeforeIdentifyPublished = number =>
+                {
+                    if (number == 1)
+                    {
+                        _held.TrySetResult();
+                        _release.Wait(Timeout);
+                    }
+                };
+                server.AfterIdentifyDecided = (number, published) =>
+                {
+                    if (number == 1)
+                    {
+                        _decided.TrySetResult(published);
+                    }
+                };
+            }
+
+            public Task Held => _held.Task.WithTimeoutAsync(Timeout, "The Identify of the first connection was not handled.");
+
+            public Task<bool> Decided => _decided.Task.WithTimeoutAsync(Timeout, "The Identify of the first connection was not decided.");
+
+            public void Release()
+            {
+                _release.Set();
             }
         }
 

@@ -74,7 +74,27 @@ namespace OBSStudioClient.Tests.Simulation
         public int RequestCount => Volatile.Read(ref _requestCount);
 
         /// <summary>Gets a value indicating whether the connection that is open has identified itself.</summary>
-        public bool IsIdentified => _current is { Identified: true } && _current.IsOpen;
+        public bool IsIdentified
+        {
+            get
+            {
+                // Read once: a connection that replaces this one between two reads would be given the flag of the connection before it.
+                var connection = _current;
+                return connection is { Identified: true } && connection.IsOpen;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets what runs when an Identify has passed its checks, before the connection is published as identified; it is given the number of the
+        /// connection. It is for tests: the handling is held until it returns, to bring about a reconnect at that moment.
+        /// </summary>
+        public Action<long>? BeforeIdentifyPublished { get; set; }
+
+        /// <summary>
+        /// Gets or sets what runs when the server has decided whether a connection that passed the checks of its Identify is identified; it is given the number
+        /// of the connection and the decision. It is for tests.
+        /// </summary>
+        public Action<long, bool>? AfterIdentifyDecided { get; set; }
 
         /// <summary>
         /// Gets the event subscription of the connection that is open and identified, or null. obs-websocket reads it as a 64 bit unsigned number, and
@@ -483,17 +503,34 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
-            // The flag, the count and the Identified message are one step, under the lock that Dispatch takes: whoever sees the count can make a
-            // change, and the change is sent to this connection, after the Identified message. The count is up before the client can know that it is
-            // identified, so that whoever waits for the client sees both.
-            lock (connection.Gate)
+            BeforeIdentifyPublished?.Invoke(connection.Number);
+
+            // A connection that was replaced, or that is closing, is gone, whatever it still had in flight: it is neither identified nor counted. The check
+            // is one step with the replacement (ServeAsync takes the same lock) and with the publication that follows it.
+            var published = false;
+            lock (_gate)
             {
-                connection.Identified = true;
-                Interlocked.Increment(ref _identifiedCount);
-                connection.Send(Serialize(Obj(("d", Obj(("negotiatedRpcVersion", 1))), ("op", SimOp.Identified))));
+                if (ReferenceEquals(_current, connection) && connection.IsOpen)
+                {
+                    // The flag, the count and the Identified message are one step, under the lock that Dispatch takes: whoever sees the count can make a
+                    // change, and the change is sent to this connection, after the Identified message. The count is up before the client can know that it is
+                    // identified, so that whoever waits for the client sees both.
+                    lock (connection.Gate)
+                    {
+                        connection.Identified = true;
+                        Interlocked.Increment(ref _identifiedCount);
+                        connection.Send(Serialize(Obj(("d", Obj(("negotiatedRpcVersion", 1))), ("op", SimOp.Identified))));
+                    }
+
+                    published = true;
+                }
             }
 
-            NotifyWaiters();
+            AfterIdentifyDecided?.Invoke(connection.Number, published);
+            if (published)
+            {
+                NotifyWaiters();
+            }
         }
 
         private void HandleReidentify(Connection connection, JsonObject data)
