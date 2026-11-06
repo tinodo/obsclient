@@ -329,11 +329,9 @@ namespace OBSStudioClient.Studio
                     ObjectDisposedException.ThrowIf(this._disposed, this);
                     var events = StudioHost.RequiredEvents | this._options.AdditionalEvents;
 
-                    // The client is given the token of the caller, and not the one that DisconnectAsync and Dispose cancel: the client ends an attempt that its token
-                    // cancelled by raising a notification (AutoReconnect, the application's code) inside the cancellation, and the attempt cannot be over before that
-                    // returns. A handler that waits for the DisconnectAsync of another thread would wait for this call, which waits for the handler. DisconnectAsync and
-                    // Dispose end the connection of the client themselves (Disconnect), after they have cancelled this call.
-                    var connected = await this._client.ConnectAsync(this._options.AutoReconnect, password, hostname, port, events, cancellationToken).ConfigureAwait(false);
+                    // The client ends the attempt when this token is cancelled (a connection that the client has not made yet is not made), at once, whenever that is: it
+                    // looks at the token when it activates its session, so a call of DisconnectAsync or Dispose cannot miss the session of a call that is about to start one.
+                    var connected = await this._client.ConnectAsync(this._options.AutoReconnect, password, hostname, port, events, connecting.Token).ConfigureAwait(false);
                     if (!connected)
                     {
                         connecting.Token.ThrowIfCancellationRequested();

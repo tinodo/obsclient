@@ -226,16 +226,16 @@
             }
         }
 
-        // The setter of AutoReconnect. With a session it only changes the setting while that session is the active one: the check and the
-        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the
-        // setting of the one that replaced it.
-        private void SetAutoReconnect(bool value, ConnectionSession? onlyForSession = null)
+        // The setter of AutoReconnect.
+        private void SetAutoReconnect(bool value)
         {
-            this.ChangeAutoReconnect(value, onlyForSession)?.Invoke();
+            this.ChangeAutoReconnect(value, null)?.Invoke();
         }
 
         // Changes the setting, and returns what raises the notification of the change (null when nothing was changed): the caller raises it when it likes.
-        // A handler runs on the thread that raises it.
+        // A handler runs on the thread that raises it. With a session it only changes the setting while that session is the active one: the check and the
+        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the setting of
+        // the one that replaced it.
         private Action? ChangeAutoReconnect(bool value, ConnectionSession? onlyForSession)
         {
             lock (_syncRoot)
@@ -780,8 +780,21 @@
         private void EndAttempt(ConnectionSession session)
         {
             _logger.LogInformation("Ending the attempt to connect to OBS Studio");
-            this.SetAutoReconnect(false, session);
-            session.Cancellation.Cancel();
+            var raise = this.ChangeAutoReconnect(false, session);
+            try
+            {
+                session.Cancellation.Cancel();
+            }
+            finally
+            {
+                // The handlers of the notification are the application's code. This usually runs as the callback of the token that was cancelled, and the attempt
+                // cannot end before that callback has returned: a handler that waits for something that needs the attempt to end (the DisconnectAsync of another thread,
+                // for one) would wait for itself. So they are told on another thread, when the setting is changed and the attempt is ended.
+                if (raise is not null)
+                {
+                    _ = Task.Run(raise);
+                }
+            }
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
