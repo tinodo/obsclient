@@ -154,7 +154,8 @@ namespace OBSStudioClient.Tests.Simulation
         [InlineData("""{"d":{"requestId":"a"},"op":6}""", "not one that OBS Studio sends")]
         public void TheValidator_FindsWhatIsWrongWithAMessage(string json, string? expectedProblem)
         {
-            var op = JsonDocument.Parse(json).RootElement.GetProperty("op").GetInt32();
+            using var parsed = JsonDocument.Parse(json);
+            var op = parsed.RootElement.GetProperty("op").GetInt32();
 
             var problems = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, op, json));
 

@@ -9,35 +9,33 @@ namespace OBSStudioClient.Tests.Simulation
         public SimEntry(SimMessage message)
         {
             Message = message;
-            Document = JsonDocument.Parse(message.Json);
-            var d = Document.RootElement.GetProperty("d");
+            using var document = JsonDocument.Parse(message.Json);
+            var d = document.RootElement.GetProperty("d");
             Data = default;
             switch (message.Op)
             {
                 case SimOp.Event:
                     Name = d.GetProperty("eventType").GetString()!;
                     Intent = d.GetProperty("eventIntent").GetInt32();
-                    Data = d.TryGetProperty("eventData", out var eventData) ? eventData : default;
+                    Data = d.TryGetProperty("eventData", out var eventData) ? eventData.Clone() : default;
                     break;
                 case SimOp.RequestResponse:
                     Name = d.GetProperty("requestType").GetString()!;
                     RequestId = d.GetProperty("requestId").GetString();
                     Code = d.GetProperty("requestStatus").GetProperty("code").GetInt32();
                     Comment = d.GetProperty("requestStatus").TryGetProperty("comment", out var comment) ? comment.GetString() : null;
-                    Data = d.TryGetProperty("responseData", out var responseData) ? responseData : default;
+                    Data = d.TryGetProperty("responseData", out var responseData) ? responseData.Clone() : default;
                     break;
                 default:
                     Name = "RequestBatch";
                     RequestId = d.GetProperty("requestId").GetString();
                     Code = SimStatus.Success;
-                    Data = d.GetProperty("results");
+                    Data = d.GetProperty("results").Clone();
                     break;
             }
         }
 
         public SimMessage Message { get; }
-
-        public JsonDocument Document { get; }
 
         /// <summary>Gets the type of the event or of the request, or "RequestBatch".</summary>
         public string Name { get; }

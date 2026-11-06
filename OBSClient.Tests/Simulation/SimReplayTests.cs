@@ -45,5 +45,48 @@ namespace OBSStudioClient.Tests.Simulation
 
             Assert.Empty(SimReplay.Compare(initial, h.Log.Select(entry => entry.Message), h.Sim.Snapshot()));
         }
+
+        // The comparison has to be able to fail, or the tests above prove nothing: each of these takes away one thing that the events need, or adds one that they
+        // do not tell, and the comparison has to say which part of the state differs.
+        [Fact]
+        public void AnEventThatIsLeftOut_IsFound()
+        {
+            var h = Populated();
+            var initial = h.Sim.Snapshot();
+            h.ClearLog();
+            var scene = initial.Scenes.Single(candidate => candidate.Name == "A");
+            h.Sim.External.SetItemEnabled(scene.Uuid, scene.Items[0].Id, true);
+            h.Sim.External.SetMute(initial.Inputs.Single(input => input.Name == "Desktop").Uuid, true);
+            h.Sim.External.SwitchProgramScene(h.Sim.External.CreateScene("B"));
+            h.Settle();
+            var final = h.Sim.Snapshot();
+            var all = h.Log.Select(entry => entry.Message).ToArray();
+
+            Assert.Empty(SimReplay.Compare(initial, all, final));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "InputMuteStateChanged"), final), problem => problem.StartsWith("The inputs that the events leave", StringComparison.Ordinal));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "SceneItemEnableStateChanged"), final), problem => problem.StartsWith("The items of \"A\" that the events leave", StringComparison.Ordinal));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "SceneCreated"), final), problem => problem.Contains("scene", StringComparison.Ordinal));
+            Assert.Contains(SimReplay.Compare(initial, Without(all, "CurrentProgramSceneChanged"), final), problem => problem.StartsWith("The events say that the program scene is", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void AChangeThatTheEventsDoNotTellOf_IsFound()
+        {
+            var h = Populated();
+            var initial = h.Sim.Snapshot();
+            h.ClearLog();
+            h.Sim.External.CreateScene("B");
+            h.Settle();
+            var events = h.Log.Select(entry => entry.Message).ToArray();
+
+            h.Sim.External.RenameScene(initial.Scenes.Single(candidate => candidate.Name == "A").Uuid, "Renamed");
+
+            Assert.Contains(SimReplay.Compare(initial, events, h.Sim.Snapshot()), problem => problem.StartsWith("The scenes that the events leave", StringComparison.Ordinal));
+        }
+
+        private static SimMessage[] Without(SimMessage[] messages, string eventType)
+        {
+            return messages.Where(message => !message.Json.Contains($"\"{eventType}\"", StringComparison.Ordinal)).ToArray();
+        }
     }
 }
