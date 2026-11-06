@@ -204,7 +204,7 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 case JsonValueKind.Object:
                     var names = element.EnumerateObject().Select(member => member.Name).ToArray();
-                    if (!names.SequenceEqual(names.OrderBy(name => name, StringComparer.Ordinal), StringComparer.Ordinal))
+                    if (!names.SequenceEqual(names.OrderBy(name => name, SimJson.MemberOrder), StringComparer.Ordinal))
                     {
                         problems.Add($"{at}: the members are not sorted: {string.Join(", ", names)}.");
                     }

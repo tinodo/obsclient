@@ -615,6 +615,41 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void TheMembersOfAnObjectThatIsAnId_AreOrderedByTheBytesOfTheirNames_AsObsWebsocketWritesThem()
+        {
+            var sim = new SimObs(Ideal);
+
+            // U+E000 is one UTF-16 code unit, and U+1F600 is two (D83D DE00): by code unit the second comes first, by the bytes of UTF-8 it comes last.
+            sim.Receive("{\"op\":6,\"d\":{\"requestId\":{\"\\ud83d\\ude00\":1,\"\\ue000\":2,\"b\":3,\"a\":4},\"requestType\":\"GetVersion\"}}");
+            sim.Advance(TimeSpan.Zero);
+            var message = sim.TakeDue().Single();
+
+            using var response = JsonDocument.Parse(message.Json);
+            var names = response.RootElement.GetProperty("d").GetProperty("requestId").EnumerateObject().Select(member => member.Name).ToArray();
+            Assert.Equal(["a", "b", "\uE000", "\U0001F600"], names);
+            Assert.Empty(SimShape.Instance.Check(message));
+        }
+
+        [Fact]
+        public void TheOrderOfTheMembersOfAnObject_IsTheOrderOfTheBytesOfTheirUtf8Names()
+        {
+            string[] samples =
+            [
+                string.Empty, "a", "ab", "b", "\u00E9", "\u07FF", "\u0800", "\uD7FF", "\uE000", "\uFFFF", "\U00010000", "\U0001F600", "\U0001F601", "\U0010FFFF",
+                "a\uE000", "a\U0001F600", "\U0001F600a", "\U0001F600\uE000",
+            ];
+
+            foreach (var left in samples)
+            {
+                foreach (var right in samples)
+                {
+                    var expected = Math.Sign(System.Text.Encoding.UTF8.GetBytes(left).AsSpan().SequenceCompareTo(System.Text.Encoding.UTF8.GetBytes(right)));
+                    Assert.True(expected == Math.Sign(SimJson.MemberOrder.Compare(left, right)), $"\"{left}\" and \"{right}\" are not in the order of their UTF-8 bytes.");
+                }
+            }
+        }
+
+        [Fact]
         public void ARequestDataThatIsNotAnObjectIsTreatedAsNoData()
         {
             var sim = new SimObs(Ideal);
