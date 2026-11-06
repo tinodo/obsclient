@@ -27,11 +27,17 @@ namespace OBSStudioClient.Studio.Engine
         // Removes an item from its scene and from the references of its source, and follows up on the source: a source that nothing uses any
         // more is destroyed by OBS when it was removed. The indexes of the other items are the business of the caller. When a read said that the
         // item is gone, the scene items that the model knows can be behind OBS (the events of a creation can still be on their way), so
-        // that source is not destroyed by counting: a read says whether OBS still has it.
-        private void ReleaseItem(ItemNode item, bool fromRead = false)
+        // that source is not destroyed by counting: a read says whether OBS still has it. That holds for the scene items that go with a scene that a
+        // read said OBS does not have (doubtful) too: the read is about the scene, and it says nothing about what the other scenes hold by now.
+        private void ReleaseItem(ItemNode item, bool fromRead = false, bool doubtful = false)
         {
             item.Scene.Items.Remove(item.Id);
             this._goneItems.Add(item.Key);
+            if (fromRead)
+            {
+                this._readReleased.Add(item.Key, item.SourceUuid);
+            }
+
             if (this._refs.TryGetValue(item.SourceUuid, out var set))
             {
                 set.Remove(item.Key);
@@ -46,7 +52,22 @@ namespace OBSStudioClient.Studio.Engine
                 this.Emit(StudioChangeKind.ItemRemoved, item.Scene.Uuid, item.Id);
             }
 
-            this.OnReferencesChanged(item.SourceUuid, fromRead);
+            this.OnReferencesChanged(item.SourceUuid, fromRead || doubtful);
+        }
+
+        // Whether a scene item that a read found gone, and whose removal the events have not told yet, used the source. A read is ahead of the events: as far
+        // as the events go that scene item is still there, so a source that was removed while it was may be alive in OBS for a scene item that the model does
+        // not know yet (made after the removal, and its event is on its way). What the model counts then is behind OBS, and a count that says that nothing uses
+        // the source would destroy it for good: a read says whether OBS still has it.
+        private bool HeldByRead(Guid sourceUuid)
+        {
+            return this._readReleased.Holds(sourceUuid);
+        }
+
+        // The scene items of a scene that was destroyed went with it: no event tells about them.
+        private void ForgetReadReleased(Guid sceneUuid)
+        {
+            this._readReleased.RemoveScene(sceneUuid);
         }
 
         // Called when a scene item that used a source is gone.
@@ -57,6 +78,7 @@ namespace OBSStudioClient.Studio.Engine
                 return;
             }
 
+            fromRead |= this.HeldByRead(sourceUuid);
             if (this._inputs.TryGetValue(sourceUuid, out var input))
             {
                 if (input.State == SourceState.Detached)
@@ -155,6 +177,14 @@ namespace OBSStudioClient.Studio.Engine
                         continue;
                     }
 
+                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    {
+                        // See HeldByRead: the count is behind OBS, so a read of the list of inputs says.
+                        this.RequireCheck(input);
+                        this._inputsScope.MarkDirty();
+                        continue;
+                    }
+
                     input.RemovalUnresolved = false;
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
@@ -177,6 +207,14 @@ namespace OBSStudioClient.Studio.Engine
                     if (scene.CheckAfter > 0)
                     {
                         // A read of the scene items of the scene decides (ApplyItemsResponse), not a count.
+                        continue;
+                    }
+
+                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    {
+                        // See HeldByRead: the count is behind OBS, so a read of the scene items of the scene says.
+                        this.RequireCheck(scene);
+                        scene.ItemsScope.MarkDirty();
                         continue;
                     }
 
@@ -245,7 +283,9 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
-        private void DestroyScene(SceneNode scene)
+        // A scene that OBS destroyed: because an event told that it removed it and nothing shows it, or because the count of the scene items that show it says
+        // so, or because a read said that OBS does not have it (decidedByRead).
+        private void DestroyScene(SceneNode scene, bool decidedByRead = false)
         {
             if (scene.State == SourceState.Gone)
             {
@@ -265,10 +305,13 @@ namespace OBSStudioClient.Studio.Engine
                 this.CloseSceneGap(scene);
             }
 
-            // OBS sends no SceneItemRemoved for the items of a scene that goes, and destroys the inputs that only these items used.
+            // OBS sends no SceneItemRemoved for the items of a scene that goes, and destroys the inputs that only these items used. When a read decided
+            // it, that is not known of the inputs and scenes that these scene items showed: the scene items that the model knows of the other scenes can be
+            // behind what OBS has by then, and a read says whether OBS still has them.
+            this.ForgetReadReleased(scene.Uuid);
             foreach (var item in scene.Items.Values.ToArray())
             {
-                this.ReleaseItem(item);
+                this.ReleaseItem(item, doubtful: decidedByRead);
             }
 
             if (this._programUuid.Value == scene.Uuid)
@@ -350,6 +393,14 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             var outcome = this.OutcomeOfRemoval(scene.Uuid, repaired);
+            if (outcome == RemovalOutcome.Destroyed && !repaired && this.HeldByRead(scene.Uuid))
+            {
+                // See HeldByRead: nothing that the model knows uses the scene, but a scene item that a read took away did when OBS removed it. A read says.
+                this.RequireCheck(scene);
+                scene.ItemsScope.MarkDirty();
+                outcome = RemovalOutcome.KeptAlive;
+            }
+
             if (outcome == RemovalOutcome.Destroyed)
             {
                 this.DestroyScene(scene);
@@ -396,6 +447,14 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             var outcome = this.OutcomeOfRemoval(input.Uuid, repaired);
+            if (outcome == RemovalOutcome.Destroyed && !repaired && this.HeldByRead(input.Uuid))
+            {
+                // See HeldByRead: nothing that the model knows uses the input, but a scene item that a read took away did when OBS removed it. A read says.
+                this.RequireCheck(input);
+                this._inputsScope.MarkDirty();
+                outcome = RemovalOutcome.KeptAlive;
+            }
+
             if (outcome == RemovalOutcome.Destroyed)
             {
                 this.DestroyInput(input);

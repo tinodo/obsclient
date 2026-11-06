@@ -14,7 +14,8 @@ namespace OBSStudioClient.Tests.Studio
     /// <param name="Timeouts">The number of reads that were given up.</param>
     /// <param name="Reconnects">The number of times that the connection ended and another began.</param>
     /// <param name="Messages">The number of messages of OBS Studio that arrived.</param>
-    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages);
+    /// <param name="Digest">A digest of everything that happened: every operation, every message that arrived with its payload, every read that was sent, and the states that were compared.</param>
+    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages, string Digest);
 
     /// <summary>
     /// Runs a <see cref="StudioEngine"/> against a <see cref="SimObs"/> for a random walk: someone else changes OBS Studio at random moments, and the
@@ -28,7 +29,10 @@ namespace OBSStudioClient.Tests.Studio
     /// </remarks>
     internal sealed class EngineSimRun
     {
-        private const double VolumeTolerance = 0.002;
+        // The volumes travel as 32 bit numbers and as text: a difference that is not rounding is a different volume.
+        private const double VolumeDbTolerance = 0.01;
+        private const double VolumeMulShare = 0.001;
+        private const double VolumeMulFloor = 0.000001;
         private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(10);
         private static readonly string[] AudioKinds = ["wasapi_input_capture", "wasapi_output_capture"];
 
@@ -62,7 +66,7 @@ namespace OBSStudioClient.Tests.Studio
         private int _lateResults;
         private int _timeouts;
         private int _reconnects;
-
+        private ulong _digest = 14695981039346656037UL;
         public EngineSimRun(int seed, SimQuirks quirks, string quirksName, StudioEngineOptions? options = null)
         {
             this._seed = seed;
@@ -117,7 +121,7 @@ namespace OBSStudioClient.Tests.Studio
                 problem = run.Describe("An exception: " + exception);
             }
 
-            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages);
+            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages, run._digest.ToString("x16", CultureInfo.InvariantCulture));
         }
 
         public void Connect()
@@ -172,6 +176,16 @@ namespace OBSStudioClient.Tests.Studio
             this._sim.CheckInvariants();
             var truth = this._sim.Snapshot();
             var model = this._engine.Snapshot();
+            foreach (var line in Project(truth))
+            {
+                this.Record("truth " + line);
+            }
+
+            foreach (var line in Project(model))
+            {
+                this.Record("model " + line);
+            }
+
             var problems = Differences(truth, model);
             if (model.State != StudioEngineState.Synchronized)
             {
@@ -201,13 +215,21 @@ namespace OBSStudioClient.Tests.Studio
             foreach (var input in truth.Inputs.Where(input => input.HasAudio))
             {
                 var held = model.Inputs.FirstOrDefault(other => other.Uuid == input.Uuid);
-                if (held is not null && Math.Abs(held.VolumeMul - input.VolumeMul) > VolumeTolerance)
+                if (held is not null && !SameVolume(input, held))
                 {
-                    problems.Add($"volume of \"{input.Name}\": OBS Studio {input.VolumeMul.ToString("0.####", CultureInfo.InvariantCulture)}, model {held.VolumeMul.ToString("0.####", CultureInfo.InvariantCulture)}");
+                    problems.Add($"volume of \"{input.Name}\": OBS Studio {input.VolumeMul.ToString("0.######", CultureInfo.InvariantCulture)} ({input.VolumeDb.ToString("0.###", CultureInfo.InvariantCulture)} dB), model {held.VolumeMul.ToString("0.######", CultureInfo.InvariantCulture)} ({held.VolumeDb.ToString("0.###", CultureInfo.InvariantCulture)} dB)");
                 }
             }
 
             return problems;
+        }
+
+        // The decibels tell quiet levels apart (6 dB at -60 dB is a difference of 0.001 in the multiplier), and the multiplier is compared by its share, so that
+        // neither one can hide a difference that the other shows.
+        internal static bool SameVolume(SimInputSnapshot truth, EngineInput model)
+        {
+            return Math.Abs(model.VolumeDb - truth.VolumeDb) <= VolumeDbTolerance
+                && Math.Abs(model.VolumeMul - truth.VolumeMul) <= Math.Max(VolumeMulFloor, VolumeMulShare * Math.Max(truth.VolumeMul, model.VolumeMul));
         }
 
         private static List<string> Project(SimSnapshot snapshot)
@@ -300,11 +322,26 @@ namespace OBSStudioClient.Tests.Studio
 
         private void Log(string text)
         {
-            this._trace.Add($"{this.Now.TotalMilliseconds,9:0} ms  {text}");
+            var line = $"{this.Now.TotalMilliseconds,9:0} ms  {text}";
+            this.Record(line);
+            this._trace.Add(line);
             if (this._trace.Count > 2 * TraceLines + 800)
             {
                 this._trace.RemoveRange(0, this._trace.Count - TraceLines - 400);
             }
+        }
+
+        // Adds to the digest of the run: it covers everything that was done and everything that arrived (the report shows only the last of it, and
+        // cuts what is long), so two runs that have the same digest did the same.
+        private void Record(string text)
+        {
+            const ulong Prime = 1099511628211UL;
+            foreach (var character in text)
+            {
+                this._digest = unchecked((this._digest ^ character) * Prime);
+            }
+
+            this._digest = unchecked((this._digest ^ '\n') * Prime);
         }
 
         // Runs what is due at this moment: what OBS Studio has sent, a read that is given up, a read that the engine wants to send.
@@ -415,7 +452,9 @@ namespace OBSStudioClient.Tests.Studio
                 requests.Add(request);
             }
 
-            this._sim.Receive(JsonSerializer.Serialize(new { op = 8, d = new { requestId = batchId, haltOnFailure = false, executionType = 0, requests } }));
+            var batchJson = JsonSerializer.Serialize(new { op = 8, d = new { requestId = batchId, haltOnFailure = false, executionType = 0, requests } });
+            this.Record(batchJson);
+            this._sim.Receive(batchJson);
         }
 
         // Gives the engine what OBS Studio has sent that is due, in the order in which it was sent: that is the order in which it arrives. What
@@ -432,6 +471,7 @@ namespace OBSStudioClient.Tests.Studio
                 this._seq++;
                 this._messages++;
                 this._progress++;
+                this.Record(message.Json);
                 var at = this.Tick(message.SentAt);
                 var parsed = JsonSerializer.Deserialize<ObsMessage>(message.Json);
                 switch (parsed?.Data)
@@ -671,7 +711,9 @@ namespace OBSStudioClient.Tests.Studio
             });
             this.Add("add item", 6, truth =>
             {
-                var sources = truth.Scenes.Select(scene => (scene.Uuid, scene.Name)).Concat(truth.Inputs.Where(input => !input.Removed).Select(input => (input.Uuid, input.Name))).ToArray();
+                // Also a source that was removed and that something keeps alive: OBS finds it by its UUID, and the new scene item keeps it alive too. Not a
+                // global input that was removed: only its pin keeps it alive, nothing shows that (it is not in a list), and nobody can reach it.
+                var sources = truth.Scenes.Concat(truth.DetachedScenes).Select(scene => (scene.Uuid, scene.Name)).Concat(truth.Inputs.Where(input => !input.Removed || !input.Pinned).Select(input => (input.Uuid, input.Name))).ToArray();
                 if (truth.Scenes.Count > 0 && sources.Length > 0)
                 {
                     var scene = this.Pick(truth.Scenes);

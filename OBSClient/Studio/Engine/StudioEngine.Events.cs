@@ -319,6 +319,9 @@ namespace OBSStudioClient.Studio.Engine
         private void OnItemRemoved(SceneItemRemovedEventArgs e)
         {
             var key = new ItemKey(e.SceneUuid, e.SceneItemId);
+
+            // A read was ahead of this event (see HeldByRead): as far as the events go the scene item is gone now too.
+            this._readReleased.Remove(key);
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene) || !scene.Items.TryGetValue(e.SceneItemId, out var item))
             {
                 // Not known (yet): a read that was sent before the removal must not bring the item back.

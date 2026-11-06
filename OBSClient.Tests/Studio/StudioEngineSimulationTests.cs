@@ -80,7 +80,70 @@ namespace OBSStudioClient.Tests.Studio
         {
             var first = Run(7, "Real", 50, reconnects: true);
             var second = Run(7, "Real", 50, reconnects: true);
+
+            // Both walks ended well, and everything that happened in them is the same: the operations, the messages with what they carry, the reads that were
+            // sent, and the states that were compared. Not only how many of each there were.
+            Assert.Null(first.Problem);
+            Assert.Null(second.Problem);
+            Assert.NotEmpty(first.Digest);
+            Assert.Equal(first.Digest, second.Digest);
             Assert.Equal(first, second);
+        }
+
+        [Fact]
+        public void Another_seed_gives_another_walk()
+        {
+            var first = Run(7, "Real", 50, reconnects: true);
+            var other = Run(8, "Real", 50, reconnects: true);
+
+            Assert.Null(other.Problem);
+            Assert.NotEqual(first.Digest, other.Digest);
+        }
+
+        [Fact]
+        public void The_digest_depends_on_what_the_quirks_make_of_the_walk()
+        {
+            var real = Run(7, "Real", 50, reconnects: true);
+            var hostile = Run(7, "Hostile", 50, reconnects: true);
+
+            Assert.NotEqual(real.Digest, hostile.Digest);
+        }
+
+        // The volumes of OBS Studio and of the model are compared in decibels as well as by the multiplier: at quiet levels a difference of 6 dB is a
+        // difference of 0.001 in the multiplier, which an absolute tolerance on the multiplier does not see.
+        [Theory]
+        [InlineData(-60.0, -54.0, false)]
+        [InlineData(-60.0, -60.0, true)]
+        [InlineData(-60.0, -60.001, true)]
+        [InlineData(-40.0, -39.9, false)]
+        [InlineData(0.0, 0.0, true)]
+        [InlineData(0.0, 0.05, false)]
+        [InlineData(12.0, 12.002, true)]
+        [InlineData(12.0, 11.0, false)]
+        [InlineData(-100.0, -100.0, true)]
+        [InlineData(-100.0, -99.0, false)]
+        public void A_difference_of_volume_is_seen_at_every_level(double truthDb, double modelDb, bool same)
+        {
+            var uuid = Guid.NewGuid();
+            var truth = new SimInputSnapshot(uuid, "Mic", "wasapi_input_capture", true, false, DbToMul(truthDb), truthDb, false, false);
+            var model = new EngineInput(uuid, "Mic", "wasapi_input_capture", true, false, (float)DbToMul(modelDb), (float)modelDb, SourceState.Live);
+
+            Assert.Equal(same, EngineSimRun.SameVolume(truth, model));
+        }
+
+        [Fact]
+        public void A_volume_whose_multiplier_and_decibels_do_not_belong_together_is_not_the_same()
+        {
+            var uuid = Guid.NewGuid();
+            var truth = new SimInputSnapshot(uuid, "Mic", "wasapi_input_capture", true, false, DbToMul(-6), -6, false, false);
+            var model = new EngineInput(uuid, "Mic", "wasapi_input_capture", true, false, (float)DbToMul(-6) * 2, -6, SourceState.Live);
+
+            Assert.False(EngineSimRun.SameVolume(truth, model));
+        }
+
+        private static double DbToMul(double db)
+        {
+            return db <= -100 ? 0 : Math.Pow(10, db / 20);
         }
 
         private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects)

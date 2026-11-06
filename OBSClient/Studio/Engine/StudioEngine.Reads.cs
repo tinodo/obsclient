@@ -217,7 +217,7 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     // A scene that was removed: OBS does not have it (a scene that it keeps alive can be read), so it was destroyed.
                     // A group is in no list of scenes, so no list can ever say that it is gone: its 600 does.
-                    this.DestroyScene(scene);
+                    this.DestroyScene(scene, decidedByRead: true);
                 }
                 else
                 {

@@ -1049,5 +1049,394 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Empty(h.Engine.Snapshot().DetachedScenes);
             Assert.True(h.Engine.IsSettled);
         }
+
+        // From the review of the random walks: a read is ahead of the events. OBS removed C while the scene item of A showed it. Then a scene item of B was made
+        // that shows it (OBS finds a source that it keeps alive by its UUID), and then the scene item of A was taken away. The model read the scene items of A
+        // (and the list of scenes, in the second case) before any of these events arrived: A is empty, C is not in the list, and nothing is known of the scene
+        // item of B. The scene item of A is gone as far as the model knows, and it was there when OBS removed C: counting the scene items that the model knows
+        // when the event that removes C arrives says that nothing shows it, and destroys it for good. The scene item of B is made later, and its source never
+        // comes back.
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ASceneThatOBSRemovedWhileASceneItemShowedIt_IsNotDestroyedByCounting_WhenAReadTookThatSceneItemAwayAndAnotherOneIsOnItsWay(bool theListOfScenesWasReadToo)
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid c = Guid.Empty;
+            var firstItem = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                c = world.AddScene("C");
+                firstItem = world.AddItem(a, c, "C", isScene: true);
+            });
+
+            // What OBS did, in this order: removed C (A shows it, so it stays alive), made a scene item of B that shows C, took away the scene item of A.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == c);
+            var secondItem = h.World.AddItem(b, c, "C", isScene: true);
+            h.World.Items[a].Clear();
+
+            // Meanwhile the scene items of A are read, and the list of scenes in the second case. None of the events has arrived.
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            if (theListOfScenesWasReadToo)
+            {
+                EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            }
+
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == b).Items);
+
+            // The events, in the order in which they happened.
+            EngineEvents.SceneRemoved(h, c, "C");
+            EngineEvents.ItemCreated(h, b, "B", secondItem, 0, c, "C");
+            EngineEvents.ItemRemoved(h, a, "A", firstItem, c, "C");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == c);
+            Assert.Equal(c, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same for an input.
+        [Fact]
+        public void AnInputThatOBSRemovedWhileASceneItemUsedIt_IsNotDestroyedByCounting_WhenAReadTookThatSceneItemAwayAndAnotherOneIsOnItsWay()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var firstItem = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                firstItem = world.AddItem(a, mic, "Mic");
+            });
+
+            // OBS removed the input (A uses it, so it stays alive, and the list of inputs has it), made a scene item of B that uses it, took away the one of A.
+            var secondItem = h.World.AddItem(b, mic, "Mic");
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            EngineEvents.ItemCreated(h, b, "B", secondItem, 0, mic, "Mic");
+            EngineEvents.ItemRemoved(h, a, "A", firstItem, mic, "Mic");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // What a read takes away makes the model ask OBS, it does not make it keep what OBS does not have: when no other scene item shows the scene, OBS
+        // destroyed it, and the read says so.
+        [Fact]
+        public void ASceneThatOBSRemovedWhileASceneItemShowedIt_IsDestroyed_WhenAReadTookThatSceneItemAwayAndNothingElseShowsIt()
+        {
+            Guid a = Guid.Empty;
+            Guid c = Guid.Empty;
+            var firstItem = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                c = world.AddScene("C");
+                firstItem = world.AddItem(a, c, "C", isScene: true);
+            });
+
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == c);
+            h.World.Items.Remove(c);
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+
+            EngineEvents.SceneRemoved(h, c, "C");
+            EngineEvents.ItemRemoved(h, a, "A", firstItem, c, "C");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.DoesNotContain(snapshot.Scenes, scene => scene.Uuid == c);
+            Assert.Empty(snapshot.DetachedScenes);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The scene item that goes is not the only one that OBS had made: another one was taken away, a read told so, and its event has not come. OBS made a
+        // new scene item that uses the input after the one that goes was removed. The model knows no other scene item, but it does not conclude that OBS
+        // destroyed the input.
+        [Fact]
+        public void AnInputThatOBSRemoved_IsNotDestroyedByCounting_WhenTheLastSceneItemThatTheModelKnowsGoesWhileAReadHasTakenAnotherAway()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid third = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var itemOfB = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                third = world.AddScene("Third");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+                itemOfB = world.AddItem(b, mic, "Mic");
+            });
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // OBS took away the scene item of A (that event comes first), made a scene item of Third that uses the input, and took away the one of B. The read
+            // of B is ahead of all of it.
+            h.World.Items[a].Clear();
+            var itemOfThird = h.World.AddItem(third, mic, "Mic");
+            h.World.Items[b].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "B", sceneUuid = b, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            EngineEvents.ItemCreated(h, third, "Third", itemOfThird, 0, mic, "Mic");
+            EngineEvents.ItemRemoved(h, b, "B", itemOfB, mic, "Mic");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == third).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The event that a read was ahead of takes the scene item out of what is held: from then on the count is right again, and the last scene item that
+        // goes destroys the input at once, without a read.
+        [Fact]
+        public void AnInputThatOBSRemoved_IsDestroyedByCountingAgain_WhenTheEventOfTheSceneItemThatAReadTookAwayHasArrived()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var itemOfB = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+                itemOfB = world.AddItem(b, mic, "Mic");
+            });
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+
+            // OBS took away the scene item of A, and a read of A tells before the event does. The scene item of B still keeps the input alive.
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // The event arrives. Then OBS takes away the scene item of B, and destroys the input: the model knows it from the count.
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            EngineEvents.ItemRemoved(h, b, "B", itemOfB, mic, "Mic");
+
+            Assert.DoesNotContain(h.Engine.Snapshot().Inputs, input => input.Uuid == mic);
+        }
+
+        // The scene items of a scene that goes are not announced one by one: what a read took away from it, and that no event told about, is let go of with the
+        // scene. The scene item of the other scene that goes later then destroys the input by counting, at once.
+        [Fact]
+        public void TheSceneItemsThatAReadTookAwayFromASceneThatGoes_NoLongerHoldAnInput()
+        {
+            Guid a = Guid.Empty;
+            Guid doomed = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                doomed = world.AddScene("Doomed");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+                world.AddItem(doomed, mic, "Mic");
+            });
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+
+            // OBS took away the scene item of Doomed, and a read of Doomed tells (the scene item of A keeps the input alive).
+            h.World.Items[doomed].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "Doomed", sceneUuid = doomed, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // Doomed goes: nothing shows it, and nothing more is told about its scene items. Then the scene item of A goes: the input is destroyed.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+            Assert.Empty(h.Engine.Snapshot().DetachedScenes);
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+
+            Assert.DoesNotContain(h.Engine.Snapshot().Inputs, input => input.Uuid == mic);
+        }
+
+        // OBS removed the input while the model did not know all scene items (a scene had appeared that it had not read), so it decides when it does. By then a
+        // read has taken away the only scene item that it knew, and its event has not come: the count says that nothing uses the input, and a scene item that
+        // OBS made after the removal does.
+        [Fact]
+        public void AnInputThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenAReadTookTheOnlyKnownSceneItemAwayAndAnotherOneIsOnItsWay()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            // A scene that the model has not read appeared, and the input was removed: until its scene items are known the model cannot tell what OBS did.
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same for a scene.
+        [Fact]
+        public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenAReadTookTheOnlyKnownSceneItemAwayAndAnotherOneIsOnItsWay()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid c = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                c = world.AddScene("C");
+                itemOfA = world.AddItem(a, c, "C", isScene: true);
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            // A scene that the model has not read appeared, and C was removed (the list of scenes has not been read since): until its scene items are known
+            // the model cannot tell what OBS did. OBS made a scene item of B that shows C after the removal.
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == c);
+            var itemOfB = h.World.AddItem(b, c, "C", isScene: true);
+            EngineEvents.SceneRemoved(h, c, "C");
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == c);
+
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, c, "C");
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, c, "C");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == c);
+            Assert.Equal(c, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // From the random walks (seed 597 of Hostile): a read said that OBS does not have a scene (the list lacks it, and its scene items cannot be read), and
+        // its scene item was the only one that the model knew to use an input that OBS had removed and kept alive. Another scene item that uses the input had
+        // been made before the scene went, and its event was on its way. The read is about the scene: it says nothing about what the other scenes hold by now,
+        // and the model counted, found no scene item, and destroyed the input for good.
+        [Fact]
+        public void AnInputThatOBSRemoved_IsNotDestroyedByCounting_WhenASceneThatShowedItIsGoneByAReadAndAnotherSceneItemIsOnItsWay()
+        {
+            Guid doomed = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+            });
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // In OBS a scene item of B uses the input (its event is on its way), and then Doomed is removed, and destroyed. The model reads the list of scenes
+            // because a scene appeared: it lacks Doomed, and the scene items of Doomed cannot be read.
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            h.SettleWithTime();
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same for a scene that Doomed showed.
+        [Fact]
+        public void ASceneThatOBSRemoved_IsNotDestroyedByCounting_WhenASceneThatShowedItIsGoneByAReadAndAnotherSceneItemIsOnItsWay()
+        {
+            Guid doomed = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid nested = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                b = world.AddScene("B");
+                nested = world.AddScene("Nested");
+                world.AddItem(doomed, nested, "Nested", isScene: true);
+            });
+
+            // OBS removed Nested: the list lacks it, and the scene item of Doomed keeps it alive.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == nested);
+            EngineEvents.SceneRemoved(h, nested, "Nested");
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == nested);
+
+            var itemOfB = h.World.AddItem(b, nested, "Nested", isScene: true);
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            h.SettleWithTime();
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, nested, "Nested");
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == nested);
+            Assert.Equal(nested, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }
