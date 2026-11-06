@@ -138,6 +138,11 @@ namespace OBSStudioClient.Studio.Engine
         private readonly HashSet<ItemKey> _goneItems = new();
         private readonly HashSet<Guid> _removedUnknown = new();
 
+        // The scene items that a read found gone, whose removal the events have not told yet, and the sources that they used. A read is ahead of the events:
+        // such a scene item existed as far as the events go, so while it is here a source that nothing else is known to use may still be used (see
+        // HeldByRead). The event that removes the scene item takes it away.
+        private readonly ReadReleasedItems _readReleased = new();
+
         // The sources that were removed while the model did not know their scene items yet: whether OBS destroyed them is not known.
         private readonly HashSet<Guid> _unresolved = new();
         private readonly List<StudioChange> _changes = new();
@@ -210,6 +215,7 @@ namespace OBSStudioClient.Studio.Engine
             this._gone.Clear();
             this._goneItems.Clear();
             this._removedUnknown.Clear();
+            this._readReleased.Clear();
             // What the model believes about the lifecycle of a source comes from the events that this connection saw, and the reads that follow: on
             // a new connection it starts as it does on a first one. A scene or an input that was Detached can be live now (OBS was started again
             // from a collection that has it): a scene that the list has is live, and an input that is in the list is, until an event removes it.

@@ -160,6 +160,39 @@ namespace OBSStudioClient.Tests.Studio
             return id;
         }
 
+        /// <summary>Renames a scene or an input, and so the name that the scene items that show it have.</summary>
+        public void Rename(Guid uuid, string name)
+        {
+            for (var i = 0; i < this.Scenes.Count; i++)
+            {
+                if (this.Scenes[i].Uuid == uuid)
+                {
+                    this.Scenes[i] = (uuid, name);
+                }
+            }
+
+            for (var i = 0; i < this.Inputs.Count; i++)
+            {
+                var input = this.Inputs[i];
+                if (input.Uuid == uuid)
+                {
+                    this.Inputs[i] = (uuid, name, input.Kind, input.Caps, input.Muted, input.VolumeMul);
+                }
+            }
+
+            foreach (var items in this.Items.Values)
+            {
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var item = items[i];
+                    if (item.Source == uuid)
+                    {
+                        items[i] = (item.Id, item.Source, item.IsScene, name, item.Index, item.Enabled, item.Locked);
+                    }
+                }
+            }
+        }
+
         public (int Code, object? Data) Answer(ReadRequest request)
         {
             switch (request.Kind)

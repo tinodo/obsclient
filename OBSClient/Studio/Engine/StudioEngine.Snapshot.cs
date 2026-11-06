@@ -61,5 +61,49 @@ namespace OBSStudioClient.Studio.Engine
                 .ToArray();
             return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
         }
+
+        /// <summary>
+        /// Checks that what the model holds is consistent with itself: that the references of a source are the scene items that use it and no others, and that
+        /// nothing that was destroyed is still held. It returns what is not. It is for the tests (the walks call it each time that they compare the model with OBS
+        /// Studio; that the model has settled, with no removed source left waiting for a decision, is part of <see cref="IsSettled"/>).
+        /// </summary>
+        /// <returns>What is inconsistent, or nothing.</returns>
+        public IReadOnlyList<string> CheckConsistency()
+        {
+            var problems = new List<string>();
+            var counted = new Dictionary<Guid, int>();
+            foreach (var scene in this._scenes.Values)
+            {
+                if (scene.State == SourceState.Gone)
+                {
+                    problems.Add($"The scene {scene.Uuid:D} \"{scene.Name.Value}\" was destroyed, and is still held.");
+                }
+
+                foreach (var item in scene.Items.Values)
+                {
+                    counted[item.SourceUuid] = counted.GetValueOrDefault(item.SourceUuid) + 1;
+                    if (!this._refs.TryGetValue(item.SourceUuid, out var references) || !references.Contains(item.Key))
+                    {
+                        problems.Add($"The scene item {item.Id} of the scene {scene.Uuid:D} is not among the references of its source {item.SourceUuid:D}.");
+                    }
+                }
+            }
+
+            foreach (var (source, references) in this._refs)
+            {
+                var items = counted.GetValueOrDefault(source);
+                if (references.Count == 0 || references.Count != items)
+                {
+                    problems.Add($"The source {source:D} has {references.Count} references and {items} scene items that use it.");
+                }
+            }
+
+            foreach (var input in this._inputs.Values.Where(input => input.State == SourceState.Gone))
+            {
+                problems.Add($"The input {input.Uuid:D} \"{input.Name.Value}\" was destroyed, and is still held.");
+            }
+
+            return problems;
+        }
     }
 }
