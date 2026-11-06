@@ -6,7 +6,9 @@ namespace OBSStudioClient.Studio.Engine
     /// <remarks>
     /// A read is ahead of the events. As far as the events go, a scene item that a read found gone is still there until the event that removes it
     /// arrives. The model does not count such a scene item among the ones that use a source, but it does not conclude from the count that OBS destroyed
-    /// a source while one of them used it either: see <c>StudioEngine.HeldByRead</c>.
+    /// a source while one of them used it either: see <c>StudioEngine.HeldByRead</c>. The scene items that went with a scene that a read said OBS does not have
+    /// are held too: the events about the sources that they showed (OBS removed one, and made another scene item that uses it) can still be on their way,
+    /// and nothing is said of the scene items themselves. A scene item is let go of when its event arrives, and when the source that it used is destroyed.
     /// </remarks>
     internal sealed class ReadReleasedItems
     {
@@ -62,6 +64,21 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             foreach (var key in this._items.Keys.Where(key => key.Scene == scene).ToArray())
+            {
+                this.Remove(key);
+            }
+        }
+
+        /// <summary>Lets go of the scene items that used a source: OBS destroyed it, so what the events can still say about them does not matter any more.</summary>
+        /// <param name="source">The source.</param>
+        public void RemoveSource(Guid source)
+        {
+            if (!this._users.ContainsKey(source))
+            {
+                return;
+            }
+
+            foreach (var key in this._items.Where(item => item.Value == source).Select(item => item.Key).ToArray())
             {
                 this.Remove(key);
             }

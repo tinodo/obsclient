@@ -1438,5 +1438,118 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(nested, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
             Assert.True(h.Engine.IsSettled);
         }
+
+        // From a review: a read that says that OBS does not have a scene takes away its scene items, and what OBS did with the sources that they showed
+        // is for events that are on their way: the model does not know yet that OBS removed the input, nor that it made another scene item that uses it. A
+        // count that says that nothing uses the input, when its removal arrives, must not destroy it: a read says whether OBS still has it.
+        [Fact]
+        public void ALiveInput_IsNotDestroyedByCounting_WhenASceneThatShowedItIsGoneByAReadAndOBSRemovedItAndUsedItAgainMeanwhile()
+        {
+            Guid doomed = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+            });
+
+            // In OBS a scene item of B uses the input, and Doomed is removed and destroyed (the events are on their way). The model reads the list of scenes because
+            // a scene appeared: it lacks Doomed, and the scene items of Doomed cannot be read.
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            h.SettleWithTime();
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+            Assert.Equal(SourceState.Live, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // OBS removed the input before it made the scene item of B: the events arrive in that order.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same when another scene item that the model knew used the input: it is taken away by its event, which comes before the removal of the input, and
+        // the model is left with none that it knows of.
+        [Fact]
+        public void ALiveInput_IsNotDestroyedByCounting_WhenASceneThatShowedItIsGoneByAReadAndTheOtherSceneItemThatTheModelKnowsGoesBeforeOBSRemovesIt()
+        {
+            Guid doomed = Guid.Empty;
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+                itemOfA = world.AddItem(a, mic, "Mic");
+            });
+
+            // In OBS the scene item of A goes, a scene item of B uses the input, and Doomed is destroyed. The model reads the list of scenes and finds Doomed gone.
+            h.World.Items[a].Clear();
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            h.SettleWithTime();
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same for a scene that Doomed showed.
+        [Fact]
+        public void ALiveScene_IsNotDestroyedByCounting_WhenASceneThatShowedItIsGoneByAReadAndOBSRemovedItAndUsedItAgainMeanwhile()
+        {
+            Guid doomed = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid nested = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                b = world.AddScene("B");
+                nested = world.AddScene("Nested");
+                world.AddItem(doomed, nested, "Nested", isScene: true);
+            });
+
+            var itemOfB = h.World.AddItem(b, nested, "Nested", isScene: true);
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed || scene.Uuid == nested);
+            h.World.Items.Remove(doomed);
+            EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            h.SettleWithTime();
+            Assert.DoesNotContain(h.Engine.Snapshot().Scenes, scene => scene.Uuid == doomed);
+
+            EngineEvents.SceneRemoved(h, nested, "Nested");
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, nested, "Nested");
+            EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == nested);
+            Assert.Equal(nested, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }

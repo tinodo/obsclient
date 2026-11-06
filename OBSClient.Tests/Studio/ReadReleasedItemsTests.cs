@@ -69,6 +69,26 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void TheSceneItemsThatUsedASource_AreLetGoOfWhenItIsDestroyed()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var source = Guid.NewGuid();
+            var other = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), source);
+            held.Add(new ItemKey(scene, 2), other);
+            held.Add(new ItemKey(Guid.NewGuid(), 1), source);
+
+            held.RemoveSource(source);
+
+            Assert.False(held.Holds(source));
+            Assert.True(held.Holds(other));
+            Assert.Equal(1, held.Count);
+            held.RemoveSource(source);
+            Assert.Equal(1, held.Count);
+        }
+
+        [Fact]
         public void Clear_LetsGoOfEverything()
         {
             var held = new ReadReleasedItems();

@@ -28,12 +28,14 @@ namespace OBSStudioClient.Studio.Engine
         // more is destroyed by OBS when it was removed. The indexes of the other items are the business of the caller. When a read said that the
         // item is gone, the scene items that the model knows can be behind OBS (the events of a creation can still be on their way), so
         // that source is not destroyed by counting: a read says whether OBS still has it. That holds for the scene items that go with a scene that a
-        // read said OBS does not have (doubtful) too: the read is about the scene, and it says nothing about what the other scenes hold by now.
+        // read said OBS does not have (doubtful) too: the read is about the scene, and it says nothing about what the other scenes hold by now, nor about
+        // the events that are on their way (OBS can have removed the source, and made another scene item that uses it). Both are held, until the events
+        // have caught up (see ReadReleasedItems).
         private void ReleaseItem(ItemNode item, bool fromRead = false, bool doubtful = false)
         {
             item.Scene.Items.Remove(item.Id);
             this._goneItems.Add(item.Key);
-            if (fromRead)
+            if (fromRead || doubtful)
             {
                 this._readReleased.Add(item.Key, item.SourceUuid);
             }
@@ -277,6 +279,7 @@ namespace OBSStudioClient.Studio.Engine
             this._removedUnknown.Remove(input.Uuid);
             this._inputs.Remove(input.Uuid);
             this._gone.Add(input.Uuid);
+            this._readReleased.RemoveSource(input.Uuid);
             if (input.Announced)
             {
                 this.Emit(StudioChangeKind.InputRemoved, input.Uuid, 0, input.Name.Value);
@@ -300,6 +303,7 @@ namespace OBSStudioClient.Studio.Engine
             this._removedUnknown.Remove(scene.Uuid);
             this._scenes.Remove(scene.Uuid);
             this._gone.Add(scene.Uuid);
+            this._readReleased.RemoveSource(scene.Uuid);
             if (wasLive && !scene.IsGroup)
             {
                 this.CloseSceneGap(scene);
