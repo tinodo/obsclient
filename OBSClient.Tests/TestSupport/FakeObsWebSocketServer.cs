@@ -67,13 +67,21 @@
                 while (!_stopped)
                 {
                     var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                    client.NoDelay = true;
-                    var stream = client.GetStream();
-                    await PerformHandshakeAsync(stream).ConfigureAwait(false);
+                    try
+                    {
+                        client.NoDelay = true;
+                        var stream = client.GetStream();
+                        await PerformHandshakeAsync(stream).ConfigureAwait(false);
 
-                    _tcpClient = client;
-                    _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
-                    _connectionSignal.Release();
+                        _tcpClient = client;
+                        _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
+                        _connectionSignal.Release();
+                    }
+                    catch (Exception) when (!_stopped)
+                    {
+                        // A client that went away before the upgrade was complete (a call that was cancelled while it connected): the next one is accepted.
+                        client.Dispose();
+                    }
                 }
             }
             catch (Exception) when (_stopped)
