@@ -307,12 +307,14 @@ namespace OBSStudioClient.Studio.Engine
             this._letGo += this._gone.Prune(before) + this._removedUnknown.Prune(before) + this._goneItems.Prune(before) + this._readReleased.Prune(before);
 
             // A source stays remembered until a list shows that OBS is done with it. The lists are read for other reasons too, but not always: they are read for this.
-            if (this._gone.NeedsConfirmation(SourceKind.Input, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Input, before))
+            // A read of the list that is under way was sent after these removals (they are older than the time that a read can take), so it confirms them as
+            // well as another read would: a part that is read already is not marked again.
+            if (!this._inputsScope.InFlight && (this._gone.NeedsConfirmation(SourceKind.Input, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Input, before)))
             {
                 this._inputsScope.MarkDirty();
             }
 
-            if (this._gone.NeedsConfirmation(SourceKind.Scene, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Scene, before))
+            if (!this._scenesScope.InFlight && (this._gone.NeedsConfirmation(SourceKind.Scene, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Scene, before)))
             {
                 this._scenesScope.MarkDirty();
             }
