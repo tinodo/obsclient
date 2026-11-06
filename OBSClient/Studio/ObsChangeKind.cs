@@ -6,7 +6,10 @@ namespace OBSStudioClient.Studio
     public enum ObsChangeKind
     {
         /// <summary>
-        /// A scene, an input or a scene item appeared. It is complete: everything about it is known.
+        /// A scene, an input or a scene item appeared. An input is announced when it is complete (its audio state is known), and a scene item when its index
+        /// and its state are known. A scene is announced when OBS Studio creates it, and its scene items are read after that: each is announced when it is
+        /// known, so the <see cref="ObsScene.Items"/> of a scene that a handler is told of can be incomplete. Call <see cref="ObsStudio.WaitUntilSettledAsync"/>
+        /// when you need all of it.
         /// </summary>
         Added,
 

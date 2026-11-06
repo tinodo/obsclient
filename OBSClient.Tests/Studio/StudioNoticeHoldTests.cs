@@ -24,7 +24,7 @@ namespace OBSStudioClient.Tests.Studio
         {
             var a = new object();
             var b = new object();
-            var hold = new StudioNoticeHold();
+            var hold = new StudioNoticeHold(100);
             var record = new ObsChangedEventArgs(ObsChangeKind.PropertyChanged, a, "X", 1, 2);
 
             hold.Hold([new StudioNotice(record, a, "X"), Property(b, "X"), Property(a, "Y")]);
@@ -42,7 +42,7 @@ namespace OBSStudioClient.Tests.Studio
         public void Hold_DropsTheNotificationsThatAreNotAboutAProperty()
         {
             var a = new object();
-            var hold = new StudioNoticeHold();
+            var hold = new StudioNoticeHold(100);
 
             hold.Hold([new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Repaired, a), null, null), new StudioNotice(null, a, null), new StudioNotice(null, null, "X")]);
 
@@ -57,7 +57,7 @@ namespace OBSStudioClient.Tests.Studio
             var second = new string('a', 3);
             Assert.NotSame(first, second);
             Assert.Equal(first, second);
-            var hold = new StudioNoticeHold();
+            var hold = new StudioNoticeHold(100);
 
             hold.Hold([Property(first, "X"), Property(second, "X")]);
 
@@ -69,7 +69,7 @@ namespace OBSStudioClient.Tests.Studio
         {
             using var studio = new ObsStudio();
             var scene = new object();
-            var hold = new StudioNoticeHold();
+            var hold = new StudioNoticeHold(100);
             hold.Hold([Property(scene, "Name"), Property(studio, "Scenes"), Property(studio, "Inputs")]);
 
             var released = Released(hold, onlyStudio: true);
@@ -83,7 +83,7 @@ namespace OBSStudioClient.Tests.Studio
         public void Release_Forgets_SoThatTheSamePropertyIsHeldAgainAfterwards()
         {
             var a = new object();
-            var hold = new StudioNoticeHold();
+            var hold = new StudioNoticeHold(100);
             hold.Hold([Property(a, "X")]);
             Assert.Single(Released(hold, onlyStudio: false));
 
@@ -91,6 +91,82 @@ namespace OBSStudioClient.Tests.Studio
 
             Assert.Equal(1, hold.Count);
             Assert.Single(Released(hold, onlyStudio: false));
+        }
+
+        [Fact]
+        public void WhenMoreChangeThanMayBeHeld_NothingIsKept_AndTheReleaseSaysSo()
+        {
+            var objects = Enumerable.Range(0, 10).Select(_ => new object()).ToArray();
+            var hold = new StudioNoticeHold(4);
+
+            // Four properties fit. The fifth does not, and what was held is let go of with the objects that it referred to.
+            hold.Hold(objects.Take(3).Select(o => Property(o, "X")).ToArray());
+            Assert.Equal(3, hold.Count);
+            Assert.False(hold.Overflowed);
+            hold.Hold([Property(objects[3], "X"), Property(objects[4], "X")]);
+
+            Assert.True(hold.Overflowed);
+            Assert.Equal(0, hold.Count);
+
+            // Nothing is kept from then on, however many more come, so the memory does not grow while the model cannot be read.
+            hold.Hold(objects.Select(o => Property(o, "Y")).ToArray());
+            Assert.Equal(0, hold.Count);
+
+            var released = new List<StudioNotice>();
+            Assert.True(hold.Release(released.Add, onlyStudio: false));
+            Assert.Empty(released);
+        }
+
+        [Fact]
+        public void AfterAnOverflowIsReleased_NotificationsAreHeldAgain()
+        {
+            var a = new object();
+            var hold = new StudioNoticeHold(1);
+            hold.Hold([Property(a, "X"), Property(a, "Y")]);
+            Assert.True(hold.Release(_ => { }, onlyStudio: false));
+            Assert.False(hold.Overflowed);
+
+            hold.Hold([Property(a, "X")]);
+
+            Assert.Equal(1, hold.Count);
+            var released = new List<StudioNotice>();
+            Assert.False(hold.Release(released.Add, onlyStudio: false));
+            Assert.Single(released);
+        }
+
+        [Fact]
+        public void TheSameProperty_AgainAndAgain_DoesNotFillTheHold()
+        {
+            var a = new object();
+            var hold = new StudioNoticeHold(2);
+
+            for (var i = 0; i < 100; i++)
+            {
+                hold.Hold([Property(a, "X")]);
+            }
+
+            Assert.False(hold.Overflowed);
+            Assert.Equal(1, hold.Count);
+        }
+
+        [Fact]
+        public void Clear_LetsGoOfWhatIsHeld_AndOfAnOverflow()
+        {
+            var a = new object();
+            var hold = new StudioNoticeHold(1);
+            hold.Hold([Property(a, "X"), Property(a, "Y")]);
+            Assert.True(hold.Overflowed);
+
+            hold.Clear();
+
+            Assert.False(hold.Overflowed);
+            Assert.Equal(0, hold.Count);
+        }
+
+        [Fact]
+        public void TheCapacity_MustBeAtLeastOne()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new StudioNoticeHold(0));
         }
     }
 }

@@ -48,7 +48,7 @@ namespace OBSStudioClient.Studio
         private readonly StudioEngine _engine = new();
         private readonly StudioPublisher _publisher;
         private readonly StudioNotifier _notifier;
-        private readonly StudioNoticeHold _held = new();
+        private readonly StudioNoticeHold _held;
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
         private readonly List<TaskCompletionSource> _settleWaiters = new();
@@ -78,6 +78,7 @@ namespace OBSStudioClient.Studio
             this._time = options.TimeProvider ?? TimeProvider.System;
             this._start = this._time.GetTimestamp();
             this._readTimeout = options.ReadTimeout;
+            this._held = new StudioNoticeHold(options.MaxPendingNotifications);
             this._publisher = new StudioPublisher(studio, options.IgnoreCase);
         }
 
@@ -625,8 +626,16 @@ namespace OBSStudioClient.Studio
                 // studio itself, whose collections were empty before.
                 var first = !this._studio.EverSynchronized;
                 this._studio.SetState(ObsStudioState.Synchronized);
-                this._held.Release(this._studio.QueueNotice, onlyStudio: first);
-                this._studio.QueueResynchronized();
+                if (this._held.Release(this._studio.QueueNotice, onlyStudio: first))
+                {
+                    // More changed while the model was read than could be held (see StudioNoticeHold): everything may have changed, and the application is told so.
+                    this._studio.QueueEverything(onlyStudio: first);
+                }
+                else
+                {
+                    this._studio.QueueResynchronized();
+                }
+
                 this.CompleteAttempt(this._session);
             }
         }

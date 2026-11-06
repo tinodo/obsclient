@@ -59,6 +59,11 @@ namespace OBSStudioClient.Studio
         /// meantime does not say so; its <see cref="ObsSource.IsRemoved"/> is right when you read it.
         /// </para>
         /// <para>
+        /// The same number bounds what is kept for you while the model is read again after a connection was lost (see <see cref="ObsStudio.Changed"/>): when more
+        /// properties than this changed meanwhile (or the model could not be read for so long that this many changed), they are not kept, and when the model is
+        /// complete everything is raised as described above, once.
+        /// </para>
+        /// <para>
         /// The model itself is not affected: it is always current, and only the notifications are dropped.
         /// </para>
         /// </remarks>

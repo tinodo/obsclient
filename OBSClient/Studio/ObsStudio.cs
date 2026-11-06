@@ -143,7 +143,9 @@ namespace OBSStudioClient.Studio
         /// the connection was down, the <see cref="ObsSource.Name"/> of a scene that was renamed, the <see cref="ObsSource.IsRemoved"/> of an input that was removed,
         /// and the <see cref="Scenes"/> and <see cref="Inputs"/> of the <see cref="ObsStudio"/> itself). The first time that the model is complete, only the
         /// <see cref="ObsStudio"/> does: the objects are new to you then. There is no record in <see cref="Changed"/> for any of these:
-        /// <see cref="Resynchronized"/> comes after them, and says that you should read again what you hold.
+        /// <see cref="Resynchronized"/> comes after them, and says that you should read again what you hold. When more properties changed than may be kept
+        /// meanwhile (see <see cref="ObsStudioOptions.MaxPendingNotifications"/>), each object raises PropertyChanged once with an empty property name instead,
+        /// which says that all of its properties changed.
         /// </para>
         /// <para>
         /// There is one record for each change of a value or of a list, not one for each object that the change moves: when a scene item is moved, the
@@ -541,6 +543,13 @@ namespace OBSStudioClient.Studio
             this._notifier.Enqueue(this.RaiseResynchronized);
         }
 
+        // More changed while the model was read than the notifications that are held for the application can be (see StudioNoticeHold): it is told once that
+        // everything may have changed, when the model is complete.
+        internal void QueueEverything(bool onlyStudio)
+        {
+            this._notifier.Enqueue(() => this.RaiseEverything(onlyStudio));
+        }
+
         // The scene items that show a scene or an input, in the scenes of the moment.
         internal IReadOnlyList<ObsSceneItem> FindItemsShowing(ObsSource source)
         {
@@ -830,20 +839,30 @@ namespace OBSStudioClient.Studio
         // have changed. A PropertyChanged event without a property name says that to what is bound to an object, and Resynchronized says it to the rest.
         private void RaiseEverything()
         {
-            this.Raise(this.PropertyChanged, this, string.Empty);
-            var view = this._view;
-            foreach (var scene in view.AllScenes)
-            {
-                scene.RaisePropertyChanged(string.Empty);
-                foreach (var item in scene.Items)
-                {
-                    item.RaisePropertyChanged(string.Empty);
-                }
-            }
+            this.RaiseEverything(onlyStudio: false);
+        }
 
-            foreach (var input in view.Inputs)
+        // The same for the notifications that were held while the model was read, when there were more than could be held. The first time that the model is read
+        // the objects are new to the application, so only the studio itself, which it can be bound to, says that everything changed.
+        private void RaiseEverything(bool onlyStudio)
+        {
+            this.Raise(this.PropertyChanged, this, string.Empty);
+            if (!onlyStudio)
             {
-                input.RaisePropertyChanged(string.Empty);
+                var view = this._view;
+                foreach (var scene in view.AllScenes)
+                {
+                    scene.RaisePropertyChanged(string.Empty);
+                    foreach (var item in scene.Items)
+                    {
+                        item.RaisePropertyChanged(string.Empty);
+                    }
+                }
+
+                foreach (var input in view.Inputs)
+                {
+                    input.RaisePropertyChanged(string.Empty);
+                }
             }
 
             this.RaiseResynchronized();

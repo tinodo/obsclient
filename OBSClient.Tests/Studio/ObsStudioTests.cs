@@ -665,6 +665,67 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task WhenMorePropertiesChangeWhileTheModelIsReadThanMayBeKept_EveryObjectSaysThatEverythingChanged_Once()
+        {
+            Guid gaming = Guid.Empty;
+            Guid mic = Guid.Empty;
+            Guid old = Guid.Empty;
+            await using var rig = StudioRig.Create(
+                world =>
+                {
+                    gaming = world.AddScene("Gaming");
+                    mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                    old = world.AddInput("Old", "wasapi_input_capture", 2);
+                },
+                new ObsStudioOptions { MaxPendingNotifications = 5 });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+            var scene = rig.Studio.Scenes["Gaming"];
+            var micInput = rig.Studio.Inputs["Mic"];
+            var oldInput = rig.Studio.Inputs["Old"];
+            var raised = new ConcurrentQueue<(object Sender, string Property)>();
+            PropertyChangedEventHandler handler = (sender, e) => raised.Enqueue((sender!, e.PropertyName!));
+            scene.PropertyChanged += handler;
+            micInput.PropertyChanged += handler;
+            oldInput.PropertyChanged += handler;
+            rig.Studio.PropertyChanged += handler;
+
+            // While the connection is down seven properties change: more than the five that may be kept for the application.
+            rig.Responder.AbortConnection();
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Reconnecting, "the state to follow the connection");
+            rig.Responder.Change(world =>
+            {
+                var index = world.Inputs.FindIndex(i => i.Uuid == mic);
+                var input = world.Inputs[index];
+                world.Inputs[index] = (input.Uuid, input.Name, input.Kind, input.Caps, true, input.VolumeMul);
+                world.Inputs.RemoveAll(i => i.Uuid == old);
+                world.Scenes[world.Scenes.FindIndex(s => s.Uuid == gaming)] = (gaming, "Playing");
+                var created = Guid.NewGuid();
+                world.Scenes.Insert(0, (created, "New"));
+                world.Items[created] = [];
+            });
+
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized for the reconnect", TimeSpan.FromSeconds(30));
+            await Task.Delay(100);
+
+            // What the model holds is right, and what could not be kept is told in one go: every object that survived says that all of its properties changed.
+            Assert.True(micInput.IsMuted);
+            Assert.Equal("Playing", scene.Name);
+            Assert.True(oldInput.IsRemoved);
+            var notifications = raised.ToArray();
+            int Count(object sender, string property) => notifications.Count(n => ReferenceEquals(n.Sender, sender) && n.Property == property);
+            Assert.Equal(1, Count(micInput, string.Empty));
+            Assert.Equal(1, Count(scene, string.Empty));
+            Assert.Equal(1, Count(rig.Studio, string.Empty));
+            Assert.Equal(0, Count(micInput, "IsMuted"));
+            Assert.Equal(0, Count(scene, "Name"));
+            Assert.Equal(0, Count(rig.Studio, "Scenes"));
+            Assert.Equal(2, Volatile.Read(ref resynchronized));
+        }
+
+        [Fact]
         public async Task Dispose_EndsTheConnection_AndTheStudioCannotBeUsedAgain()
         {
             await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
