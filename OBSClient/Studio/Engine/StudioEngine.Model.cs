@@ -25,8 +25,10 @@ namespace OBSStudioClient.Studio.Engine
         }
 
         // Removes an item from its scene and from the references of its source, and follows up on the source: a source that nothing uses any
-        // more is destroyed by OBS when it was removed. The indexes of the other items are the business of the caller.
-        private void ReleaseItem(ItemNode item)
+        // more is destroyed by OBS when it was removed. The indexes of the other items are the business of the caller. When a read said that the
+        // item is gone, the scene items that the model knows can be behind OBS (the events of a creation can still be on their way), so
+        // that source is not destroyed by counting: a read says whether OBS still has it.
+        private void ReleaseItem(ItemNode item, bool fromRead = false)
         {
             item.Scene.Items.Remove(item.Id);
             this._goneItems.Add(item.Key);
@@ -44,11 +46,11 @@ namespace OBSStudioClient.Studio.Engine
                 this.Emit(StudioChangeKind.ItemRemoved, item.Scene.Uuid, item.Id);
             }
 
-            this.OnReferencesChanged(item.SourceUuid);
+            this.OnReferencesChanged(item.SourceUuid, fromRead);
         }
 
         // Called when a scene item that used a source is gone.
-        private void OnReferencesChanged(Guid sourceUuid)
+        private void OnReferencesChanged(Guid sourceUuid, bool fromRead = false)
         {
             if (this.RefCount(sourceUuid) > 0)
             {
@@ -61,7 +63,12 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     // OBS removed it earlier, and keeps it alive for its scene items: the last one went, so it is destroyed (and OBS says nothing).
                     // When the model does not know all scene items yet, one that it does not know may still use it.
-                    if (!input.RemovalUnresolved || this.ReferencesComplete())
+                    if (fromRead)
+                    {
+                        this.RequireCheck(input);
+                        this._inputsScope.MarkDirty();
+                    }
+                    else if (input.CheckAfter == 0 && (!input.RemovalUnresolved || this.ReferencesComplete()))
                     {
                         this.DestroyInput(input);
                     }
@@ -73,9 +80,28 @@ namespace OBSStudioClient.Studio.Engine
                     this._inputsScope.MarkDirtyNotBefore(this._now + this._options.InputCheckDelay);
                 }
             }
-            else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached && (!scene.RemovalUnresolved || this.ReferencesComplete()))
+            else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached)
             {
-                this.DestroyScene(scene);
+                if (fromRead)
+                {
+                    this.RequireCheck(scene);
+                    scene.ItemsScope.MarkDirty();
+                }
+                else if (scene.CheckAfter == 0 && (!scene.RemovalUnresolved || this.ReferencesComplete()))
+                {
+                    this.DestroyScene(scene);
+                }
+            }
+        }
+
+        // The model doubts whether OBS still has a source that it removed: a read that is taken from now on says (see SourceNode.CheckAfter).
+        private void RequireCheck(SourceNode source)
+        {
+            source.CheckAfter = this._nextTicket;
+            if (!source.RemovalUnresolved)
+            {
+                source.RemovalUnresolved = true;
+                this._unresolved.Add(source.Uuid);
             }
         }
 
@@ -118,6 +144,12 @@ namespace OBSStudioClient.Studio.Engine
             {
                 if (this._inputs.TryGetValue(uuid, out var input) && input.RemovalUnresolved)
                 {
+                    if (input.CheckAfter > 0)
+                    {
+                        // A read of the list of inputs decides (ApplyInputs), not a count.
+                        continue;
+                    }
+
                     input.RemovalUnresolved = false;
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
@@ -137,6 +169,12 @@ namespace OBSStudioClient.Studio.Engine
                 }
                 else if (this._scenes.TryGetValue(uuid, out var scene) && scene.RemovalUnresolved)
                 {
+                    if (scene.CheckAfter > 0)
+                    {
+                        // A read of the scene items of the scene decides (ApplyItemsResponse), not a count.
+                        continue;
+                    }
+
                     scene.RemovalUnresolved = false;
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
@@ -191,6 +229,7 @@ namespace OBSStudioClient.Studio.Engine
 
             input.State = SourceState.Gone;
             input.RemovalUnresolved = false;
+            input.CheckAfter = 0;
             this._unresolved.Remove(input.Uuid);
             this._removedUnknown.Remove(input.Uuid);
             this._inputs.Remove(input.Uuid);
@@ -211,6 +250,7 @@ namespace OBSStudioClient.Studio.Engine
             var wasLive = scene.State == SourceState.Live;
             scene.State = SourceState.Gone;
             scene.RemovalUnresolved = false;
+            scene.CheckAfter = 0;
             this._unresolved.Remove(scene.Uuid);
             this._removedUnknown.Remove(scene.Uuid);
             this._scenes.Remove(scene.Uuid);
@@ -248,6 +288,36 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     this.Emit(StudioChangeKind.SceneOrderChanged, other.Uuid, 0, other.Name.Value);
                 }
+            }
+        }
+
+        // A scene that a list of scenes does not have, while no event told that OBS removed it (the event can be on its way, or the connection
+        // missed it). The list does not say whether OBS destroyed it or keeps it alive for a scene item, and what the model knows of the scene items
+        // can be behind what OBS has: a read of the scene items of the scene says (ApplyItemsResponse). The scene is Detached until it comes.
+        private void RemoveSceneUnverified(SceneNode scene)
+        {
+            if (scene.State != SourceState.Live)
+            {
+                return;
+            }
+
+            this.Emit(StudioChangeKind.Repaired, scene.Uuid, 0, scene.Name.Value);
+            this.RequireCheck(scene);
+            scene.State = SourceState.Detached;
+            scene.ItemsScope.MarkDirty();
+            if (!scene.IsGroup)
+            {
+                this.CloseSceneGap(scene);
+            }
+
+            if (this._programUuid.Value == scene.Uuid)
+            {
+                this._programScope.MarkDirty();
+            }
+
+            if (scene.Announced)
+            {
+                this.Emit(StudioChangeKind.SourceDetached, scene.Uuid, 0, scene.Name.Value);
             }
         }
 

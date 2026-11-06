@@ -103,6 +103,14 @@ namespace OBSStudioClient.Studio.Engine
         /// </summary>
         public bool RemovalUnresolved { get; set; }
 
+        /// <summary>
+        /// Gets or sets the number of the last read that had been taken when the model started to doubt whether OBS still has a source that it removed (or
+        /// that a list does not show), or 0 when it does not doubt. Only a read that is taken later can settle it: it says that OBS has the source (the list
+        /// of inputs has it, the scene items of the scene can be read), or that it does not. What the model knows of the scene items can be behind
+        /// what OBS has, so it does not settle it by counting them.
+        /// </summary>
+        public int CheckAfter { get; set; }
+
         /// <summary>Gets or sets whether the model told that the source exists (an Added change was made).</summary>
         public bool Announced { get; set; }
 

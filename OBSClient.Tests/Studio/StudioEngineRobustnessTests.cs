@@ -686,5 +686,162 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(SourceState.Live, Assert.Single(h.Engine.Snapshot().Inputs).State);
             Assert.True(h.Engine.IsSettled);
         }
+
+        [Fact]
+        public void ASceneThatTheListLacks_IsNotDestroyedByCounting_WhenTheEventsOfItsSceneItemsAreStillOnTheirWay()
+        {
+            Guid host = Guid.Empty;
+            Guid nested = Guid.Empty;
+            var h = Started(world =>
+            {
+                host = world.AddScene("Host");
+                nested = world.AddScene("Nested");
+            });
+
+            // In OBS a scene item of Host uses Nested, and Nested is removed, which the list shows at once. The events of both are still on
+            // their way, so the model counts no scene item that uses Nested, and a list that lacks it comes first.
+            var id = h.World.AddItem(host, nested, "Nested", isScene: true);
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == nested);
+            var other = h.World.AddScene("Other");
+            EngineEvents.SceneCreated(h, other, "Other");
+            h.SettleWithTime();
+
+            // The list does not say whether OBS destroyed it. A read of its scene items does: OBS has it.
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == nested);
+            Assert.True(h.Engine.IsSettled);
+
+            EngineEvents.ItemCreated(h, host, "Host", id, 0, nested, "Nested");
+            EngineEvents.SceneRemoved(h, nested, "Nested");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == nested);
+            Assert.Equal(nested, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == host).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ASceneThatTheListLacks_IsDestroyed_WhenOBSDoesNotHaveIt()
+        {
+            Guid nested = Guid.Empty;
+            var h = Started(world => nested = world.AddScene("Nested"));
+
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == nested);
+            h.World.Items.Remove(nested);
+            var other = h.World.AddScene("Other");
+            EngineEvents.SceneCreated(h, other, "Other");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Empty(snapshot.DetachedScenes);
+            Assert.DoesNotContain(snapshot.Scenes, scene => scene.Uuid == nested);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void AnInputThatTheListLacks_DoesNotExist_WhateverTheSceneItemsThatTheModelKnowsSay()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var gaming = h.World.AddScene("Gaming");
+            var mic = h.World.AddInput("Mic");
+            var id = h.World.AddItem(gaming, mic, "Mic");
+            h.Start();
+            h.SettleWithTime();
+
+            // OBS has destroyed it, and the model still knows the scene item that used it: the event of its removal is on its way.
+            h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+            h.World.Items[gaming].Clear();
+            EngineEvents.InputCreated(h, h.World.AddInput("Cam"), "Cam");
+            h.SettleWithTime();
+
+            Assert.DoesNotContain(h.Engine.Snapshot().Inputs, input => input.Uuid == mic);
+
+            EngineEvents.ItemRemoved(h, gaming, "Gaming", id, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == gaming).Items);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ADetachedInputWhoseLastKnownSceneItemIsGoneInARead_IsKeptAlive_WhenAnotherSceneItemUsesItThatTheModelDoesNotKnow()
+        {
+            var h = new EngineHarness();
+            var scene = h.World.AddScene("Scene");
+            var gaming = h.World.AddScene("Gaming");
+            var mic = h.World.AddInput("Mic");
+            h.World.AddItem(gaming, mic, "Mic");
+            h.Start();
+            h.SettleWithTime();
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+
+            // OBS: another scene item uses the removed input (its event is on its way), and the one that the model knows is removed. The read
+            // of the scene items shows the second, and the model counts no other scene item.
+            var other = h.World.AddItem(scene, mic, "Mic");
+            h.World.Items[gaming].Clear();
+            h.Event("SceneItemEnableStateChanged", new { sceneName = "Gaming", sceneUuid = gaming, sceneItemId = 99, sceneItemEnabled = true }, 128);
+            h.SettleWithTime();
+
+            // The list of inputs says that OBS still has it.
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            Assert.True(h.Engine.IsSettled);
+
+            EngineEvents.ItemCreated(h, scene, "Scene", other, 0, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(mic, Assert.Single(h.Engine.Snapshot().Scenes.Single(s => s.Uuid == scene).Items).SourceUuid);
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+        }
+
+        [Fact]
+        public void ADetachedInputWhoseLastSceneItemIsGoneInARead_IsDestroyed_WhenTheListOfInputsDoesNotHaveIt()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var gaming = h.World.AddScene("Gaming");
+            var mic = h.World.AddInput("Mic");
+            h.World.AddItem(gaming, mic, "Mic");
+            h.Start();
+            h.SettleWithTime();
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+
+            h.World.Items[gaming].Clear();
+            h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+            h.Event("SceneItemEnableStateChanged", new { sceneName = "Gaming", sceneUuid = gaming, sceneItemId = 99, sceneItemEnabled = true }, 128);
+            h.SettleWithTime();
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ADetachedSceneThatOBSDestroyedWithoutAnEvent_IsDropped_WhenItsSceneItemsAreRead()
+        {
+            Guid host = Guid.Empty;
+            Guid nested = Guid.Empty;
+            var h = Started(world =>
+            {
+                host = world.AddScene("Host");
+                nested = world.AddScene("Nested");
+                world.AddItem(host, nested, "Nested", isScene: true);
+            });
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == nested);
+            EngineEvents.SceneRemoved(h, nested, "Nested");
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == nested);
+
+            // The scene item that kept it alive is removed, which OBS does not announce for the items of a scene that is not in the list of
+            // scenes, and OBS destroys the scene. An event about one of its scene items makes the model read them: OBS answers 600.
+            h.World.Items.Remove(nested);
+            h.World.Items[host].Clear();
+            h.Event("SceneItemEnableStateChanged", new { sceneName = "Nested", sceneUuid = nested, sceneItemId = 99, sceneItemEnabled = true }, 128);
+            h.SettleWithTime();
+
+            Assert.Empty(h.Engine.Snapshot().DetachedScenes);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }

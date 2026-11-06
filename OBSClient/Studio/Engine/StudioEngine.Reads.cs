@@ -190,12 +190,32 @@ namespace OBSStudioClient.Studio.Engine
             {
                 scene.ItemsScope.Attempts = 0;
                 this.ApplyItems(scene, items.SceneItems, ticket);
+                if (scene.RemovalUnresolved && scene.CheckAfter > 0)
+                {
+                    if (ticket.Id > scene.CheckAfter)
+                    {
+                        // OBS has the scene, so it keeps it alive for a scene item.
+                        scene.RemovalUnresolved = false;
+                        scene.CheckAfter = 0;
+                        this._unresolved.Remove(scene.Uuid);
+                        if (!scene.Announced)
+                        {
+                            scene.Announced = true;
+                            this.Emit(StudioChangeKind.SceneAdded, scene.Uuid, 0, scene.Name.Value);
+                        }
+                    }
+                    else
+                    {
+                        // The read was taken before the doubt: it says nothing about now.
+                        scene.ItemsScope.MarkDirty();
+                    }
+                }
             }
             else if (notFound)
             {
-                if (scene.RemovalUnresolved || scene.IsGroup)
+                if (scene.RemovalUnresolved || scene.IsGroup || scene.State == SourceState.Detached)
                 {
-                    // A scene that was removed and that the model did not know: OBS does not have it (a scene that it keeps alive can be read).
+                    // A scene that was removed: OBS does not have it (a scene that it keeps alive can be read), so it was destroyed.
                     // A group is in no list of scenes, so no list can ever say that it is gone: its 600 does.
                     this.DestroyScene(scene);
                 }
@@ -356,8 +376,9 @@ namespace OBSStudioClient.Studio.Engine
                     continue;
                 }
 
-                // Listed before and gone now, or announced and still not listed after the grace: it does not exist.
-                this.RemoveScene(scene, repaired: true);
+                // Listed before and gone now, or announced and still not listed after the grace: OBS does not have it in the list. Whether it
+                // exists still (it is kept alive for a scene item) is for a read of its scene items to say.
+                this.RemoveSceneUnverified(scene);
             }
 
             if (pending)
@@ -406,6 +427,21 @@ namespace OBSStudioClient.Studio.Engine
                         input.Confirmed = true;
                     }
 
+                    if (input.RemovalUnresolved && input.CheckAfter > 0)
+                    {
+                        if (ticket.Id > input.CheckAfter)
+                        {
+                            // OBS has the input, so it keeps it alive for a scene item.
+                            input.RemovalUnresolved = false;
+                            input.CheckAfter = 0;
+                            this._unresolved.Remove(uuid);
+                        }
+                        else
+                        {
+                            // The read was taken before the doubt: it says nothing about now.
+                            this._inputsScope.MarkDirty();
+                        }
+                    }
                     if (input.HasAudio && !input.AudioKnown && !input.RemovalUnresolved && !input.AudioScope.Dirty && !input.AudioScope.InFlight)
                     {
                         input.AudioScope.MarkDirty();
@@ -438,7 +474,8 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             // Inputs that the model holds and that the list does not have: the list of inputs is right at once after a creation, and an input
-            // that OBS removed stays in it while a scene item uses it, so an input that is missing does not exist.
+            // that OBS removed stays in it while a scene item uses it, so an input that is missing does not exist, whatever the scene items that
+            // the model knows say.
             foreach (var input in this._inputs.Values.Where(i => !listed.Contains(i.Uuid)).ToArray())
             {
                 if (input.CreatedSeq > sent)
@@ -448,12 +485,10 @@ namespace OBSStudioClient.Studio.Engine
 
                 if (input.State == SourceState.Live)
                 {
-                    this.RemoveInput(input, repaired: true);
+                    this.Emit(StudioChangeKind.Repaired, input.Uuid, 0, input.Name.Value);
                 }
-                else
-                {
-                    this.DestroyInput(input);
-                }
+
+                this.DestroyInput(input);
             }
 
             this._inputsRead = true;
@@ -496,7 +531,7 @@ namespace OBSStudioClient.Studio.Engine
             {
                 if (item.CreatedSeq <= sent)
                 {
-                    this.ReleaseItem(item);
+                    this.ReleaseItem(item, fromRead: true);
                 }
             }
 

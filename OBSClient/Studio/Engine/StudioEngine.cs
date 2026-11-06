@@ -219,6 +219,7 @@ namespace OBSStudioClient.Studio.Engine
                 scene.ItemsKnown = false;
                 scene.RemovedAnnounced = false;
                 scene.RemovalUnresolved = false;
+                scene.CheckAfter = 0;
                 if (scene.State == SourceState.Detached && !scene.Provisional)
                 {
                     scene.State = SourceState.Live;
@@ -229,6 +230,7 @@ namespace OBSStudioClient.Studio.Engine
             {
                 input.RemovedAnnounced = false;
                 input.RemovalUnresolved = false;
+                input.CheckAfter = 0;
                 if (input.State == SourceState.Detached)
                 {
                     input.State = SourceState.Live;
