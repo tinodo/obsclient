@@ -76,13 +76,16 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets a value indicating whether the connection that is open has identified itself.</summary>
         public bool IsIdentified => _current is { Identified: true } && _current.IsOpen;
 
-        /// <summary>Gets the event subscription of the connection that is open and identified, or null.</summary>
+        /// <summary>
+        /// Gets the event subscription of the connection that is open and identified, or null. obs-websocket reads it as a 64 bit unsigned number, and
+        /// this is the same 64 bits: a mask with the highest bit set reads as a negative number.
+        /// </summary>
         public long? EventSubscriptions
         {
             get
             {
                 var connection = _current;
-                return connection is { Identified: true } ? Interlocked.Read(ref connection.Subscriptions) : null;
+                return connection is { Identified: true } && connection.IsOpen ? Interlocked.Read(ref connection.Subscriptions) : null;
             }
         }
 
@@ -234,7 +237,7 @@ namespace OBSStudioClient.Tests.Simulation
             return document.RootElement.GetProperty("d").GetProperty("eventIntent").GetInt32();
         }
 
-        private static bool TryReadUnsigned(JsonObject data, string name, out long value)
+        private static bool TryReadUnsigned(JsonObject data, string name, out ulong value)
         {
             return SimJson.TryGetUnsigned(data[name], out value);
         }
@@ -519,7 +522,7 @@ namespace OBSStudioClient.Tests.Simulation
                 return false;
             }
 
-            Interlocked.Exchange(ref connection.Subscriptions, subscriptions);
+            Interlocked.Exchange(ref connection.Subscriptions, unchecked((long)subscriptions));
             return true;
         }
 

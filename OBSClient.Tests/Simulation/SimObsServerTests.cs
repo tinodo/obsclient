@@ -468,6 +468,42 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public async Task AnEventSubscriptionThatIsAnUnsigned64BitNumber_IsAccepted_AndEveryEventIsSent()
+        {
+            // obs-websocket reads the mask as a 64 bit unsigned number, so the largest value is a valid mask: all bits set, every category subscribed.
+            await using var server = StartServer();
+            using var raw = await RawClient.ConnectAsync(server.Port);
+            using var hello = await raw.ReceiveAsync();
+            await raw.SendAsync("""{"op":1,"d":{"rpcVersion":1,"eventSubscriptions":18446744073709551615}}""");
+            using var identified = await raw.ReceiveAsync();
+
+            Assert.Equal(SimOp.Identified, identified!.RootElement.GetProperty("op").GetInt32());
+            Assert.Equal(-1L, server.EventSubscriptions);
+            server.Run(sim => sim.External.CreateScene("S"));
+            using var first = await raw.ReceiveAsync();
+            Assert.Equal(SimOp.Event, first!.RootElement.GetProperty("op").GetInt32());
+        }
+
+        [Fact]
+        public async Task WhenTheConnectionIsGone_NoEventSubscriptionIsReported()
+        {
+            await using var server = StartServer();
+            using var raw = await RawClient.ConnectAsync(server.Port);
+            await raw.IdentifyAsync();
+            Assert.Equal((long)EventSubscriptions.All, server.EventSubscriptions);
+
+            raw.Abort();
+            var deadline = Stopwatch.StartNew();
+            while (server.EventSubscriptions is not null && deadline.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                await Task.Delay(10);
+            }
+
+            Assert.False(server.IsIdentified);
+            Assert.Null(server.EventSubscriptions);
+        }
+
+        [Fact]
         public async Task TheHandshakeIsTheOneOfObsWebsocket()
         {
             await using var server = StartServer();
@@ -513,6 +549,9 @@ namespace OBSStudioClient.Tests.Simulation
         [InlineData("""{"op":1,"d":{}}""", false, SimCloseCode.MissingDataField)]
         [InlineData("""{"op":1,"d":{"rpcVersion":2}}""", false, SimCloseCode.UnsupportedRpcVersion)]
         [InlineData("""{"op":1,"d":{"rpcVersion":"1"}}""", false, SimCloseCode.InvalidDataFieldType)]
+        [InlineData("""{"op":1,"d":{"rpcVersion":1,"eventSubscriptions":-1}}""", false, SimCloseCode.InvalidDataFieldType)]
+        [InlineData("""{"op":1,"d":{"rpcVersion":1,"eventSubscriptions":1.5}}""", false, SimCloseCode.InvalidDataFieldType)]
+        [InlineData("""{"op":1,"d":{"rpcVersion":1,"eventSubscriptions":18446744073709551616}}""", false, SimCloseCode.InvalidDataFieldType)]
         public async Task AMessageThatObsWebsocketDoesNotAccept_ClosesTheConnectionWithItsCloseCode(string message, bool identifyFirst, int closeCode)
         {
             await using var server = StartServer();

@@ -33,8 +33,8 @@ namespace OBSStudioClient.Tests.Simulation
             return double.TryParse(node.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
-        /// <summary>Reads a number that is an integer without a sign, which is what obs-websocket calls an unsigned number.</summary>
-        public static bool TryGetUnsigned(JsonNode? node, out long value)
+        /// <summary>Reads a number that is an integer without a sign, which is what obs-websocket calls an unsigned number (up to 64 bits).</summary>
+        public static bool TryGetUnsigned(JsonNode? node, out ulong value)
         {
             value = 0;
             if (node is not JsonValue || node.GetValueKind() != JsonValueKind.Number)
@@ -42,7 +42,7 @@ namespace OBSStudioClient.Tests.Simulation
                 return false;
             }
 
-            return long.TryParse(node.ToJsonString(), NumberStyles.None, CultureInfo.InvariantCulture, out value);
+            return ulong.TryParse(node.ToJsonString(), NumberStyles.None, CultureInfo.InvariantCulture, out value);
         }
 
         /// <summary>Makes an object with the given members, in the order that obs-websocket writes them (see <see cref="MemberOrder"/>).</summary>
