@@ -317,7 +317,7 @@ namespace OBSStudioClient.Tests.Simulation
             var members = new List<(string Name, JsonNode? Value)> { ("requestStatus", Status(result)), ("requestType", requestType) };
             if (requestId is not null || includeNullId)
             {
-                members.Add(("requestId", requestId?.DeepClone()));
+                members.Add(("requestId", Sorted(requestId)));
             }
 
             if (result.Data is not null)
@@ -582,8 +582,10 @@ namespace OBSStudioClient.Tests.Simulation
                 list.Add(ResponseData(labels[index].Type, labels[index].Id, results[index], includeNullId: false));
             }
 
+            // The ID is whatever JSON the client sent (obs-websocket keeps it as a JSON value), written back as obs-websocket writes any JSON: the members
+            // of every object in alphabetical order.
             return Serialize(Obj(
-                ("d", Obj(("requestId", requestId?.DeepClone()), ("results", list))),
+                ("d", Obj(("requestId", Sorted(requestId)), ("results", list))),
                 ("op", SimOp.RequestBatchResponse)));
         }
 

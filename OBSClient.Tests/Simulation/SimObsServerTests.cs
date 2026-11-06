@@ -349,11 +349,15 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Equal(["GetStudioModeEnabled"], types);
         }
 
+        // obs-websocket writes every object with its members in alphabetical order, the one that a client sent as the ID of a request too, so the sorted
+        // object is what comes back; the shape check of the simulation is the one that says so.
         [Theory]
-        [InlineData("7")]
-        [InlineData("null")]
-        [InlineData("\"text\"")]
-        public async Task ARequestIdOfAnyKind_IsAnsweredWithTheSameId(string id)
+        [InlineData("7", "7")]
+        [InlineData("null", "null")]
+        [InlineData("\"text\"", "\"text\"")]
+        [InlineData("""{"b":1,"a":{"d":1,"c":[{"z":1,"y":2}]}}""", """{"a":{"c":[{"y":2,"z":1}],"d":1},"b":1}""")]
+        [InlineData("""[{"b":1,"a":2},3]""", """[{"a":2,"b":1},3]""")]
+        public async Task ARequestIdOfAnyKind_IsAnsweredWithTheSameId_WithTheMembersOfObjectsInOrder(string id, string expected)
         {
             await using var server = StartServer();
             using var raw = await RawClient.ConnectAsync(server.Port);
@@ -363,6 +367,7 @@ namespace OBSStudioClient.Tests.Simulation
             await raw.SendAsync($$$"""{"op":8,"d":{"requestId":{{{id}}},"requests":[{"requestType":"GetVersion"}]}}""");
 
             var echoed = new Dictionary<int, string>();
+            var problems = new List<string>();
             while (echoed.Count < 2)
             {
                 using var message = await raw.ReceiveAsync();
@@ -371,11 +376,13 @@ namespace OBSStudioClient.Tests.Simulation
                 if (op is SimOp.RequestResponse or SimOp.RequestBatchResponse)
                 {
                     echoed[op] = message.RootElement.GetProperty("d").GetProperty("requestId").GetRawText();
+                    problems.AddRange(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, op, message.RootElement.GetRawText())));
                 }
             }
 
-            Assert.Equal(id, echoed[SimOp.RequestResponse]);
-            Assert.Equal(id, echoed[SimOp.RequestBatchResponse]);
+            Assert.Equal(expected, echoed[SimOp.RequestResponse]);
+            Assert.Equal(expected, echoed[SimOp.RequestBatchResponse]);
+            Assert.Empty(problems);
         }
 
         [Fact]
