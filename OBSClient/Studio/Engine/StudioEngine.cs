@@ -107,6 +107,18 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets or sets the longest wait before a repeat of a read.</summary>
         public TimeSpan MaxBackoff { get; set; } = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// Gets or sets how long the engine remembers what it was told was removed or destroyed (and the scene items that a read found gone before their event
+        /// came): the messages that it guards against (a read that was sent before the removal, the second copy of a creation event, an event that is late) arrive
+        /// within the time that a read may take and the lag of OBS, which is seconds. Without a limit the memory would grow for as long as a connection lasts.
+        /// A source is remembered until a list of its kind shows that OBS is done with it (OBS goes on listing an input that it keeps alive for something that
+        /// nothing shows), and then for this time; one that no list confirmed in this time is asked about with a read of the list.
+        /// </summary>
+        public TimeSpan TombstoneRetention { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>Gets or sets how often the engine looks for what it need not remember any more: it does so when it is given something, at most this often.</summary>
+        public TimeSpan TombstoneCleanupInterval { get; set; } = TimeSpan.FromSeconds(30);
     }
 
     /// <summary>
@@ -132,16 +144,20 @@ namespace OBSStudioClient.Studio.Engine
         private readonly Dictionary<Guid, HashSet<ItemKey>> _refs = new();
 
         // What OBS destroyed, and what was removed before the model knew it. Both guard against the messages that are older than the removal: a
-        // read that was sent before it, the second copy of a creation event. They are for one connection: another one reads everything again,
-        // and a source that was removed can be there again (the scene collection that had it was loaded again).
-        private readonly HashSet<Guid> _gone = new();
-        private readonly HashSet<ItemKey> _goneItems = new();
-        private readonly HashSet<Guid> _removedUnknown = new();
+        // read that was sent before it, the second copy of a creation event, a list that still has the source. They are for one connection: another one
+        // reads everything again, and a source that was removed can be there again (the scene collection that had it was loaded again). Within one they are
+        // remembered until a list shows that OBS is done with the source, and for a while after that (see SourceTombstones): OBS goes on listing an input that
+        // it removed and keeps alive for something that nothing shows (a global audio input), and the model must not take it for a new input.
+        private readonly SourceTombstones _gone = new();
+        private readonly TimedSet<ItemKey> _goneItems = new();
+        private readonly SourceTombstones _removedUnknown = new();
 
         // The scene items that a read found gone, whose removal the events have not told yet, and the sources that they used. A read is ahead of the events:
         // such a scene item existed as far as the events go, so while it is here a source that nothing else is known to use may still be used (see
-        // HeldByRead). The event that removes the scene item takes it away.
+        // HeldByRead). The event that removes the scene item takes it away, and so does the time (the event does not always come).
         private readonly ReadReleasedItems _readReleased = new();
+        private TimeSpan _lastCleanup;
+        private long _letGo;
 
         // The sources that were removed while the model did not know their scene items yet: whether OBS destroyed them is not known.
         private readonly HashSet<Guid> _unresolved = new();
@@ -165,10 +181,21 @@ namespace OBSStudioClient.Studio.Engine
         {
             this._options = options ?? new StudioEngineOptions();
             ArgumentOutOfRangeException.ThrowIfLessThan(this._options.MaxBatch, 2, nameof(options));
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(this._options.TombstoneRetention, TimeSpan.Zero, nameof(options));
+            ArgumentOutOfRangeException.ThrowIfLessThan(this._options.TombstoneCleanupInterval, TimeSpan.Zero, nameof(options));
         }
 
         /// <summary>Gets the state of the connection of the engine.</summary>
         public StudioEngineState State => this._state;
+
+        /// <summary>Gets the number of things that the engine remembers because of what it was told was removed (see <see cref="StudioEngineOptions.TombstoneRetention"/>). It is for tests.</summary>
+        public int RememberedCount => this._gone.Count + this._goneItems.Count + this._removedUnknown.Count + this._readReleased.Count;
+
+        /// <summary>Gets the number of scene items that a read took away and that the events have not told about, which keep the engine from concluding from a count. It is for tests.</summary>
+        public int HeldItemCount => this._readReleased.Count;
+
+        /// <summary>Gets the number of things that the engine let go of because they were old. It is for tests.</summary>
+        public long LetGoCount => this._letGo;
 
         /// <summary>
         /// Gets whether nothing is waiting for a read, nothing is being read, and everything that the model holds is complete: the model
@@ -216,6 +243,7 @@ namespace OBSStudioClient.Studio.Engine
             this._goneItems.Clear();
             this._removedUnknown.Clear();
             this._readReleased.Clear();
+            this._lastCleanup = now;
             // What the model believes about the lifecycle of a source comes from the events that this connection saw, and the reads that follow: on
             // a new connection it starts as it does on a first one. A scene or an input that was Detached can be live now (OBS was started again
             // from a collection that has it): a scene that the list has is live, and an input that is in the list is, until an event removes it.
@@ -265,6 +293,31 @@ namespace OBSStudioClient.Studio.Engine
             this.Emit(StudioChangeKind.Disconnected, Guid.Empty);
         }
 
+        // Lets go of what the engine remembers about removals when it is not needed any more (see TombstoneRetention), and asks for a list when a source that
+        // was removed long ago is not confirmed by one. It looks at most every TombstoneCleanupInterval, however many messages arrive.
+        private void CleanUp()
+        {
+            if (this._now - this._lastCleanup < this._options.TombstoneCleanupInterval)
+            {
+                return;
+            }
+
+            this._lastCleanup = this._now;
+            var before = this._now - this._options.TombstoneRetention;
+            this._letGo += this._gone.Prune(before) + this._removedUnknown.Prune(before) + this._goneItems.Prune(before) + this._readReleased.Prune(before);
+
+            // A source stays remembered until a list shows that OBS is done with it. The lists are read for other reasons too, but not always: they are read for this.
+            if (this._gone.NeedsConfirmation(SourceKind.Input, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Input, before))
+            {
+                this._inputsScope.MarkDirty();
+            }
+
+            if (this._gone.NeedsConfirmation(SourceKind.Scene, before) || this._removedUnknown.NeedsConfirmation(SourceKind.Scene, before))
+            {
+                this._scenesScope.MarkDirty();
+            }
+        }
+
         /// <summary>
         /// Asks for the next read: the parts of the model that need one and whose turn it is, as one serial batch. Returns false when there is
         /// nothing to read.
@@ -280,6 +333,8 @@ namespace OBSStudioClient.Studio.Engine
             {
                 return false;
             }
+
+            this.CleanUp();
 
             var requests = new List<ReadRequest>();
             var max = this._options.MaxBatch;

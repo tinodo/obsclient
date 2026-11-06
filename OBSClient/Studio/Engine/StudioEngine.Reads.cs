@@ -38,6 +38,7 @@ namespace OBSStudioClient.Studio.Engine
 
             this.ResolveRemovals();
             this.UpdateState();
+            this.CleanUp();
         }
 
         /// <summary>
@@ -291,10 +292,12 @@ namespace OBSStudioClient.Studio.Engine
         {
             var sent = ticket.SentSeq;
             var listed = new HashSet<Guid>();
+            var everyone = new HashSet<Guid>();
             var order = new List<Guid>();
             foreach (var entry in response.Scenes)
             {
                 var uuid = entry.SceneUuid;
+                everyone.Add(uuid);
                 if (this._gone.Contains(uuid))
                 {
                     // The list lags: it still has a scene that was removed.
@@ -391,6 +394,9 @@ namespace OBSStudioClient.Studio.Engine
                 this._scenesScope.Attempts = 0;
             }
 
+            // The scenes that were removed and that the list does not have are done with; the ones that it has, whatever the model does with them, are not.
+            this._gone.ApplyList(SourceKind.Scene, everyone, sent, this._now);
+            this._removedUnknown.ApplyList(SourceKind.Scene, everyone, sent, this._now);
             this._scenesRead = true;
         }
 
@@ -398,8 +404,14 @@ namespace OBSStudioClient.Studio.Engine
         {
             var sent = ticket.SentSeq;
             var listed = new HashSet<Guid>();
+            var everyone = new HashSet<Guid>();
             foreach (var entry in response.Inputs)
             {
+                if (entry.InputUuid is { } listedUuid)
+                {
+                    everyone.Add(listedUuid);
+                }
+
                 if (entry.InputUuid is not { } uuid || this._gone.Contains(uuid))
                 {
                     // An input without UUID is an OBS that is too old for the model; one that is gone is a lingering entry of the list.
@@ -491,6 +503,9 @@ namespace OBSStudioClient.Studio.Engine
                 this.DestroyInput(input);
             }
 
+            // The inputs that were removed and that the list does not have are done with; the ones that it has are kept alive by OBS (or the list lags).
+            this._gone.ApplyList(SourceKind.Input, everyone, sent, this._now);
+            this._removedUnknown.ApplyList(SourceKind.Input, everyone, sent, this._now);
             this._inputsRead = true;
         }
 
