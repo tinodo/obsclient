@@ -192,11 +192,17 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets or sets the kind of the input without its version.</summary>
         public string UnversionedKind { get; set; }
 
-        /// <summary>Gets or sets the capability flags of the kind, or null while they are not known.</summary>
+        /// <summary>
+        /// Gets or sets the capability flags of the kind, or null when OBS does not send them (obs-websocket before 5.6.0 does not). Whether an input has
+        /// audio is then found by reading its audio state.
+        /// </summary>
         public uint? Caps { get; set; }
 
-        /// <summary>Gets whether the input has audio.</summary>
-        public bool HasAudio => this.Caps is { } caps && (caps & AudioCapability) != 0;
+        /// <summary>Gets or sets whether OBS refused to read the audio state of the input, which is how it says that the input has no audio. Only used when the capabilities are not sent.</summary>
+        public bool NoAudio { get; set; }
+
+        /// <summary>Gets whether the input has audio: its capabilities say so or, when OBS does not send them, until OBS says that it has not.</summary>
+        public bool HasAudio => this.Caps is { } caps ? (caps & AudioCapability) != 0 : !this.NoAudio;
 
         /// <summary>Gets the state of the read of the audio state (mute and volume).</summary>
         public ScopeState AudioScope { get; } = new();
@@ -205,7 +211,7 @@ namespace OBSStudioClient.Studio.Engine
         public bool AudioKnown { get; set; }
 
         /// <inheritdoc/>
-        public override bool IsComplete => this.Caps is not null && (!this.HasAudio || this.AudioKnown);
+        public override bool IsComplete => !this.HasAudio || this.AudioKnown;
     }
 
     /// <summary>

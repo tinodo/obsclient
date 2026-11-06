@@ -347,6 +347,17 @@ namespace OBSStudioClient.Studio
                 this._scenes.Remove(uuid);
                 this._setOfScenesChanged = true;
                 scene.SetIndex(-1);
+
+                // The scene items of a scene that OBS destroyed went with it (they were removed above), and its engine node is gone, so nothing publishes its
+                // items any more: what a reference to the scene shows is no scene items. A collection that was taken earlier is not changed.
+                if (scene.Items.Count > 0)
+                {
+                    var before = scene.Items;
+                    var after = new ObsSceneItems(scene, [], this._ignoreCase);
+                    scene.SetItems(after);
+                    this.AddProperty(scene, nameof(ObsScene.Items), before, after, true);
+                }
+
                 this.MarkGone(scene);
             }
         }

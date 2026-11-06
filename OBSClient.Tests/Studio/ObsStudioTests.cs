@@ -43,12 +43,42 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(new[] { "Gaming", "Scene" }, obs.Scenes.Select(scene => scene.Name).ToArray());
             var item = obs.Scenes["Gaming"].Items["Mic"];
             Assert.Same(obs.Inputs["Mic"], item.Source);
-            Assert.Equal(new[] { item }, obs.Inputs["Mic"].SceneItems);
+            Assert.Equal(new[] { item }, obs.Inputs["Mic"].GetSceneItems());
             Assert.Equal("Scene", obs.ProgramScene!.Name);
             Assert.True(obs.Scenes["Scene"].IsProgram);
             Assert.False(obs.Scenes["Gaming"].IsProgram);
             Assert.False(obs.IsStudioModeEnabled);
             Assert.Same(rig.Studio.Client, obs.Client);
+        }
+
+        [Fact]
+        public async Task ASourceKnowsTheSceneItemsThatShowIt_AsTheyAreWhenYouAsk()
+        {
+            Guid gaming = Guid.Empty;
+            Guid chatting = Guid.Empty;
+            Guid mic = Guid.Empty;
+            await using var rig = await StudioRig.ConnectedAsync(world =>
+            {
+                chatting = world.AddScene("Chatting");
+                gaming = world.AddScene("Gaming");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(gaming, mic, "Mic");
+                world.AddItem(gaming, chatting, "Chatting", isScene: true);
+                world.AddItem(chatting, mic, "Mic");
+            });
+            var obs = rig.Studio;
+
+            // The list of scenes is Gaming, Chatting, Scene: the scene items come in that order.
+            var shown = obs.Inputs["Mic"].GetSceneItems();
+            Assert.Equal(new[] { "Gaming", "Chatting" }, shown.Select(item => item.Scene.Name).ToArray());
+            Assert.Equal(new[] { obs.Scenes["Gaming"].Items["Chatting"] }, obs.Scenes["Chatting"].GetSceneItems());
+            Assert.Empty(obs.Scenes["Scene"].GetSceneItems());
+
+            // A list that was taken is not changed, and the next answer is the new one.
+            await rig.Responder.SendEventAsync("SceneItemRemoved", new { sceneName = "Gaming", sceneUuid = gaming, sourceName = "Mic", sourceUuid = mic, sceneItemId = 1 }, 128);
+            await StudioRig.EventuallyAsync(() => obs.Inputs["Mic"].GetSceneItems().Count == 1, "the answer to follow the model");
+            Assert.Equal(2, shown.Count);
+            Assert.Equal("Chatting", obs.Inputs["Mic"].GetSceneItems().Single().Scene.Name);
         }
 
         [Fact]
@@ -198,6 +228,75 @@ namespace OBSStudioClient.Tests.Studio
 
             Assert.NotEmpty(threads);
             Assert.All(threads, thread => Assert.Equal(context.ThreadId, thread));
+        }
+
+        [Fact]
+        public async Task NotificationsThatWerePostedToAContextAndNotRunYet_AreDroppedWhenTheStudioIsDisposed()
+        {
+            var context = new HeldContext();
+            Guid gaming = Guid.Empty;
+            await using var rig = StudioRig.Create(world => gaming = world.AddScene("Gaming"), new ObsStudioOptions { NotificationContext = context });
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            await rig.Responder.SendEventAsync("SceneNameChanged", new { sceneUuid = gaming, oldSceneName = "Gaming", sceneName = "A" }, 4);
+            await StudioRig.EventuallyAsync(() => rig.Studio.Scenes.Contains("A"), "the model to have the new name");
+            await StudioRig.EventuallyAsync(() => context.Count >= 2, "the notifications to be posted to the context");
+
+            // The context is busy (a user interface that is closing): the studio is disposed of before it gets to what was posted.
+            rig.Studio.Dispose();
+            context.RunAll();
+
+            Assert.Empty(rig.Changes);
+            Assert.Empty(rig.Properties);
+        }
+
+        [Fact]
+        public async Task ARetryRightAfterATimeout_IsNotFailedByTheEndOfTheConnectionOfTheFirstAttempt()
+        {
+            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
+            rig.Responder.AnswerBatches = false;
+            using var held = new ManualResetEventSlim();
+            var atTheEnd = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.Host.BeforeIngress = item =>
+            {
+                // The loop of the host is held at the end of the first connection until the retry has begun: the order in which an immediate retry can meet it,
+                // because the client says that it is disconnected before the loop has got to the end of the connection.
+                if (item.Kind == IngressKind.SessionEnded && !held.IsSet)
+                {
+                    atTheEnd.TrySetResult();
+                    held.Wait(Timeout);
+                }
+            };
+
+            await Assert.ThrowsAsync<TimeoutException>(() => rig.ConnectAsync());
+            await atTheEnd.Task.WithTimeoutAsync(Timeout);
+            rig.Responder.AnswerBatches = true;
+            var retry = rig.ConnectAsync();
+            await Task.Delay(400);
+            held.Set();
+
+            await retry.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+        }
+
+        [Fact]
+        public async Task AFaultWhileAReadIsApplied_MakesTheModelReadAgain_AtOnce()
+        {
+            Guid gaming = Guid.Empty;
+            await using var rig = StudioRig.Create(world => gaming = world.AddScene("Gaming"), new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(5) });
+            var faults = 1;
+            rig.Studio.Host.BeforeReadApplied = _ =>
+            {
+                if (Interlocked.Decrement(ref faults) >= 0)
+                {
+                    throw new InvalidOperationException("A fault in the model, made by the test.");
+                }
+            };
+
+            // Nothing else is on its way when the first read fails: the host has to start the next read itself.
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+            Assert.True(rig.Studio.Scenes.Contains("Gaming"));
         }
 
         [Fact]
@@ -375,6 +474,25 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task ConnectAsync_ToAnObsBefore5_6_0_WhichSendsNoInputCapabilities_KnowsWhichInputsHaveAudio()
+        {
+            await using var rig = StudioRig.Create(world =>
+            {
+                world.OmitInputKindCaps = true;
+                world.AddInput("Mic", "wasapi_input_capture", 2, muted: true);
+                world.AddInput("Color");
+            });
+            rig.Responder.WebSocketVersion = "5.4.2";
+
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+
+            var obs = rig.Studio;
+            Assert.Equal(ObsStudioState.Synchronized, obs.State);
+            Assert.Equal((true, true), (obs.Inputs["Mic"].HasAudio, obs.Inputs["Mic"].IsMuted));
+            Assert.False(obs.Inputs["Color"].HasAudio);
+        }
+
+        [Fact]
         public async Task ConnectAsync_WhenTheModelIsNotCompleteInTime_Throws_AndClosesTheConnection()
         {
             await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(500) });
@@ -460,6 +578,27 @@ namespace OBSStudioClient.Tests.Studio
 
             // It can still be used: it was not made by the studio.
             Assert.False(await client.ConnectAsync(hostname: "127.0.0.1", port: FreePort()));
+        }
+
+        // A context that keeps what is posted to it until the test runs it: a user interface thread that is busy.
+        private sealed class HeldContext : SynchronizationContext
+        {
+            private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _held = new();
+
+            public int Count => this._held.Count;
+
+            public override void Post(SendOrPostCallback d, object? state)
+            {
+                this._held.Enqueue((d, state));
+            }
+
+            public void RunAll()
+            {
+                while (this._held.TryDequeue(out var held))
+                {
+                    held.Callback(held.State);
+                }
+            }
         }
 
         // A context that runs what is posted to it, in order, on one thread of its own, as the thread of a user interface does.

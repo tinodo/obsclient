@@ -277,7 +277,12 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (muteResponse is { RequestStatus.Result: false } && muteResponse.RequestStatus.Code == RequestStatusCode.InvalidResourceState)
             {
-                // The capabilities said that it has audio, and OBS says that it has not: there is no audio state to read.
+                // The input has no audio state to read: the capabilities said that it has audio and are wrong, or are not sent, and this is how OBS says that it has none.
+                if (input.Caps is null)
+                {
+                    input.NoAudio = true;
+                }
+
                 input.AudioKnown = true;
                 this.TryAnnounce(input);
             }

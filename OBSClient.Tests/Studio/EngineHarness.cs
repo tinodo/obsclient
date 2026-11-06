@@ -136,6 +136,9 @@ namespace OBSStudioClient.Tests.Studio
 
         public bool StudioMode { get; set; }
 
+        /// <summary>Gets or sets whether the list of inputs leaves out the capabilities of the kinds, as obs-websocket before 5.6.0 does.</summary>
+        public bool OmitInputKindCaps { get; set; }
+
         public Guid AddScene(string name)
         {
             var uuid = Guid.NewGuid();
@@ -145,10 +148,10 @@ namespace OBSStudioClient.Tests.Studio
             return uuid;
         }
 
-        public Guid AddInput(string name, string kind = "color_source_v3", uint caps = 32777)
+        public Guid AddInput(string name, string kind = "color_source_v3", uint caps = 32777, bool muted = false, double volumeMul = 1.0)
         {
             var uuid = Guid.NewGuid();
-            this.Inputs.Add((uuid, name, kind, caps, false, 1.0));
+            this.Inputs.Add((uuid, name, kind, caps, muted, volumeMul));
             return uuid;
         }
 
@@ -209,7 +212,9 @@ namespace OBSStudioClient.Tests.Studio
                 case ReadKind.Inputs:
                     return (100, new
                     {
-                        inputs = this.Inputs.Select(i => new { inputKind = i.Kind, inputKindCaps = i.Caps, inputName = i.Name, inputUuid = i.Uuid, unversionedInputKind = i.Kind }).ToArray(),
+                        inputs = this.Inputs.Select(i => this.OmitInputKindCaps
+                            ? (object)new { inputKind = i.Kind, inputName = i.Name, inputUuid = i.Uuid, unversionedInputKind = i.Kind }
+                            : new { inputKind = i.Kind, inputKindCaps = i.Caps, inputName = i.Name, inputUuid = i.Uuid, unversionedInputKind = i.Kind }).ToArray(),
                     });
                 case ReadKind.Program:
                     var program = this.Scenes.First(s => s.Uuid == this.Program);
@@ -221,12 +226,24 @@ namespace OBSStudioClient.Tests.Studio
                         ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(Item).ToArray() })
                         : (600, null);
                 case ReadKind.AudioMute:
-                    return this.Inputs.Any(i => i.Uuid == request.Target) ? (100, new { inputMuted = this.Inputs.First(i => i.Uuid == request.Target).Muted }) : (600, null);
+                    return this.AudioAnswer(request.Target, input => new { inputMuted = input.Muted });
                 default:
-                    return this.Inputs.Any(i => i.Uuid == request.Target)
-                        ? (100, new { inputVolumeMul = this.Inputs.First(i => i.Uuid == request.Target).VolumeMul, inputVolumeDb = 0.0 })
-                        : (600, null);
+                    return this.AudioAnswer(request.Target, input => new { inputVolumeMul = input.VolumeMul, inputVolumeDb = 0.0 });
             }
+        }
+
+        // OBS reads the audio state of an input that has audio. For one that has none it refuses (604, InvalidResourceState), and for one that does not exist it says so (600).
+        private (int Code, object? Data) AudioAnswer(Guid uuid, Func<(Guid Uuid, string Name, string Kind, uint Caps, bool Muted, double VolumeMul), object> data)
+        {
+            foreach (var input in this.Inputs)
+            {
+                if (input.Uuid == uuid)
+                {
+                    return (input.Caps & 2) != 0 ? (100, data(input)) : (604, null);
+                }
+            }
+
+            return (600, null);
         }
 
         private static object Item((int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)

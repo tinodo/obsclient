@@ -1,7 +1,6 @@
 namespace OBSStudioClient.Studio.Engine
 {
     using System.Collections.Frozen;
-    using System.Text.Json;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
     using OBSStudioClient.Messages;
@@ -12,24 +11,24 @@ namespace OBSStudioClient.Studio.Engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<StudioEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<StudioEngine, EventMessage>>
         {
-            [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e, _) => engine.OnSceneCreated(e)),
-            [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e, _) => engine.OnSceneRemoved(e)),
-            [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e, _) => engine.OnSceneNameChanged(e)),
-            [EventType.SceneListChanged] = On<SceneListEventArgs>(static (engine, e, _) => engine.OnSceneListChanged(e)),
+            [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneCreated(e)),
+            [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneRemoved(e)),
+            [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e) => engine.OnSceneNameChanged(e)),
+            [EventType.SceneListChanged] = On<SceneListEventArgs>(static (engine, e) => engine.OnSceneListChanged(e)),
 
             // Never taken from the payload: the event comes at the end of a transition, and a read says what the program scene is now.
             [EventType.CurrentProgramSceneChanged] = static (engine, _) => engine._programScope.MarkDirty(),
-            [EventType.InputCreated] = On<InputCreatedEventArgs>(static (engine, e, message) => engine.OnInputCreated(e, message.RawEventData)),
-            [EventType.InputRemoved] = On<InputNameEventArgs>(static (engine, e, _) => engine.OnInputRemoved(e)),
-            [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e, _) => engine.OnInputNameChanged(e)),
-            [EventType.InputMuteStateChanged] = On<InputMuteStateChangedEventArgs>(static (engine, e, _) => engine.OnInputMuteChanged(e)),
-            [EventType.InputVolumeChanged] = On<InputVolumeChangedEventArgs>(static (engine, e, _) => engine.OnInputVolumeChanged(e)),
-            [EventType.SceneItemCreated] = On<SceneItemCreatedEventArgs>(static (engine, e, _) => engine.OnItemCreated(e)),
-            [EventType.SceneItemRemoved] = On<SceneItemRemovedEventArgs>(static (engine, e, _) => engine.OnItemRemoved(e)),
-            [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e, _) => engine.OnItemsReindexed(e)),
-            [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e, _) => engine.OnItemEnabledChanged(e)),
-            [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e, _) => engine.OnItemLockedChanged(e)),
-            [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e, _) => engine.OnStudioModeChanged(e)),
+            [EventType.InputCreated] = On<InputCreatedEventArgs>(static (engine, e) => engine.OnInputCreated(e)),
+            [EventType.InputRemoved] = On<InputNameEventArgs>(static (engine, e) => engine.OnInputRemoved(e)),
+            [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e) => engine.OnInputNameChanged(e)),
+            [EventType.InputMuteStateChanged] = On<InputMuteStateChangedEventArgs>(static (engine, e) => engine.OnInputMuteChanged(e)),
+            [EventType.InputVolumeChanged] = On<InputVolumeChangedEventArgs>(static (engine, e) => engine.OnInputVolumeChanged(e)),
+            [EventType.SceneItemCreated] = On<SceneItemCreatedEventArgs>(static (engine, e) => engine.OnItemCreated(e)),
+            [EventType.SceneItemRemoved] = On<SceneItemRemovedEventArgs>(static (engine, e) => engine.OnItemRemoved(e)),
+            [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e) => engine.OnItemsReindexed(e)),
+            [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e) => engine.OnItemEnabledChanged(e)),
+            [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e) => engine.OnItemLockedChanged(e)),
+            [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
         }.ToFrozenDictionary();
 
         /// <summary>
@@ -55,14 +54,14 @@ namespace OBSStudioClient.Studio.Engine
             this.UpdateState();
         }
 
-        private static Action<StudioEngine, EventMessage> On<TData>(Action<StudioEngine, TData, EventMessage> handle)
+        private static Action<StudioEngine, EventMessage> On<TData>(Action<StudioEngine, TData> handle)
             where TData : class
         {
             return (engine, message) =>
             {
                 if (message.EventData is TData data)
                 {
-                    handle(engine, data, message);
+                    handle(engine, data);
                 }
             };
         }
@@ -195,21 +194,15 @@ namespace OBSStudioClient.Studio.Engine
             this.ApplySceneOrder(listed, fromEvent: true, this._seq);
         }
 
-        private void OnInputCreated(InputCreatedEventArgs e, JsonElement? raw)
+        private void OnInputCreated(InputCreatedEventArgs e)
         {
             if (this.Removed(e.InputUuid) || this._inputs.ContainsKey(e.InputUuid))
             {
                 return;
             }
 
-            // The capabilities are in the event (they are not in its description in the protocol); when they are not, the list of inputs has them.
-            uint? caps = null;
-            if (raw is { ValueKind: JsonValueKind.Object } data && data.TryGetProperty("inputKindCaps", out var capsElement) && capsElement.TryGetUInt32(out var capsValue))
-            {
-                caps = capsValue;
-            }
-
-            var input = new InputNode(e.InputUuid, e.InputName, e.InputKind, e.UnversionedInputKind, caps, this._seq, this._now, confirmed: false);
+            // The event has the capabilities of the kind from obs-websocket 5.6.0; without them the input has audio until OBS says that it has not.
+            var input = new InputNode(e.InputUuid, e.InputName, e.InputKind, e.UnversionedInputKind, e.InputKindCaps, this._seq, this._now, confirmed: false);
             this._inputs[input.Uuid] = input;
             this._inputsScope.MarkDirty();
             if (input.HasAudio)

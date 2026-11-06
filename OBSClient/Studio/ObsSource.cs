@@ -57,6 +57,23 @@ namespace OBSStudioClient.Studio
         /// </summary>
         public bool IsRemoved => this._state != ObsObjectState.Live;
 
+        /// <summary>
+        /// Gets every scene item that shows this scene or input, in every scene (a scene that OBS Studio keeps alive after its removal included), as they are
+        /// at the moment that you ask.
+        /// </summary>
+        /// <returns>The scene items, in the order of the list of scenes and, in each scene, from the bottom to the top.</returns>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio can show the same source in several scenes, and several times in one scene. The list is made from the scenes when you ask for it, so it
+        /// takes a little time in a model with thousands of scene items, and it is not kept up to date: ask again, or follow <see cref="ObsStudio.Changed"/>.
+        /// That is why this is a method, and not a property: nothing can tell you when the answer changes.
+        /// </para>
+        /// </remarks>
+        public IReadOnlyList<ObsSceneItem> GetSceneItems()
+        {
+            return this.Studio.FindItemsShowing(this);
+        }
+
         // The number of the pass of the publisher that last saw the object in the model: an object that a pass does not see is gone.
         internal int Pass { get; set; }
 

@@ -43,15 +43,6 @@ namespace OBSStudioClient.Studio
         /// </summary>
         public float VolumeDb => Volatile.Read(ref this._volumeDb);
 
-        /// <summary>
-        /// Gets every scene item that shows this input, in every scene (a scene that OBS Studio keeps alive after its removal included), at the moment that you ask.
-        /// </summary>
-        /// <remarks>
-        /// OBS Studio can show the same input in several scenes, and several times in one scene. The list is made from the scenes when you ask for it,
-        /// so it needs a little time in a model with thousands of scene items.
-        /// </remarks>
-        public IReadOnlyList<ObsSceneItem> SceneItems => this.Studio.FindItemsShowing(this);
-
         // The values are written by one thread only, the one that runs the model, and read by any.
         internal bool SetMuted(bool muted)
         {

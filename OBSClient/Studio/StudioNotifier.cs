@@ -70,7 +70,8 @@ namespace OBSStudioClient.Studio
                     }
                     else
                     {
-                        this._context.Post(_ => this.Run(raise), null);
+                        // What the context has not run yet when the notifier is stopped is not raised: the application may be tearing down what the handlers use.
+                        this._context.Post(_ => this.RunUnlessStopped(raise), null);
                     }
                 }
 
@@ -81,6 +82,14 @@ namespace OBSStudioClient.Studio
                 {
                     return;
                 }
+            }
+        }
+
+        private void RunUnlessStopped(Action raise)
+        {
+            if (!this._stopped)
+            {
+                this.Run(raise);
             }
         }
 

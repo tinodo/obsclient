@@ -197,6 +197,35 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void ASceneThatIsDestroyedWithItsSceneItems_HasNoSceneItemsAnyMore_AndTheChangeSaysSo()
+        {
+            Guid gaming = Guid.Empty;
+            using var h = Started(world =>
+            {
+                gaming = world.AddScene("Gaming");
+                var mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(gaming, mic, "Mic");
+            });
+            var scene = h.View.Scenes["Gaming"];
+            var taken = scene.Items;
+            var item = taken["Mic"];
+
+            h.World.Scenes.RemoveAll(s => s.Uuid == gaming);
+            h.World.Items.Remove(gaming);
+            h.Engine.Event("SceneRemoved", new { sceneName = "Gaming", sceneUuid = gaming, isGroup = false }, 4);
+            h.Engine.SettleWithTime();
+            h.Publish();
+
+            Assert.Equal(ObsObjectState.Gone, scene.State);
+            Assert.True(item.IsRemoved);
+            Assert.Empty(scene.Items);
+            Assert.Single(taken);
+            var change = Assert.Single(h.Notices, notice => notice.Args is { Kind: ObsChangeKind.PropertyChanged, PropertyName: "Items" } args && ReferenceEquals(args.Entity, scene));
+            Assert.Same(taken, change.Args!.OldValue);
+            Assert.Same(scene.Items, change.Args.NewValue);
+        }
+
+        [Fact]
         public void AnInputThatIsRemovedWhileItIsInUse_IsDetached_AndItsItemsStay_UntilTheLastOneGoes()
         {
             Guid gaming = Guid.Empty;

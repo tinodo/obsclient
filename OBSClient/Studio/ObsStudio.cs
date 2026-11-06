@@ -23,7 +23,9 @@ namespace OBSStudioClient.Studio
     /// </para>
     /// <para>
     /// The model needs OBS Studio 30.1 or newer (obs-websocket 5.4), the first version that identifies scenes and inputs by UUID. Older versions work with
-    /// the <see cref="ObsClient"/> alone.
+    /// the <see cref="ObsClient"/> alone. From OBS Studio 31.1 (obs-websocket 5.6) OBS Studio says which inputs have audio. Before that the model asks for
+    /// the audio state of every input, which OBS Studio refuses for an input without audio, and takes the refusal as the answer: the model is the same, and
+    /// connecting takes two more requests for each input without audio.
     /// </para>
     /// <para>
     /// Everything that is a property is answered from the model, and can be read from any thread. The model is updated on a thread of its own; what
@@ -180,6 +182,9 @@ namespace OBSStudioClient.Studio
         public bool IsStudioModeEnabled => this._view.StudioMode;
 
         internal bool IgnoreCase => this._options.IgnoreCase;
+
+        // The host, for the tests that bring about an order in which things reach it, or make it fail.
+        internal StudioHost Host => this._host;
 
         // Checks the options before a client is made for them, so that a refusal leaves nothing behind that has to be disposed of.
         private static ObsClient NewClient(ObsStudioOptions? options, ILoggerFactory? loggerFactory)

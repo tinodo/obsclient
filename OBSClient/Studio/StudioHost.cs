@@ -54,7 +54,7 @@ namespace OBSStudioClient.Studio
         private Task _loop = Task.CompletedTask;
         private ITimer? _timer;
         private TimeSpan? _armedFor;
-        private TaskCompletionSource? _attempt;
+        private ConnectAttempt? _attempt;
         private volatile bool _stopped;
 
         // What the loop knows about the connection. Only the loop reads and writes these.
@@ -95,6 +95,18 @@ namespace OBSStudioClient.Studio
         /// <summary>Gets a task that completes when the loop has ended.</summary>
         public Task Completion => this._loop;
 
+        /// <summary>
+        /// Gets or sets what is called with each item that comes from the client before the loop handles it. It is for tests: one can hold the loop there, to
+        /// bring about an order in which things reach it.
+        /// </summary>
+        internal Action<IngressItem>? BeforeIngress { get; set; }
+
+        /// <summary>
+        /// Gets or sets what is called with a read before the loop gives its result to the engine. It is for tests: one can make it throw, as a fault in the
+        /// model would.
+        /// </summary>
+        internal Action<ReadTicket>? BeforeReadApplied { get; set; }
+
         /// <summary>Starts the loop, and the observation of the client.</summary>
         public void Start()
         {
@@ -120,16 +132,16 @@ namespace OBSStudioClient.Studio
             Volatile.Read(ref this._attempt)?.TrySetException(stopped);
         }
 
-        /// <summary>Makes ready for a connection: the task that is returned completes when the model has been read, or fails when it cannot be.</summary>
-        public TaskCompletionSource BeginConnect()
+        /// <summary>Makes ready for a connection: the attempt that is returned completes when the model has been read, or fails when it cannot be.</summary>
+        public ConnectAttempt BeginConnect()
         {
-            var attempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var attempt = new ConnectAttempt();
             Volatile.Write(ref this._attempt, attempt);
             return attempt;
         }
 
         /// <summary>Ends what <see cref="BeginConnect"/> began.</summary>
-        public void EndConnect(TaskCompletionSource attempt)
+        public void EndConnect(ConnectAttempt attempt)
         {
             Interlocked.CompareExchange(ref this._attempt, null, attempt);
         }
@@ -234,6 +246,7 @@ namespace OBSStudioClient.Studio
                     if (this.TakeRead(item))
                     {
                         this._readFailures = 0;
+                        this.BeforeReadApplied?.Invoke(item.Ticket!);
                         this._engine.OnReadCompleted(item.Ticket!, item.Results!, now);
                     }
 
@@ -289,6 +302,7 @@ namespace OBSStudioClient.Studio
 
         private void HandleIngress(IngressItem ingress, TimeSpan now)
         {
+            this.BeforeIngress?.Invoke(ingress);
             switch (ingress.Kind)
             {
                 case IngressKind.SessionStarted:
@@ -297,6 +311,13 @@ namespace OBSStudioClient.Studio
                     this._versionRetryAt = null;
                     this._read = null;
                     this._readFailures = 0;
+
+                    // The attempt that is under way is for this connection: the first that starts after it began.
+                    if (Volatile.Read(ref this._attempt) is { Session: 0 } attempt)
+                    {
+                        attempt.Session = ingress.SessionId;
+                    }
+
                     this._engine.OnSessionStarted(ingress.SessionId, ingress.Sequence, now);
                     this._studio.SetState(ObsStudioState.Synchronizing);
                     this.StartVersionCheck(ingress.SessionId);
@@ -314,8 +335,17 @@ namespace OBSStudioClient.Studio
                     this._read = null;
                     this._engine.OnSessionEnded(ingress.SessionId, ingress.Sequence, now);
                     this.FailWaiters(new ObsNotConnectedException("The connection to OBS Studio ended."));
-                    Volatile.Read(ref this._attempt)?.TrySetException(new ObsNotConnectedException("The connection to OBS Studio ended before the model was complete."));
-                    this._studio.SetState(this._client.AutoReconnect ? ObsStudioState.Reconnecting : ObsStudioState.Disconnected);
+
+                    // The end of a connection can reach the loop after a retry has begun (it comes through the same inbox as everything else, and the
+                    // client says that it is disconnected before that): it decides an attempt that is for this connection, and leaves another one alone, and
+                    // so it does the state, which is the state of the attempt that is under way.
+                    var current = Volatile.Read(ref this._attempt);
+                    if (current is null || current.Session == ingress.SessionId)
+                    {
+                        current?.TrySetException(new ObsNotConnectedException("The connection to OBS Studio ended before the model was complete."));
+                        this._studio.SetState(this._client.AutoReconnect ? ObsStudioState.Reconnecting : ObsStudioState.Disconnected);
+                    }
+
                     foreach (var waiter in this._disconnectWaiters)
                     {
                         waiter.TrySetResult();
@@ -351,8 +381,25 @@ namespace OBSStudioClient.Studio
             // The model needs UUIDs. It does not read from an OBS Studio that does not have them; the client itself works with it.
             var unsupported = new ObsVersionNotSupportedException(reported, RequiredWebSocketVersion.ToString(3));
             this._logger.LogError("{Message}", unsupported.Message);
-            Volatile.Read(ref this._attempt)?.TrySetException(unsupported);
+            this.FailAttempt(item.Session, unsupported);
             this._client.Disconnect();
+        }
+
+        // An attempt is decided by the connection that it is for, and by no other.
+        private void FailAttempt(int session, Exception exception)
+        {
+            if (Volatile.Read(ref this._attempt) is { } attempt && attempt.Session == session)
+            {
+                attempt.TrySetException(exception);
+            }
+        }
+
+        private void CompleteAttempt(int session)
+        {
+            if (Volatile.Read(ref this._attempt) is { } attempt && attempt.Session == session)
+            {
+                attempt.TrySetResult();
+            }
         }
 
         private bool TakeRead(in HostItem item)
@@ -450,7 +497,7 @@ namespace OBSStudioClient.Studio
             {
                 this._studio.SetState(ObsStudioState.Synchronized);
                 this._studio.QueueResynchronized();
-                Volatile.Read(ref this._attempt)?.TrySetResult();
+                this.CompleteAttempt(this._session);
             }
         }
 
@@ -565,6 +612,10 @@ namespace OBSStudioClient.Studio
                 this._read = null;
                 this._engine.OnSessionStarted(this._session, this._client.LastIngress, this.Now());
                 this._studio.SetState(ObsStudioState.Synchronizing);
+
+                // The item that failed did not get to the part of the loop that sends the reads that the engine wants and arms the timer: nothing else is
+                // on its way that would wake the loop, so it is woken.
+                this.Post(new HostItem { Kind = HostItemKind.Wake });
             }
             catch (Exception ex)
             {
@@ -609,6 +660,31 @@ namespace OBSStudioClient.Studio
             public Exception? Error { get; init; }
 
             public TaskCompletionSource? Waiter { get; init; }
+        }
+
+        /// <summary>
+        /// One call of <see cref="ObsStudio.ConnectAsync"/>. It is for the first connection that starts after it began, and only the end or the failure of that
+        /// connection, or of the model that it carries, decides it: the end of an earlier connection can reach the loop after a retry has begun.
+        /// </summary>
+        public sealed class ConnectAttempt
+        {
+            private readonly TaskCompletionSource _source = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>Gets the task that completes when the model has been read, or fails when it cannot be.</summary>
+            public Task Task => this._source.Task;
+
+            /// <summary>Gets or sets the connection that the attempt is for, or 0 until that connection starts. Only the loop reads and writes it.</summary>
+            public int Session { get; set; }
+
+            public bool TrySetResult()
+            {
+                return this._source.TrySetResult();
+            }
+
+            public bool TrySetException(Exception exception)
+            {
+                return this._source.TrySetException(exception);
+            }
         }
     }
 }

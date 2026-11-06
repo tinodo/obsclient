@@ -21,7 +21,8 @@ namespace OBSStudioClient.Studio
 
         /// <summary>
         /// Gets or sets how long <see cref="ObsStudio.ConnectAsync"/> waits for the model to be complete, after the connection is made. The default is 30 seconds.
-        /// A very large collection of scenes needs a few seconds; one second is enough for a hundred scenes with a thousand scene items.
+        /// The model reads the scenes, the inputs, the program scene, studio mode, the scene items of every scene and the audio state of the inputs, so the time
+        /// grows with the size of the collection and with the time that OBS Studio takes to answer.
         /// </summary>
         public TimeSpan SynchronizationTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
