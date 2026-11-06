@@ -713,8 +713,13 @@ namespace OBSStudioClient.Tests.Studio
                 if (pinned.Length > 0)
                 {
                     var input = this.Pick(pinned);
-                    this._pinsReleased.Add(input.Uuid);
                     this.Act($"let go of the pin of input \"{input.Name}\" {Short(input.Uuid)}", () => this._sim.External.DisableGlobalInput(input.Uuid));
+
+                    // Only an input that was removed and that disappears now is destroyed without a word: the model cannot know (see Leaks).
+                    if (input.Removed && this._sim.Snapshot().Inputs.All(other => other.Uuid != input.Uuid))
+                    {
+                        this._pinsReleased.Add(input.Uuid);
+                    }
                 }
             });
             this.Add("remove input", 3, truth =>
