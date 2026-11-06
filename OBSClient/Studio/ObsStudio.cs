@@ -63,6 +63,9 @@ namespace OBSStudioClient.Studio
         // The number of the call of ConnectAsync that has the connection: only that call may end it (see AbandonConnect). Under _stateLock.
         private int _connectTicket;
 
+        // What ends the call of ConnectAsync that is under way, or null: DisconnectAsync and Dispose cancel it. Under _stateLock.
+        private CancellationTokenSource? _connecting;
+
         /// <summary>
         /// Creates an <see cref="ObsStudio"/> with a new <see cref="ObsClient"/>, which it disposes of when it is disposed.
         /// </summary>
@@ -99,7 +102,7 @@ namespace OBSStudioClient.Studio
             this._client = client;
             this._ownsClient = ownsClient;
             this._logger = logger ?? NullLogger.Instance;
-            this._notifier = new StudioNotifier(this._options.NotificationContext, this._logger);
+            this._notifier = new StudioNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new StudioHost(this, client, this._options, this._logger, this._notifier);
             this._view = this._host.View;
             try
@@ -131,6 +134,14 @@ namespace OBSStudioClient.Studio
         /// <see cref="Resynchronized"/> is raised when it is complete.
         /// </para>
         /// <para>
+        /// The PropertyChanged events are not lost in that time. The objects that you hold are brought in line with OBS Studio as it is read, and when the model
+        /// is complete each of them raises PropertyChanged once for each property that changed (the <see cref="ObsInput.IsMuted"/> of an input that was muted while
+        /// the connection was down, the <see cref="ObsSource.Name"/> of a scene that was renamed, the <see cref="ObsSource.IsRemoved"/> of an input that was removed,
+        /// and the <see cref="Scenes"/> and <see cref="Inputs"/> of the <see cref="ObsStudio"/> itself). The first time that the model is complete, only the
+        /// <see cref="ObsStudio"/> does: the objects are new to you then. There is no record in <see cref="Changed"/> for any of these:
+        /// <see cref="Resynchronized"/> comes after them, and says that you should read again what you hold.
+        /// </para>
+        /// <para>
         /// There is one record for each change of a value or of a list, not one for each object that the change moves: when a scene item is moved, the
         /// record is a change of <see cref="ObsScene.Items"/> of its scene; the <see cref="ObsSceneItem.Index"/> of the items that moved are announced by their PropertyChanged events.
         /// </para>
@@ -139,8 +150,15 @@ namespace OBSStudioClient.Studio
 
         /// <summary>
         /// Occurs when the model has been read completely: after the first connection, and after a connection that was lost is restored. Everything that you
-        /// hold may have changed (scenes and inputs that were added, removed or renamed while the connection was down), so read what you need again.
+        /// hold may have changed (scenes and inputs that were added, removed or renamed while the connection was down), so read what you need again. It is
+        /// also raised when notifications were dropped because your handlers were too slow (see <see cref="ObsStudioOptions.MaxPendingNotifications"/>).
         /// </summary>
+        /// <remarks>
+        /// It is raised after the PropertyChanged events of what changed while the model was read (see <see cref="Changed"/>), so an application that is bound
+        /// to the objects is told about each of those first. Like the other notifications it is raised on a thread of its own (or on
+        /// <see cref="ObsStudioOptions.NotificationContext"/>), so the one of the first connection can come after <see cref="ConnectAsync"/> has returned: add your
+        /// handler before you connect.
+        /// </remarks>
         public event EventHandler? Resynchronized;
 
         /// <summary>
@@ -198,6 +216,9 @@ namespace OBSStudioClient.Studio
         // Called when a call of ConnectAsync that failed is about to end the connection that it made. For the tests: the order in which a newer call can meet it.
         internal Action? BeforeAbandon { get; set; }
 
+        // Called by ConnectAsync when everything is ready, and before it asks the client to connect. For the tests: what can happen to a call at that point.
+        internal Action? BeforeConnect { get; set; }
+
         // Checks the options before a client is made for them, so that a refusal leaves nothing behind that has to be disposed of.
         private static ObsClient NewClient(ObsStudioOptions? options, ILoggerFactory? loggerFactory)
         {
@@ -213,6 +234,7 @@ namespace OBSStudioClient.Studio
         {
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.ReadTimeout, TimeSpan.Zero, nameof(options.ReadTimeout));
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.SynchronizationTimeout, TimeSpan.Zero, nameof(options.SynchronizationTimeout));
+            ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxPendingNotifications, 1, nameof(options.MaxPendingNotifications));
         }
 
         /// <summary>
@@ -223,10 +245,11 @@ namespace OBSStudioClient.Studio
         /// <param name="password">The password of the WebSocket server, or empty when it has none.</param>
         /// <param name="cancellationToken">A token that ends the attempt.</param>
         /// <exception cref="InvalidOperationException">The model is connected or connecting already.</exception>
+        /// <exception cref="ObjectDisposedException">The <see cref="ObsStudio"/> is disposed.</exception>
         /// <exception cref="ObsNotConnectedException">OBS Studio could not be reached, refused the password, or the connection ended before the model was complete.</exception>
         /// <exception cref="ObsVersionNotSupportedException">OBS Studio is older than 30.1.</exception>
         /// <exception cref="TimeoutException">The model was not complete within <see cref="ObsStudioOptions.SynchronizationTimeout"/>.</exception>
-        /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+        /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled, or <see cref="DisconnectAsync"/> was called, or the <see cref="ObsStudio"/> was disposed, while it was connecting.</exception>
         /// <remarks>
         /// When it fails, nothing is left connected, and nothing keeps trying. After it succeeds, the connection is restored when it is lost
         /// (<see cref="ObsStudioOptions.AutoReconnect"/>), and the model is read again.
@@ -235,52 +258,67 @@ namespace OBSStudioClient.Studio
         {
             ObjectDisposedException.ThrowIf(this._disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
-            if (!this.TryEnterConnecting(out var ticket))
+
+            // What ends the call from outside: the token of the caller, and DisconnectAsync and Dispose, which cancel it while the call is under way.
+            using var connecting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (!this.TryEnterConnecting(connecting, out var ticket))
             {
                 throw new InvalidOperationException($"The studio is {this._state}: connect when it is Disconnected.");
             }
 
-            // The model is told that a connection ended a little before the client says that it is closed: a connection that ended just now is
-            // allowed to finish closing. What is still not closed after that is somebody else's connection.
             try
             {
-                await this.WaitForClientDisconnectedAsync(ClosingTimeout).ConfigureAwait(false);
-                if (this._client.ConnectionState != ConnectionState.Disconnected)
+                // The model is told that a connection ended a little before the client says that it is closed: a connection that ended just now is
+                // allowed to finish closing. What is still not closed after that is somebody else's connection.
+                try
                 {
-                    throw new InvalidOperationException($"The client is {this._client.ConnectionState}: connect when it is Disconnected, and let the ObsStudio connect it.");
+                    await this.WaitForClientDisconnectedAsync(ClosingTimeout).ConfigureAwait(false);
+                    if (this._client.ConnectionState != ConnectionState.Disconnected)
+                    {
+                        throw new InvalidOperationException($"The client is {this._client.ConnectionState}: connect when it is Disconnected, and let the ObsStudio connect it.");
+                    }
                 }
-            }
-            catch
-            {
-                this.ReleaseConnecting(ticket);
-                throw;
-            }
-
-            var attempt = this._host.BeginConnect();
-            try
-            {
-                var events = StudioHost.RequiredEvents | this._options.AdditionalEvents;
-                var connected = await this._client.ConnectAsync(this._options.AutoReconnect, password, hostname, port, events, cancellationToken).ConfigureAwait(false);
-                if (!connected)
+                catch
                 {
-                    throw new ObsNotConnectedException($"Could not connect to OBS Studio at {hostname}:{port}. Check that OBS Studio is running, that its WebSocket server is switched on, and the address, the port and the password.");
+                    this.ReleaseConnecting(ticket);
+                    throw;
                 }
 
-                await attempt.Task.WaitAsync(this._options.SynchronizationTimeout, cancellationToken).ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                this.AbandonConnect(ticket);
-                throw new TimeoutException($"OBS Studio did not deliver its scenes and inputs within {this._options.SynchronizationTimeout}. The connection was closed.");
-            }
-            catch
-            {
-                this.AbandonConnect(ticket);
-                throw;
+                var attempt = this._host.BeginConnect();
+                try
+                {
+                    this.BeforeConnect?.Invoke();
+
+                    // A call of DisconnectAsync, or a disposal, that came before the client was asked to connect: nothing is connected then.
+                    connecting.Token.ThrowIfCancellationRequested();
+                    ObjectDisposedException.ThrowIf(this._disposed, this);
+                    var events = StudioHost.RequiredEvents | this._options.AdditionalEvents;
+                    var connected = await this._client.ConnectAsync(this._options.AutoReconnect, password, hostname, port, events, connecting.Token).ConfigureAwait(false);
+                    if (!connected)
+                    {
+                        throw new ObsNotConnectedException($"Could not connect to OBS Studio at {hostname}:{port}. Check that OBS Studio is running, that its WebSocket server is switched on, and the address, the port and the password.");
+                    }
+
+                    await attempt.Task.WaitAsync(this._options.SynchronizationTimeout, connecting.Token).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    this.AbandonConnect(ticket);
+                    throw new TimeoutException($"OBS Studio did not deliver its scenes and inputs within {this._options.SynchronizationTimeout}. The connection was closed.");
+                }
+                catch
+                {
+                    this.AbandonConnect(ticket);
+                    throw;
+                }
+                finally
+                {
+                    this._host.EndConnect(attempt);
+                }
             }
             finally
             {
-                this._host.EndConnect(attempt);
+                this.ForgetConnecting(connecting);
             }
         }
 
@@ -289,9 +327,13 @@ namespace OBSStudioClient.Studio
         /// </summary>
         /// <exception cref="ObjectDisposedException">The <see cref="ObsStudio"/> is disposed.</exception>
         /// <exception cref="TimeoutException">The connection was not closed within ten seconds.</exception>
+        /// <remarks>
+        /// A call of <see cref="ConnectAsync"/> that is under way is ended: it throws an <see cref="OperationCanceledException"/>.
+        /// </remarks>
         public async Task DisconnectAsync()
         {
             ObjectDisposedException.ThrowIf(this._disposed, this);
+            this.CancelConnecting();
             this._client.Disconnect();
             await this._host.WaitUntilDisconnectedAsync(this.DisconnectTimeout).ConfigureAwait(false);
             await this.WaitForClientDisconnectedAsync(this.DisconnectTimeout).ConfigureAwait(false);
@@ -410,6 +452,18 @@ namespace OBSStudioClient.Studio
             return this._everSynchronized && state != ObsStudioState.Synchronized;
         }
 
+        // Whether the model has been complete at any time: before that, the objects are new to the application.
+        internal bool EverSynchronized
+        {
+            get
+            {
+                lock (this._stateLock)
+                {
+                    return this._everSynchronized;
+                }
+            }
+        }
+
         internal void QueueNotice(StudioNotice notice)
         {
             this._notifier.Enqueue(() => this.RaiseNotice(notice));
@@ -460,10 +514,13 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        private bool TryEnterConnecting(out int ticket)
+        // Enters Connecting for a call of ConnectAsync, which is then the call that can be ended from outside. Under the lock of the state, so that this is
+        // one step with a disposal (a studio that is disposed of is never made to connect) and with another call of ConnectAsync.
+        private bool TryEnterConnecting(CancellationTokenSource connecting, out int ticket)
         {
             lock (this._stateLock)
             {
+                ObjectDisposedException.ThrowIf(this._disposed, this);
                 if (this._state != ObsStudioState.Disconnected)
                 {
                     ticket = 0;
@@ -471,8 +528,40 @@ namespace OBSStudioClient.Studio
                 }
 
                 ticket = ++this._connectTicket;
+                this._connecting = connecting;
                 this.SetState(ObsStudioState.Connecting);
                 return true;
+            }
+        }
+
+        // The call of ConnectAsync that is under way, if there is one, ends: a connection that it has not made yet is not made.
+        private void CancelConnecting()
+        {
+            CancellationTokenSource? connecting;
+            lock (this._stateLock)
+            {
+                connecting = this._connecting;
+            }
+
+            try
+            {
+                connecting?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The call has ended, and has disposed of its source.
+            }
+        }
+
+        // The call of ConnectAsync ended: it can no longer be ended from outside (and its source is disposed of by the call, not before).
+        private void ForgetConnecting(CancellationTokenSource connecting)
+        {
+            lock (this._stateLock)
+            {
+                if (ReferenceEquals(this._connecting, connecting))
+                {
+                    this._connecting = null;
+                }
             }
         }
 
@@ -564,6 +653,7 @@ namespace OBSStudioClient.Studio
 
         private void StopEverything()
         {
+            this.CancelConnecting();
             try
             {
                 this._client.Disconnect();
@@ -643,6 +733,29 @@ namespace OBSStudioClient.Studio
                     this._logger.LogError(ex, "Exception in a Resynchronized handler");
                 }
             }
+        }
+
+        // Notifications were dropped because the handlers of the application were too slow (see ObsStudioOptions.MaxPendingNotifications): everything may
+        // have changed. A PropertyChanged event without a property name says that to what is bound to an object, and Resynchronized says it to the rest.
+        private void RaiseEverything()
+        {
+            this.Raise(this.PropertyChanged, this, string.Empty);
+            var view = this._view;
+            foreach (var scene in view.AllScenes)
+            {
+                scene.RaisePropertyChanged(string.Empty);
+                foreach (var item in scene.Items)
+                {
+                    item.RaisePropertyChanged(string.Empty);
+                }
+            }
+
+            foreach (var input in view.Inputs)
+            {
+                input.RaisePropertyChanged(string.Empty);
+            }
+
+            this.RaiseResynchronized();
         }
     }
 }

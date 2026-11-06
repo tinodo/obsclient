@@ -48,6 +48,7 @@ namespace OBSStudioClient.Studio
         private readonly StudioEngine _engine = new();
         private readonly StudioPublisher _publisher;
         private readonly StudioNotifier _notifier;
+        private readonly StudioNoticeHold _held = new();
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
         private readonly List<TaskCompletionSource> _settleWaiters = new();
@@ -566,7 +567,9 @@ namespace OBSStudioClient.Studio
         }
 
         // Publishes what the engine holds. The application is told of the changes one by one only when the model was complete before this
-        // step and is after it: while it is being read the application gets one notification at the end (Resynchronized).
+        // step and is after it. While it is being read the application is not told one by one: the objects are brought in line at once, but the
+        // notifications of the properties are held, and raised once for each property when the model is complete again (see StudioNoticeHold),
+        // with Resynchronized after them.
         private void PublishStep(StudioEngineState before)
         {
             var changes = this._engine.TakeChanges();
@@ -579,11 +582,18 @@ namespace OBSStudioClient.Studio
                 {
                     this._studio.QueueNotice(notice);
                 }
+
+                return;
             }
 
-            if (after == StudioEngineState.Synchronized && before != StudioEngineState.Synchronized)
+            this._held.Hold(this._publisher.Notices);
+            if (after == StudioEngineState.Synchronized)
             {
+                // The first time, the objects are new to the application, which cannot hold any (nor be bound to one): what it can be bound to is the
+                // studio itself, whose collections were empty before.
+                var first = !this._studio.EverSynchronized;
                 this._studio.SetState(ObsStudioState.Synchronized);
+                this._held.Release(this._studio.QueueNotice, onlyStudio: first);
                 this._studio.QueueResynchronized();
                 this.CompleteAttempt(this._session);
             }

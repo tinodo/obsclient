@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Tests.Studio
 {
     using System.Collections.Concurrent;
+    using System.ComponentModel;
     using System.Net;
     using System.Net.Sockets;
     using OBSStudioClient.Enums;
@@ -437,10 +438,14 @@ namespace OBSStudioClient.Tests.Studio
         public async Task AReconnect_ReadsTheModelAgain_KeepsTheObjects_AndIsAnnouncedOnce()
         {
             Guid gaming = Guid.Empty;
-            await using var rig = await StudioRig.ConnectedAsync(world => gaming = world.AddScene("Gaming"));
-            var scene = rig.Studio.Scenes["Gaming"];
+            await using var rig = StudioRig.Create(world => gaming = world.AddScene("Gaming"));
             var resynchronized = 0;
             rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            var scene = rig.Studio.Scenes["Gaming"];
+
+            // The notifications are raised on a thread of their own: the one of the first connection can come after ConnectAsync has returned.
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
 
             // The connection is lost, and OBS gets a new scene and renames one, while nobody is listening.
             rig.Responder.AbortConnection();
@@ -460,10 +465,203 @@ namespace OBSStudioClient.Tests.Studio
             Assert.False(rig.Studio.IsStale);
             Assert.Equal(new[] { "New", "Playing", "Scene" }, rig.Studio.Scenes.Select(s => s.Name).ToArray());
             Assert.Same(scene, rig.Studio.Scenes["Playing"]);
-            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized");
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized for the reconnect");
+            await Task.Delay(100);
+            Assert.Equal(2, Volatile.Read(ref resynchronized));
 
             // While the model is read it does not report object by object: Resynchronized says that everything may have changed.
             Assert.DoesNotContain(rig.Changes, change => change.Kind == ObsChangeKind.Added && change.Entity is ObsScene { Name: "New" });
+        }
+
+        [Fact]
+        public async Task ConnectAsync_RaisesPropertyChanged_ForTheCollectionsOfTheStudio_SoThatABindingToThemRefreshes()
+        {
+            await using var rig = StudioRig.Create(world =>
+            {
+                world.AddScene("Gaming");
+                world.AddInput("Mic", "wasapi_input_capture", 2);
+            });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            Assert.Empty(rig.Studio.Scenes);
+
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+
+            // An application that is bound to the collections before it connects has to be told that they are new. The objects in them are new to it too,
+            // and nothing is said about those one by one.
+            var properties = rig.Properties;
+            Assert.Equal(1, properties.Count(property => property == "Scenes"));
+            Assert.Equal(1, properties.Count(property => property == "Inputs"));
+            Assert.Equal(1, properties.Count(property => property == "ProgramScene"));
+            Assert.Equal(3, properties.Count(property => property is not ("State" or "IsStale")));
+        }
+
+        [Fact]
+        public async Task TheFirstConnection_RaisesNothingForTheObjects_BecauseTheyAreNewToTheApplication()
+        {
+            var context = new HeldContext();
+            await using var rig = StudioRig.Create(
+                world =>
+                {
+                    var gaming = world.AddScene("Gaming");
+                    var chat = world.AddScene("Chat");
+                    var mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                    var camera = world.AddInput("Camera");
+                    world.AddItem(gaming, mic, "Mic");
+                    world.AddItem(gaming, camera, "Camera");
+                    world.AddItem(chat, camera, "Camera");
+                    world.AddItem(chat, gaming, "Gaming", isScene: true);
+                },
+                new ObsStudioOptions { NotificationContext = context });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+
+            // The notifications are posted to a context that has not run them yet: the application gets hold of the objects first.
+            var raised = new ConcurrentQueue<string>();
+            foreach (var scene in rig.Studio.Scenes)
+            {
+                scene.PropertyChanged += (_, e) => raised.Enqueue($"scene {scene.Name} {e.PropertyName}");
+                foreach (var item in scene.Items)
+                {
+                    item.PropertyChanged += (_, e) => raised.Enqueue($"item {item.Id} {e.PropertyName}");
+                }
+            }
+
+            foreach (var input in rig.Studio.Inputs)
+            {
+                input.PropertyChanged += (_, e) => raised.Enqueue($"input {input.Name} {e.PropertyName}");
+            }
+
+            await StudioRig.EventuallyAsync(
+                () =>
+                {
+                    context.RunAll();
+                    return Volatile.Read(ref resynchronized) == 1;
+                },
+                "Resynchronized for the first connection");
+
+            // Only the studio is told: its collections were empty before the connection.
+            Assert.Empty(raised);
+            Assert.Contains("Scenes", rig.Properties);
+            Assert.Contains("Inputs", rig.Properties);
+        }
+
+        [Fact]
+        public async Task WhenTheHandlersAreTooSlow_TheNotificationsAreDropped_TheModelStaysRight_AndTheApplicationIsToldToReadAgain()
+        {
+            Guid gaming = Guid.Empty;
+            await using var rig = StudioRig.Create(world => gaming = world.AddScene("Gaming"), new ObsStudioOptions { MaxPendingNotifications = 20 });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+            var scene = rig.Studio.Scenes["Gaming"];
+            var everything = 0;
+            scene.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == string.Empty)
+                {
+                    Interlocked.Increment(ref everything);
+                }
+            };
+            var changes = 0;
+            using var gate = new ManualResetEventSlim();
+            var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.Changed += (_, e) =>
+            {
+                if (e.PropertyName == "Name")
+                {
+                    Interlocked.Increment(ref changes);
+                    blocked.TrySetResult();
+                    gate.Wait(Timeout);
+                }
+            };
+
+            // A handler that does not return, and OBS Studio goes on.
+            await rig.Responder.SendEventAsync("SceneNameChanged", new { sceneUuid = gaming, oldSceneName = "Gaming", sceneName = "N0" }, 4);
+            await blocked.Task.WithTimeoutAsync(Timeout);
+            for (var i = 1; i <= 100; i++)
+            {
+                await rig.Responder.SendEventAsync("SceneNameChanged", new { sceneUuid = gaming, oldSceneName = $"N{i - 1}", sceneName = $"N{i}" }, 4);
+            }
+
+            await StudioRig.EventuallyAsync(() => rig.Studio.Scenes.Contains("N100"), "the model to have the last name");
+            gate.Set();
+
+            // The notifications that were waiting are raised, the others were dropped, and the application is told that everything may have changed.
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized after the notifications were dropped");
+            Assert.Equal("N100", scene.Name);
+            Assert.Equal(1, Volatile.Read(ref everything));
+            Assert.InRange(Volatile.Read(ref changes), 2, 25);
+            Assert.Contains(string.Empty, rig.Properties);
+        }
+
+        [Fact]
+        public async Task AReconnect_RaisesPropertyChanged_OnTheObjectsThatTheApplicationHolds_ForWhatChangedMeanwhile()
+        {
+            Guid gaming = Guid.Empty;
+            Guid mic = Guid.Empty;
+            Guid old = Guid.Empty;
+            await using var rig = StudioRig.Create(world =>
+            {
+                gaming = world.AddScene("Gaming");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                old = world.AddInput("Old", "wasapi_input_capture", 2);
+            });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+            var scene = rig.Studio.Scenes["Gaming"];
+            var micInput = rig.Studio.Inputs["Mic"];
+            var oldInput = rig.Studio.Inputs["Old"];
+
+            // What the application sees, as a binding does: the PropertyChanged events of the objects that it holds.
+            var raised = new ConcurrentQueue<(object Sender, string Property)>();
+            PropertyChangedEventHandler handler = (sender, e) => raised.Enqueue((sender!, e.PropertyName!));
+            scene.PropertyChanged += handler;
+            micInput.PropertyChanged += handler;
+            oldInput.PropertyChanged += handler;
+            rig.Studio.PropertyChanged += handler;
+            var recorded = rig.Changes.Length;
+
+            rig.Responder.AbortConnection();
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Reconnecting, "the state to follow the connection");
+            rig.Responder.Change(world =>
+            {
+                var index = world.Inputs.FindIndex(i => i.Uuid == mic);
+                var input = world.Inputs[index];
+                world.Inputs[index] = (input.Uuid, input.Name, input.Kind, input.Caps, true, input.VolumeMul);
+                world.Inputs.RemoveAll(i => i.Uuid == old);
+                world.Scenes[world.Scenes.FindIndex(s => s.Uuid == gaming)] = (gaming, "Playing");
+                var created = Guid.NewGuid();
+                world.Scenes.Insert(0, (created, "New"));
+                world.Items[created] = [];
+            });
+
+            // Resynchronized comes after the notifications that were held, in the same queue.
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized for the reconnect", TimeSpan.FromSeconds(30));
+            await Task.Delay(100);
+
+            Assert.True(micInput.IsMuted);
+            Assert.Equal("Playing", scene.Name);
+            Assert.True(oldInput.IsRemoved);
+            var notifications = raised.ToArray();
+            int Count(object sender, string property) => notifications.Count(n => ReferenceEquals(n.Sender, sender) && n.Property == property);
+
+            // Once for each property of each object, however many steps changed it.
+            Assert.Equal(1, Count(micInput, "IsMuted"));
+            Assert.Equal(1, Count(scene, "Name"));
+            Assert.Equal(1, Count(scene, "Index"));
+            Assert.Equal(1, Count(oldInput, "State"));
+            Assert.Equal(1, Count(oldInput, "IsRemoved"));
+            Assert.Equal(1, Count(rig.Studio, "Scenes"));
+            Assert.Equal(1, Count(rig.Studio, "Inputs"));
+
+            // The records of Changed are not kept: Resynchronized says what they would (only the state of the studio is reported).
+            Assert.All(rig.Changes.Skip(recorded), change => Assert.Equal("State", change.PropertyName));
         }
 
         [Fact]
@@ -725,6 +923,57 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task DisconnectAsync_WhileConnectAsyncIsStillBeforeTheConnection_EndsThatCall_AndNothingIsConnected()
+        {
+            await using var rig = StudioRig.Create(world => world.AddScene("Gaming"));
+            var atTheConnection = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            rig.Studio.BeforeConnect = () =>
+            {
+                atTheConnection.TrySetResult();
+                release.Wait(Timeout);
+            };
+
+            var connecting = Task.Run(() => rig.ConnectAsync());
+            await atTheConnection.Task.WithTimeoutAsync(Timeout);
+
+            // The application asks to disconnect while the call is getting ready to connect: the call must not connect after that.
+            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+            release.Set();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connecting.WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+            Assert.Equal(ConnectionState.Disconnected, rig.Studio.Client.ConnectionState);
+        }
+
+        [Fact]
+        public async Task Dispose_WhileConnectAsyncIsStillBeforeTheConnection_DoesNotConnectTheClient()
+        {
+            await using var responder = new WorldResponder();
+            responder.World.AddScene("Scene");
+            responder.Start();
+            using var client = new ObsClient();
+            using var obs = new ObsStudio(client);
+            var atTheConnection = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            obs.BeforeConnect = () =>
+            {
+                atTheConnection.TrySetResult();
+                release.Wait(Timeout);
+            };
+
+            var connecting = Task.Run(() => obs.ConnectAsync("127.0.0.1", responder.Port));
+            await atTheConnection.Task.WithTimeoutAsync(Timeout);
+
+            // The client is the application's own: a studio that is disposed of must not connect it.
+            obs.Dispose();
+            release.Set();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connecting.WithTimeoutAsync(Timeout));
+            Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
+        }
+
+        [Fact]
         public async Task DisconnectAsync_WhenTheClientDoesNotCloseInTime_ThrowsATimeout()
         {
             await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
@@ -770,6 +1019,7 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Throws<ArgumentNullException>(() => new ObsStudio((ObsClient)null!));
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { ReadTimeout = TimeSpan.Zero }));
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(-1) }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { MaxPendingNotifications = 0 }));
 
             await using var rig = await StudioRig.ConnectedAsync();
             Assert.Throws<InvalidOperationException>(() => new ObsStudio(rig.Studio.Client));
@@ -789,27 +1039,6 @@ namespace OBSStudioClient.Tests.Studio
 
             // It can still be used: it was not made by the studio.
             Assert.False(await client.ConnectAsync(hostname: "127.0.0.1", port: FreePort()));
-        }
-
-        // A context that keeps what is posted to it until the test runs it: a user interface thread that is busy.
-        private sealed class HeldContext : SynchronizationContext
-        {
-            private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _held = new();
-
-            public int Count => this._held.Count;
-
-            public override void Post(SendOrPostCallback d, object? state)
-            {
-                this._held.Enqueue((d, state));
-            }
-
-            public void RunAll()
-            {
-                while (this._held.TryDequeue(out var held))
-                {
-                    held.Callback(held.State);
-                }
-            }
         }
 
         // A context that runs what is posted to it, in order, on one thread of its own, as the thread of a user interface does.

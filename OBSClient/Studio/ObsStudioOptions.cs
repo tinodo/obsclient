@@ -48,6 +48,23 @@ namespace OBSStudioClient.Studio
         public SynchronizationContext? NotificationContext { get; set; }
 
         /// <summary>
+        /// Gets or sets how many notifications may wait for your handlers at the most. The default is 10,000.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The notifications are raised one at a time, in order. When your handlers are slower than OBS Studio, the notifications wait in memory (also when they are
+        /// posted to the <see cref="NotificationContext"/> and its thread has not run them yet). When more than this number wait, the new ones are dropped, so that
+        /// the memory does not grow for ever, until your handlers have caught up. Then every object raises PropertyChanged with an empty property name, which says
+        /// that all of its properties changed, and <see cref="ObsStudio.Resynchronized"/> is raised: read again what you hold. An object that was removed in the
+        /// meantime does not say so; its <see cref="ObsSource.IsRemoved"/> is right when you read it.
+        /// </para>
+        /// <para>
+        /// The model itself is not affected: it is always current, and only the notifications are dropped.
+        /// </para>
+        /// </remarks>
+        public int MaxPendingNotifications { get; set; } = 10_000;
+
+        /// <summary>
         /// Gets or sets the source of time, for the waits of the model. The default is <see cref="TimeProvider.System"/>. Tests can pass their own.
         /// </summary>
         public TimeProvider? TimeProvider { get; set; }

@@ -1,0 +1,135 @@
+namespace OBSStudioClient.Tests.Studio
+{
+    using System.Collections.Concurrent;
+    using Microsoft.Extensions.Logging.Abstractions;
+    using OBSStudioClient.Studio;
+
+    /// <summary>
+    /// <see cref="StudioNotifier"/>: the order of the notifications, and what happens when the handlers are slower than the model.
+    /// </summary>
+    public class StudioNotifierTests
+    {
+        private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+
+        private sealed class Recorder
+        {
+            private readonly ConcurrentQueue<string> _raised = new();
+
+            public string[] Raised => this._raised.ToArray();
+
+            public Action Note(string what)
+            {
+                return () => this._raised.Enqueue(what);
+            }
+
+            public void Recovered()
+            {
+                this._raised.Enqueue("recovered");
+            }
+        }
+
+        [Fact]
+        public async Task TheNotifications_AreRaisedOneAtATime_InTheOrderInWhichTheyWereQueued()
+        {
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(null, NullLogger.Instance, 100, recorder.Recovered);
+
+            for (var i = 0; i < 50; i++)
+            {
+                notifier.Enqueue(recorder.Note(i.ToString()));
+            }
+
+            await StudioRig.EventuallyAsync(() => recorder.Raised.Length == 50, "the notifications");
+            Assert.Equal(Enumerable.Range(0, 50).Select(i => i.ToString()), recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+        }
+
+        [Fact]
+        public async Task WhenTooManyWait_TheNewOnesAreDropped_AndTheRecoveryComesAfterTheOnesThatWait()
+        {
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(null, NullLogger.Instance, 5, recorder.Recovered);
+            using var gate = new ManualResetEventSlim();
+            var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // A handler that does not return: the notifications behind it wait.
+            notifier.Enqueue(() =>
+            {
+                blocked.TrySetResult();
+                gate.Wait(Timeout);
+                recorder.Note("blocker")();
+            });
+            await blocked.Task.WaitAsync(Timeout);
+            for (var i = 1; i <= 5; i++)
+            {
+                notifier.Enqueue(recorder.Note($"n{i}"));
+            }
+
+            Assert.Equal(5, notifier.WaitingCount);
+
+            // The sixth is one too many: the recovery takes its place, and what comes after it is dropped.
+            notifier.Enqueue(recorder.Note("n6"));
+            notifier.Enqueue(recorder.Note("n7"));
+            notifier.Enqueue(recorder.Note("n8"));
+            Assert.Equal(6, notifier.WaitingCount);
+            gate.Set();
+
+            await StudioRig.EventuallyAsync(() => recorder.Raised.Contains("recovered"), "the recovery");
+            Assert.Equal(new[] { "blocker", "n1", "n2", "n3", "n4", "n5", "recovered" }, recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+
+            // Notifications are accepted again.
+            notifier.Enqueue(recorder.Note("later"));
+            await StudioRig.EventuallyAsync(() => recorder.Raised.Contains("later"), "a notification after the recovery");
+            Assert.Equal("later", recorder.Raised[^1]);
+        }
+
+        [Fact]
+        public async Task OnAContext_WhatWaitsThereCounts_ThatIsHowTheMemoryOfAUserInterfaceThatDoesNotRespondIsBounded()
+        {
+            var context = new HeldContext();
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(context, NullLogger.Instance, 3, recorder.Recovered);
+
+            for (var i = 1; i <= 3; i++)
+            {
+                notifier.Enqueue(recorder.Note($"n{i}"));
+            }
+
+            await StudioRig.EventuallyAsync(() => context.Count == 3, "the notifications to be posted");
+            Assert.Equal(3, notifier.WaitingCount);
+
+            // They are posted, but the thread of the context has not run them: they still count, so the fourth is one too many.
+            notifier.Enqueue(recorder.Note("n4"));
+            notifier.Enqueue(recorder.Note("n5"));
+            await StudioRig.EventuallyAsync(() => context.Count == 4, "the recovery to be posted");
+            context.RunAll();
+
+            Assert.Equal(new[] { "n1", "n2", "n3", "recovered" }, recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+        }
+
+        [Fact]
+        public async Task AfterStop_NothingIsRaised_AndNothingIsQueued()
+        {
+            var context = new HeldContext();
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(context, NullLogger.Instance, 10, recorder.Recovered);
+            notifier.Enqueue(recorder.Note("posted"));
+            await StudioRig.EventuallyAsync(() => context.Count == 1, "the notification to be posted");
+
+            notifier.Stop();
+            notifier.Enqueue(recorder.Note("after"));
+            context.RunAll();
+
+            Assert.Empty(recorder.Raised);
+            Assert.Equal(0, notifier.WaitingCount);
+        }
+
+        [Fact]
+        public void TheCapacity_MustBeAtLeastOne()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new StudioNotifier(null, NullLogger.Instance, 0, () => { }));
+        }
+    }
+}
