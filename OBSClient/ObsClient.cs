@@ -1023,7 +1023,12 @@
                 requestBatchResponseData.IngressSequence = sequence;
                 foreach (var result in requestBatchResponseData.Results)
                 {
-                    result.IngressSequence = sequence;
+                    // A malformed response can have a null entry (the elements of the array are not checked when it is read): that is not for
+                    // this code to refuse, and it must not end the connection. The batch is returned as it came.
+                    if (result is not null)
+                    {
+                        result.IngressSequence = sequence;
+                    }
                 }
 
                 this.CompleteRequest(session, requestBatchResponseData.RequestId, requestBatchResponseData);

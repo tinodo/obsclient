@@ -102,6 +102,26 @@ namespace OBSStudioClient.Tests.Unit
         }
 
         [Fact]
+        public async Task ABatchResponseWithANullResult_IsReturnedAsItCame_AndDoesNotEndTheConnection()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            var tap = new TapRecorder();
+            using var client = await ConnectAsync(server, tap.Add);
+            var batch = new RequestBatchMessage();
+            batch.AddGetStudioModeEnabledRequest();
+
+            var sending = client.SendRawBatchAsync(batch);
+            await server.ReceiveJsonAsync(Timeout);
+            await server.SendRawAsync(JsonSerializer.Serialize(new { op = 9, d = new { requestId = batch.RequestId, results = new object?[] { null } } }));
+            var response = await sending.WithTimeoutAsync(Timeout);
+
+            Assert.Single(response.Results);
+            Assert.Null(response.Results[0]);
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+            Assert.DoesNotContain(tap.Items, item => item.Kind == IngressKind.SessionEnded);
+        }
+
+        [Fact]
         public async Task ASlowHandlerOfTheApplication_DoesNotDelayTheTap()
         {
             await using var server = new FakeObsWebSocketServer();
