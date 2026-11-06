@@ -127,6 +127,69 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task Stop_LetsGoOfWhatWaits_SoThatNothingIsHeldForAsLongAsTheStudioCanBeReached()
+        {
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(null, NullLogger.Instance, 100, recorder.Recovered);
+            using var gate = new ManualResetEventSlim();
+            var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            notifier.Enqueue(() =>
+            {
+                blocked.TrySetResult();
+                gate.Wait(Timeout);
+            });
+            await blocked.Task.WaitAsync(Timeout);
+            for (var i = 1; i <= 5; i++)
+            {
+                notifier.Enqueue(recorder.Note($"n{i}"));
+            }
+
+            Assert.Equal(5, notifier.WaitingCount);
+
+            notifier.Stop();
+
+            Assert.Equal(0, notifier.WaitingCount);
+            gate.Set();
+            await Task.Delay(100);
+            Assert.Empty(recorder.Raised);
+        }
+
+        [Fact]
+        public async Task TheRecovery_IsQueuedAfterEverythingThatWasAdmitted_WhateverTheOrderInWhichProducersMeet()
+        {
+            // The notifications are posted to a context that does not run them yet, so what was admitted stays counted: the second producer finds the queue full
+            // whatever the delivery does meanwhile.
+            var context = new HeldContext();
+            var recorder = new Recorder();
+            var notifier = new StudioNotifier(context, NullLogger.Instance, 1, recorder.Recovered);
+            using var paused = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var inserts = 0;
+            notifier.BeforeInsert = () =>
+            {
+                // The first producer has been admitted, and has not queued its notification yet.
+                if (Interlocked.Increment(ref inserts) == 1)
+                {
+                    paused.Set();
+                    release.Wait(Timeout);
+                }
+            };
+
+            var first = Task.Run(() => notifier.Enqueue(recorder.Note("first")));
+            Assert.True(paused.Wait(Timeout));
+
+            // The second producer comes now: its notification is one too many, so the recovery takes its place, and that must be behind the first notification.
+            var second = Task.Run(() => notifier.Enqueue(recorder.Note("second")));
+            await Task.Delay(200);
+            release.Set();
+            await Task.WhenAll(first, second).WaitAsync(Timeout);
+
+            await StudioRig.EventuallyAsync(() => context.Count == 2, "both to be posted to the context");
+            context.RunAll();
+            Assert.Equal(new[] { "first", "recovered" }, recorder.Raised);
+        }
+
+        [Fact]
         public void TheCapacity_MustBeAtLeastOne()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new StudioNotifier(null, NullLogger.Instance, 0, () => { }));

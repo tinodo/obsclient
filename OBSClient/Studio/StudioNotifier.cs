@@ -25,13 +25,14 @@ namespace OBSStudioClient.Studio
         private const int BacklogWarning = 1000;
 
         private readonly ConcurrentQueue<Action> _queue = new();
+        private readonly object _gate = new();
         private readonly SynchronizationContext? _context;
         private readonly ILogger _logger;
         private readonly int _capacity;
         private readonly Action _recover;
         private int _waiting;
         private int _delivering;
-        private int _overflowed;
+        private bool _overflowed;
         private volatile bool _stopped;
 
         /// <summary>Initializes a new instance of the <see cref="StudioNotifier"/> class.</summary>
@@ -51,52 +52,79 @@ namespace OBSStudioClient.Studio
         /// <summary>Gets the number of notifications that wait to be raised. It is for tests.</summary>
         internal int WaitingCount => Volatile.Read(ref this._waiting);
 
+        /// <summary>Gets or sets what is called while a notification is admitted and before it is queued. It is for tests: another producer can be held up there.</summary>
+        internal Action? BeforeInsert { get; set; }
+
         /// <summary>Queues a notification. Once the notifier is stopped nothing is queued.</summary>
         public void Enqueue(Action raise)
         {
-            if (this._stopped)
-            {
-                return;
-            }
+            var overflowed = false;
+            var backlog = false;
 
-            // What is dropped is covered by the recovery, which is queued after everything that waits.
-            if (Volatile.Read(ref this._overflowed) != 0)
+            // Admission, the choice of the notification that overflows, and the insertion are one step: the recovery is queued after everything that was
+            // admitted, never before it, so the application does not get a notification after the recovery that the recovery covered.
+            lock (this._gate)
             {
-                return;
-            }
-
-            var waiting = Interlocked.Increment(ref this._waiting);
-            if (waiting > this._capacity)
-            {
-                if (Interlocked.CompareExchange(ref this._overflowed, 1, 0) != 0)
+                if (this._stopped)
                 {
-                    Interlocked.Decrement(ref this._waiting);
                     return;
                 }
 
+                // What is dropped is covered by the recovery, which is queued after everything that waits.
+                if (this._overflowed)
+                {
+                    return;
+                }
+
+                var waiting = Interlocked.Increment(ref this._waiting);
+                if (waiting > this._capacity)
+                {
+                    this._overflowed = true;
+                    overflowed = true;
+                    raise = this.Recover;
+                }
+                else if (waiting == BacklogWarning)
+                {
+                    backlog = true;
+                }
+
+                this.BeforeInsert?.Invoke();
+                this._queue.Enqueue(raise);
+            }
+
+            if (overflowed)
+            {
                 this._logger.LogWarning(
                     "More than {Capacity} notifications of the studio model are waiting for the handlers of the application. The new ones are dropped until the handlers have caught up, and then Resynchronized is raised: read again what you hold.",
                     this._capacity);
-                raise = this.Recover;
             }
-            else if (waiting == BacklogWarning)
+            else if (backlog)
             {
                 this._logger.LogWarning(
                     "{Count} notifications of the studio model are waiting for the handlers of the application, which are slower than OBS Studio is. A handler that waits for something holds up all the notifications behind it.",
                     BacklogWarning);
             }
 
-            this._queue.Enqueue(raise);
             if (Interlocked.CompareExchange(ref this._delivering, 1, 0) == 0)
             {
                 _ = Task.Run(this.Deliver);
             }
         }
 
-        /// <summary>Stops raising: the notifications that are waiting are dropped.</summary>
+        /// <summary>
+        /// Stops raising. The notifications that are waiting are dropped, and let go of: what they hold (the changes that they tell of, the collections that were
+        /// replaced) is not kept for as long as something refers to the studio. What was posted to a context counts until the context runs it.
+        /// </summary>
         public void Stop()
         {
-            this._stopped = true;
+            lock (this._gate)
+            {
+                this._stopped = true;
+                while (this._queue.TryDequeue(out _))
+                {
+                    Interlocked.Decrement(ref this._waiting);
+                }
+            }
         }
 
         private void Deliver()
@@ -108,7 +136,7 @@ namespace OBSStudioClient.Studio
                     if (this._context is null)
                     {
                         Interlocked.Decrement(ref this._waiting);
-                        this.Run(raise);
+                        this.RunUnlessStopped(raise);
                     }
                     else
                     {
@@ -130,13 +158,22 @@ namespace OBSStudioClient.Studio
         // Notifications are accepted again from the moment that the application is told: what it reads then is newer than what was dropped.
         private void Recover()
         {
-            Volatile.Write(ref this._overflowed, 0);
+            lock (this._gate)
+            {
+                this._overflowed = false;
+            }
+
             this._recover();
         }
 
         private void RunPosted(Action raise)
         {
             Interlocked.Decrement(ref this._waiting);
+            this.RunUnlessStopped(raise);
+        }
+
+        private void RunUnlessStopped(Action raise)
+        {
             if (!this._stopped)
             {
                 this.Run(raise);

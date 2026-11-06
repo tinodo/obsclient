@@ -216,6 +216,10 @@ namespace OBSStudioClient.Studio
         // Called when a call of ConnectAsync that failed is about to end the connection that it made. For the tests: the order in which a newer call can meet it.
         internal Action? BeforeAbandon { get; set; }
 
+        // Called by ConnectAsync after the client has closed what it had, and before the call becomes the one that the model waits for. For the tests: what can
+        // happen to a call at that point.
+        internal Action? BeforeBegin { get; set; }
+
         // Called by ConnectAsync when everything is ready, and before it asks the client to connect. For the tests: what can happen to a call at that point.
         internal Action? BeforeConnect { get; set; }
 
@@ -269,13 +273,29 @@ namespace OBSStudioClient.Studio
             try
             {
                 // The model is told that a connection ended a little before the client says that it is closed: a connection that ended just now is
-                // allowed to finish closing. What is still not closed after that is somebody else's connection.
+                // allowed to finish closing. What is still not closed after that is somebody else's connection. A call of DisconnectAsync, or a disposal,
+                // ends the wait.
+                StudioHost.ConnectAttempt attempt;
                 try
                 {
-                    await this.WaitForClientDisconnectedAsync(ClosingTimeout).ConfigureAwait(false);
+                    await this.WaitForClientDisconnectedAsync(ClosingTimeout, connecting.Token).ConfigureAwait(false);
                     if (this._client.ConnectionState != ConnectionState.Disconnected)
                     {
                         throw new InvalidOperationException($"The client is {this._client.ConnectionState}: connect when it is Disconnected, and let the ObsStudio connect it.");
+                    }
+
+                    this.BeforeBegin?.Invoke();
+
+                    // The call becomes the one that the model waits for in one step with the check that it still has the connection: it can have been ended while
+                    // it waited for the client, and the application can have connected again meanwhile. The attempt of that newer call is not replaced.
+                    lock (this._stateLock)
+                    {
+                        if (this._connectTicket != ticket || connecting.IsCancellationRequested || this._disposed)
+                        {
+                            throw new OperationCanceledException(connecting.Token);
+                        }
+
+                        attempt = this._host.BeginConnect();
                     }
                 }
                 catch
@@ -284,7 +304,6 @@ namespace OBSStudioClient.Studio
                     throw;
                 }
 
-                var attempt = this._host.BeginConnect();
                 try
                 {
                     this.BeforeConnect?.Invoke();
@@ -578,8 +597,9 @@ namespace OBSStudioClient.Studio
         }
 
         // The client says that it is disconnected when the last of its connection is closed, which is a little after the receive loop ended and the
-        // model was told. Returns when it says so, or after the time: the caller looks at the state.
-        private async Task WaitForClientDisconnectedAsync(TimeSpan timeout)
+        // model was told. Returns when it says so, or after the time: the caller looks at the state. A token that ends first ends the wait with an
+        // OperationCanceledException.
+        internal async Task WaitForClientDisconnectedAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             if (this._client.ConnectionState == ConnectionState.Disconnected)
             {
@@ -600,7 +620,7 @@ namespace OBSStudioClient.Studio
             {
                 if (this._client.ConnectionState != ConnectionState.Disconnected)
                 {
-                    await closed.Task.WaitAsync(timeout).ConfigureAwait(false);
+                    await closed.Task.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (TimeoutException)
@@ -614,10 +634,12 @@ namespace OBSStudioClient.Studio
 
         // A call of ConnectAsync failed or was cancelled: what it connected must not stay connected, and the client must not keep trying. Only the call that
         // has the connection may end it. A newer call has its own: the state can be Disconnected before the older call has unwound (the application
-        // disconnected meanwhile), and the application can connect again then. The check and the end are one step with the entry of a call.
+        // disconnected meanwhile), and the application can connect again then. The check and the end are one step with the entry of a call. The notification
+        // of the client about it is raised after the lock is let go of: a handler is the application's.
         private void AbandonConnect(int ticket)
         {
             this.BeforeAbandon?.Invoke();
+            Action? raise = null;
             lock (this._stateLock)
             {
                 if (this._connectTicket != ticket)
@@ -627,7 +649,7 @@ namespace OBSStudioClient.Studio
 
                 try
                 {
-                    this._client.Disconnect();
+                    raise = this._client.DisconnectDeferred();
                 }
                 catch (ObjectDisposedException)
                 {
@@ -635,6 +657,8 @@ namespace OBSStudioClient.Studio
 
                 this.SetState(ObsStudioState.Disconnected);
             }
+
+            raise?.Invoke();
         }
 
         private bool BeginDispose()

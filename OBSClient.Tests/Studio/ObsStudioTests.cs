@@ -746,6 +746,141 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task TheWaitForTheClientToBeClosed_EndsWhenItIsClosed_WhenTheTimeIsUp_AndWhenItIsCancelled()
+        {
+            await using var responder = new WorldResponder();
+            responder.Start();
+            using var client = new ObsClient();
+            using var obs = new ObsStudio(client);
+            Assert.True(await client.ConnectAsync(hostname: "127.0.0.1", port: responder.Port).WithTimeoutAsync(Timeout));
+
+            // The time is up: the caller looks at the state.
+            await obs.WaitForClientDisconnectedAsync(TimeSpan.FromMilliseconds(100)).WithTimeoutAsync(Timeout);
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // A token ends the wait at once, and not after the time that the client is given.
+            using var cancellation = new CancellationTokenSource();
+            var waiting = obs.WaitForClientDisconnectedAsync(TimeSpan.FromSeconds(30), cancellation.Token);
+            await Task.Delay(200);
+            Assert.False(waiting.IsCompleted);
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting.WithTimeoutAsync(TimeSpan.FromSeconds(2)));
+
+            // And it ends when the client says that it is closed.
+            var closing = obs.WaitForClientDisconnectedAsync(TimeSpan.FromSeconds(30));
+            await Task.Delay(200);
+            Assert.False(closing.IsCompleted);
+            client.Disconnect();
+            await closing.WithTimeoutAsync(Timeout);
+            Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
+        }
+
+        [Fact]
+        public async Task WhenTheVersionIsRejected_AHandlerOfTheClientDoesNotHoldUpTheModel()
+        {
+            await using var rig = StudioRig.Create();
+            rig.Responder.WebSocketVersion = "5.3.0";
+
+            // A handler of the client that waits: the connection is ended on the thread that runs it. The loop of the model rejects the version, and must not
+            // be that thread (a handler is the application's, and the loop holds up everything behind it).
+            using var gate = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.Client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.AutoReconnect) && !rig.Studio.Client.AutoReconnect)
+                {
+                    entered.TrySetResult();
+                    gate.Wait(Timeout);
+                }
+            };
+
+            var connecting = Task.Run(() => rig.ConnectAsync());
+            await entered.Task.WithTimeoutAsync(Timeout);
+
+            // The loop takes what is asked of it, which only the loop can do: it either answers at once (the connection is over), or keeps the wait.
+            var asked = rig.Studio.Host.WaitUntilDisconnectedAsync(TimeSpan.FromSeconds(30));
+            try
+            {
+                await StudioRig.EventuallyAsync(() => asked.IsCompleted || rig.Studio.Host.DisconnectWaiterCount == 1, "the loop of the model to take what is asked of it");
+            }
+            finally
+            {
+                gate.Set();
+            }
+
+            await Assert.ThrowsAsync<ObsVersionNotSupportedException>(() => connecting.WithTimeoutAsync(Timeout));
+            await asked.WithTimeoutAsync(Timeout);
+        }
+
+        [Fact]
+        public async Task WhenAConnectFails_AHandlerOfTheClientRunsWithoutTheLockOfTheState()
+        {
+            await using var rig = StudioRig.Create();
+            var checkedOnce = 0;
+            var gotTheLock = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // The notification that the client raises when the failed call ends the connection is the application's. What it does can need the state of the
+            // studio (here another thread disconnects it, which takes the lock of the state): it cannot be raised while the call holds that lock.
+            rig.Studio.Client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.AutoReconnect) && !rig.Studio.Client.AutoReconnect && Interlocked.Increment(ref checkedOnce) == 1)
+                {
+                    var other = Task.Run(() => rig.Studio.DisconnectAsync());
+                    gotTheLock.TrySetResult(other.Wait(TimeSpan.FromSeconds(4)));
+                }
+            };
+
+            await Assert.ThrowsAsync<ObsNotConnectedException>(() => rig.Studio.ConnectAsync("127.0.0.1", FreePort()).WithTimeoutAsync(Timeout));
+
+            Assert.True(await gotTheLock.Task.WithTimeoutAsync(Timeout), "The handler ran under the lock of the state of the studio.");
+        }
+
+        [Fact]
+        public async Task AnOlderCallOfConnectAsync_ThatWasEndedWhileItWaited_DoesNotReplaceTheAttemptOfANewerCall()
+        {
+            await using var rig = StudioRig.Create(world => world.AddScene("Gaming"), new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(4) });
+            var beginCalls = 0;
+            var connectCalls = 0;
+            using var releaseFirst = new ManualResetEventSlim();
+            using var releaseSecond = new ManualResetEventSlim();
+            var firstWaits = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondIsReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.BeforeBegin = () =>
+            {
+                if (Interlocked.Increment(ref beginCalls) == 1)
+                {
+                    firstWaits.TrySetResult();
+                    releaseFirst.Wait(Timeout);
+                }
+            };
+            rig.Studio.BeforeConnect = () =>
+            {
+                if (Interlocked.Increment(ref connectCalls) == 1)
+                {
+                    secondIsReady.TrySetResult();
+                    releaseSecond.Wait(Timeout);
+                }
+            };
+
+            // The first call waits for the client to be closed (as it does when a connection ended a moment ago). The application disconnects, and connects
+            // again: the second call is the one that the model waits for.
+            var first = Task.Run(() => rig.ConnectAsync());
+            await firstWaits.Task.WithTimeoutAsync(Timeout);
+            await rig.Studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+            var second = Task.Run(() => rig.ConnectAsync());
+            await secondIsReady.Task.WithTimeoutAsync(Timeout);
+
+            // The first call goes on, and has been ended: it must not take the place of the attempt of the second, nor end it.
+            releaseFirst.Set();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
+            releaseSecond.Set();
+
+            await second.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+            Assert.True(rig.Studio.Scenes.Contains("Gaming"));
+        }
+
+        [Fact]
         public async Task ConnectAsync_ToAnObsWithAVersionSuffix_ReadsTheNumber()
         {
             await using var rig = StudioRig.Create();

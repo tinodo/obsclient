@@ -294,7 +294,17 @@ namespace OBSStudioClient.Tests.Studio
         public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null)
         {
             var rig = Create(setup, options);
-            await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            try
+            {
+                await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            }
+            catch
+            {
+                // The caller never gets the rig, so it cannot dispose of it: its stand-in server and its model would go on running after the test failed.
+                await rig.DisposeAsync();
+                throw;
+            }
+
             return rig;
         }
 

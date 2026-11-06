@@ -462,7 +462,25 @@ namespace OBSStudioClient.Studio
             var unsupported = new ObsVersionNotSupportedException(reported, RequiredWebSocketVersion.ToString(3));
             this._logger.LogError("{Message}", unsupported.Message);
             this.FailAttempt(item.Session, unsupported);
-            this._client.Disconnect();
+            this.EndSessionOffLoop(item.Session);
+        }
+
+        // Ends the connection of a session, which the model rejected. Nothing that belongs to the application runs on the loop, and ending a connection raises
+        // the PropertyChanged event of the client (AutoReconnect) on the thread that does it: a handler that waits would hold up the model, and one that disposes of
+        // the studio would wait for the loop that runs it. It is the connection of that session that is ended, whenever this runs: what was made in its place is not.
+        private void EndSessionOffLoop(int session)
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    this._client.EndSession(session);
+                }
+                catch (Exception ex)
+                {
+                    this._logger.LogDebug(ex, "Could not end the connection that the model rejected.");
+                }
+            });
         }
 
         // An attempt is decided by the connection that it is for, and by no other.

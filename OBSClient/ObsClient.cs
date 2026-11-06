@@ -231,11 +231,18 @@
         // setting of the one that replaced it.
         private void SetAutoReconnect(bool value, ConnectionSession? onlyForSession = null)
         {
+            this.ChangeAutoReconnect(value, onlyForSession)?.Invoke();
+        }
+
+        // Changes the setting, and returns what raises the notification of the change (null when nothing was changed): the caller raises it when it likes.
+        // A handler runs on the thread that raises it.
+        private Action? ChangeAutoReconnect(bool value, ConnectionSession? onlyForSession)
+        {
             lock (_syncRoot)
             {
                 if (onlyForSession is not null && !ReferenceEquals(this._session, onlyForSession))
                 {
-                    return;
+                    return null;
                 }
 
                 // The timer is disposed by Dispose, after it took this lock to set _disposed.
@@ -249,7 +256,7 @@
 
             // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
             // property, so a handler must not be able to deadlock the client or break those calls.
-            this.RaisePropertyChangedSafely(nameof(AutoReconnect));
+            return () => this.RaisePropertyChangedSafely(nameof(AutoReconnect));
         }
 
         /// <summary>
@@ -555,6 +562,51 @@
             _logger.LogInformation("Disconnecting from OBS Studio");
             this.AutoReconnect = false;
             this._session?.Cancellation.Cancel();
+        }
+
+        // Disconnect() for a caller that holds a lock of its own: the connection is ended and AutoReconnect is switched off at once, but the notification of
+        // that change is returned, for the caller to raise when it has let go of its lock (a handler runs on the thread that raises it).
+        internal Action? DisconnectDeferred()
+        {
+            _logger.LogInformation("Disconnecting from OBS Studio");
+            var raise = this.ChangeAutoReconnect(false, null);
+            try
+            {
+                this._session?.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+            }
+
+            return raise;
+        }
+
+        // Disconnect() for the connection with that number and for nothing else (see EndAttempt): AutoReconnect is switched off only while that connection is
+        // still the active one, so a connection that was made in its place is left as it is. Returns whether there was such a connection.
+        internal bool EndSession(int sessionId)
+        {
+            ConnectionSession? session;
+            lock (_syncRoot)
+            {
+                session = this._session;
+            }
+
+            if (session is null || session.Id != sessionId)
+            {
+                return false;
+            }
+
+            try
+            {
+                this.EndAttempt(session);
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+                return false;
+            }
         }
 
         /// <summary>
