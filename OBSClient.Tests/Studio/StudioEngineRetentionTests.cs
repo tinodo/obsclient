@@ -233,6 +233,60 @@ namespace OBSStudioClient.Tests.Studio
             Assert.DoesNotContain(ReadKind.Inputs, kinds);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void WhileAListIsBeingRead_TheLookAtWhatIsOld_DoesNotAskForTheSameListAgain(bool scenes)
+        {
+            Guid mic = Guid.Empty;
+            Guid doomed = Guid.Empty;
+            var h = Started(world =>
+            {
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                doomed = world.AddScene("Doomed");
+            });
+
+            // Something that OBS destroyed and that no list confirmed: it needed no read of a list.
+            if (scenes)
+            {
+                h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+                h.World.Items.Remove(doomed);
+                EngineEvents.SceneRemoved(h, doomed, "Doomed");
+            }
+            else
+            {
+                h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+                EngineEvents.InputRemoved(h, mic, "Mic");
+            }
+
+            h.SettleWithTime();
+            Assert.Null(h.Take());
+
+            // It is old now, and the list is read for another reason; while that read is under way, the engine looks at what it remembers once more.
+            h.Advance(TimeSpan.FromSeconds(70));
+            if (scenes)
+            {
+                EngineEvents.SceneCreated(h, h.World.AddScene("Other"), "Other");
+            }
+            else
+            {
+                var other = h.World.AddInput("Other");
+                EngineEvents.InputCreated(h, other, "Other");
+            }
+
+            var kind = scenes ? ReadKind.Scenes : ReadKind.Inputs;
+            var read = h.Take();
+            Assert.NotNull(read);
+            Assert.Contains(read.Requests, request => request.Kind == kind);
+            h.Advance(TimeSpan.FromSeconds(15));
+            h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1 << 10);
+            h.Complete(read);
+
+            // The read that was under way was sent after the removal, and its list does not have the source: that confirms it, and a second read says nothing more.
+            var next = h.Take();
+            Assert.True(next is null || next.Requests.All(request => request.Kind != kind), $"The list of {(scenes ? "scenes" : "inputs")} was read again at once.");
+        }
+
         [Fact]
         public void AListThatWasSentBeforeTheSourceWasMade_SaysNothingAboutItsRemoval()
         {
