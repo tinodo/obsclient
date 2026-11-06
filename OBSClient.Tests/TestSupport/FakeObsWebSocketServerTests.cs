@@ -2,6 +2,7 @@ namespace OBSStudioClient.Tests.TestSupport
 {
     using System.Net;
     using System.Net.Sockets;
+    using OBSStudioClient.Tests.Studio;
 
     /// <summary>
     /// The fake OBS Studio of the tests. A test that ends a connection at any moment (a call that is cancelled while it connects) must not keep it from accepting
@@ -26,6 +27,32 @@ namespace OBSStudioClient.Tests.TestSupport
             await server.HandshakeAsync().WithTimeoutAsync(Timeout);
 
             Assert.True(await connect.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task DisposingTheServer_ClosesAClientThatNeverSentItsRequest()
+        {
+            var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var silent = new TcpClient();
+            await silent.ConnectAsync(IPAddress.Loopback, server.Port).WaitAsync(Timeout);
+            await StudioRig.EventuallyAsync(() => server.PendingUpgrades == 1, "the server to have accepted the client");
+
+            await server.DisposeAsync();
+
+            // The connection that the server accepted is closed with it, not after the time that an upgrade may take.
+            var closed = false;
+            try
+            {
+                closed = await silent.GetStream().ReadAsync(new byte[1]).AsTask().WaitAsync(TimeSpan.FromSeconds(5)) == 0;
+            }
+            catch (IOException)
+            {
+                closed = true;
+            }
+
+            Assert.True(closed);
+            Assert.Equal(0, server.PendingUpgrades);
         }
 
         [Fact]

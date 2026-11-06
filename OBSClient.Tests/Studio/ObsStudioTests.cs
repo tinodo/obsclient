@@ -997,6 +997,34 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task DisconnectAsync_WhileTheClientIsConnecting_Completes_WhenAHandlerOfTheClientWaitsForTheDisconnectAsyncOfAnotherThread()
+        {
+            // A server that upgrades the connection and then says nothing: the client waits for its Hello, inside its attempt to connect.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var studio = new ObsStudio();
+            var connecting = Task.Run(() => studio.ConnectAsync("127.0.0.1", server.Port));
+            await StudioRig.EventuallyAsync(() => studio.State == ObsStudioState.Connecting && studio.Client.ConnectionState == ConnectionState.Connecting, "the client to be connecting");
+            var raised = 0;
+            var nestedEnded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            studio.Client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.AutoReconnect) && Interlocked.Increment(ref raised) == 1)
+                {
+                    // A handler is the application's, and it can wait for the DisconnectAsync of another thread.
+                    var nested = Task.Run(() => studio.DisconnectAsync());
+                    nestedEnded.TrySetResult(nested.Wait(TimeSpan.FromSeconds(8)));
+                }
+            };
+
+            await studio.DisconnectAsync().WithTimeoutAsync(Timeout);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connecting.WithTimeoutAsync(Timeout));
+            Assert.True(await nestedEnded.Task.WithTimeoutAsync(Timeout), "The DisconnectAsync that the handler waited for did not end.");
+            Assert.Equal(ObsStudioState.Disconnected, studio.State);
+        }
+
+        [Fact]
         public async Task ConnectAsync_ToAnObsWithAVersionSuffix_ReadsTheNumber()
         {
             await using var rig = StudioRig.Create();

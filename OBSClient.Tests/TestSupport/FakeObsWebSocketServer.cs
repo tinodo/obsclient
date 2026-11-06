@@ -30,6 +30,9 @@
 
         private readonly TcpListener _listener;
         private readonly SemaphoreSlim _connectionSignal = new(0);
+        private readonly CancellationTokenSource _stopping = new();
+        private readonly object _gate = new();
+        private readonly List<Task> _upgrades = [];
         private Task? _acceptLoop;
         private TcpClient? _tcpClient;
         private WebSocket? _socket;
@@ -55,6 +58,18 @@
 
         public int Port { get; }
 
+        /// <summary>Gets the number of clients that the server accepted and that have not sent their upgrade request yet.</summary>
+        public int PendingUpgrades
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _upgrades.Count(upgrade => !upgrade.IsCompleted);
+                }
+            }
+        }
+
         public void Start()
         {
             _acceptLoop = AcceptLoopAsync();
@@ -71,7 +86,17 @@
                 while (!_stopped)
                 {
                     var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                    _ = UpgradeAsync(client);
+                    lock (_gate)
+                    {
+                        if (_stopped)
+                        {
+                            client.Dispose();
+                            break;
+                        }
+
+                        _upgrades.RemoveAll(upgrade => upgrade.IsCompleted);
+                        _upgrades.Add(UpgradeAsync(client));
+                    }
                 }
             }
             catch (Exception) when (_stopped)
@@ -80,19 +105,30 @@
             }
         }
 
-        // Upgrades one client, apart from the others: one that went away, or never says a word, does not keep the next one from connecting.
+        // Upgrades one client, apart from the others: one that went away, or never says a word, does not keep the next one from connecting. The upgrades are
+        // tracked, and ended with the server (see DisposeAsync): one that finishes during the shutdown does not make a connection that nobody closes.
         private async Task UpgradeAsync(TcpClient client)
         {
             try
             {
                 client.NoDelay = true;
                 var stream = client.GetStream();
-                using var timeout = new CancellationTokenSource(UpgradeTimeout);
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token);
+                timeout.CancelAfter(UpgradeTimeout);
                 await PerformHandshakeAsync(stream, timeout.Token).ConfigureAwait(false);
 
-                _tcpClient = client;
-                _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
-                _connectionSignal.Release();
+                lock (_gate)
+                {
+                    if (_stopped)
+                    {
+                        client.Dispose();
+                        return;
+                    }
+
+                    _tcpClient = client;
+                    _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
+                    _connectionSignal.Release();
+                }
             }
             catch (Exception)
             {
@@ -401,16 +437,27 @@
 
         public async ValueTask DisposeAsync()
         {
-            _stopped = true;
+            Task[] upgrades;
+            lock (_gate)
+            {
+                // From here on an upgrade that finishes does not publish its connection (see UpgradeAsync).
+                _stopped = true;
+                upgrades = _upgrades.ToArray();
+            }
+
+            _stopping.Cancel();
             try
             {
                 _socket?.Abort();
                 _tcpClient?.Close();
                 _listener.Stop();
+                var ending = new List<Task>(upgrades);
                 if (_acceptLoop != null)
                 {
-                    await Task.WhenAny(_acceptLoop, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+                    ending.Add(_acceptLoop);
                 }
+
+                await Task.WhenAny(Task.WhenAll(ending), Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
             }
             catch
             {
@@ -427,6 +474,7 @@
                 }
 
                 _connectionSignal.Dispose();
+                _stopping.Dispose();
             }
         }
     }
