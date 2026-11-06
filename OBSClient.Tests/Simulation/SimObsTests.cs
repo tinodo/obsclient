@@ -38,6 +38,18 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void TheInitialSceneOfTheHarness_StaysTheSceneThatTheSimulationStartedWith()
+        {
+            var h = new SimHarness(Ideal);
+            var initial = h.InitialScene;
+
+            var second = h.CreateScene("Second");
+
+            Assert.Equal(initial, h.InitialScene);
+            Assert.Equal(second, h.Sim.Snapshot().Scenes[0].Uuid);
+        }
+
+        [Fact]
         public void Fact10_ASceneIsAnnouncedTwice_WithSceneListChangedInBetween()
         {
             var h = new SimHarness(Ideal with { DuplicateSceneCreated = true });

@@ -480,12 +480,13 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
-            // The count is up before the client can know that it is identified, so that whoever waits for the client sees both. Events are
-            // only queued after the Identified message (see Dispatch).
-            Interlocked.Increment(ref _identifiedCount);
+            // The flag, the count and the Identified message are one step, under the lock that Dispatch takes: whoever sees the count can make a
+            // change, and the change is sent to this connection, after the Identified message. The count is up before the client can know that it is
+            // identified, so that whoever waits for the client sees both.
             lock (connection.Gate)
             {
                 connection.Identified = true;
+                Interlocked.Increment(ref _identifiedCount);
                 connection.Send(Serialize(Obj(("d", Obj(("negotiatedRpcVersion", 1))), ("op", SimOp.Identified))));
             }
 

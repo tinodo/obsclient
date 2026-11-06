@@ -711,6 +711,32 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void TheRangesOfChangesOfSomeoneElse_AreThoseOfTheRequestsOfTheSameName()
+        {
+            // SetSceneItemIndex takes an index from 0 to 8192 and SetInputVolume a volume from -100 to 26 dB. A double that is not a number is in no range
+            // (JSON cannot carry it, but a test can hand it over). The refusals leave the world as it was; the limits themselves are in range.
+            var sim = new SimObs(Ideal);
+            var external = sim.External;
+            var scene = external.CreateScene("S");
+            var (input, item) = external.CreateInput(scene, "Mic", "wasapi_input_capture");
+            var before = sim.Snapshot().ToString();
+
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetItemIndex(scene, item, -1)).Message);
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetItemIndex(scene, item, 8193)).Message);
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetVolumeDb(input, -100.5)).Message);
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetVolumeDb(input, 26.5)).Message);
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetVolumeDb(input, double.NaN)).Message);
+            Assert.Contains("402", Assert.Throws<InvalidOperationException>(() => external.SetVolumeDb(input, double.PositiveInfinity)).Message);
+            Assert.Equal(before, sim.Snapshot().ToString());
+
+            external.SetItemIndex(scene, item, 8192);
+            external.SetItemIndex(scene, item, 0);
+            external.SetVolumeDb(input, -100);
+            external.SetVolumeDb(input, 26);
+            sim.CheckInvariants();
+        }
+
+        [Fact]
         public void AChangeOfSomeoneElseThatHangsInOBS_IsRefused()
         {
             var sim = new SimObs(Ideal with { HangOnRemovedSceneRename = true });

@@ -420,6 +420,41 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public async Task TheCountOfIdentifiedConnections_IsNeverSeenBeforeTheConnectionIsIdentified()
+        {
+            // Whoever waits for the count (WaitForIdentifiedAsync) goes on with a change of the simulation, and Dispatch only sends a change to a connection that
+            // is identified: when the count is seen before the connection is, the change is lost without a trace. A thread that does nothing but watch the count
+            // is as quick to see it as anyone can be, and a round ends before the next connection replaces this one.
+            await using var server = StartServer();
+            for (var round = 1; round <= 200; round++)
+            {
+                var expected = round;
+                var watcher = Task.Factory.StartNew(
+                    () =>
+                    {
+                        var clock = Stopwatch.StartNew();
+                        while (server.IdentifiedCount < expected)
+                        {
+                            if (clock.Elapsed > Timeout)
+                            {
+                                return (bool?)null;
+                            }
+                        }
+
+                        return server.IsIdentified;
+                    },
+                    TaskCreationOptions.LongRunning);
+
+                using var raw = await RawClient.ConnectAsync(server.Port);
+                await raw.IdentifyAsync();
+
+                var identified = await watcher;
+                Assert.NotNull(identified);
+                Assert.True(identified, $"In round {round} the count of identified connections was seen before the connection was identified.");
+            }
+        }
+
+        [Fact]
         public async Task TheHandshakeIsTheOneOfObsWebsocket()
         {
             await using var server = StartServer();

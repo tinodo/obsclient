@@ -143,9 +143,9 @@ namespace OBSStudioClient.Tests.Simulation
         {
             _obs.RunExternal(() =>
             {
-                if (index < 0)
+                if (index is < 0 or > 8192)
                 {
-                    throw new SimFailure(SimStatus.RequestFieldOutOfRange, "The index of a scene item cannot be negative.");
+                    throw new SimFailure(SimStatus.RequestFieldOutOfRange, "The index of a scene item has to be from 0 to 8192.");
                 }
 
                 _world.SetItemIndex(FindItem(sceneUuid, itemId), index);
@@ -168,7 +168,7 @@ namespace OBSStudioClient.Tests.Simulation
         {
             _obs.RunExternal(() =>
             {
-                if (db is < -100 or > 26)
+                if (!(db is >= -100 and <= 26))
                 {
                     throw new SimFailure(SimStatus.RequestFieldOutOfRange, "The volume has to be from -100 to 26 dB.");
                 }

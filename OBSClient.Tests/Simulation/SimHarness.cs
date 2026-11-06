@@ -94,6 +94,7 @@ namespace OBSStudioClient.Tests.Simulation
         public SimHarness(SimQuirks? quirks = null, int seed = 1)
         {
             Sim = new SimObs(quirks ?? SimQuirks.Ideal, seed);
+            InitialScene = Sim.Snapshot().Scenes[0].Uuid;
         }
 
         public SimObs Sim { get; }
@@ -103,8 +104,8 @@ namespace OBSStudioClient.Tests.Simulation
 
         public TimeSpan Now => Sim.Clock.Now;
 
-        /// <summary>Gets the UUID of the scene that a new simulation starts with.</summary>
-        public Guid InitialScene => Sim.Snapshot().Scenes[0].Uuid;
+        /// <summary>Gets the UUID of the scene that a new simulation starts with. It stays that scene when others are created, which are first in the list.</summary>
+        public Guid InitialScene { get; }
 
         /// <summary>Sends a request and returns its ID, without running time.</summary>
         public string Send(string type, object? data = null, string? requestId = null)
