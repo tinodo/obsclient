@@ -58,6 +58,15 @@
 
         private const int AttemptCancelled = 2;
 
+        // How far a connection got, for the studio layer (ConnectionSession.IngressState): its handshake completed, and its receive loop ended.
+        private const int IngressNotStarted = 0;
+
+        private const int IngressStarted = 1;
+
+        private const int IngressEnded = 2;
+
+        private static int _lastSessionId;
+
         private readonly Timer _reconnectTimer;
 
         private readonly ConcurrentDictionary<string, FieldInfo> _eventsMap = new();
@@ -558,6 +567,13 @@
         /// <remarks>Since batch requests typically take more time than individual request, you have the opportunity here to override the default timeout for this specific call.</remarks>
         public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default)
         {
+            var response = await this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
+            return response.Results;
+        }
+
+        // The batch of SendRequestBatchAsync, with the whole response message.
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken)
+        {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
             var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
@@ -569,7 +585,7 @@
             var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
-                return requestBatchResponseData.Results;
+                return requestBatchResponseData;
             }
 
             throw new ObsClientException($"Unexpected response type {result?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
@@ -798,7 +814,7 @@
             }
         }
 
-        private void ProcessIdentifiedMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessIdentifiedMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             // We have succesfully authenticated - OR - we did a Reidentify.
             if (responseMessage.Data is not IdentifiedMessage)
@@ -810,13 +826,17 @@
             // caller's `await ConnectAsync(...)`) could otherwise observe the still-stale previous state if
             // their continuation runs synchronously on this thread as part of TrySetResult().
             this.SetConnectionState(session, ConnectionState.Connected);
+
+            // Before the authentication task completes, so that the studio layer knows of the connection before ConnectAsync returns.
+            this.TapSessionStarted(session, sequence);
             session.Authenticated.TrySetResult(true);
         }
 
-        private void ProcessRequestResponseMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessRequestResponseMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             if (responseMessage.Data is RequestResponseMessage requestResponseData)
             {
+                requestResponseData.IngressSequence = sequence;
                 this.CompleteRequest(session, requestResponseData.RequestId, requestResponseData);
             }
             else
@@ -996,10 +1016,16 @@
             }
         }
 
-        private void ProcessRequestBatchResponseMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessRequestBatchResponseMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
             {
+                requestBatchResponseData.IngressSequence = sequence;
+                foreach (var result in requestBatchResponseData.Results)
+                {
+                    result.IngressSequence = sequence;
+                }
+
                 this.CompleteRequest(session, requestBatchResponseData.RequestId, requestBatchResponseData);
             }
             else
@@ -1035,18 +1061,27 @@
                 return;
             }
 
+            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs).
+            var sequence = this.NextIngress();
+
             switch (message.Op)
             {
                 case OpCode.Hello:
                     await this.ProcessHelloMessageAsync(session, message).ConfigureAwait(false);
                     break;
                 case OpCode.Identified:
-                    this.ProcessIdentifiedMessage(session, message);
+                    this.ProcessIdentifiedMessage(session, message, sequence);
                     break;
                 case OpCode.RequestResponse:
-                    this.ProcessRequestResponseMessage(session, message);
+                    this.ProcessRequestResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Event:
+                    // Before the event is queued for the handlers, and for every event: the studio layer does not depend on who listens.
+                    if (message.Data is EventMessage eventMessage)
+                    {
+                        this.Tap(IngressKind.Event, sequence, session, eventMessage);
+                    }
+
                     try
                     {
                         this.ProcessEventMessage(message);
@@ -1058,7 +1093,7 @@
 
                     break;
                 case OpCode.RequestBatchResponse:
-                    this.ProcessRequestBatchResponseMessage(session, message);
+                    this.ProcessRequestBatchResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Identify:
                 case OpCode.Reidentify:
@@ -1282,6 +1317,9 @@
                     // while ConnectionState is still reporting Connected. See https://github.com/tinodo/obsclient/issues/17.
                     _logger.LogError(ex, "Unhandled exception in the receiver loop; closing the connection");
                 }
+
+                // The studio layer learns that the connection ended after every event that arrived on it.
+                this.TapSessionEnded(session);
 
                 // Guaranteed to run whenever the loop above stops, for any reason, so ConnectionState always
                 // reaches Disconnected and ConnectionClosed always fires.
@@ -1575,6 +1613,12 @@
         /// </summary>
         private sealed class ConnectionSession : IDisposable
         {
+            /// <summary>Gets the number of this connection: unique, and higher for a connection that was made later.</summary>
+            public int Id { get; } = Interlocked.Increment(ref _lastSessionId);
+
+            /// <summary>How far the connection got, for the studio layer: see <c>IngressNotStarted</c>, <c>IngressStarted</c> and <c>IngressEnded</c>.</summary>
+            public int IngressState;
+
             /// <summary>Gets the socket for this connection. It is disposed together with the session.</summary>
             public ClientWebSocket Socket { get; } = new();
 

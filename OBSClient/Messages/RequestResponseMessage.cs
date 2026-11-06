@@ -56,6 +56,12 @@ namespace OBSStudioClient.Messages
         public IResponse? ResponseData { get; private set; }
 
         /// <summary>
+        /// Gets the number of this message in the order in which the client read the messages of OBS Studio (see ObsClient_Ingress.cs), or 0 when it is not known.
+        /// </summary>
+        [JsonIgnore]
+        internal long IngressSequence { get; set; }
+
+        /// <summary>
         /// Deserializes the raw JSON response to Response Data
         /// </summary>
         /// <exception cref="NotImplementedException">Not implemented.</exception>
