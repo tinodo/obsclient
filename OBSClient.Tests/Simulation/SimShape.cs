@@ -144,10 +144,16 @@ namespace OBSStudioClient.Tests.Simulation
                     CheckEvent(data, problems);
                     break;
                 case SimOp.RequestResponse:
-                    CheckResponse(data, problems, checkData: true, "response");
+                    CheckResponse(data, problems, checkData: true, "response", requireId: true);
                     break;
                 case SimOp.RequestBatchResponse:
-                    CheckBatch(data, problems, unorderedBatches is null || !data.TryGetProperty("requestId", out var id) || !unorderedBatches.Contains(id.GetString() ?? string.Empty));
+                    // The IDs of the batches that are not checked are strings; the ID of a batch can be of any kind.
+                    var unordered = unorderedBatches is not null
+                        && data.ValueKind == JsonValueKind.Object
+                        && data.TryGetProperty("requestId", out var id)
+                        && id.ValueKind == JsonValueKind.String
+                        && unorderedBatches.Contains(id.GetString()!);
+                    CheckBatch(data, problems, !unordered);
                     break;
                 default:
                     problems.Add($"message: the op {message.Op} is not one that OBS Studio sends after the handshake.");
@@ -297,13 +303,15 @@ namespace OBSStudioClient.Tests.Simulation
             var number = 0;
             foreach (var result in data.GetProperty("results").EnumerateArray())
             {
-                CheckResponse(result, problems, checkResultData, $"batch result {(++number).ToString(CultureInfo.InvariantCulture)}");
+                // Within a batch the ID of a request is left out when the client did not give one.
+                CheckResponse(result, problems, checkResultData, $"batch result {(++number).ToString(CultureInfo.InvariantCulture)}", requireId: false);
             }
         }
 
-        private void CheckResponse(JsonElement data, List<string> problems, bool checkData, string at)
+        private void CheckResponse(JsonElement data, List<string> problems, bool checkData, string at, bool requireId)
         {
-            if (!Members(data, ["requestStatus", "requestType"], ["requestId", "responseData"], problems, at))
+            // The response to a request has the ID of the request, also when it is null: the client cannot tell which one it answers without it.
+            if (!Members(data, requireId ? ["requestId", "requestStatus", "requestType"] : ["requestStatus", "requestType"], requireId ? ["responseData"] : ["requestId", "responseData"], problems, at))
             {
                 return;
             }

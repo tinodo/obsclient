@@ -21,12 +21,18 @@ namespace OBSStudioClient.Tests.Simulation
             var inputs = new Dictionary<Guid, Input>();
             foreach (var scene in initial.Scenes)
             {
-                scenes.Add(new Scene(scene.Uuid, scene.Name));
+                var replayed = new Scene(scene.Uuid, scene.Name);
+                foreach (var item in scene.Items.OrderBy(item => item.Index))
+                {
+                    replayed.Items.Add(new Item(item.Id, item.SourceUuid) { Enabled = item.Enabled, Locked = item.Locked });
+                }
+
+                scenes.Add(replayed);
             }
 
             foreach (var input in initial.Inputs)
             {
-                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind);
+                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed };
             }
 
             var program = initial.ProgramSceneUuid;

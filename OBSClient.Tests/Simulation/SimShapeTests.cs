@@ -176,6 +176,29 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void AResponseWithoutTheIdOfItsRequest_IsFound_ButAResultOfABatchMayLeaveItOut()
+        {
+            const string standalone = """{"d":{"requestStatus":{"code":100,"result":true},"requestType":"GetStudioModeEnabled","responseData":{"studioModeEnabled":false}},"op":7}""";
+            const string withNullId = """{"d":{"requestId":null,"requestStatus":{"code":100,"result":true},"requestType":"GetStudioModeEnabled","responseData":{"studioModeEnabled":false}},"op":7}""";
+            const string batch = """{"d":{"requestId":"a","results":[{"requestStatus":{"code":100,"result":true},"requestType":"GetStudioModeEnabled","responseData":{"studioModeEnabled":false}}]},"op":9}""";
+
+            Assert.Contains(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, standalone)), problem => problem.Contains("has no member `requestId`", StringComparison.Ordinal));
+            Assert.Empty(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, withNullId)));
+            Assert.Empty(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestBatchResponse, batch)));
+        }
+
+        [Fact]
+        public void TheIdOfABatchCanBeOfAnyKind_WhenSomeBatchesAreNotChecked()
+        {
+            const string numeric = """{"d":{"requestId":7,"results":[{"requestStatus":{"code":100,"result":true},"requestType":"GetStudioModeEnabled","responseData":{"studioModeEnabled":false}}]},"op":9}""";
+            const string wrongType = """{"d":{"requestId":null,"results":[{"requestStatus":{"code":100,"result":true},"requestType":"NoSuchRequest","responseData":{}}]},"op":9}""";
+            ISet<string> unordered = new HashSet<string>(["other"]);
+
+            Assert.Empty(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestBatchResponse, numeric), unordered));
+            Assert.Contains(SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestBatchResponse, wrongType), unordered), problem => problem.Contains("is not a request", StringComparison.Ordinal));
+        }
+
+        [Fact]
         public void ANestedObjectOfAnotherShapeThanTheCapture_IsFound()
         {
             const string item = SceneItem;

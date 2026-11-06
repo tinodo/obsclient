@@ -135,15 +135,16 @@ namespace OBSStudioClient.Tests.Simulation
                 return null;
             }
 
+            // obs-websocket answers both with UnknownOpCode (WebSocketServer::onMessage), not with a missing or an invalid field.
             if (!message.TryGetPropertyValue("op", out var opNode) || opNode is null)
             {
-                violation = new SimProtocolViolation(SimCloseCode.MissingDataField, "Your payload is missing an `op`.");
+                violation = new SimProtocolViolation(SimCloseCode.UnknownOpCode, "Your request is missing an `op`.");
                 return null;
             }
 
             if (!SimJson.TryGetNumber(opNode, out var opNumber))
             {
-                violation = new SimProtocolViolation(SimCloseCode.InvalidDataFieldType, "Your `op` is not a number.");
+                violation = new SimProtocolViolation(SimCloseCode.UnknownOpCode, "Your `op` is not a number.");
                 return null;
             }
 

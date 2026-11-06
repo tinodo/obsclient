@@ -492,14 +492,35 @@ namespace OBSStudioClient.Tests.Simulation
             }
         }
 
+        // Whether a scene holds the target, in itself or in a scene that it holds, at any depth. A scene that is held several times is visited once.
         private static bool Reaches(SimScene from, SimScene target)
         {
-            if (ReferenceEquals(from, target))
+            var visited = new HashSet<SimScene>();
+            var pending = new Stack<SimScene>();
+            pending.Push(from);
+            while (pending.Count > 0)
             {
-                return true;
+                var scene = pending.Pop();
+                if (ReferenceEquals(scene, target))
+                {
+                    return true;
+                }
+
+                if (!visited.Add(scene))
+                {
+                    continue;
+                }
+
+                foreach (var item in scene.Items)
+                {
+                    if (item.Source is SimScene nested)
+                    {
+                        pending.Push(nested);
+                    }
+                }
             }
 
-            return from.Items.Any(item => item.Source is SimScene nested && Reaches(nested, target));
+            return false;
         }
 
         /// <summary>Checks that an input has audio: only then does it have a mute state and a volume (fact 18).</summary>

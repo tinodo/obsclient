@@ -787,6 +787,29 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void ALoopOfScenesIsFoundInTimeInAGraphThatHoldsTheSameSceneManyTimes()
+        {
+            var h = new SimHarness(Ideal);
+            var initial = h.InitialScene;
+            var scenes = Enumerable.Range(0, 26).Select(level => h.Sim.External.CreateScene("Level " + level)).ToArray();
+
+            // Every level holds the next one twice: there are 2^25 ways from the first scene to the last, and 52 scene items.
+            for (var level = 0; level < scenes.Length - 1; level++)
+            {
+                h.Sim.External.AddItem(scenes[level], scenes[level + 1]);
+                h.Sim.External.AddItem(scenes[level], scenes[level + 1]);
+            }
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            h.Sim.External.AddItem(initial, scenes[0]);
+            var loop = Assert.Throws<InvalidOperationException>(() => h.Sim.External.AddItem(scenes[^1], scenes[0]));
+            watch.Stop();
+
+            Assert.Contains("Failed to create the scene item.", loop.Message, StringComparison.Ordinal);
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"The check for a loop took {watch.Elapsed}.");
+        }
+
+        [Fact]
         public void PinnedInputsHaveNoItemsAndStayAlive_UntilTheirPinIsReleased()
         {
             var h = new SimHarness(Ideal);

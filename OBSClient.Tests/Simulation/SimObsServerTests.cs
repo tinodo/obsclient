@@ -455,6 +455,8 @@ namespace OBSStudioClient.Tests.Simulation
         [Theory]
         [InlineData("not json", true, SimCloseCode.MessageDecodeError)]
         [InlineData("""{"op":42,"d":{}}""", true, SimCloseCode.UnknownOpCode)]
+        [InlineData("""{"d":{}}""", true, SimCloseCode.UnknownOpCode)]
+        [InlineData("""{"op":"6","d":{}}""", true, SimCloseCode.UnknownOpCode)]
         [InlineData("""{"op":6,"d":{"requestType":"GetVersion"}}""", true, SimCloseCode.MissingDataField)]
         [InlineData("""{"op":6,"d":{"requestId":"1","requestType":5}}""", true, SimCloseCode.InvalidDataFieldType)]
         [InlineData("""{"op":8,"d":{"requestId":"1","requests":[],"executionType":9}}""", true, SimCloseCode.InvalidDataFieldValue)]
