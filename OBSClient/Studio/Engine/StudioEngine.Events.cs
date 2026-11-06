@@ -144,8 +144,11 @@ namespace OBSStudioClient.Studio.Engine
                 return;
             }
 
+            // A scene that a read found Detached (a scene item showed it, or the list of scenes lacked it) is removed by this event as any other: the event
+            // says where in the order of what happened OBS removed it, and the scene items that the model knows now decide what OBS did with it.
+            var detachedBefore = scene.State == SourceState.Detached && !scene.RemovedAnnounced;
             scene.RemovedAnnounced = true;
-            this.RemoveScene(scene, repaired: false);
+            this.RemoveScene(scene, repaired: false, detachedBefore);
         }
 
         private void OnSceneNameChanged(SceneNameChangedEventArgs e)

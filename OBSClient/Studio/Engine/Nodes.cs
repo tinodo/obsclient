@@ -94,7 +94,10 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets or sets whether a read that was sent after the model got to know the source lists it.</summary>
         public bool Confirmed { get; set; }
 
-        /// <summary>Gets or sets whether OBS announced the removal of the source (InputRemoved or SceneRemoved).</summary>
+        /// <summary>
+        /// Gets or sets whether OBS announced the removal of the source (InputRemoved or SceneRemoved). A scene that is Detached without it was found so by a
+        /// read (a list of scenes lacked it, or a scene item showed it): the read is ahead of the events, so the model does not destroy it by counting scene items.
+        /// </summary>
         public bool RemovedAnnounced { get; set; }
 
         /// <summary>

@@ -960,5 +960,94 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Contains(h.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.SceneRemoved && change.Subject == child);
             Assert.True(h.Engine.IsSettled);
         }
+
+        // Seed 10034 of the random walks (Hostile): the list of scenes lacked a scene that OBS had removed and that a scene item keeps alive, so the model had
+        // it Detached because of a read, which is ahead of the events. The event that removed another scene took away the only scene item that the model knew
+        // to show it, and the model destroyed it by counting. A scene item that was made before the removal, and whose event was still on its way, showed it:
+        // OBS kept it, with its scene items and the inputs that only they used, and the model had destroyed all of that.
+        [Fact]
+        public void ASceneThatTheListLacks_IsNotDestroyedByCounting_WhenAnOlderEventTakesAwayTheOnlySceneItemThatTheModelKnows()
+        {
+            Guid shown = Guid.Empty;
+            Guid first = Guid.Empty;
+            Guid second = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                shown = world.AddScene("Shown");
+                first = world.AddScene("First");
+                second = world.AddScene("Second");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(shown, mic, "Mic");
+                world.AddItem(first, shown, "Shown", isScene: true);
+            });
+
+            // The input was removed: the scene item in Shown keeps it alive.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            // In OBS Second gets a scene item that shows Shown, and Shown is removed (the list lacks it at once, and the scene items keep it alive). The events are
+            // still on their way, and a list of scenes is read first.
+            var secondItem = h.World.AddItem(second, shown, "Shown", isScene: true);
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == shown);
+            var other = h.World.AddScene("Other");
+            EngineEvents.SceneCreated(h, other, "Other");
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == shown);
+
+            // An older event: OBS removed First, and its scene item that showed Shown, before all this. The model knows no other scene item that shows Shown.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == first);
+            h.World.Items.Remove(first);
+            EngineEvents.SceneRemoved(h, first, "First");
+            h.SettleWithTime();
+
+            // A read says that OBS has Shown still, with its scene item and its input.
+            var snapshot = h.Engine.Snapshot();
+            var kept = Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == shown);
+            Assert.Equal(mic, Assert.Single(kept.Items).SourceUuid);
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+
+            // The events of what happened before come: the scene item in Second, and the removal of Shown.
+            EngineEvents.ItemCreated(h, second, "Second", secondItem, 0, shown, "Shown");
+            EngineEvents.SceneRemoved(h, shown, "Shown");
+            h.SettleWithTime();
+
+            snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == shown);
+            Assert.Equal(shown, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == second).Items).SourceUuid);
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The event that removes a scene that a read found Detached says where in the order of what happened OBS removed it: the scene items that the model
+        // knows then decide what OBS did with it. Nothing shows it, so it is destroyed at once, and the answer of a check that was taken before is not waited for.
+        [Fact]
+        public void ASceneThatTheListLacked_IsDestroyedByTheEventThatRemovesIt_WhenNoSceneItemShowsIt()
+        {
+            Guid gone = Guid.Empty;
+            var h = Started(world => gone = world.AddScene("Gone"));
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == gone);
+            h.World.Items.Remove(gone);
+            var other = h.World.AddScene("Other");
+            EngineEvents.SceneCreated(h, other, "Other");
+
+            // The list of scenes lacks it, so the model doubts whether OBS has it: the read that says is taken, and not answered yet.
+            h.Complete(h.Take()!);
+            var check = h.Take();
+            Assert.NotNull(check);
+            Assert.Contains(check.Requests, request => request.Kind == ReadKind.Items && request.Target == gone);
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == gone);
+            h.Engine.TakeChanges();
+
+            EngineEvents.SceneRemoved(h, gone, "Gone");
+
+            Assert.Empty(h.Engine.Snapshot().DetachedScenes);
+            Assert.Contains(h.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.SceneRemoved && change.Subject == gone);
+            h.Complete(check);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().DetachedScenes);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }

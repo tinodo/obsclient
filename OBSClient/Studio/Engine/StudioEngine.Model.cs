@@ -82,10 +82,12 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached)
             {
-                // A scene that was only inferred to exist (a scene item that a read found shows it) was not seen to be removed: it can be a live scene
-                // that the list of scenes does not have yet, or one that a scene item keeps alive that the model does not know yet. Not a count, but a
-                // read says whether OBS still has it (a scene that an event told of is destroyed by a count: see above).
-                if (fromRead || (scene.Provisional && !scene.RemovedAnnounced))
+                // A scene that no event removed was found Detached by a read: it was only inferred to exist (a scene item that a read found shows it), or a
+                // list of scenes lacked it. A read is ahead of the events: when OBS removed the scene, and which scene items used it then, are for the events
+                // that are still on their way to say. An older event can take away the only scene item that the model knows, while another one that was made
+                // before the removal keeps the scene alive. Not a count, but a read says whether OBS still has it, and the event that removes it counts the
+                // scene items as they are then (a scene that an event removed is destroyed by a count: see above).
+                if (fromRead || !scene.RemovedAnnounced)
                 {
                     this.RequireCheck(scene);
                     scene.ItemsScope.MarkDirty();
@@ -324,13 +326,12 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
-        // A scene that OBS removed, because an event told so, or because a read showed that it does not exist (repaired).
-        private void RemoveScene(SceneNode scene, bool repaired)
+        // A scene that OBS removed, because an event told so, or because a read showed that it does not exist (repaired). A scene that is Detached already
+        // (a read showed that the list of scenes lacks it, or it was only inferred to exist: see EnsureItemSource) is not announced as Detached again, and its
+        // place in the list of scenes is not closed again; what OBS did with it is decided as for any scene.
+        private void RemoveScene(SceneNode scene, bool repaired, bool detachedBefore)
         {
-            // A scene that the model only inferred to exist (see EnsureItemSource) is Detached already; when an event removes it, what OBS did with it is
-            // decided as for any scene: it was destroyed when no scene item that the model knows uses it, or it is kept alive.
-            var inferred = scene.State == SourceState.Detached && scene.Provisional;
-            if (scene.State != SourceState.Live && !inferred)
+            if (scene.State != SourceState.Live && !detachedBefore)
             {
                 return;
             }
@@ -364,7 +365,7 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             scene.State = SourceState.Detached;
-            if (!inferred && !scene.IsGroup)
+            if (!detachedBefore && !scene.IsGroup)
             {
                 this.CloseSceneGap(scene);
             }
@@ -374,8 +375,8 @@ namespace OBSStudioClient.Studio.Engine
                 this._programScope.MarkDirty();
             }
 
-            // A scene that was only inferred was announced as a detached scene already.
-            if (!inferred && scene.Announced)
+            // A scene that was Detached already was announced as a detached scene then.
+            if (!detachedBefore && scene.Announced)
             {
                 this.Emit(StudioChangeKind.SourceDetached, scene.Uuid, 0, scene.Name.Value);
             }
