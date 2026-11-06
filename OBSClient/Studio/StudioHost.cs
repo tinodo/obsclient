@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Studio
 {
+    using System.ComponentModel;
     using System.Threading.Channels;
     using Microsoft.Extensions.Logging;
     using OBSStudioClient.Enums;
@@ -87,6 +88,7 @@ namespace OBSStudioClient.Studio
             Wake,
             Settle,
             Disconnect,
+            ReconnectChanged,
         }
 
         /// <summary>Gets what is published now.</summary>
@@ -102,6 +104,12 @@ namespace OBSStudioClient.Studio
         internal Action<IngressItem>? BeforeIngress { get; set; }
 
         /// <summary>
+        /// Gets or sets what is called with each item that comes from the client after it was put in the inbox, on the thread of the client. It is for tests:
+        /// one can tell that something is queued behind what the loop is held at.
+        /// </summary>
+        internal Action<IngressItem>? AfterIngressPosted { get; set; }
+
+        /// <summary>
         /// Gets or sets what is called with a read before the loop gives its result to the engine. It is for tests: one can make it throw, as a fault in the
         /// model would.
         /// </summary>
@@ -115,6 +123,7 @@ namespace OBSStudioClient.Studio
                 throw new InvalidOperationException("The ObsClient is used by another ObsStudio already: an ObsClient can have only one.");
             }
 
+            this._client.PropertyChanged += this.OnClientPropertyChanged;
             this._timer = this._time.CreateTimer(_ => this.Post(new HostItem { Kind = HostItemKind.Wake }), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             this._loop = Task.Run(this.RunAsync);
         }
@@ -123,6 +132,7 @@ namespace OBSStudioClient.Studio
         public void Stop()
         {
             this._stopped = true;
+            this._client.PropertyChanged -= this.OnClientPropertyChanged;
             this._client.SetIngressTap(null);
             this._inbox.Writer.TryComplete();
             this._stopping.Cancel();
@@ -135,7 +145,7 @@ namespace OBSStudioClient.Studio
         /// <summary>Makes ready for a connection: the attempt that is returned completes when the model has been read, or fails when it cannot be.</summary>
         public ConnectAttempt BeginConnect()
         {
-            var attempt = new ConnectAttempt();
+            var attempt = new ConnectAttempt(this._client.LastIngress);
             Volatile.Write(ref this._attempt, attempt);
             return attempt;
         }
@@ -179,6 +189,17 @@ namespace OBSStudioClient.Studio
             }
 
             this.Post(new HostItem { Kind = HostItemKind.Ingress, Ingress = item });
+            this.AfterIngressPosted?.Invoke(item);
+        }
+
+        // The client decides by itself, a little after it has reported the end of a connection, that it will not reconnect (OBS Studio ended the session on
+        // purpose), and the application can change the setting: what the state says about reconnecting follows it.
+        private void OnClientPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ObsClient.AutoReconnect))
+            {
+                this.Post(new HostItem { Kind = HostItemKind.ReconnectChanged });
+            }
         }
 
         private bool Post(in HostItem item)
@@ -269,6 +290,9 @@ namespace OBSStudioClient.Studio
                 case HostItemKind.Wake:
                     this._armedFor = null;
                     break;
+                case HostItemKind.ReconnectChanged:
+                    this.ReconsiderReconnecting();
+                    break;
                 case HostItemKind.Settle:
                     if (this._engine.State == StudioEngineState.Disconnected)
                     {
@@ -312,8 +336,9 @@ namespace OBSStudioClient.Studio
                     this._read = null;
                     this._readFailures = 0;
 
-                    // The attempt that is under way is for this connection: the first that starts after it began.
-                    if (Volatile.Read(ref this._attempt) is { Session: 0 } attempt)
+                    // The attempt that is under way is for this connection when the connection started after the attempt began: a start that was already
+                    // on its way when it began (the loop was late with it) belongs to an earlier attempt, and so does the end that follows it.
+                    if (Volatile.Read(ref this._attempt) is { Session: 0 } attempt && ingress.Sequence > attempt.After)
                     {
                         attempt.Session = ingress.SessionId;
                     }
@@ -391,6 +416,15 @@ namespace OBSStudioClient.Studio
             if (Volatile.Read(ref this._attempt) is { } attempt && attempt.Session == session)
             {
                 attempt.TrySetException(exception);
+            }
+        }
+
+        // The connection ended while the client was going to restore it, and it is not going to any more: nothing starts a connection but the application.
+        private void ReconsiderReconnecting()
+        {
+            if (this._session == 0 && this._studio.State == ObsStudioState.Reconnecting && !this._client.AutoReconnect)
+            {
+                this._studio.SetState(ObsStudioState.Disconnected);
             }
         }
 
@@ -664,14 +698,23 @@ namespace OBSStudioClient.Studio
 
         /// <summary>
         /// One call of <see cref="ObsStudio.ConnectAsync"/>. It is for the first connection that starts after it began, and only the end or the failure of that
-        /// connection, or of the model that it carries, decides it: the end of an earlier connection can reach the loop after a retry has begun.
+        /// connection, or of the model that it carries, decides it: a connection that started before it began (its start can still be in the inbox, when the
+        /// loop is late) and the end of such a connection are not for it.
         /// </summary>
         public sealed class ConnectAttempt
         {
             private readonly TaskCompletionSource _source = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            public ConnectAttempt(long after)
+            {
+                this.After = after;
+            }
+
             /// <summary>Gets the task that completes when the model has been read, or fails when it cannot be.</summary>
             public Task Task => this._source.Task;
+
+            /// <summary>Gets the number of the last message that the client had read when the attempt began: a connection that started with a lower number is not the one.</summary>
+            public long After { get; }
 
             /// <summary>Gets or sets the connection that the attempt is for, or 0 until that connection starts. Only the loop reads and writes it.</summary>
             public int Session { get; set; }

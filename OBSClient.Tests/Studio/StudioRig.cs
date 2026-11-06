@@ -66,6 +66,20 @@ namespace OBSStudioClient.Tests.Studio
             this._server.AbortConnection();
         }
 
+        /// <summary>Ends the connection with a close frame that carries a close code of obs-websocket (4011 is what the Kick button of OBS Studio sends).</summary>
+        public async Task CloseConnectionAsync(int code, string description)
+        {
+            await this._write.WaitAsync();
+            try
+            {
+                await this._server.CloseWithCodeAsync(code, description);
+            }
+            finally
+            {
+                this._write.Release();
+            }
+        }
+
         public async ValueTask DisposeAsync()
         {
             this._stopping.Cancel();

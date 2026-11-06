@@ -146,20 +146,24 @@ namespace OBSStudioClient.Studio
         /// </summary>
         /// <remarks>
         /// Use it to send the requests that this class does not offer yet. The model sees what they do through the events of OBS Studio, as it does for what any other
-        /// program does. Do not connect or disconnect it yourself: see <see cref="ConnectAsync"/> and <see cref="DisconnectAsync"/>.
+        /// program does. Do not connect or disconnect it yourself: see <see cref="ConnectAsync"/> and <see cref="DisconnectAsync"/>. The client switches
+        /// <see cref="ObsClient.AutoReconnect"/> off by itself when OBS Studio ends the session on purpose (the Kick button of its session list): the
+        /// <see cref="State"/> is then <see cref="ObsStudioState.Disconnected"/>, and you can connect again.
         /// </remarks>
         public ObsClient Client => this._client;
 
         /// <summary>
-        /// Gets the state of the model: whether there is a connection, and whether the model is complete.
+        /// Gets the state of the model: whether there is a connection, and whether the model is complete. After the <see cref="ObsStudio"/> is disposed of it
+        /// is <see cref="ObsStudioState.Disconnected"/>.
         /// </summary>
-        public ObsStudioState State => this._state;
+        public ObsStudioState State => this._disposed ? ObsStudioState.Disconnected : this._state;
 
         /// <summary>
         /// Gets whether the values that the model holds may be out of date: the model was complete once, and is not now (the connection is lost, or the model is
-        /// being read again). The values are the last that were known. Before the first connection there are no values, and this is false.
+        /// being read again, or the <see cref="ObsStudio"/> is disposed of). The values are the last that were known. Before the first connection there are no
+        /// values, and this is false.
         /// </summary>
-        public bool IsStale => this._everSynchronized && this._state != ObsStudioState.Synchronized;
+        public bool IsStale => this.IsStaleIn(this.State);
 
         /// <summary>
         /// Gets the scenes, in the order of the list of scenes of OBS Studio. Groups, and scenes that OBS Studio removed but keeps alive, are not in the list.
@@ -363,7 +367,7 @@ namespace OBSStudioClient.Studio
                     return;
                 }
 
-                var wasStale = this.IsStale;
+                var wasStale = this.IsStaleIn(old);
                 this._state = state;
                 if (state == ObsStudioState.Synchronized)
                 {
@@ -371,11 +375,16 @@ namespace OBSStudioClient.Studio
                 }
 
                 this.QueueNotice(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.PropertyChanged, null, nameof(this.State), old, state), this, nameof(this.State)));
-                if (this.IsStale != wasStale)
+                if (this.IsStaleIn(state) != wasStale)
                 {
                     this.QueueNotice(new StudioNotice(null, this, nameof(this.IsStale)));
                 }
             }
+        }
+
+        private bool IsStaleIn(ObsStudioState state)
+        {
+            return this._everSynchronized && state != ObsStudioState.Synchronized;
         }
 
         internal void QueueNotice(StudioNotice notice)

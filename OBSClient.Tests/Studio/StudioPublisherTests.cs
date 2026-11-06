@@ -197,6 +197,25 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void ASceneThatIsRemoved_HasNoPositionAnyMore_AndBindingsToItAreToldSo()
+        {
+            Guid gaming = Guid.Empty;
+            using var h = Started(world => gaming = world.AddScene("Gaming"));
+            var scene = h.View.Scenes["Gaming"];
+            Assert.Equal(0, scene.Index);
+
+            h.World.Scenes.RemoveAll(s => s.Uuid == gaming);
+            h.World.Items.Remove(gaming);
+            h.Engine.Event("SceneRemoved", new { sceneName = "Gaming", sceneUuid = gaming, isGroup = false }, 4);
+            h.Engine.SettleWithTime();
+            h.Publish();
+
+            // The position is a property that a binding shows: it changed, so the binding is told, as it is for a scene that moves.
+            Assert.Equal(-1, scene.Index);
+            Assert.Single(h.Notices, notice => ReferenceEquals(notice.Entity, scene) && notice.Property == nameof(ObsScene.Index));
+        }
+
+        [Fact]
         public void ASceneThatIsDestroyedWithItsSceneItems_HasNoSceneItemsAnyMore_AndTheChangeSaysSo()
         {
             Guid gaming = Guid.Empty;

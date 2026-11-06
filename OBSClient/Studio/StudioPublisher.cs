@@ -346,7 +346,11 @@ namespace OBSStudioClient.Studio
                 var scene = this._scenes[uuid];
                 this._scenes.Remove(uuid);
                 this._setOfScenesChanged = true;
-                scene.SetIndex(-1);
+                var index = scene.Index;
+                if (scene.SetIndex(-1))
+                {
+                    this.AddProperty(scene, nameof(ObsScene.Index), index, -1, false);
+                }
 
                 // The scene items of a scene that OBS destroyed went with it (they were removed above), and its engine node is gone, so nothing publishes its
                 // items any more: what a reference to the scene shows is no scene items. A collection that was taken earlier is not changed.

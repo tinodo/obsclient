@@ -279,6 +279,74 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task ARetryWhileTheStartOfTheFirstConnectionIsStillQueued_IsNotBoundToThatConnection()
+        {
+            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
+            using var held = new ManualResetEventSlim();
+            var atTheStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondStartQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var starts = 0;
+            rig.Studio.Host.BeforeIngress = item =>
+            {
+                // The loop of the host is held at the start of the first connection, so that the start is still queued when the retry begins: the order in
+                // which a loop that is late can meet it.
+                if (item.Kind == IngressKind.SessionStarted && !held.IsSet)
+                {
+                    atTheStart.TrySetResult();
+                    held.Wait(Timeout);
+                }
+            };
+            rig.Studio.Host.AfterIngressPosted = item =>
+            {
+                if (item.Kind == IngressKind.SessionStarted && Interlocked.Increment(ref starts) == 2)
+                {
+                    secondStartQueued.TrySetResult();
+                }
+            };
+
+            await Assert.ThrowsAsync<TimeoutException>(() => rig.ConnectAsync());
+            await atTheStart.Task.WithTimeoutAsync(Timeout);
+            var retry = rig.ConnectAsync();
+            await secondStartQueued.Task.WithTimeoutAsync(Timeout);
+            held.Set();
+
+            // The loop handles the start and the end of the first connection first: they are not for the retry.
+            await retry.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+        }
+
+        [Fact]
+        public async Task WhenTheClientStopsReconnecting_TheStateFollows_AndTheStudioCanConnectAgain()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
+            rig.Responder.AbortConnection();
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Reconnecting, "the state to follow the connection");
+
+            // The client does this by itself when OBS Studio ends the session on purpose, a moment after the model was told that the connection ended.
+            rig.Studio.Client.AutoReconnect = false;
+
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Disconnected, "the state to say that nothing reconnects");
+            Assert.True(rig.Studio.IsStale);
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+            Assert.True(rig.Studio.Scenes.Contains("Gaming"));
+        }
+
+        [Fact]
+        public async Task WhenOBSStudioKicksTheSession_TheStateIsDisconnected_AndTheStudioCanConnectAgain()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
+
+            await rig.Responder.CloseConnectionAsync(4011, "SessionInvalidated");
+
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Disconnected, "the state to say that nothing reconnects");
+            Assert.False(rig.Studio.Client.AutoReconnect);
+            Assert.True(rig.Studio.IsStale);
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+        }
+
+        [Fact]
         public async Task AFaultWhileAReadIsApplied_MakesTheModelReadAgain_AtOnce()
         {
             Guid gaming = Guid.Empty;
@@ -413,6 +481,23 @@ namespace OBSStudioClient.Tests.Studio
             await Assert.ThrowsAsync<ObjectDisposedException>(() => obs.DisconnectAsync());
             await Assert.ThrowsAsync<ObjectDisposedException>(() => obs.WaitUntilSettledAsync());
             await obs.DisposeAsync();
+        }
+
+        [Fact]
+        public async Task AfterDispose_TheStateIsDisconnected_AndWhatTheModelHoldsIsStale()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));
+            var obs = rig.Studio;
+            Assert.Equal(ObsStudioState.Synchronized, obs.State);
+            Assert.False(obs.IsStale);
+
+            obs.Dispose();
+
+            // The model may never be told that the connection ended (the observation of the client is stopped first): a studio that is disposed of is
+            // not connected, and what it holds is the last that was known.
+            Assert.Equal(ObsStudioState.Disconnected, obs.State);
+            Assert.True(obs.IsStale);
+            Assert.True(obs.Scenes.Contains("Gaming"));
         }
 
         [Fact]
