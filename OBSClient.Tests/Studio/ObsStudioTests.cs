@@ -726,6 +726,38 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task WhenEverythingMayHaveChanged_AnInputThatOBSRemovedAndKeepsAlive_SaysSo_OnceHoweverManySceneItemsShowIt()
+        {
+            Guid mic = Guid.Empty;
+            await using var rig = StudioRig.Create(world =>
+            {
+                var gaming = world.AddScene("Gaming");
+                var other = world.AddScene("Other");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(gaming, mic, "Mic");
+                world.AddItem(gaming, mic, "Mic");
+                world.AddItem(other, mic, "Mic");
+            });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+            var micInput = rig.Studio.Inputs["Mic"];
+
+            // OBS removes the input and keeps it alive for the scene items that show it: it is not among the inputs any more, and the application can still hold it.
+            await rig.Responder.SendEventAsync("InputRemoved", new { inputName = "Mic", inputUuid = mic }, 8);
+            await StudioRig.EventuallyAsync(() => micInput.IsRemoved && !rig.Studio.Inputs.Contains("Mic"), "the input to be removed and to leave the inputs");
+            Assert.Same(micInput, rig.Studio.Scenes["Gaming"].Items[0].Source);
+            var raised = new ConcurrentQueue<string>();
+            micInput.PropertyChanged += (_, e) => raised.Enqueue(e.PropertyName!);
+
+            rig.Studio.QueueEverything(onlyStudio: false);
+
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized after everything may have changed");
+            Assert.Equal(new[] { string.Empty }, raised.ToArray());
+        }
+
+        [Fact]
         public async Task Dispose_EndsTheConnection_AndTheStudioCannotBeUsedAgain()
         {
             await using var rig = await StudioRig.ConnectedAsync(world => world.AddScene("Gaming"));

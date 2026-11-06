@@ -850,16 +850,25 @@ namespace OBSStudioClient.Studio
             if (!onlyStudio)
             {
                 var view = this._view;
+
+                // The inputs of the view, and then the inputs that OBS removed and keeps alive for the scene items that show them: they are not among the inputs
+                // of the view, and the application can hold them through ObsSceneItem.Source.
+                var inputs = new List<ObsInput>(view.Inputs);
+                var raised = new HashSet<ObsInput>(inputs, ReferenceEqualityComparer.Instance);
                 foreach (var scene in view.AllScenes)
                 {
                     scene.RaisePropertyChanged(string.Empty);
                     foreach (var item in scene.Items)
                     {
                         item.RaisePropertyChanged(string.Empty);
+                        if (item.Source is ObsInput shown && raised.Add(shown))
+                        {
+                            inputs.Add(shown);
+                        }
                     }
                 }
 
-                foreach (var input in view.Inputs)
+                foreach (var input in inputs)
                 {
                     input.RaisePropertyChanged(string.Empty);
                 }
