@@ -126,6 +126,7 @@ namespace OBSStudioClient.Tests.Studio
             this._connected = true;
             this.Log($"connection {this._session} begins");
             this._engine.OnSessionStarted(this._session, ++this._seq, this.Tick(this.Now));
+            this.DrainChanges();
             this._progress++;
         }
 
@@ -438,6 +439,7 @@ namespace OBSStudioClient.Tests.Studio
                     case EventMessage eventMessage when ((int)eventMessage.EventIntent & Subscribed) != 0:
                         this.Log($"message {this._seq.ToString(CultureInfo.InvariantCulture)} is event {eventMessage.EventType} {Trim(eventMessage.RawEventData?.GetRawText())}");
                         this._engine.OnEvent(eventMessage, this._seq, at);
+                        this.DrainChanges();
                         break;
                     case RequestBatchResponseMessage batch:
                         this.OnBatchResponse(batch, at);
@@ -448,6 +450,18 @@ namespace OBSStudioClient.Tests.Studio
             }
 
             this.ApplyResultWhenDue(this.Tick(this.Now));
+        }
+
+        private void DrainChanges()
+        {
+            foreach (var change in this._engine.TakeChanges())
+            {
+                var item = change.ItemId == 0 ? string.Empty : " item #" + change.ItemId.ToString(CultureInfo.InvariantCulture);
+                var subject = change.Subject == Guid.Empty ? string.Empty : " " + Short(change.Subject);
+                var text = string.IsNullOrEmpty(change.Text) ? string.Empty : $" \"{change.Text}\"";
+                var values = change.OldValue is null && change.NewValue is null ? string.Empty : $" ({change.OldValue} -> {change.NewValue})";
+                this.Log($"      the model: {change.Kind}{subject}{item}{text}{values}");
+            }
         }
 
         private static string Trim(string? text)
@@ -482,8 +496,9 @@ namespace OBSStudioClient.Tests.Studio
 
                 this._read = null;
                 this._progress++;
-                this.Log($"the result of read {read.Ticket.Id.ToString(CultureInfo.InvariantCulture)} is handed over after message {this._seq.ToString(CultureInfo.InvariantCulture)}");
+                this.Log($"the result of read {read.Ticket.Id.ToString(CultureInfo.InvariantCulture)} is handed over after message {this._seq.ToString(CultureInfo.InvariantCulture)}: {string.Join(", ", read.Results.Select((response, index) => $"{response.RequestType}{(read.Ticket.Requests.Count > index && read.Ticket.Requests[index].Target != Guid.Empty ? " " + Short(read.Ticket.Requests[index].Target) : string.Empty)} = {(int)response.RequestStatus.Code}"))}");
                 this._engine.OnReadCompleted(read.Ticket, read.Results, this.Tick(at));
+                this.DrainChanges();
             }
         }
 
@@ -496,6 +511,7 @@ namespace OBSStudioClient.Tests.Studio
                 this._progress++;
                 this.Log($"read {read.Ticket.Id.ToString(CultureInfo.InvariantCulture)} is given up");
                 this._engine.OnReadFailed(read.Ticket, this.Tick(this.Now));
+                this.DrainChanges();
             }
         }
 
@@ -511,9 +527,11 @@ namespace OBSStudioClient.Tests.Studio
             if (failedFirst)
             {
                 this._engine.OnReadFailed(read!.Ticket, this.Tick(this.Now));
+                this.DrainChanges();
             }
 
             this._engine.OnSessionEnded(this._session, ++this._seq, this.Tick(this.Now));
+            this.DrainChanges();
             this._connected = false;
 
             // Changes that nobody sees; what OBS Studio sends meanwhile is lost with the connection.
@@ -552,6 +570,8 @@ namespace OBSStudioClient.Tests.Studio
                 {
                     this._engine.OnReadFailed(read.Ticket, this.Tick(this.Now));
                 }
+
+                this.DrainChanges();
             }
         }
 
