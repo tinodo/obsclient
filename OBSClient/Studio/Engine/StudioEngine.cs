@@ -304,7 +304,15 @@ namespace OBSStudioClient.Studio.Engine
 
             this._lastCleanup = this._now;
             var before = this._now - this._options.TombstoneRetention;
-            this._letGo += this._gone.Prune(before) + this._removedUnknown.Prune(before) + this._goneItems.Prune(before) + this._readReleased.Prune(before);
+            var freed = new List<Guid>();
+            this._letGo += this._gone.Prune(before) + this._removedUnknown.Prune(before) + this._goneItems.Prune(before) + this._readReleased.Prune(before, freed);
+
+            // What was held for the events that could still come (see HeldByRead) is let go of, and the count of the scene items that use a source can be trusted
+            // again: a removed source that nothing uses is destroyed now, as it is when the last scene item goes.
+            foreach (var source in freed)
+            {
+                this.JudgeAgain(source);
+            }
 
             // A source stays remembered until a list shows that OBS is done with it. The lists are read for other reasons too, but not always: they are read for this.
             // A read of the list that is under way was sent after these removals (they are older than the time that a read can take), so it confirms them as

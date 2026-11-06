@@ -90,18 +90,23 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Lets go of the scene items that were held before a time.</summary>
         /// <param name="before">The time: a scene item that was held at a time before it goes.</param>
+        /// <param name="freed">Gets the sources that no scene item that is held uses any more, when the caller wants them.</param>
         /// <returns>The number of scene items that were let go of.</returns>
-        public int Prune(TimeSpan before)
+        public int Prune(TimeSpan before, List<Guid>? freed = null)
         {
             if (this._items.Count == 0)
             {
                 return 0;
             }
 
-            var old = this._items.Where(item => item.Value.At < before).Select(item => item.Key).ToArray();
-            foreach (var key in old)
+            var old = this._items.Where(item => item.Value.At < before).Select(item => (item.Key, item.Value.Source)).ToArray();
+            foreach (var (key, source) in old)
             {
                 this.Remove(key);
+                if (freed is not null && !this._users.ContainsKey(source) && !freed.Contains(source))
+                {
+                    freed.Add(source);
+                }
             }
 
             return old.Length;
