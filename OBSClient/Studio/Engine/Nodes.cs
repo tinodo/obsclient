@@ -137,7 +137,8 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>
         /// Gets or sets whether the model only inferred that the scene is Detached (it is the source of a scene item, and no list of scenes has it): a list of
-        /// scenes that has it, or its creation event, makes it Live.
+        /// scenes that has it, or its creation event, makes it Live; its removal event makes it a removed scene like any other. Until one of them comes
+        /// the model does not know whether OBS has removed it, so it never destroys it by counting its scene items.
         /// </summary>
         public bool Provisional { get; set; }
 
