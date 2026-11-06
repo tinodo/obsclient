@@ -12,6 +12,23 @@ namespace OBSStudioClient.Tests.TestSupport
         private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
         [Fact]
+        public async Task AClientThatNeverSendsItsRequest_DoesNotKeepTheNextOneFromConnecting()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+
+            // A connection that is open and silent: a call that is cancelled while it connects leaves one (the connection pool of the client keeps it open).
+            using var silent = new TcpClient();
+            await silent.ConnectAsync(IPAddress.Loopback, server.Port).WaitAsync(Timeout);
+
+            using var client = new ObsClient();
+            var connect = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);
+            await server.HandshakeAsync().WithTimeoutAsync(Timeout);
+
+            Assert.True(await connect.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
         public async Task AClientThatGoesAwayBeforeTheUpgrade_DoesNotKeepTheNextOneFromConnecting()
         {
             await using var server = new FakeObsWebSocketServer();
