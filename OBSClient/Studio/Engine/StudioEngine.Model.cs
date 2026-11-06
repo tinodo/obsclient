@@ -123,6 +123,18 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
+        // What was held for a source ended (its time was up). A removed source that no scene item uses is judged as when its last scene item went: OBS destroyed it,
+        // or keeps it alive for something that nothing shows (a global audio input that is assigned to a channel), and in neither case can the application reach it.
+        private void JudgeAgain(Guid sourceUuid)
+        {
+            var removed = (this._inputs.TryGetValue(sourceUuid, out var input) && input.State == SourceState.Detached)
+                || (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached);
+            if (removed)
+            {
+                this.OnReferencesChanged(sourceUuid);
+            }
+        }
+
         // The model doubts whether OBS still has a source that it removed: a read that is taken from now on says (see SourceNode.CheckAfter).
         private void RequireCheck(SourceNode source)
         {

@@ -126,5 +126,27 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(held.Holds(newSource));
             Assert.Equal(0, held.Prune(TimeSpan.FromSeconds(10)));
         }
+
+        [Fact]
+        public void Prune_SaysWhichSourcesNoSceneItemThatIsHeldUsesAnyMore()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var gone = Guid.NewGuid();
+            var goneTwice = Guid.NewGuid();
+            var shared = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), gone, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(scene, 2), goneTwice, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(scene, 3), goneTwice, TimeSpan.FromSeconds(2));
+            held.Add(new ItemKey(scene, 4), shared, TimeSpan.FromSeconds(2));
+            held.Add(new ItemKey(scene, 5), shared, TimeSpan.FromSeconds(10));
+
+            var freed = new List<Guid>();
+            held.Prune(TimeSpan.FromSeconds(5), freed);
+
+            // The source that another scene item that is held still used is not freed, and a source is told once however many scene items went.
+            Assert.Equal(new[] { gone, goneTwice }.OrderBy(uuid => uuid), freed.OrderBy(uuid => uuid));
+            Assert.True(held.Holds(shared));
+        }
     }
 }

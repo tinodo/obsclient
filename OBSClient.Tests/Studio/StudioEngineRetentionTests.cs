@@ -128,6 +128,46 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(0, h.Engine.HeldItemCount);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ARemovedInputThatNothingUsesAnyMore_IsLetGoOf_WhenTheTimeIsUpForWhatWasHeldForIt(bool pinReleased)
+        {
+            Guid doomed = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+            });
+
+            // OBS destroys Doomed and the events are on their way: the model reads the list of scenes, which lacks it, and holds what its scene item showed.
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            LaterAMessageArrives(h, TimeSpan.FromSeconds(1), "Other");
+            Assert.Equal(1, h.Engine.HeldItemCount);
+
+            // OBS removes the input and keeps it alive, and the list says so (a global audio input that is assigned to a channel). With that held the model cannot
+            // tell it from the input of a scene item that it does not know yet, so it keeps the input as one that was removed.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+
+            // OBS lets go of the pin, and destroys the input (it says nothing), or it does not.
+            if (pinReleased)
+            {
+                h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+            }
+
+            // What was held is let go of after the retention, and nothing uses the input: it goes, as it does when its last scene item goes.
+            LaterAMessageArrives(h, TimeSpan.FromMinutes(2), "Two");
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, h.Engine.HeldItemCount);
+            Assert.True(h.Engine.IsSettled);
+        }
+
         [Fact]
         public void TheSceneItemsThatWentWithASceneThatAReadFoundGone_AreLetGoOfByTimeWhenTheirSourceLivesOn()
         {
