@@ -142,6 +142,12 @@
             {
                 throw new TimeoutException("No client connected to the fake OBS server in time.");
             }
+
+            // Disposing of the server wakes a test that waits for a client: there is none to wait for any more.
+            if (_stopped)
+            {
+                throw new ObjectDisposedException(nameof(FakeObsWebSocketServer), "The fake OBS server was disposed while a client was awaited.");
+            }
         }
 
         /// <summary>
@@ -393,6 +399,14 @@
             }
             finally
             {
+                try
+                {
+                    _connectionSignal.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
                 _connectionSignal.Dispose();
             }
         }

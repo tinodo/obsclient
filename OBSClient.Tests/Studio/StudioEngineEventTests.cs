@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Tests.Studio
 {
+    using OBSStudioClient.Enums;
     using OBSStudioClient.Studio.Engine;
 
     /// <summary>
@@ -299,6 +300,72 @@ namespace OBSStudioClient.Tests.Studio
             h.SettleWithTime();
 
             Assert.Equal(new[] { 0, 1 }, h.Engine.Snapshot().Scenes.Single(scene => scene.Name == "Gaming").Items.Select(item => item.Index).ToArray());
+        }
+
+        [Fact]
+        public void TheEventsThatTheHostPassesToTheModel_AreTheOnesThatItActsOn()
+        {
+            // A change of this list is a decision: the host does not pass an event that is not on it, so one that is missing is lost for the model, and one
+            // that need not be here costs a message for nothing. The list is also the table that the engine dispatches from, so it cannot differ from what it does.
+            EventType[] needed =
+            [
+                EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged,
+                EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
+                EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
+                EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
+            ];
+
+            var handled = Enum.GetValues<EventType>().Where(StudioEngine.Handles).Order().ToArray();
+
+            Assert.Equal(needed.Order().ToArray(), handled);
+        }
+
+        [Fact]
+        public void EveryEventThatTheHostPassesToTheModel_IsActedOn()
+        {
+            // For each of them, an event of that type that matches what the model holds changes it, or makes it read: none is passed to the model for nothing.
+            var scene = Guid.NewGuid();
+            var other = Guid.NewGuid();
+            var mic = Guid.NewGuid();
+            var camera = Guid.NewGuid();
+            var cases = new (EventType Type, Action<EngineHarness> Send)[]
+            {
+                (EventType.SceneCreated, h => EngineEvents.SceneCreated(h, other, "Other")),
+                (EventType.SceneRemoved, h => h.Event("SceneRemoved", new { sceneName = "Scene", sceneUuid = scene, isGroup = false }, 4)),
+                (EventType.SceneNameChanged, h => h.Event("SceneNameChanged", new { sceneUuid = scene, oldSceneName = "Scene", sceneName = "Renamed" }, 4)),
+                (EventType.SceneListChanged, h => h.Event("SceneListChanged", new { scenes = new[] { new { sceneName = "Scene", sceneUuid = scene, sceneIndex = 0 }, new { sceneName = "Other", sceneUuid = other, sceneIndex = 1 } } }, 4)),
+                (EventType.CurrentProgramSceneChanged, h => h.Event("CurrentProgramSceneChanged", new { sceneName = "Scene", sceneUuid = scene }, 4)),
+                (EventType.InputCreated, h => h.Event("InputCreated", new { inputName = "New", inputUuid = Guid.NewGuid(), inputKind = "color_source_v3", unversionedInputKind = "color_source", inputSettings = new { }, defaultInputSettings = new { } }, 8)),
+                (EventType.InputRemoved, h => h.Event("InputRemoved", new { inputName = "Mic", inputUuid = mic }, 8)),
+                (EventType.InputNameChanged, h => h.Event("InputNameChanged", new { inputUuid = mic, oldInputName = "Mic", inputName = "Microphone" }, 8)),
+                (EventType.InputMuteStateChanged, h => h.Event("InputMuteStateChanged", new { inputName = "Mic", inputUuid = mic, inputMuted = true }, 8)),
+                (EventType.InputVolumeChanged, h => h.Event("InputVolumeChanged", new { inputName = "Mic", inputUuid = mic, inputVolumeMul = 0.5, inputVolumeDb = -6.02 }, 8)),
+                (EventType.SceneItemCreated, h => h.Event("SceneItemCreated", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 9, sceneItemIndex = 1 }, 128)),
+                (EventType.SceneItemRemoved, h => h.Event("SceneItemRemoved", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 1 }, 128)),
+                (EventType.SceneItemListReindexed, h => h.Event("SceneItemListReindexed", new { sceneName = "Scene", sceneUuid = scene, sceneItems = new[] { new { sceneItemId = 1, sceneItemIndex = 7 } } }, 128)),
+                (EventType.SceneItemEnableStateChanged, h => h.Event("SceneItemEnableStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemEnabled = false }, 128)),
+                (EventType.SceneItemLockStateChanged, h => h.Event("SceneItemLockStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemLocked = true }, 128)),
+                (EventType.StudioModeStateChanged, h => h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024)),
+            };
+
+            Assert.Equal(cases.Select(c => c.Type).Order(), Enum.GetValues<EventType>().Where(StudioEngine.Handles).Order());
+            foreach (var (type, send) in cases)
+            {
+                var h = Started(world =>
+                {
+                    world.Scenes.Clear();
+                    world.Scenes.Add((scene, "Scene"));
+                    world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
+                    world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
+                    world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
+                    world.Program = scene;
+                });
+
+                send(h);
+
+                var acted = h.Engine.TakeChanges().Any() || NextRead(h).Length > 0;
+                Assert.True(acted, $"An event of type {type} that the host passes to the model changed nothing and caused no read.");
+            }
         }
 
         [Fact]

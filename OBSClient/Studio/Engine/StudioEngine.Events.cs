@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Studio.Engine
 {
+    using System.Collections.Frozen;
     using System.Text.Json;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Events;
@@ -7,6 +8,30 @@ namespace OBSStudioClient.Studio.Engine
 
     internal sealed partial class StudioEngine
     {
+        // The events that the model acts on, and what it does with each of them. The list that Handles answers from is this table, so that an event that the engine
+        // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
+        private static readonly FrozenDictionary<EventType, Action<StudioEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<StudioEngine, EventMessage>>
+        {
+            [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e, _) => engine.OnSceneCreated(e)),
+            [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e, _) => engine.OnSceneRemoved(e)),
+            [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e, _) => engine.OnSceneNameChanged(e)),
+            [EventType.SceneListChanged] = On<SceneListEventArgs>(static (engine, e, _) => engine.OnSceneListChanged(e)),
+
+            // Never taken from the payload: the event comes at the end of a transition, and a read says what the program scene is now.
+            [EventType.CurrentProgramSceneChanged] = static (engine, _) => engine._programScope.MarkDirty(),
+            [EventType.InputCreated] = On<InputCreatedEventArgs>(static (engine, e, message) => engine.OnInputCreated(e, message.RawEventData)),
+            [EventType.InputRemoved] = On<InputNameEventArgs>(static (engine, e, _) => engine.OnInputRemoved(e)),
+            [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e, _) => engine.OnInputNameChanged(e)),
+            [EventType.InputMuteStateChanged] = On<InputMuteStateChangedEventArgs>(static (engine, e, _) => engine.OnInputMuteChanged(e)),
+            [EventType.InputVolumeChanged] = On<InputVolumeChangedEventArgs>(static (engine, e, _) => engine.OnInputVolumeChanged(e)),
+            [EventType.SceneItemCreated] = On<SceneItemCreatedEventArgs>(static (engine, e, _) => engine.OnItemCreated(e)),
+            [EventType.SceneItemRemoved] = On<SceneItemRemovedEventArgs>(static (engine, e, _) => engine.OnItemRemoved(e)),
+            [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e, _) => engine.OnItemsReindexed(e)),
+            [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e, _) => engine.OnItemEnabledChanged(e)),
+            [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e, _) => engine.OnItemLockedChanged(e)),
+            [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e, _) => engine.OnStudioModeChanged(e)),
+        }.ToFrozenDictionary();
+
         /// <summary>
         /// Tells the engine that an event arrived. Events are processed in the order of their numbers.
         /// </summary>
@@ -22,64 +47,32 @@ namespace OBSStudioClient.Studio.Engine
                 return;
             }
 
-            switch (message.EventType)
+            if (Handlers.TryGetValue(message.EventType, out var handler))
             {
-                case EventType.SceneCreated when message.EventData is SceneModifiedEventArgs e:
-                    this.OnSceneCreated(e);
-                    break;
-                case EventType.SceneRemoved when message.EventData is SceneModifiedEventArgs e:
-                    this.OnSceneRemoved(e);
-                    break;
-                case EventType.SceneNameChanged when message.EventData is SceneNameChangedEventArgs e:
-                    this.OnSceneNameChanged(e);
-                    break;
-                case EventType.SceneListChanged when message.EventData is SceneListEventArgs e:
-                    this.OnSceneListChanged(e);
-                    break;
-                case EventType.CurrentProgramSceneChanged:
-                    // Never taken from the payload: the event comes at the end of a transition, and a read says what the program scene is now.
-                    this._programScope.MarkDirty();
-                    break;
-                case EventType.InputCreated when message.EventData is InputCreatedEventArgs e:
-                    this.OnInputCreated(e, message.RawEventData);
-                    break;
-                case EventType.InputRemoved when message.EventData is InputNameEventArgs e:
-                    this.OnInputRemoved(e);
-                    break;
-                case EventType.InputNameChanged when message.EventData is InputNameChangedEventArgs e:
-                    this.OnInputNameChanged(e);
-                    break;
-                case EventType.InputMuteStateChanged when message.EventData is InputMuteStateChangedEventArgs e:
-                    this.OnInputMuteChanged(e);
-                    break;
-                case EventType.InputVolumeChanged when message.EventData is InputVolumeChangedEventArgs e:
-                    this.OnInputVolumeChanged(e);
-                    break;
-                case EventType.SceneItemCreated when message.EventData is SceneItemCreatedEventArgs e:
-                    this.OnItemCreated(e);
-                    break;
-                case EventType.SceneItemRemoved when message.EventData is SceneItemRemovedEventArgs e:
-                    this.OnItemRemoved(e);
-                    break;
-                case EventType.SceneItemListReindexed when message.EventData is SceneItemListReindexedEventArgs e:
-                    this.OnItemsReindexed(e);
-                    break;
-                case EventType.SceneItemEnableStateChanged when message.EventData is SceneItemEnableStateChangedEventArgs e:
-                    this.OnItemEnabledChanged(e);
-                    break;
-                case EventType.SceneItemLockStateChanged when message.EventData is SceneItemLockStateChangedEventArgs e:
-                    this.OnItemLockedChanged(e);
-                    break;
-                case EventType.StudioModeStateChanged when message.EventData is StudioModeStateChangedEventArgs e:
-                    if (this._studioMode.ApplyEvent(e.StudioModeEnabled, seq))
-                    {
-                        this.Emit(StudioChangeKind.StudioModeChanged, Guid.Empty, 0, null, !e.StudioModeEnabled, e.StudioModeEnabled);
-                    }
-
-                    break;
+                handler(this, message);
             }
 
             this.UpdateState();
+        }
+
+        private static Action<StudioEngine, EventMessage> On<TData>(Action<StudioEngine, TData, EventMessage> handle)
+            where TData : class
+        {
+            return (engine, message) =>
+            {
+                if (message.EventData is TData data)
+                {
+                    handle(engine, data, message);
+                }
+            };
+        }
+
+        private void OnStudioModeChanged(StudioModeStateChangedEventArgs e)
+        {
+            if (this._studioMode.ApplyEvent(e.StudioModeEnabled, this._seq))
+            {
+                this.Emit(StudioChangeKind.StudioModeChanged, Guid.Empty, 0, null, !e.StudioModeEnabled, e.StudioModeEnabled);
+            }
         }
 
         private void OnSceneCreated(SceneModifiedEventArgs e)

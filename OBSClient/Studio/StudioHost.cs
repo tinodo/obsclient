@@ -1,0 +1,614 @@
+namespace OBSStudioClient.Studio
+{
+    using System.Threading.Channels;
+    using Microsoft.Extensions.Logging;
+    using OBSStudioClient.Enums;
+    using OBSStudioClient.Exceptions;
+    using OBSStudioClient.Messages;
+    using OBSStudioClient.Responses;
+    using OBSStudioClient.Studio.Engine;
+
+    /// <summary>
+    /// Runs the model of an <see cref="ObsStudio"/>: the one loop that takes what arrives (the events and the start and end of connections, each
+    /// with the number that the receive loop of the <see cref="ObsClient"/> gave it on arrival, and the results of the reads that it asked for), gives
+    /// it to the <see cref="StudioEngine"/> one item at a time, sends the reads that the engine wants, and publishes the outcome.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nothing that belongs to the application runs on this loop: not a handler, not a callback. The notifications are queued, and raised by the
+    /// <see cref="StudioNotifier"/>. The receive loop of the client only puts events in the inbox, which never blocks, so a slow application cannot hold up
+    /// the reading of OBS Studio, or the model.
+    /// </para>
+    /// <para>
+    /// Reads are sent one at a time. What arrives while a read is under way is processed meanwhile, in the order of arrival; the engine knows
+    /// from the numbers which events are newer than a read.
+    /// </para>
+    /// </remarks>
+    internal sealed class StudioHost
+    {
+        /// <summary>The events that the model needs. They are always subscribed to, with the ones that the application asks for.</summary>
+        public const EventSubscriptions RequiredEvents =
+            EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui;
+
+        /// <summary>The oldest obs-websocket that the model works with: the first one that identifies scenes and inputs by UUID (OBS Studio 30.1).</summary>
+        public static readonly Version RequiredWebSocketVersion = new(5, 4, 0);
+
+        private static readonly TimeSpan VersionRetryDelay = TimeSpan.FromSeconds(1);
+
+        // When the engine wants a read that it does not hand out (it should not happen), it is asked again after this long, not at once.
+        private static readonly TimeSpan SpinGuard = TimeSpan.FromMilliseconds(250);
+
+        private readonly ObsStudio _studio;
+        private readonly ObsClient _client;
+        private readonly ILogger _logger;
+        private readonly TimeProvider _time;
+        private readonly long _start;
+        private readonly TimeSpan _readTimeout;
+        private readonly StudioEngine _engine = new();
+        private readonly StudioPublisher _publisher;
+        private readonly StudioNotifier _notifier;
+        private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
+        private readonly CancellationTokenSource _stopping = new();
+        private readonly List<TaskCompletionSource> _settleWaiters = new();
+        private readonly List<TaskCompletionSource> _disconnectWaiters = new();
+        private Task _loop = Task.CompletedTask;
+        private ITimer? _timer;
+        private TimeSpan? _armedFor;
+        private TaskCompletionSource? _attempt;
+        private volatile bool _stopped;
+
+        // What the loop knows about the connection. Only the loop reads and writes these.
+        private int _session;
+        private bool _versionKnown;
+        private bool _versionInFlight;
+        private TimeSpan? _versionRetryAt;
+        private ReadTicket? _read;
+        private int _readFailures;
+
+        public StudioHost(ObsStudio studio, ObsClient client, ObsStudioOptions options, ILogger logger, StudioNotifier notifier)
+        {
+            this._studio = studio;
+            this._client = client;
+            this._logger = logger;
+            this._notifier = notifier;
+            this._time = options.TimeProvider ?? TimeProvider.System;
+            this._start = this._time.GetTimestamp();
+            this._readTimeout = options.ReadTimeout;
+            this._publisher = new StudioPublisher(studio, options.IgnoreCase);
+        }
+
+        private enum HostItemKind
+        {
+            Ingress,
+            VersionDone,
+            VersionFailed,
+            ReadDone,
+            ReadFailed,
+            Wake,
+            Settle,
+            Disconnect,
+        }
+
+        /// <summary>Gets what is published now.</summary>
+        public StudioView View => this._publisher.View;
+
+        /// <summary>Gets a task that completes when the loop has ended.</summary>
+        public Task Completion => this._loop;
+
+        /// <summary>Starts the loop, and the observation of the client.</summary>
+        public void Start()
+        {
+            if (!this._client.TryAttachIngressTap(this.OnIngress))
+            {
+                throw new InvalidOperationException("The ObsClient is used by another ObsStudio already: an ObsClient can have only one.");
+            }
+
+            this._timer = this._time.CreateTimer(_ => this.Post(new HostItem { Kind = HostItemKind.Wake }), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            this._loop = Task.Run(this.RunAsync);
+        }
+
+        /// <summary>Stops the loop, and the observation of the client.</summary>
+        public void Stop()
+        {
+            this._stopped = true;
+            this._client.SetIngressTap(null);
+            this._inbox.Writer.TryComplete();
+            this._stopping.Cancel();
+            this._timer?.Dispose();
+            this._notifier.Stop();
+            var stopped = new ObjectDisposedException(nameof(ObsStudio));
+            Volatile.Read(ref this._attempt)?.TrySetException(stopped);
+        }
+
+        /// <summary>Makes ready for a connection: the task that is returned completes when the model has been read, or fails when it cannot be.</summary>
+        public TaskCompletionSource BeginConnect()
+        {
+            var attempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref this._attempt, attempt);
+            return attempt;
+        }
+
+        /// <summary>Ends what <see cref="BeginConnect"/> began.</summary>
+        public void EndConnect(TaskCompletionSource attempt)
+        {
+            Interlocked.CompareExchange(ref this._attempt, null, attempt);
+        }
+
+        /// <summary>Returns a task that completes when everything that had arrived before the call has been applied and no read is pending.</summary>
+        public Task WaitUntilSettledAsync()
+        {
+            var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!this.Post(new HostItem { Kind = HostItemKind.Settle, Waiter = waiter }))
+            {
+                waiter.TrySetException(new ObjectDisposedException(nameof(ObsStudio)));
+            }
+
+            return waiter.Task;
+        }
+
+        /// <summary>Returns a task that completes when the connection that the client had is over, and the model knows.</summary>
+        public Task WaitUntilDisconnectedAsync()
+        {
+            var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!this.Post(new HostItem { Kind = HostItemKind.Disconnect, Waiter = waiter }))
+            {
+                waiter.TrySetResult();
+            }
+
+            return waiter.Task;
+        }
+
+        // Called by the receive loop of the client: it only puts the item in the inbox. Events that the model does not need are not even queued.
+        private void OnIngress(IngressItem item)
+        {
+            if (item.Kind == IngressKind.Event && !StudioEngine.Handles(item.Event!.EventType))
+            {
+                return;
+            }
+
+            this.Post(new HostItem { Kind = HostItemKind.Ingress, Ingress = item });
+        }
+
+        private bool Post(in HostItem item)
+        {
+            return this._inbox.Writer.TryWrite(item);
+        }
+
+        private TimeSpan Now()
+        {
+            return this._time.GetElapsedTime(this._start);
+        }
+
+        private async Task RunAsync()
+        {
+            var reader = this._inbox.Reader;
+            try
+            {
+                while (await reader.WaitToReadAsync().ConfigureAwait(false))
+                {
+                    while (reader.TryRead(out var item))
+                    {
+                        try
+                        {
+                            this.Handle(item);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.RecoverFrom(ex);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogCritical(ex, "The loop of the studio model ended unexpectedly.");
+            }
+            finally
+            {
+                this.FailWaiters(new ObjectDisposedException(nameof(ObsStudio)));
+            }
+        }
+
+        private void Handle(in HostItem item)
+        {
+            var now = this.Now();
+            var before = this._engine.State;
+            switch (item.Kind)
+            {
+                case HostItemKind.Ingress:
+                    this.HandleIngress(item.Ingress, now);
+                    break;
+                case HostItemKind.VersionDone:
+                    this.HandleVersion(item, now);
+                    break;
+                case HostItemKind.VersionFailed:
+                    if (item.Session == this._session)
+                    {
+                        this._versionInFlight = false;
+                        this._versionRetryAt = now + VersionRetryDelay;
+                        this._logger.LogDebug(item.Error, "GetVersion failed; it is repeated.");
+                    }
+
+                    break;
+                case HostItemKind.ReadDone:
+                    if (this.TakeRead(item))
+                    {
+                        this._readFailures = 0;
+                        this._engine.OnReadCompleted(item.Ticket!, item.Results!, now);
+                    }
+
+                    break;
+                case HostItemKind.ReadFailed:
+                    if (this.TakeRead(item))
+                    {
+                        this._engine.OnReadFailed(item.Ticket!, now);
+                        if (this._readFailures++ == 0)
+                        {
+                            this._logger.LogWarning(item.Error, "A read of the model of OBS Studio failed; it is repeated.");
+                        }
+                        else
+                        {
+                            this._logger.LogDebug(item.Error, "A read of the model of OBS Studio failed again.");
+                        }
+                    }
+
+                    break;
+                case HostItemKind.Wake:
+                    this._armedFor = null;
+                    break;
+                case HostItemKind.Settle:
+                    if (this._engine.State == StudioEngineState.Disconnected)
+                    {
+                        item.Waiter!.TrySetException(new ObsNotConnectedException());
+                    }
+                    else
+                    {
+                        this._settleWaiters.Add(item.Waiter!);
+                    }
+
+                    break;
+                case HostItemKind.Disconnect:
+                    if (this._session == 0)
+                    {
+                        this._studio.SetState(ObsStudioState.Disconnected);
+                        item.Waiter!.TrySetResult();
+                    }
+                    else
+                    {
+                        this._disconnectWaiters.Add(item.Waiter!);
+                    }
+
+                    break;
+            }
+
+            this.PumpReads(now);
+            this.PublishStep(before);
+            this.ReleaseWaiters();
+            this.ArmTimer(now);
+        }
+
+        private void HandleIngress(IngressItem ingress, TimeSpan now)
+        {
+            switch (ingress.Kind)
+            {
+                case IngressKind.SessionStarted:
+                    this._session = ingress.SessionId;
+                    this._versionKnown = false;
+                    this._versionRetryAt = null;
+                    this._read = null;
+                    this._readFailures = 0;
+                    this._engine.OnSessionStarted(ingress.SessionId, ingress.Sequence, now);
+                    this._studio.SetState(ObsStudioState.Synchronizing);
+                    this.StartVersionCheck(ingress.SessionId);
+                    break;
+                case IngressKind.SessionEnded:
+                    if (ingress.SessionId != this._session)
+                    {
+                        break;
+                    }
+
+                    this._session = 0;
+                    this._versionKnown = false;
+                    this._versionInFlight = false;
+                    this._versionRetryAt = null;
+                    this._read = null;
+                    this._engine.OnSessionEnded(ingress.SessionId, ingress.Sequence, now);
+                    this.FailWaiters(new ObsNotConnectedException("The connection to OBS Studio ended."));
+                    Volatile.Read(ref this._attempt)?.TrySetException(new ObsNotConnectedException("The connection to OBS Studio ended before the model was complete."));
+                    this._studio.SetState(this._client.AutoReconnect ? ObsStudioState.Reconnecting : ObsStudioState.Disconnected);
+                    foreach (var waiter in this._disconnectWaiters)
+                    {
+                        waiter.TrySetResult();
+                    }
+
+                    this._disconnectWaiters.Clear();
+                    break;
+                case IngressKind.Event:
+                    if (ingress.SessionId == this._session)
+                    {
+                        this._engine.OnEvent(ingress.Event!, ingress.Sequence, now);
+                    }
+
+                    break;
+            }
+        }
+
+        private void HandleVersion(in HostItem item, TimeSpan now)
+        {
+            if (item.Session != this._session)
+            {
+                return;
+            }
+
+            this._versionInFlight = false;
+            var reported = item.Version!.ObsWebSocketVersion;
+            if (TryParseVersion(reported, out var version) && version >= RequiredWebSocketVersion)
+            {
+                this._versionKnown = true;
+                return;
+            }
+
+            // The model needs UUIDs. It does not read from an OBS Studio that does not have them; the client itself works with it.
+            var unsupported = new ObsVersionNotSupportedException(reported, RequiredWebSocketVersion.ToString(3));
+            this._logger.LogError("{Message}", unsupported.Message);
+            Volatile.Read(ref this._attempt)?.TrySetException(unsupported);
+            this._client.Disconnect();
+        }
+
+        private bool TakeRead(in HostItem item)
+        {
+            if (item.Session != this._session || this._read is null || this._read.Id != item.Ticket!.Id)
+            {
+                // The read of a connection that ended: its parts are read again on the next one.
+                return false;
+            }
+
+            this._read = null;
+            return true;
+        }
+
+        private void StartVersionCheck(int session)
+        {
+            this._versionInFlight = true;
+            _ = this.CheckVersionAsync(session);
+        }
+
+        private async Task CheckVersionAsync(int session)
+        {
+            try
+            {
+                var version = await this._client.GetVersion(this._stopping.Token).ConfigureAwait(false);
+                this.Post(new HostItem { Kind = HostItemKind.VersionDone, Session = session, Version = version });
+            }
+            catch (Exception ex)
+            {
+                this.Post(new HostItem { Kind = HostItemKind.VersionFailed, Session = session, Error = ex });
+            }
+        }
+
+        private void PumpReads(TimeSpan now)
+        {
+            if (this._session == 0 || this._read is not null)
+            {
+                return;
+            }
+
+            if (!this._versionKnown)
+            {
+                if (!this._versionInFlight && this._versionRetryAt is { } at && now >= at)
+                {
+                    this._versionRetryAt = null;
+                    this.StartVersionCheck(this._session);
+                }
+
+                return;
+            }
+
+            if (this._engine.TryTakeRead(this._client.LastIngress, now, out var ticket))
+            {
+                this._read = ticket;
+                _ = this.SendReadAsync(ticket, this._session);
+            }
+        }
+
+        private async Task SendReadAsync(ReadTicket ticket, int session)
+        {
+            try
+            {
+                var batch = new RequestBatchMessage(haltOnFailure: false, RequestBatchExecutionType.SerialRealtime);
+                foreach (var request in ticket.Requests)
+                {
+                    batch.AddRaw(request.Type, request.Data);
+                }
+
+                var response = await this._client.SendRawBatchAsync(batch, (int)this._readTimeout.TotalMilliseconds, this._stopping.Token).ConfigureAwait(false);
+                this.Post(new HostItem { Kind = HostItemKind.ReadDone, Session = session, Ticket = ticket, Results = response.Results });
+            }
+            catch (Exception ex)
+            {
+                this.Post(new HostItem { Kind = HostItemKind.ReadFailed, Session = session, Ticket = ticket, Error = ex });
+            }
+        }
+
+        // Publishes what the engine holds. The application is told of the changes one by one only when the model was complete before this
+        // step and is after it: while it is being read the application gets one notification at the end (Resynchronized).
+        private void PublishStep(StudioEngineState before)
+        {
+            var changes = this._engine.TakeChanges();
+            var view = this._publisher.Publish(this._engine, changes);
+            this._studio.SetView(view);
+            var after = this._engine.State;
+            if (before == StudioEngineState.Synchronized && after == StudioEngineState.Synchronized)
+            {
+                foreach (var notice in this._publisher.Notices)
+                {
+                    this._studio.QueueNotice(notice);
+                }
+            }
+
+            if (after == StudioEngineState.Synchronized && before != StudioEngineState.Synchronized)
+            {
+                this._studio.SetState(ObsStudioState.Synchronized);
+                this._studio.QueueResynchronized();
+                Volatile.Read(ref this._attempt)?.TrySetResult();
+            }
+        }
+
+        private void ReleaseWaiters()
+        {
+            if (this._settleWaiters.Count == 0)
+            {
+                return;
+            }
+
+            if (this._engine.State == StudioEngineState.Disconnected)
+            {
+                this.FailWaiters(new ObsNotConnectedException());
+                return;
+            }
+
+            if (this._versionKnown && this._read is null && this._engine.IsSettled)
+            {
+                foreach (var waiter in this._settleWaiters)
+                {
+                    waiter.TrySetResult();
+                }
+
+                this._settleWaiters.Clear();
+            }
+        }
+
+        private void FailWaiters(Exception exception)
+        {
+            foreach (var waiter in this._settleWaiters)
+            {
+                waiter.TrySetException(exception);
+            }
+
+            this._settleWaiters.Clear();
+        }
+
+        // Wakes the loop when the engine wants to read something later (a read that waits for its turn, or that is repeated after a wait).
+        private void ArmTimer(TimeSpan now)
+        {
+            if (this._stopped)
+            {
+                return;
+            }
+
+            TimeSpan? wake = null;
+            if (this._session != 0)
+            {
+                if (!this._versionKnown)
+                {
+                    wake = this._versionInFlight ? null : this._versionRetryAt;
+                }
+                else if (this._read is null)
+                {
+                    wake = this._engine.NextWake;
+                }
+            }
+
+            if (wake is null)
+            {
+                if (this._armedFor is not null)
+                {
+                    this.ChangeTimer(Timeout.InfiniteTimeSpan);
+                    this._armedFor = null;
+                }
+
+                return;
+            }
+
+            var due = wake.Value - now;
+            if (due < SpinGuard && wake.Value <= now)
+            {
+                due = SpinGuard;
+            }
+
+            if (due < TimeSpan.Zero)
+            {
+                due = TimeSpan.Zero;
+            }
+
+            if (this._armedFor != wake)
+            {
+                this.ChangeTimer(due);
+                this._armedFor = wake;
+            }
+        }
+
+        // The timer is disposed by Stop, on another thread, while the loop may still be finishing an item.
+        private void ChangeTimer(TimeSpan due)
+        {
+            try
+            {
+                this._timer?.Change(due, Timeout.InfiniteTimeSpan);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        // An exception in the model is a bug. The model cannot know what it missed, so it reads everything again; the application sees the old
+        // values until that is done.
+        private void RecoverFrom(Exception exception)
+        {
+            this._logger.LogError(exception, "The studio model failed while it processed an item. It reads everything again.");
+            if (this._session == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                this._read = null;
+                this._engine.OnSessionStarted(this._session, this._client.LastIngress, this.Now());
+                this._studio.SetState(ObsStudioState.Synchronizing);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "The studio model could not recover.");
+            }
+        }
+
+        // obs-websocket versions look like 5.7.6; a suffix such as -beta1 is not part of the number.
+        private static bool TryParseVersion(string? text, out Version version)
+        {
+            version = new Version(0, 0);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var end = text.IndexOfAny(['-', '+', ' ']);
+            var number = end < 0 ? text : text[..end];
+            if (!Version.TryParse(number, out var parsed))
+            {
+                return false;
+            }
+
+            version = parsed;
+            return true;
+        }
+
+        private readonly struct HostItem
+        {
+            public HostItemKind Kind { get; init; }
+
+            public IngressItem Ingress { get; init; }
+
+            public int Session { get; init; }
+
+            public ReadTicket? Ticket { get; init; }
+
+            public RequestResponseMessage[]? Results { get; init; }
+
+            public VersionResponse? Version { get; init; }
+
+            public Exception? Error { get; init; }
+
+            public TaskCompletionSource? Waiter { get; init; }
+        }
+    }
+}

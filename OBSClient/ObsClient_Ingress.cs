@@ -32,6 +32,16 @@ namespace OBSStudioClient
         }
 
         /// <summary>
+        /// Sets the one observer of the receive loop, when there is none yet (see <see cref="SetIngressTap"/>).
+        /// </summary>
+        /// <param name="tap">The observer.</param>
+        /// <returns>Whether the observer was set: false when another one is set already.</returns>
+        internal bool TryAttachIngressTap(Action<IngressItem> tap)
+        {
+            return Interlocked.CompareExchange(ref this._ingressTap, tap, null) is null;
+        }
+
+        /// <summary>
         /// Sends a request, and returns the response message, which carries its number (<see cref="RequestResponseMessage.IngressSequence"/>).
         /// </summary>
         /// <param name="requestType">The type of request.</param>
