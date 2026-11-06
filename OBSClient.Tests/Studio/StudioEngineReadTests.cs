@@ -199,6 +199,28 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void AGroupThatWasDeletedWhileDisconnected_IsDroppedAfterTheModelIsReadAgain()
+        {
+            var h = WithWorld();
+            h.Start();
+            h.SettleWithTime();
+            var group = Guid.NewGuid();
+            h.World.Items[group] = [];
+            h.Event("SceneCreated", new { sceneName = "Group", sceneUuid = group, isGroup = true }, 4);
+            h.SettleWithTime();
+            Assert.True(h.Engine.IsSettled);
+
+            // The connection ends, and the group is deleted: no list of scenes has it, so only the 600 of its items can tell.
+            h.End();
+            h.World.Items.Remove(group);
+            h.Start();
+            h.SettleWithTime();
+
+            Assert.True(h.Engine.IsSettled);
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
         public void ASceneThatTheListDoesNotHaveAndOnlyAnItemKnows_IsReadFromItsItems_AndAGroupIsJustThat()
         {
             Guid scene = Guid.Empty;

@@ -193,9 +193,10 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (notFound)
             {
-                if (scene.RemovalUnresolved)
+                if (scene.RemovalUnresolved || scene.IsGroup)
                 {
                     // A scene that was removed and that the model did not know: OBS does not have it (a scene that it keeps alive can be read).
+                    // A group is in no list of scenes, so no list can ever say that it is gone: its 600 does.
                     this.DestroyScene(scene);
                 }
                 else
