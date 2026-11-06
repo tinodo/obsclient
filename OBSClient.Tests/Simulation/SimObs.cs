@@ -133,7 +133,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// connection, so it notes the close code that a real one would use (<see cref="TakeViolations"/>) and ignores the message.
         /// </remarks>
         /// <param name="messageJson">The complete JSON text of the message.</param>
-        public void Receive(string messageJson)
+        /// <param name="tag">What is attached to the response, as <see cref="SimMessage.Tag"/>; nothing by default.</param>
+        public void Receive(string messageJson, object? tag = null)
         {
             var envelope = SimProtocol.Read(messageJson, out var violation);
             if (envelope is null)
@@ -145,10 +146,10 @@ namespace OBSStudioClient.Tests.Simulation
             switch (envelope.Op)
             {
                 case SimOp.Request:
-                    ReceiveRequest(envelope.Data);
+                    ReceiveRequest(envelope.Data, tag);
                     break;
                 case SimOp.RequestBatch:
-                    ReceiveBatch(envelope.Data);
+                    ReceiveBatch(envelope.Data, tag);
                     break;
                 default:
                     _violations.Add(new SimProtocolViolation(SimCloseCode.UnknownOpCode, $"Unknown OpCode: {envelope.Op}"));
@@ -327,7 +328,7 @@ namespace OBSStudioClient.Tests.Simulation
             return Obj(members.ToArray());
         }
 
-        private void ReceiveRequest(JsonObject data)
+        private void ReceiveRequest(JsonObject data, object? tag)
         {
             if (!data.ContainsKey("requestId"))
             {
@@ -347,10 +348,10 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
-            ScheduleReceived(() => ExecuteRequest(data));
+            ScheduleReceived(() => ExecuteRequest(data, tag));
         }
 
-        private void ReceiveBatch(JsonObject data)
+        private void ReceiveBatch(JsonObject data, object? tag)
         {
             if (!data.ContainsKey("requestId"))
             {
@@ -414,7 +415,7 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
-            ScheduleReceived(() => ExecuteBatch(data["requestId"], requests, executionType, haltOnFailure, variables));
+            ScheduleReceived(() => ExecuteBatch(data["requestId"], requests, executionType, haltOnFailure, variables, tag));
         }
 
         // A request that was received runs after the jitter of the quirk, or at once when requests keep their order.
@@ -424,7 +425,7 @@ namespace OBSStudioClient.Tests.Simulation
             _actions.Enqueue(run, (Clock.Now + jitter, _actionSequence++));
         }
 
-        private void ExecuteRequest(JsonObject data)
+        private void ExecuteRequest(JsonObject data, object? tag)
         {
             BeginChange();
             string? response = null;
@@ -443,14 +444,21 @@ namespace OBSStudioClient.Tests.Simulation
             }
             finally
             {
-                EndChange(response, SimOp.RequestResponse);
+                EndChange(response, SimOp.RequestResponse, tag);
             }
         }
 
         private SimResult RunRequest(string requestType, JsonObject? requestData, JsonObject? variables, JsonObject? inputVariables)
         {
             var request = new SimRequest(_world, requestData);
-            ApplyInputVariables(request, variables, inputVariables);
+
+            // obs-websocket does not look at the variables of a request that has no request data (an object): it fails for the data that is not
+            // there (RequestBatchHandler.cpp, PreProcessVariables).
+            if (requestData is not null)
+            {
+                ApplyInputVariables(request, variables, inputVariables);
+            }
+
             return _requests.Handle(requestType, request);
         }
 
@@ -510,47 +518,37 @@ namespace OBSStudioClient.Tests.Simulation
             return variables;
         }
 
-        private void ExecuteBatch(JsonNode? requestId, JsonArray requests, int executionType, bool haltOnFailure, JsonObject? variables)
+        private void ExecuteBatch(JsonNode? requestId, JsonArray requests, int executionType, bool haltOnFailure, JsonObject? variables, object? tag)
         {
+            if (executionType == 2 && requests.Count > 0)
+            {
+                StartParallelBatch(requestId, requests, tag);
+                return;
+            }
+
             BeginChange();
             string? response = null;
             try
             {
-                var parallel = executionType == 2;
                 var labels = new List<(string Type, JsonNode? Id)>();
                 var results = new List<SimResult>();
                 var neverAnswered = false;
                 foreach (var node in requests)
                 {
                     var item = node as JsonObject ?? new JsonObject();
-
-                    // obs-websocket replaces a requestType that is not a string by an empty one, which it then answers with 203.
-                    var type = item["requestType"] is { } typeNode && typeNode.GetValueKind() == JsonValueKind.String ? typeNode.GetValue<string>() : string.Empty;
-                    var result = RunRequest(
-                        type,
-                        item["requestData"] as JsonObject,
-                        parallel ? null : variables,
-                        parallel ? null : item["inputVariables"] as JsonObject);
+                    var type = TypeOf(item);
+                    var result = RunRequest(type, item["requestData"] as JsonObject, variables, item["inputVariables"] as JsonObject);
                     if (result.NoAnswer)
                     {
                         // The thread of a request that is never answered is stuck, and so is the batch: there is no response at all.
                         neverAnswered = true;
-                        if (parallel)
-                        {
-                            continue;
-                        }
-
                         break;
                     }
 
-                    if (!parallel)
-                    {
-                        variables = StoreOutputVariables(variables, item["outputVariables"] as JsonObject, result);
-                    }
-
+                    variables = StoreOutputVariables(variables, item["outputVariables"] as JsonObject, result);
                     labels.Add((type, item["requestId"]));
                     results.Add(result);
-                    if (haltOnFailure && !parallel && !result.IsSuccess)
+                    if (haltOnFailure && !result.IsSuccess)
                     {
                         break;
                     }
@@ -562,27 +560,109 @@ namespace OBSStudioClient.Tests.Simulation
                     return;
                 }
 
-                // Fact 16 (obs-websocket#1317): the requests of a parallel batch finish in any order, and the results are put in the order in
-                // which they finished, under the type and ID of the request that is at that place of the batch.
-                if (parallel && Quirks.ParallelBatchMisorders)
-                {
-                    Random.Shuffle(results);
-                }
-
-                var list = new JsonArray();
-                for (var index = 0; index < results.Count; index++)
-                {
-                    list.Add(ResponseData(labels[index].Type, labels[index].Id, results[index], includeNullId: false));
-                }
-
-                response = Serialize(Obj(
-                    ("d", Obj(("requestId", requestId?.DeepClone()), ("results", list))),
-                    ("op", SimOp.RequestBatchResponse)));
+                response = BatchResponse(requestId, labels, results);
             }
             finally
             {
-                EndChange(response, SimOp.RequestBatchResponse);
+                EndChange(response, SimOp.RequestBatchResponse, tag);
             }
+        }
+
+        // obs-websocket replaces a requestType that is not a string by an empty one, which it then answers with 203.
+        private static string TypeOf(JsonObject item)
+        {
+            return item["requestType"] is { } typeNode && typeNode.GetValueKind() == JsonValueKind.String ? typeNode.GetValue<string>() : string.Empty;
+        }
+
+        private static string BatchResponse(JsonNode? requestId, IReadOnlyList<(string Type, JsonNode? Id)> labels, IReadOnlyList<SimResult> results)
+        {
+            var list = new JsonArray();
+            for (var index = 0; index < results.Count; index++)
+            {
+                list.Add(ResponseData(labels[index].Type, labels[index].Id, results[index], includeNullId: false));
+            }
+
+            return Serialize(Obj(
+                ("d", Obj(("requestId", requestId?.DeepClone()), ("results", list))),
+                ("op", SimOp.RequestBatchResponse)));
+        }
+
+        // The requests of a parallel batch are tasks of a pool of threads: each runs when it gets a thread, which is not always in the order
+        // of the batch (the jitter of SimQuirks.ExecutionJitter), and each is a change of its own with its own events. The response is sent
+        // when the last one has finished.
+        private void StartParallelBatch(JsonNode? requestId, JsonArray requests, object? tag)
+        {
+            var members = requests.Select(node => node as JsonObject ?? new JsonObject()).ToArray();
+            var batch = new ParallelBatch(requestId, members.Select(item => (TypeOf(item), item["requestId"])).ToArray(), tag);
+            for (var position = 0; position < members.Length; position++)
+            {
+                var index = position;
+                var jitter = Quirks.ReorderConcurrentRequests ? Quirks.ExecutionJitter.Sample(Random) : TimeSpan.Zero;
+                _actions.Enqueue(() => RunParallelMember(batch, index, members[index]), (Clock.Now + jitter, _actionSequence++));
+            }
+        }
+
+        private void RunParallelMember(ParallelBatch batch, int position, JsonObject item)
+        {
+            BeginChange();
+            string? response = null;
+            try
+            {
+                var result = RunRequest(batch.Labels[position].Type, item["requestData"] as JsonObject, variables: null, inputVariables: null);
+                batch.Remaining--;
+                if (result.NoAnswer)
+                {
+                    // The thread of a request that is never answered is stuck, and so is the batch: there is no response at all.
+                    batch.NeverAnswered = true;
+                }
+                else
+                {
+                    batch.Finished.Add((position, result));
+                }
+
+                if (batch.Remaining == 0)
+                {
+                    if (batch.NeverAnswered)
+                    {
+                        HungCount++;
+                    }
+                    else
+                    {
+                        response = ParallelResponse(batch);
+                    }
+                }
+            }
+            finally
+            {
+                EndChange(response, SimOp.RequestBatchResponse, batch.Tag);
+            }
+        }
+
+        private string ParallelResponse(ParallelBatch batch)
+        {
+            // Fact 16 (obs-websocket#1317): the results are put in the order in which the requests finished, under the type and ID of the
+            // request that is at that place of the batch. Without the quirk each result keeps its own request, and the results are in the order
+            // of the requests.
+            var labels = new List<(string Type, JsonNode? Id)>();
+            var results = new List<SimResult>();
+            if (Quirks.ParallelBatchMisorders)
+            {
+                for (var place = 0; place < batch.Finished.Count; place++)
+                {
+                    labels.Add(batch.Labels[place]);
+                    results.Add(batch.Finished[place].Result);
+                }
+            }
+            else
+            {
+                foreach (var (position, result) in batch.Finished.OrderBy(finished => finished.Position))
+                {
+                    labels.Add(batch.Labels[position]);
+                    results.Add(result);
+                }
+            }
+
+            return BatchResponse(batch.RequestId, labels, results);
         }
 
         private void RunChange(Action change)
@@ -609,17 +689,17 @@ namespace OBSStudioClient.Tests.Simulation
             _events = [];
         }
 
-        private void EndChange(string? responseJson, int responseOp)
+        private void EndChange(string? responseJson, int responseOp, object? tag = null)
         {
             var events = _events!;
             _events = null;
-            Deliver(events, responseJson, responseOp);
+            Deliver(events, responseJson, responseOp, tag);
         }
 
         // Puts the response and the events of a change in the queue of what OBS Studio sends. The events keep the order in which they were
         // emitted among themselves, also across changes (SimQuirks.ReorderEventsAcrossChanges turns that off); the response is somewhere
         // among the events of its change (fact 1), and does not wait for the events of other changes.
-        private void Deliver(List<EmittedEvent> events, string? responseJson, int responseOp)
+        private void Deliver(List<EmittedEvent> events, string? responseJson, int responseOp, object? tag)
         {
             var now = Clock.Now;
             var count = events.Count;
@@ -644,7 +724,7 @@ namespace OBSStudioClient.Tests.Simulation
                 // In Event First mode every event of the change is sent before the response, wherever it had to wait for.
                 var floor = Quirks.EventResponseOrder == SimEventResponseOrder.EventFirst ? sent : last;
                 var at = responseAt > floor ? responseAt : floor;
-                Enqueue(new SimMessage(_messageSequence++, at, responseOp, responseJson));
+                Enqueue(new SimMessage(_messageSequence++, at, responseOp, responseJson) { Tag = tag });
                 last = at;
             }
 
@@ -724,5 +804,30 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         private sealed record EmittedEvent(string Type, JsonObject Data, int Intent, int Anchor, TimeSpan Gap);
+
+        // A parallel batch that is under way: the type and ID of each request, the results in the order in which the requests finished, and
+        // how many have not finished yet.
+        private sealed class ParallelBatch
+        {
+            public ParallelBatch(JsonNode? requestId, (string Type, JsonNode? Id)[] labels, object? tag)
+            {
+                RequestId = requestId;
+                Labels = labels;
+                Remaining = labels.Length;
+                Tag = tag;
+            }
+
+            public JsonNode? RequestId { get; }
+
+            public (string Type, JsonNode? Id)[] Labels { get; }
+
+            public List<(int Position, SimResult Result)> Finished { get; } = [];
+
+            public int Remaining { get; set; }
+
+            public bool NeverAnswered { get; set; }
+
+            public object? Tag { get; }
+        }
     }
 }

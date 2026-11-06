@@ -426,9 +426,46 @@ namespace OBSStudioClient.Tests.Simulation
                 var seen = new Dictionary<string, PathObservation>(StringComparer.Ordinal);
                 JsonShape.Observe("$", data, seen);
                 CompareWithCapture(at, type, seen, real, problems);
+                CheckEachObject(at, "$", data, real, seen, problems);
             }
 
             CheckValues(at, data, problems);
+        }
+
+        // The members that a real OBS Studio always gives an object, checked on each object of the message: what one object of an array has
+        // does not make up for another one that lacks it, which the paths that were observed over the whole message cannot tell.
+        private static void CheckEachObject(string at, string path, JsonElement element, Dictionary<string, PathObservation> real, Dictionary<string, PathObservation> seen, List<string> problems)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    if (!IsBelowOpaque(path) && real.TryGetValue(path, out var holder))
+                    {
+                        foreach (var (member, observation) in real)
+                        {
+                            // A member that no object of the message has is reported by CompareWithCapture already.
+                            if (member != path && !member.EndsWith("[]", StringComparison.Ordinal) && Parent(member) == path && observation.Seen >= holder.Seen
+                                && seen.ContainsKey(member) && !element.TryGetProperty(member[(path.Length + 1)..], out _))
+                            {
+                                problems.Add($"{at}: an object at {path} has no {member}, which a real OBS Studio always sends there.");
+                            }
+                        }
+                    }
+
+                    foreach (var member in element.EnumerateObject())
+                    {
+                        CheckEachObject(at, $"{path}.{member.Name}", member.Value, real, seen, problems);
+                    }
+
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                    {
+                        CheckEachObject(at, path + "[]", item, real, seen, problems);
+                    }
+
+                    break;
+            }
         }
 
         private static bool AllowsNull(string key, Dictionary<string, PathObservation>? real, string path)

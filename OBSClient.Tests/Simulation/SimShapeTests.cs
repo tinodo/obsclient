@@ -168,11 +168,18 @@ namespace OBSStudioClient.Tests.Simulation
             }
         }
 
+        private const string SceneItem = """{"inputKind":"color_source_v3","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0.0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0.0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1.0,"positionX":0.0,"positionY":0.0,"rotation":0.0,"scaleX":1.0,"scaleY":1.0,"sourceHeight":1.0,"sourceWidth":1.0,"width":1.0},"sourceName":"A","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"6c69626f-6273-4c00-9d88-c5136d61696e"}""";
+
+        private static string SceneItemsMessage(string body)
+        {
+            return """{"d":{"requestId":"a","requestStatus":{"code":100,"result":true},"requestType":"GetSceneItemList","responseData":{"sceneItems":[""" + body + """]}},"op":7}""";
+        }
+
         [Fact]
         public void ANestedObjectOfAnotherShapeThanTheCapture_IsFound()
         {
-            const string item = """{"inputKind":"color_source_v3","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0.0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0.0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1.0,"positionX":0.0,"positionY":0.0,"rotation":0.0,"scaleX":1.0,"scaleY":1.0,"sourceHeight":1.0,"sourceWidth":1.0,"width":1.0},"sourceName":"A","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"6c69626f-6273-4c00-9d88-c5136d61696e"}""";
-            static string Message(string body) => """{"d":{"requestId":"a","requestStatus":{"code":100,"result":true},"requestType":"GetSceneItemList","responseData":{"sceneItems":[""" + body + """]}},"op":7}""";
+            const string item = SceneItem;
+            static string Message(string body) => SceneItemsMessage(body);
             var valid = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, Message(item)));
             var withoutBlendMode = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, Message(item.Replace("\"sceneItemBlendMode\":\"OBS_BLEND_NORMAL\",", string.Empty, StringComparison.Ordinal))));
             var strangeTransform = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, Message(item.Replace("\"alignment\":5,", "\"alignment\":\"left\",", StringComparison.Ordinal))));
@@ -182,6 +189,22 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Contains(withoutBlendMode, problem => problem.Contains("has no $.sceneItems[].sceneItemBlendMode", StringComparison.Ordinal));
             Assert.Contains(strangeTransform, problem => problem.Contains("alignment is string", StringComparison.Ordinal));
             Assert.Contains(movedMember, problem => problem.Contains("cropMiddle", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void AnObjectThatLacksWhatAnotherObjectOfTheArrayHas_IsFound()
+        {
+            var complete = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, SceneItemsMessage(SceneItem + "," + SceneItem)));
+            var emptyAfter = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, SceneItemsMessage(SceneItem + ",{}")));
+            var emptyBefore = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, SceneItemsMessage("{}," + SceneItem)));
+            var withoutId = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, SceneItemsMessage(SceneItem + "," + SceneItem.Replace("\"sceneItemId\":1,", string.Empty, StringComparison.Ordinal))));
+            var withoutScale = SimShape.Instance.Check(new SimMessage(1, TimeSpan.Zero, SimOp.RequestResponse, SceneItemsMessage(SceneItem + "," + SceneItem.Replace("\"scaleX\":1.0,", string.Empty, StringComparison.Ordinal))));
+
+            Assert.Empty(complete);
+            Assert.Contains(emptyAfter, problem => problem.Contains("an object at $.sceneItems[] has no $.sceneItems[].sceneItemId", StringComparison.Ordinal));
+            Assert.Contains(emptyBefore, problem => problem.Contains("an object at $.sceneItems[] has no $.sceneItems[].sceneItemId", StringComparison.Ordinal));
+            Assert.Contains(withoutId, problem => problem.Contains("an object at $.sceneItems[] has no $.sceneItems[].sceneItemId", StringComparison.Ordinal));
+            Assert.Contains(withoutScale, problem => problem.Contains("an object at $.sceneItems[].sceneItemTransform has no $.sceneItems[].sceneItemTransform.scaleX", StringComparison.Ordinal));
         }
     }
 }

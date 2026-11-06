@@ -8,7 +8,15 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="SentAt">The virtual time at which the message leaves OBS Studio.</param>
     /// <param name="Op">The operation code: 5 for an event, 7 for the response to a request, 9 for the response to a batch.</param>
     /// <param name="Json">The complete JSON text of the message.</param>
-    public sealed record SimMessage(long Sequence, TimeSpan SentAt, int Op, string Json);
+    public sealed record SimMessage(long Sequence, TimeSpan SentAt, int Op, string Json)
+    {
+        /// <summary>
+        /// Gets what the caller of <see cref="SimObs.Receive"/> attached to the request, or batch, that this message is the response to; null for an
+        /// event. Whoever has several clients (<see cref="SimObsServer"/>) tells by it where the response goes: the ID of a request is the
+        /// client's to choose, it can be of any kind, and two clients can use the same one.
+        /// </summary>
+        public object? Tag { get; init; }
+    }
 
     /// <summary>
     /// A message that obs-websocket does not accept. A real OBS Studio ends the connection with a close code; the simulation, which has no

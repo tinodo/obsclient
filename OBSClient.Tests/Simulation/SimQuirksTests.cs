@@ -473,7 +473,7 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 foreach (var executionType in new[] { 0, 1, 2 })
                 {
-                    var h = new SimHarness(Ideal with { ParallelBatchMisorders = true }, seed);
+                    var h = new SimHarness(Ideal with { ParallelBatchMisorders = true, ReorderConcurrentRequests = true, ExecutionJitter = new SimRange(0, 50) }, seed);
 
                     var results = h.CallBatch(requests, executionType: executionType).Data.EnumerateArray().ToArray();
 

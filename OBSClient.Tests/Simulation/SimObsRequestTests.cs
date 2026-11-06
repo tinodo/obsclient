@@ -393,9 +393,9 @@ namespace OBSStudioClient.Tests.Simulation
 
             var batch = h.CallBatch(
             [
-                new { requestType = "CreateScene", inputVariables = new { sceneName = "name" } },
+                new { requestType = "CreateScene", requestData = new { }, inputVariables = new { sceneName = "name" } },
                 new { requestType = "CreateScene", requestData = new { sceneName = "Fixed" }, inputVariables = new { sceneName = "nothing" } },
-                new { requestType = "CreateScene", inputVariables = new { sceneName = "nothing" } },
+                new { requestType = "CreateScene", requestData = new { }, inputVariables = new { sceneName = "nothing" } },
             ],
             variables: new { name = "FromVariable" });
 
@@ -405,6 +405,24 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Equal(301, results[2].GetProperty("requestStatus").GetProperty("code").GetInt32());
             Assert.Contains(h.Sim.Snapshot().Scenes, scene => scene.Name == "FromVariable");
             Assert.Contains(h.Sim.Snapshot().Scenes, scene => scene.Name == "Fixed");
+        }
+
+        [Fact]
+        public void ARequestWithoutRequestData_DoesNotGetItsFieldsFromTheVariables()
+        {
+            var h = new SimHarness(Ideal);
+
+            // obs-websocket does not look at the variables of a request without request data (an object): it fails for the data that is not there.
+            var batch = h.CallBatch(
+            [
+                new { requestType = "CreateScene", inputVariables = new { sceneName = "name" } },
+                new { requestType = "CreateScene", requestData = "not an object", inputVariables = new { sceneName = "name" } },
+            ],
+            variables: new { name = "FromVariable" });
+
+            var results = Results(batch);
+            Assert.All(results, result => Assert.Equal(301, result.GetProperty("requestStatus").GetProperty("code").GetInt32()));
+            Assert.DoesNotContain(h.Sim.Snapshot().Scenes, scene => scene.Name == "FromVariable");
         }
 
         [Fact]
@@ -436,7 +454,7 @@ namespace OBSStudioClient.Tests.Simulation
             var misordered = false;
             for (var seed = 1; seed <= 40 && !misordered; seed++)
             {
-                var h = new SimHarness(Ideal with { ParallelBatchMisorders = true }, seed);
+                var h = new SimHarness(Ideal with { ParallelBatchMisorders = true, ReorderConcurrentRequests = true, ExecutionJitter = new SimRange(0, 50) }, seed);
                 var batch = h.CallBatch(
                 [
                     new { requestType = "CreateScene", requestId = "r0", requestData = new { sceneName = "A" } },
@@ -461,7 +479,7 @@ namespace OBSStudioClient.Tests.Simulation
         [Fact]
         public void AParallelBatchIsAnsweredInOrder_WithoutTheQuirk()
         {
-            var h = new SimHarness(Ideal with { ParallelBatchMisorders = false });
+            var h = new SimHarness(Ideal with { ParallelBatchMisorders = false, ReorderConcurrentRequests = true, ExecutionJitter = new SimRange(0, 50) });
 
             var batch = h.CallBatch(
             [
@@ -473,6 +491,54 @@ namespace OBSStudioClient.Tests.Simulation
             var results = Results(batch);
             Assert.True(results[0].GetProperty("responseData").TryGetProperty("studioModeEnabled", out _));
             Assert.True(results[1].GetProperty("responseData").TryGetProperty("groups", out _));
+        }
+
+        [Fact]
+        public void TheRequestsOfAParallelBatchRunInTheOrderOfTheirJitter_SoARequestCanReadBeforeAnotherWrites()
+        {
+            var readBefore = false;
+            var readAfter = false;
+            for (var seed = 1; seed <= 60; seed++)
+            {
+                var h = new SimHarness(Ideal with { ReorderConcurrentRequests = true, ExecutionJitter = new SimRange(0, 30) }, seed);
+                var scene = h.CreateScene("A");
+
+                var batch = h.CallBatch(
+                [
+                    new { requestType = "RemoveScene", requestId = "write", requestData = new { sceneUuid = scene.ToString() } },
+                    new { requestType = "GetSceneItemList", requestId = "read", requestData = new { sceneUuid = scene.ToString() } },
+                ],
+                executionType: 2);
+
+                var results = Results(batch);
+                Assert.Equal(["read", "write"], results.Select(result => result.GetProperty("requestId").GetString()!).Order(StringComparer.Ordinal).ToArray());
+                var read = results.Single(result => result.GetProperty("requestId").GetString() == "read");
+                var code = read.GetProperty("requestStatus").GetProperty("code").GetInt32();
+                readBefore |= code == 100;
+                readAfter |= code == 600;
+            }
+
+            Assert.True(readBefore, "The read never ran before the removal.");
+            Assert.True(readAfter, "The read never ran after the removal.");
+        }
+
+        [Fact]
+        public void TheRequestsOfAParallelBatchRunInTheOrderOfTheBatch_WhenRequestsKeepTheirOrder()
+        {
+            for (var seed = 1; seed <= 20; seed++)
+            {
+                var h = new SimHarness(Ideal, seed);
+                var scene = h.CreateScene("A");
+
+                var batch = h.CallBatch(
+                [
+                    new { requestType = "GetSceneItemList", requestData = new { sceneUuid = scene.ToString() } },
+                    new { requestType = "RemoveScene", requestData = new { sceneUuid = scene.ToString() } },
+                ],
+                executionType: 2);
+
+                Assert.Equal(100, Results(batch)[0].GetProperty("requestStatus").GetProperty("code").GetInt32());
+            }
         }
 
         [Fact]

@@ -321,6 +321,105 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public async Task TheResponseToARequestOfAConnectionThatIsGone_IsNotGivenToTheNextOne_EvenWhenItUsesTheSameRequestId()
+        {
+            await using var server = StartServer(Quirks with { ResponseLatency = SimRange.Exactly(60) });
+            using var gone = await RawClient.ConnectAsync(server.Port);
+            await gone.IdentifyAsync();
+            await gone.SendAsync("""{"op":6,"d":{"requestType":"GetVersion","requestId":"same"}}""");
+            await server.WaitForRequestsAsync(1, Timeout);
+            gone.Abort();
+
+            using var next = await RawClient.ConnectAsync(server.Port);
+            await next.IdentifyAsync();
+            await next.SendAsync("""{"op":6,"d":{"requestType":"GetStudioModeEnabled","requestId":"same"}}""");
+
+            var types = new List<string>();
+            while (true)
+            {
+                using var message = await next.ReceiveAsync();
+                Assert.NotNull(message);
+                if (message.RootElement.GetProperty("op").GetInt32() == SimOp.RequestResponse)
+                {
+                    types.Add(message.RootElement.GetProperty("d").GetProperty("requestType").GetString()!);
+                    break;
+                }
+            }
+
+            Assert.Equal(["GetStudioModeEnabled"], types);
+        }
+
+        [Theory]
+        [InlineData("7")]
+        [InlineData("null")]
+        [InlineData("\"text\"")]
+        public async Task ARequestIdOfAnyKind_IsAnsweredWithTheSameId(string id)
+        {
+            await using var server = StartServer();
+            using var raw = await RawClient.ConnectAsync(server.Port);
+            await raw.IdentifyAsync();
+
+            await raw.SendAsync($$$"""{"op":6,"d":{"requestType":"GetVersion","requestId":{{{id}}}}}""");
+            await raw.SendAsync($$$"""{"op":8,"d":{"requestId":{{{id}}},"requests":[{"requestType":"GetVersion"}]}}""");
+
+            var echoed = new Dictionary<int, string>();
+            while (echoed.Count < 2)
+            {
+                using var message = await raw.ReceiveAsync();
+                Assert.NotNull(message);
+                var op = message.RootElement.GetProperty("op").GetInt32();
+                if (op is SimOp.RequestResponse or SimOp.RequestBatchResponse)
+                {
+                    echoed[op] = message.RootElement.GetProperty("d").GetProperty("requestId").GetRawText();
+                }
+            }
+
+            Assert.Equal(id, echoed[SimOp.RequestResponse]);
+            Assert.Equal(id, echoed[SimOp.RequestBatchResponse]);
+        }
+
+        [Fact]
+        public async Task AClientThatClosesTheConnectionWhileEventsAreSent_GetsTheAcknowledgement()
+        {
+            await using var server = StartServer();
+            using var raw = await RawClient.ConnectAsync(server.Port);
+            await raw.IdentifyAsync();
+
+            var changes = Task.Run(() =>
+            {
+                for (var index = 0; index < 200; index++)
+                {
+                    var name = "S" + index;
+                    server.Run(sim => sim.External.CreateScene(name));
+                }
+            });
+            await raw.CloseAsync();
+            await changes;
+
+            Assert.Equal(WebSocketCloseStatus.NormalClosure, raw.CloseStatus);
+        }
+
+        [Fact]
+        public async Task NoEventIsSentBeforeTheIdentifiedMessage()
+        {
+            await using var server = StartServer();
+            for (var round = 0; round < 100; round++)
+            {
+                using var raw = await RawClient.ConnectAsync(server.Port);
+                using var hello = await raw.ReceiveAsync();
+
+                // A change is made while the client identifies: its events are due at once.
+                var name = "S" + round;
+                var change = Task.Run(() => server.Run(sim => sim.External.CreateScene(name)));
+                await raw.SendAsync("""{"op":1,"d":{"rpcVersion":1}}""");
+                using var first = await raw.ReceiveAsync();
+                await change;
+
+                Assert.Equal(SimOp.Identified, first!.RootElement.GetProperty("op").GetInt32());
+            }
+        }
+
+        [Fact]
         public async Task TheHandshakeIsTheOneOfObsWebsocket()
         {
             await using var server = StartServer();
@@ -522,6 +621,13 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 using var cancellation = new CancellationTokenSource(Timeout);
                 await _socket.SendAsync(bytes, WebSocketMessageType.Binary, true, cancellation.Token);
+            }
+
+            // Closes the connection with the handshake of WebSocket, and waits for the acknowledgement of the server.
+            public async Task CloseAsync()
+            {
+                using var cancellation = new CancellationTokenSource(Timeout);
+                await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", cancellation.Token);
             }
 
             // Reads a message, or returns null when the server closed the connection.

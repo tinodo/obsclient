@@ -837,6 +837,7 @@ namespace OBSStudioClient.Tests.Simulation
                 new Dictionary<string, object?>
                 {
                     ["requestType"] = "GetInputSettings",
+                    ["requestData"] = Data(),
                     ["inputVariables"] = Data(("inputUuid", "uuid")),
                 },
             };

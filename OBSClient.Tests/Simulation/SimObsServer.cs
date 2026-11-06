@@ -35,7 +35,6 @@ namespace OBSStudioClient.Tests.Simulation
         private readonly TimeSpan _origin;
         private readonly SemaphoreSlim _signal = new(0);
         private readonly CancellationTokenSource _stopping = new();
-        private readonly Dictionary<string, long> _requestOwners = new(StringComparer.Ordinal);
         private readonly List<(Func<bool> Condition, TaskCompletionSource Done)> _waiters = [];
         private readonly List<Task> _tasks = [];
         private Connection? _current;
@@ -235,13 +234,6 @@ namespace OBSStudioClient.Tests.Simulation
             return document.RootElement.GetProperty("d").GetProperty("eventIntent").GetInt32();
         }
 
-        private static string? ReadRequestId(string json)
-        {
-            using var document = JsonDocument.Parse(json);
-            var data = document.RootElement.GetProperty("d");
-            return data.TryGetProperty("requestId", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString() : null;
-        }
-
         private static bool TryReadUnsigned(JsonObject data, string name, out long value)
         {
             return SimJson.TryGetUnsigned(data[name], out value);
@@ -382,11 +374,9 @@ namespace OBSStudioClient.Tests.Simulation
                 var result = await connection.Socket.ReceiveAsync(buffer, token).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    if (connection.Socket.State == WebSocketState.CloseReceived)
-                    {
-                        await connection.Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Goodbye", token).ConfigureAwait(false);
-                    }
-
+                    // The acknowledgement goes through the writer, the only one that sends: it can be sending a message at this moment, and a
+                    // WebSocket does not send two at once.
+                    connection.Close((int)WebSocketCloseStatus.NormalClosure, "Goodbye");
                     return;
                 }
 
@@ -490,10 +480,15 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
-            // The count is up before the client can know that it is identified, so that whoever waits for the client sees both.
+            // The count is up before the client can know that it is identified, so that whoever waits for the client sees both. Events are
+            // only queued after the Identified message (see Dispatch).
             Interlocked.Increment(ref _identifiedCount);
-            connection.Identified = true;
-            connection.Send(Serialize(Obj(("d", Obj(("negotiatedRpcVersion", 1))), ("op", SimOp.Identified))));
+            lock (connection.Gate)
+            {
+                connection.Identified = true;
+                connection.Send(Serialize(Obj(("d", Obj(("negotiatedRpcVersion", 1))), ("op", SimOp.Identified))));
+            }
+
             NotifyWaiters();
         }
 
@@ -532,13 +527,10 @@ namespace OBSStudioClient.Tests.Simulation
             IReadOnlyList<SimProtocolViolation> violations;
             lock (_gate)
             {
-                if (envelope.Op is SimOp.Request or SimOp.RequestBatch && envelope.Data["requestId"] is JsonValue { } id && id.GetValueKind() == JsonValueKind.String)
-                {
-                    _requestOwners[id.GetValue<string>()] = connection.Number;
-                }
-
+                // The connection is attached to the request, and comes back with the response: the ID of a request is the client's own,
+                // of any kind, and another connection may use the same one.
                 SyncClock();
-                _sim.Receive(text);
+                _sim.Receive(text, connection.Number);
                 violations = _sim.TakeViolations();
             }
 
@@ -592,41 +584,37 @@ namespace OBSStudioClient.Tests.Simulation
         private void Dispatch(IReadOnlyList<SimMessage> due)
         {
             var connection = _current;
-            if (due.Count == 0)
+            if (due.Count == 0 || connection is null)
             {
                 return;
             }
 
             foreach (var message in due)
             {
-                if (message.Op == SimOp.Event)
+                // The check and the send are one step with the publication of Identified (HandleIdentify): an event can only be queued after the
+                // Identified message.
+                lock (connection.Gate)
                 {
-                    if (connection is not { Identified: true } || (Interlocked.Read(ref connection.Subscriptions) & ReadIntent(message.Json)) == 0)
+                    if (!connection.Identified)
                     {
                         continue;
                     }
 
-                    connection.Send(message.Json);
-                    continue;
-                }
-
-                // A response goes to the connection that asked for it, if that is the one that is open.
-                var id = ReadRequestId(message.Json);
-                long owner = -1;
-                if (id is not null)
-                {
-                    lock (_gate)
+                    if (message.Op == SimOp.Event)
                     {
-                        if (_requestOwners.Remove(id, out var found))
+                        if ((Interlocked.Read(ref connection.Subscriptions) & ReadIntent(message.Json)) != 0)
                         {
-                            owner = found;
+                            connection.Send(message.Json);
                         }
-                    }
-                }
 
-                if (connection is { Identified: true } && connection.Number == owner)
-                {
-                    connection.Send(message.Json);
+                        continue;
+                    }
+
+                    // A response goes to the connection that asked for it, if that is the one that is open.
+                    if (message.Tag is long owner && connection.Number == owner)
+                    {
+                        connection.Send(message.Json);
+                    }
                 }
             }
         }
@@ -656,6 +644,9 @@ namespace OBSStudioClient.Tests.Simulation
             public Channel<Frame> Outgoing { get; } = Channel.CreateUnbounded<Frame>(new UnboundedChannelOptions { SingleReader = true });
 
             public long Number { get; set; }
+
+            // Taken by whoever publishes Identified and by whoever queues a message for the connection (see Dispatch).
+            public object Gate { get; } = new();
 
             public volatile bool Identified;
 
