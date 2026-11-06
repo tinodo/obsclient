@@ -336,6 +336,14 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             scene.Provisional = false;
+            if (inferred)
+            {
+                // A check that was under way asked whether OBS has the scene, and an answer that was taken before this event says that it had it then:
+                // nothing about what OBS did with it when it removed it. The event is the word now, and the scene items decide what it did.
+                scene.CheckAfter = 0;
+                scene.RemovalUnresolved = false;
+                this._unresolved.Remove(scene.Uuid);
+            }
             if (repaired)
             {
                 this.Emit(StudioChangeKind.Repaired, scene.Uuid, 0, scene.Name.Value);

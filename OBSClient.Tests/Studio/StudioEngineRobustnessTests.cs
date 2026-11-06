@@ -914,5 +914,43 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Contains(h.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.SceneRemoved && change.Subject == child);
             Assert.True(h.Engine.IsSettled);
         }
+
+        // A read of the scene items of a scene that the model doubted, taken before OBS removed the scene, says that OBS had it then: it says nothing of what
+        // OBS did with it when it removed it. The answer arrives after the event of the removal, and must not be taken for a word about that.
+        [Fact]
+        public void ASceneThatAnItemReadInferred_AndThatOBSRemovesWhileACheckOfItIsUnderWay_IsNotKeptByTheLateAnswerOfThatCheck()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var parent = h.World.AddScene("Parent");
+            var child = Guid.NewGuid();
+            h.World.Items[child] = [];
+            var id = h.World.AddItem(parent, child, "Child", isScene: true);
+            h.Start();
+            h.SettleWithTime();
+            Assert.Equal(child, Assert.Single(h.Engine.Snapshot().DetachedScenes).Uuid);
+            h.Engine.TakeChanges();
+
+            // The model cannot count every scene item yet: a scene was created, and its scene items are not read. The scene item that showed the child
+            // goes, so the model checks the child, and the read is taken.
+            var other = h.World.AddScene("Other");
+            EngineEvents.SceneCreated(h, other, "Other");
+            h.World.Items[parent].Clear();
+            EngineEvents.ItemRemoved(h, parent, "Parent", id, child, "Child");
+            var check = h.Take();
+            Assert.NotNull(check);
+            Assert.Contains(check.Requests, request => request.Kind == ReadKind.Items && request.Target == child);
+            var answers = check.Requests.ToDictionary(request => request, request => h.World.Answer(request));
+
+            // OBS removes the child, which nothing shows, and destroys it; the event comes, and then the answer of the read that was taken before.
+            h.World.Items.Remove(child);
+            EngineEvents.SceneRemoved(h, child, "Child");
+            h.Complete(check, request => answers[request]);
+            h.SettleWithTime();
+
+            Assert.Empty(h.Engine.Snapshot().DetachedScenes);
+            Assert.Contains(h.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.SceneRemoved && change.Subject == child);
+            Assert.True(h.Engine.IsSettled);
+        }
     }
 }
