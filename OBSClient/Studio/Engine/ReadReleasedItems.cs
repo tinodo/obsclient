@@ -100,12 +100,13 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             var old = this._items.Where(item => item.Value.At < before).Select(item => (item.Key, item.Value.Source)).ToArray();
+            var reported = freed is null ? null : new HashSet<Guid>(freed);
             foreach (var (key, source) in old)
             {
                 this.Remove(key);
-                if (freed is not null && !this._users.ContainsKey(source) && !freed.Contains(source))
+                if (reported is not null && !this._users.ContainsKey(source) && reported.Add(source))
                 {
-                    freed.Add(source);
+                    freed!.Add(source);
                 }
             }
 

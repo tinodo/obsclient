@@ -123,15 +123,39 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
-        // What was held for a source ended (its time was up). A removed source that no scene item uses is judged as when its last scene item went: OBS destroyed it,
-        // or keeps it alive for something that nothing shows (a global audio input that is assigned to a channel), and in neither case can the application reach it.
+        // What was held for a source ended (its time was up). A removed input that no scene item uses is judged as when its last scene item goes (JudgeUnusedInput),
+        // and a scene as OnReferencesChanged says.
         private void JudgeAgain(Guid sourceUuid)
         {
-            var removed = (this._inputs.TryGetValue(sourceUuid, out var input) && input.State == SourceState.Detached)
-                || (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached);
-            if (removed)
+            if (this._inputs.TryGetValue(sourceUuid, out var input))
+            {
+                this.JudgeUnusedInput(input);
+            }
+            else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached)
             {
                 this.OnReferencesChanged(sourceUuid);
+            }
+        }
+
+        // A removed input that nothing that the model knows uses, and that nothing is held for: OBS destroyed it, or keeps it alive for something that nothing shows
+        // (a global audio input that is assigned to a channel), and in neither case can the application reach it. It is destroyed, as when its last scene item goes.
+        // Not while a check of the list of inputs is pending (its result judges the input again), nor while something is held for it (the end of that judges it again).
+        private void JudgeUnusedInput(InputNode input)
+        {
+            if (input.State != SourceState.Detached || input.CheckAfter != 0 || this.RefCount(input.Uuid) > 0 || this.HeldByRead(input.Uuid))
+            {
+                return;
+            }
+
+            if (this.ReferencesComplete())
+            {
+                this.DestroyInput(input);
+            }
+            else if (!input.RemovalUnresolved)
+            {
+                // The count says nothing until the scene items of every scene are known: ResolveRemovals decides then.
+                input.RemovalUnresolved = true;
+                this._unresolved.Add(input.Uuid);
             }
         }
 

@@ -141,11 +141,13 @@ namespace OBSStudioClient.Tests.Studio
             held.Add(new ItemKey(scene, 4), shared, TimeSpan.FromSeconds(2));
             held.Add(new ItemKey(scene, 5), shared, TimeSpan.FromSeconds(10));
 
-            var freed = new List<Guid>();
+            // The list that the caller gives may have entries already: a source is in it once however many scene items went.
+            var other = Guid.NewGuid();
+            var freed = new List<Guid> { gone, other };
             held.Prune(TimeSpan.FromSeconds(5), freed);
 
             // The source that another scene item that is held still used is not freed, and a source is told once however many scene items went.
-            Assert.Equal(new[] { gone, goneTwice }.OrderBy(uuid => uuid), freed.OrderBy(uuid => uuid));
+            Assert.Equal(new[] { gone, goneTwice, other }.OrderBy(uuid => uuid), freed.OrderBy(uuid => uuid));
             Assert.True(held.Holds(shared));
         }
     }

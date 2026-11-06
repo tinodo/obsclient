@@ -443,10 +443,16 @@ namespace OBSStudioClient.Studio.Engine
                     {
                         if (ticket.Id > input.CheckAfter)
                         {
-                            // OBS has the input, so it keeps it alive for a scene item.
+                            // OBS has the input, so it keeps it alive for a scene item. When nothing that the model knows uses it, and nothing is held for it
+                            // (the time for what was held can be up while the check was under way), it is kept alive by something that nothing shows.
                             input.RemovalUnresolved = false;
                             input.CheckAfter = 0;
                             this._unresolved.Remove(uuid);
+                            this.JudgeUnusedInput(input);
+                            if (input.State == SourceState.Gone)
+                            {
+                                continue;
+                            }
                         }
                         else
                         {

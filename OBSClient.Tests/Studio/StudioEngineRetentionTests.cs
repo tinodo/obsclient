@@ -168,6 +168,68 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void AnInputWhoseRemovalCheckIsStillPending_WhenTheTimeIsUpForWhatWasHeldForIt_IsLetGoOf_WhenTheCheckIsDone(bool pinReleased)
+        {
+            Guid doomed = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+            });
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            LaterAMessageArrives(h, TimeSpan.FromSeconds(1), "Other");
+            Assert.Equal(1, h.Engine.HeldItemCount);
+
+            // OBS removes the input, and the model asks the list of inputs, which is not read yet when the time is up for what was held: the look at what the
+            // engine remembers lets go of it while the check is pending, and the input is judged when the check is done.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            if (pinReleased)
+            {
+                h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+            }
+
+            LaterAMessageArrives(h, TimeSpan.FromMinutes(2), "Two");
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, h.Engine.HeldItemCount);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void AnInputThatIsStillHeldForWhenItsRemovalCheckIsDone_StaysWithoutAnotherCheck()
+        {
+            Guid doomed = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                doomed = world.AddScene("Doomed");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                world.AddItem(doomed, mic, "Mic");
+            });
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == doomed);
+            h.World.Items.Remove(doomed);
+            LaterAMessageArrives(h, TimeSpan.FromSeconds(1), "Other");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+
+            // The check is done while something is held: the input stays (the end of the hold judges it), and the list is not read for it again.
+            var lists = 0;
+            h.SettleWithTime(request =>
+            {
+                lists += request.Kind == ReadKind.Inputs ? 1 : 0;
+                return h.World.Answer(request);
+            });
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
+            Assert.Equal(1, lists);
+            Assert.Null(h.Take());
+            Assert.True(h.Engine.IsSettled);
+        }
+
         [Fact]
         public void TheSceneItemsThatWentWithASceneThatAReadFoundGone_AreLetGoOfByTimeWhenTheirSourceLivesOn()
         {
