@@ -16,6 +16,11 @@ namespace OBSStudioClient.Studio.Engine
         public void OnReadCompleted(ReadTicket ticket, IReadOnlyList<RequestResponseMessage> responses, TimeSpan now)
         {
             this._now = now;
+            if (!this.Owns(ticket))
+            {
+                return;
+            }
+
             this._seq = ticket.SentSeq;
             for (var i = 0; i < ticket.Requests.Count; i++)
             {
@@ -31,6 +36,7 @@ namespace OBSStudioClient.Studio.Engine
                 this.ApplyResponse(ticket, request, response, volumeResponse);
             }
 
+            this.ResolveRemovals();
             this.UpdateState();
         }
 
@@ -42,6 +48,11 @@ namespace OBSStudioClient.Studio.Engine
         public void OnReadFailed(ReadTicket ticket, TimeSpan now)
         {
             this._now = now;
+            if (!this.Owns(ticket))
+            {
+                return;
+            }
+
             foreach (var request in ticket.Requests)
             {
                 if (request.Kind != ReadKind.AudioVolume && this.ScopeOf(request) is { } scope)
@@ -49,6 +60,13 @@ namespace OBSStudioClient.Studio.Engine
                     this.Retry(scope);
                 }
             }
+        }
+
+        // A read belongs to the connection that it was sent on. What another connection's read says, or what a connection that ended would say,
+        // means nothing to this one, and must not release the parts that this one is reading.
+        private bool Owns(ReadTicket ticket)
+        {
+            return this._state != StudioEngineState.Disconnected && ticket.SessionId == this._sessionId;
         }
 
         private ScopeState? ScopeOf(ReadRequest request)
@@ -92,7 +110,7 @@ namespace OBSStudioClient.Studio.Engine
                 case ReadKind.Scenes:
                     if (ok && response!.ResponseData is SceneListResponse scenes)
                     {
-                        this._scenesScope.Attempts = 0;
+                        // The back-off starts again when nothing waits for the list any more (see ApplyScenes).
                         this.ApplyScenes(scenes, ticket);
                     }
                     else
@@ -123,7 +141,7 @@ namespace OBSStudioClient.Studio.Engine
                             this.Emit(StudioChangeKind.ProgramSceneChanged, program.SceneUuid, 0, program.SceneName);
                         }
 
-                        if (!this._scenes.ContainsKey(program.SceneUuid) && !this._gone.Contains(program.SceneUuid))
+                        if (!this._scenes.ContainsKey(program.SceneUuid) && !this.Removed(program.SceneUuid))
                         {
                             this._scenesScope.MarkDirty();
                         }
@@ -175,8 +193,16 @@ namespace OBSStudioClient.Studio.Engine
             }
             else if (notFound)
             {
-                // OBS does not have the scene any more (its removal may not have arrived yet): the list of scenes decides.
-                this._scenesScope.MarkDirty();
+                if (scene.RemovalUnresolved)
+                {
+                    // A scene that was removed and that the model did not know: OBS does not have it (a scene that it keeps alive can be read).
+                    this.DestroyScene(scene);
+                }
+                else
+                {
+                    // OBS does not have the scene any more (its removal may not have arrived yet): the list of scenes decides.
+                    this._scenesScope.MarkDirty();
+                }
             }
             else
             {
@@ -284,6 +310,18 @@ namespace OBSStudioClient.Studio.Engine
                     var created = new SceneNode(uuid, entry.SceneName, 0, sent, ticket.SentAt, confirmed: true) { Announced = true };
                     this._scenes[uuid] = created;
                     created.ItemsScope.MarkDirty();
+                    if (this._removedUnknown.Contains(uuid))
+                    {
+                        // An event told that OBS removed it before the model knew it. The list lags behind removals, and does not have a scene that
+                        // OBS keeps alive, so it says nothing about which: the scene items decide, when they are known.
+                        created.Announced = false;
+                        created.State = SourceState.Detached;
+                        created.RemovedAnnounced = true;
+                        created.RemovalUnresolved = true;
+                        this._unresolved.Add(uuid);
+                        continue;
+                    }
+
                     this.Emit(StudioChangeKind.SceneAdded, uuid, 0, created.Name.Value);
                     listed.Add(uuid);
                     order.Add(uuid);
@@ -320,6 +358,11 @@ namespace OBSStudioClient.Studio.Engine
             if (pending)
             {
                 this._scenesScope.MarkDirtyNotBefore(this._now + this.Backoff(this._scenesScope));
+            }
+            else
+            {
+                // Nothing waits for the list any more: the next repeat starts the back-off again.
+                this._scenesScope.Attempts = 0;
             }
 
             this._scenesRead = true;
@@ -358,7 +401,7 @@ namespace OBSStudioClient.Studio.Engine
                         input.Confirmed = true;
                     }
 
-                    if (input.HasAudio && !input.AudioKnown && !input.AudioScope.Dirty && !input.AudioScope.InFlight)
+                    if (input.HasAudio && !input.AudioKnown && !input.RemovalUnresolved && !input.AudioScope.Dirty && !input.AudioScope.InFlight)
                     {
                         input.AudioScope.MarkDirty();
                     }
@@ -369,6 +412,17 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     var created = new InputNode(uuid, entry.InputName, entry.InputKind, entry.UnversionedInputKind, entry.InputKindCaps, sent, ticket.SentAt, confirmed: true);
                     this._inputs[uuid] = created;
+                    if (this._removedUnknown.Contains(uuid))
+                    {
+                        // An event told that OBS removed it before the model knew it. The list has it while a scene item keeps it alive, and for a while
+                        // after it was destroyed: the scene items decide, when they are known.
+                        created.State = SourceState.Detached;
+                        created.RemovedAnnounced = true;
+                        created.RemovalUnresolved = true;
+                        this._unresolved.Add(uuid);
+                        continue;
+                    }
+
                     if (created.HasAudio)
                     {
                         created.AudioScope.MarkDirty();
@@ -410,6 +464,9 @@ namespace OBSStudioClient.Studio.Engine
                 if (scene.Items.TryGetValue(entry.SceneItemId, out var item))
                 {
                     this.ApplyItemEntry(item, entry, sent);
+
+                    // An item that an event made has no word about its source being a group or a scene that the lists do not have: this read does.
+                    this.EnsureItemSource(entry, item.SourceUuid);
                     continue;
                 }
 
@@ -421,7 +478,7 @@ namespace OBSStudioClient.Studio.Engine
                 }
 
                 var sourceUuid = entry.SourceUuid ?? Guid.Empty;
-                item = new ItemNode(scene, entry.SceneItemId, sourceUuid, entry.SceneItemIndex, sent);
+                item = new ItemNode(scene, entry.SceneItemId, sourceUuid, entry.SceneItemIndex, sent, fromRead: true);
                 scene.Items[item.Id] = item;
                 this.AddRef(item);
                 this.ApplyItemEntry(item, entry, sent);

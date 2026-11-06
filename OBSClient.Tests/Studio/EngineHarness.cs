@@ -13,6 +13,7 @@ namespace OBSStudioClient.Tests.Studio
         private long _seq;
         private TimeSpan _now;
         private int _requestId;
+        private int _session;
 
         public EngineHarness(StudioEngineOptions? options = null)
         {
@@ -34,7 +35,13 @@ namespace OBSStudioClient.Tests.Studio
 
         public void Start()
         {
-            this.Engine.OnSessionStarted(1, ++this._seq, this._now);
+            this.Engine.OnSessionStarted(++this._session, ++this._seq, this._now);
+        }
+
+        /// <summary>The connection ends.</summary>
+        public void End()
+        {
+            this.Engine.OnSessionEnded(this._session, ++this._seq, this._now);
         }
 
         /// <summary>Delivers an event, which gets the next number.</summary>
@@ -52,11 +59,14 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         /// <summary>Answers a read: the response messages arrive (they get the next number) and the engine is told.</summary>
-        public void Complete(ReadTicket ticket, Func<ReadRequest, (int Code, object? Data)>? answer = null)
+        /// <param name="ticket">The read.</param>
+        /// <param name="answer">What OBS answers to a request; the world by default.</param>
+        /// <param name="only">The number of responses that arrive, when it is not all of them (a batch that ended early).</param>
+        public void Complete(ReadTicket ticket, Func<ReadRequest, (int Code, object? Data)>? answer = null, int? only = null)
         {
             answer ??= this.World.Answer;
             var responses = new List<RequestResponseMessage>();
-            foreach (var request in ticket.Requests)
+            foreach (var request in ticket.Requests.Take(only ?? int.MaxValue))
             {
                 var (code, data) = answer(request);
                 var json = JsonSerializer.Serialize(new

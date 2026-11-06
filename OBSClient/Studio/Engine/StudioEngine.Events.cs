@@ -84,7 +84,7 @@ namespace OBSStudioClient.Studio.Engine
 
         private void OnSceneCreated(SceneModifiedEventArgs e)
         {
-            if (this._gone.Contains(e.SceneUuid))
+            if (this.Removed(e.SceneUuid))
             {
                 // A late copy of the event of a scene that is gone already (obs-websocket sends it twice).
                 return;
@@ -116,7 +116,7 @@ namespace OBSStudioClient.Studio.Engine
                 // OBS puts a new scene at the top of the list.
                 foreach (var other in this._scenes.Values)
                 {
-                    if (!ReferenceEquals(other, scene) && !other.IsGroup && other.State == SourceState.Live && other.Index.ApplyEvent(other.Index.Value + 1, this._seq))
+                    if (!ReferenceEquals(other, scene) && !other.IsGroup && other.State == SourceState.Live && other.Index.ApplyDerived(other.Index.Value + 1, this._seq))
                     {
                         this.Emit(StudioChangeKind.SceneOrderChanged, other.Uuid, 0, other.Name.Value);
                     }
@@ -132,8 +132,9 @@ namespace OBSStudioClient.Studio.Engine
         {
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene))
             {
-                // Not known (yet): a copy of its creation that arrives later must not bring it back.
-                this._gone.Add(e.SceneUuid);
+                // Not known (yet): a copy of its creation that arrives later must not bring it back. A list that has it still decides whether
+                // OBS keeps it alive for a scene item.
+                this._removedUnknown.Add(e.SceneUuid);
                 return;
             }
 
@@ -151,7 +152,7 @@ namespace OBSStudioClient.Studio.Engine
                     this.Emit(StudioChangeKind.SceneRenamed, scene.Uuid, 0, scene.Name.Value, old, scene.Name.Value);
                 }
             }
-            else if (!this._gone.Contains(e.SceneUuid))
+            else if (!this.Removed(e.SceneUuid))
             {
                 this._scenesScope.MarkDirty();
             }
@@ -162,7 +163,7 @@ namespace OBSStudioClient.Studio.Engine
             var listed = new List<Guid>();
             foreach (var entry in e.Scenes)
             {
-                if (this._gone.Contains(entry.SceneUuid))
+                if (this.Removed(entry.SceneUuid))
                 {
                     // The list can still have scenes that were removed.
                     continue;
@@ -183,7 +184,7 @@ namespace OBSStudioClient.Studio.Engine
 
         private void OnInputCreated(InputCreatedEventArgs e, JsonElement? raw)
         {
-            if (this._gone.Contains(e.InputUuid) || this._inputs.ContainsKey(e.InputUuid))
+            if (this.Removed(e.InputUuid) || this._inputs.ContainsKey(e.InputUuid))
             {
                 return;
             }
@@ -210,7 +211,8 @@ namespace OBSStudioClient.Studio.Engine
         {
             if (!this._inputs.TryGetValue(e.InputUuid, out var input))
             {
-                this._gone.Add(e.InputUuid);
+                // Not known (yet): see OnSceneRemoved.
+                this._removedUnknown.Add(e.InputUuid);
                 return;
             }
 
@@ -228,7 +230,7 @@ namespace OBSStudioClient.Studio.Engine
                     this.Emit(StudioChangeKind.InputRenamed, input.Uuid, 0, input.Name.Value, old, input.Name.Value);
                 }
             }
-            else if (!this._gone.Contains(e.InputUuid))
+            else if (!this.Removed(e.InputUuid))
             {
                 this._inputsScope.MarkDirty();
             }
@@ -244,7 +246,7 @@ namespace OBSStudioClient.Studio.Engine
                     this.Emit(StudioChangeKind.InputMuteChanged, input.Uuid, 0, input.Name.Value, old, input.Muted.Value);
                 }
             }
-            else if (!this._gone.Contains(e.InputUuid))
+            else if (!this.Removed(e.InputUuid))
             {
                 this._inputsScope.MarkDirty();
             }
@@ -262,7 +264,7 @@ namespace OBSStudioClient.Studio.Engine
                     this.Emit(StudioChangeKind.InputVolumeChanged, input.Uuid, 0, input.Name.Value, old, input.VolumeDb.Value);
                 }
             }
-            else if (!this._gone.Contains(e.InputUuid))
+            else if (!this.Removed(e.InputUuid))
             {
                 this._inputsScope.MarkDirty();
             }
@@ -272,7 +274,7 @@ namespace OBSStudioClient.Studio.Engine
         {
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene))
             {
-                if (!this._gone.Contains(e.SceneUuid))
+                if (!this.Removed(e.SceneUuid))
                 {
                     this._scenesScope.MarkDirty();
                 }
@@ -289,13 +291,13 @@ namespace OBSStudioClient.Studio.Engine
             // The new item takes its place: the items from there upwards move up.
             foreach (var other in scene.Items.Values)
             {
-                if (other.Index.Value >= e.SceneItemIndex && other.Index.ApplyEvent(other.Index.Value + 1, this._seq) && other.Announced)
+                if (other.Index.Value >= e.SceneItemIndex && other.Index.ApplyDerived(other.Index.Value + 1, this._seq) && other.Announced)
                 {
                     this.Emit(StudioChangeKind.ItemIndexChanged, scene.Uuid, other.Id);
                 }
             }
 
-            var item = new ItemNode(scene, e.SceneItemId, e.SourceUuid, e.SceneItemIndex, this._seq);
+            var item = new ItemNode(scene, e.SceneItemId, e.SourceUuid, e.SceneItemIndex, this._seq, fromRead: false);
             scene.Items[item.Id] = item;
             this.AddRef(item);
             this.EnsureSourceKnown(item.SourceUuid);
@@ -321,7 +323,7 @@ namespace OBSStudioClient.Studio.Engine
             // The items above it move down, and OBS does not say so.
             foreach (var other in scene.Items.Values)
             {
-                if (other.Index.Value > index && other.Index.ApplyEvent(other.Index.Value - 1, this._seq) && other.Announced)
+                if (other.Index.Value > index && other.Index.ApplyDerived(other.Index.Value - 1, this._seq) && other.Announced)
                 {
                     this.Emit(StudioChangeKind.ItemIndexChanged, scene.Uuid, other.Id);
                 }
@@ -334,7 +336,7 @@ namespace OBSStudioClient.Studio.Engine
         {
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene))
             {
-                if (!this._gone.Contains(e.SceneUuid))
+                if (!this.Removed(e.SceneUuid))
                 {
                     this._scenesScope.MarkDirty();
                 }
@@ -390,7 +392,7 @@ namespace OBSStudioClient.Studio.Engine
             item = null!;
             if (!this._scenes.TryGetValue(sceneUuid, out var scene))
             {
-                if (!this._gone.Contains(sceneUuid))
+                if (!this.Removed(sceneUuid))
                 {
                     this._scenesScope.MarkDirty();
                 }

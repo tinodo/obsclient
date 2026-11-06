@@ -45,9 +45,10 @@ namespace OBSStudioClient.Studio.Engine
     /// </summary>
     internal sealed class ReadTicket
     {
-        public ReadTicket(int id, long sentSeq, TimeSpan sentAt, IReadOnlyList<ReadRequest> requests)
+        public ReadTicket(int id, int sessionId, long sentSeq, TimeSpan sentAt, IReadOnlyList<ReadRequest> requests)
         {
             this.Id = id;
+            this.SessionId = sessionId;
             this.SentSeq = sentSeq;
             this.SentAt = sentAt;
             this.Requests = requests;
@@ -55,6 +56,9 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets the number of the ticket.</summary>
         public int Id { get; }
+
+        /// <summary>Gets the connection that the read belongs to: its result means nothing to another one.</summary>
+        public int SessionId { get; }
 
         /// <summary>Gets the number of the last message that had arrived when the requests were sent.</summary>
         public long SentSeq { get; }
@@ -92,7 +96,7 @@ namespace OBSStudioClient.Studio.Engine
         /// </summary>
         public TimeSpan CreationGrace { get; set; } = TimeSpan.FromSeconds(10);
 
-        /// <summary>Gets or sets the number of requests in one read.</summary>
+        /// <summary>Gets or sets the number of requests in one read. It cannot be less than 2: an audio state is read with two requests.</summary>
         public int MaxBatch { get; set; } = 50;
 
         /// <summary>Gets or sets how long the engine waits before it checks the list of inputs after an input lost its last scene item.</summary>
@@ -126,8 +130,16 @@ namespace OBSStudioClient.Studio.Engine
         private readonly Dictionary<Guid, SceneNode> _scenes = new();
         private readonly Dictionary<Guid, InputNode> _inputs = new();
         private readonly Dictionary<Guid, HashSet<ItemKey>> _refs = new();
+
+        // What OBS destroyed, and what was removed before the model knew it. Both guard against the messages that are older than the removal: a
+        // read that was sent before it, the second copy of a creation event. They are for one connection: another one reads everything again,
+        // and a source that was removed can be there again (the scene collection that had it was loaded again).
         private readonly HashSet<Guid> _gone = new();
         private readonly HashSet<ItemKey> _goneItems = new();
+        private readonly HashSet<Guid> _removedUnknown = new();
+
+        // The sources that were removed while the model did not know their scene items yet: whether OBS destroyed them is not known.
+        private readonly HashSet<Guid> _unresolved = new();
         private readonly List<StudioChange> _changes = new();
         private readonly ScopeState _scenesScope = new();
         private readonly ScopeState _inputsScope = new();
@@ -138,6 +150,7 @@ namespace OBSStudioClient.Studio.Engine
         private StudioEngineState _state = StudioEngineState.Disconnected;
         private TimeSpan _now;
         private int _nextTicket;
+        private int _sessionId;
         private bool _scenesRead;
         private bool _inputsRead;
         private bool _programRead;
@@ -146,6 +159,7 @@ namespace OBSStudioClient.Studio.Engine
         public StudioEngine(StudioEngineOptions? options = null)
         {
             this._options = options ?? new StudioEngineOptions();
+            ArgumentOutOfRangeException.ThrowIfLessThan(this._options.MaxBatch, 2, nameof(options));
         }
 
         /// <summary>Gets the state of the connection of the engine.</summary>
@@ -158,12 +172,18 @@ namespace OBSStudioClient.Studio.Engine
         public bool IsSettled => this._state != StudioEngineState.Disconnected && this.PendingWork() == 0;
 
         /// <summary>
-        /// Gets the time at which the engine wants to be called again although nothing arrives (a read that waits for its turn), or null.
+        /// Gets the time at which the engine wants to be called again although nothing arrives (a read that waits for its turn), or null. While there
+        /// is no connection there is nothing to read, so it is null then.
         /// </summary>
         public TimeSpan? NextWake
         {
             get
             {
+                if (this._state == StudioEngineState.Disconnected)
+                {
+                    return null;
+                }
+
                 TimeSpan? earliest = null;
                 foreach (var scope in this.AllScopes())
                 {
@@ -181,8 +201,20 @@ namespace OBSStudioClient.Studio.Engine
         public void OnSessionStarted(int sessionId, long seq, TimeSpan now)
         {
             this._now = now;
+            this._sessionId = sessionId;
             this._state = StudioEngineState.Synchronizing;
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
+
+            // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has
+            // it was loaded again), and what its scene items were is read again before a removal is taken to be a destruction.
+            this._gone.Clear();
+            this._goneItems.Clear();
+            this._removedUnknown.Clear();
+            foreach (var scene in this._scenes.Values)
+            {
+                scene.ItemsKnown = false;
+            }
+
             foreach (var scope in this.AllScopes())
             {
                 scope.InFlight = false;
@@ -224,12 +256,19 @@ namespace OBSStudioClient.Studio.Engine
             var requests = new List<ReadRequest>();
             var max = this._options.MaxBatch;
 
-            void Take(ScopeState scope, params ReadRequest[] taken)
+            // Takes the requests of a part when they fit in what is left of the batch; a part that does not fit waits for the next one.
+            bool Take(ScopeState scope, params ReadRequest[] taken)
             {
+                if (requests.Count + taken.Length > max)
+                {
+                    return false;
+                }
+
                 scope.Dirty = false;
                 scope.InFlight = true;
                 scope.SentSeq = lastIngress;
                 requests.AddRange(taken);
+                return true;
             }
 
             if (this._scenesScope.IsReady(now))
@@ -287,7 +326,7 @@ namespace OBSStudioClient.Studio.Engine
                 return false;
             }
 
-            ticket = new ReadTicket(++this._nextTicket, lastIngress, now, requests);
+            ticket = new ReadTicket(++this._nextTicket, this._sessionId, lastIngress, now, requests);
             return true;
         }
 
@@ -332,7 +371,7 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
-            return pending + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead ? 0 : 1);
+            return pending + this._unresolved.Count + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead ? 0 : 1);
         }
 
         private IEnumerable<ScopeState> AllScopes()
@@ -346,9 +385,13 @@ namespace OBSStudioClient.Studio.Engine
                 yield return scene.ItemsScope;
             }
 
+            // The audio state of an input without audio is never read, so it has nothing to wait for.
             foreach (var input in this._inputs.Values)
             {
-                yield return input.AudioScope;
+                if (input.HasAudio)
+                {
+                    yield return input.AudioScope;
+                }
             }
         }
 

@@ -73,7 +73,7 @@ namespace OBSStudioClient.Studio.Engine
         protected SourceNode(Guid uuid, string name, long createdSeq, TimeSpan createdAt, bool confirmed)
         {
             this.Uuid = uuid;
-            this.Name = new Cell<string>(name, createdSeq);
+            this.Name = confirmed ? Cell<string>.FromRead(name, createdSeq) : new Cell<string>(name, createdSeq);
             this.CreatedSeq = createdSeq;
             this.CreatedAt = createdAt;
             this.Confirmed = confirmed;
@@ -97,6 +97,12 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets or sets whether OBS announced the removal of the source (InputRemoved or SceneRemoved).</summary>
         public bool RemovedAnnounced { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the source was removed, and the model does not know yet whether OBS destroyed it or keeps it alive for scene items that it
+        /// has not read yet. The source is Detached meanwhile; the scene items decide.
+        /// </summary>
+        public bool RemovalUnresolved { get; set; }
+
         /// <summary>Gets or sets whether the model told that the source exists (an Added change was made).</summary>
         public bool Announced { get; set; }
 
@@ -115,7 +121,7 @@ namespace OBSStudioClient.Studio.Engine
         public SceneNode(Guid uuid, string name, int index, long createdSeq, TimeSpan createdAt, bool confirmed)
             : base(uuid, name, createdSeq, createdAt, confirmed)
         {
-            this.Index = new Cell<int>(index, createdSeq);
+            this.Index = confirmed ? Cell<int>.FromRead(index, createdSeq) : new Cell<int>(index, createdSeq);
         }
 
         /// <summary>Gets or sets whether the scene is a group.</summary>
@@ -204,13 +210,13 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Whether the item is locked.</summary>
         public Cell<bool> Locked;
 
-        public ItemNode(SceneNode scene, int id, Guid sourceUuid, int index, long createdSeq)
+        public ItemNode(SceneNode scene, int id, Guid sourceUuid, int index, long createdSeq, bool fromRead)
         {
             this.Scene = scene;
             this.Id = id;
             this.SourceUuid = sourceUuid;
             this.CreatedSeq = createdSeq;
-            this.Index = new Cell<int>(index, createdSeq);
+            this.Index = fromRead ? Cell<int>.FromRead(index, createdSeq) : new Cell<int>(index, createdSeq);
             this.Enabled = new Cell<bool>(true, 0);
             this.Locked = new Cell<bool>(false, 0);
         }
