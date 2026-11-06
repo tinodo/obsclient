@@ -144,6 +144,17 @@ namespace OBSStudioClient.Studio.Engine
                 return;
             }
 
+            // The name in the event is the name that the scene had when OBS removed it. The model may not have it: a rename that OBS made while the connection
+            // was down is not sent again, and no list of scenes has a scene that OBS keeps alive for the scene items that show it.
+            if (!string.IsNullOrEmpty(e.SceneName))
+            {
+                var old = scene.Name.Value;
+                if (scene.Name.ApplyEvent(e.SceneName, this._seq))
+                {
+                    this.Emit(StudioChangeKind.SceneRenamed, scene.Uuid, 0, scene.Name.Value, old, scene.Name.Value);
+                }
+            }
+
             // A scene that a read found Detached (a scene item showed it, or the list of scenes lacked it) is removed by this event as any other: the event
             // says where in the order of what happened OBS removed it, and the scene items that the model knows now decide what OBS did with it.
             var detachedBefore = scene.State == SourceState.Detached && !scene.RemovedAnnounced;
@@ -223,6 +234,16 @@ namespace OBSStudioClient.Studio.Engine
                 // Not known (yet): see OnSceneRemoved.
                 this._removedUnknown.Add(e.InputUuid);
                 return;
+            }
+
+            // The name that the input had when OBS removed it: see OnSceneRemoved.
+            if (!string.IsNullOrEmpty(e.InputName))
+            {
+                var old = input.Name.Value;
+                if (input.Name.ApplyEvent(e.InputName, this._seq))
+                {
+                    this.Emit(StudioChangeKind.InputRenamed, input.Uuid, 0, input.Name.Value, old, input.Name.Value);
+                }
             }
 
             input.RemovedAnnounced = true;

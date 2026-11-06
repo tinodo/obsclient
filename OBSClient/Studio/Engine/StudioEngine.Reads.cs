@@ -507,6 +507,7 @@ namespace OBSStudioClient.Studio.Engine
 
                     // An item that an event made has no word about its source being a group or a scene that the lists do not have: this read does.
                     this.EnsureItemSource(entry, item.SourceUuid);
+                    this.ApplySourceName(entry, item.SourceUuid, sent);
                     continue;
                 }
 
@@ -523,6 +524,7 @@ namespace OBSStudioClient.Studio.Engine
                 this.AddRef(item);
                 this.ApplyItemEntry(item, entry, sent);
                 this.EnsureItemSource(entry, sourceUuid);
+                this.ApplySourceName(entry, sourceUuid, sent);
             }
 
             // Items that the model holds and that the list does not have. The list of items is right at once, so an item that is missing was
@@ -560,6 +562,33 @@ namespace OBSStudioClient.Studio.Engine
 
             item.Known = true;
             this.TryAnnounce(item);
+        }
+
+        // The name that a read of scene items gives to the source of an item. A scene that OBS removed and keeps alive for the scene items that show it is in no
+        // list of scenes, so these items are the only place that has its name now: a rename that the model missed (a connection that ended in between) is found here.
+        private void ApplySourceName(SceneItem entry, Guid sourceUuid, long sent)
+        {
+            if (string.IsNullOrEmpty(entry.SourceName))
+            {
+                return;
+            }
+
+            if (this._scenes.TryGetValue(sourceUuid, out var scene))
+            {
+                var old = scene.Name.Value;
+                if (scene.Name.ApplyRead(entry.SourceName, sent))
+                {
+                    this.Emit(StudioChangeKind.SceneRenamed, scene.Uuid, 0, scene.Name.Value, old, scene.Name.Value);
+                }
+            }
+            else if (this._inputs.TryGetValue(sourceUuid, out var input))
+            {
+                var old = input.Name.Value;
+                if (input.Name.ApplyRead(entry.SourceName, sent))
+                {
+                    this.Emit(StudioChangeKind.InputRenamed, input.Uuid, 0, input.Name.Value, old, input.Name.Value);
+                }
+            }
         }
 
         // The source of an item that a read found: when it is a scene that the lists do not have, it is a scene that OBS removed and keeps alive.
