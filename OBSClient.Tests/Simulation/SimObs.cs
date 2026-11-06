@@ -65,6 +65,7 @@ namespace OBSStudioClient.Tests.Simulation
         private long _messageSequence;
         private long _actionSequence;
         private int _requestCounter;
+        private TimeSpan _lastEventAt;
 
         /// <summary>Initializes a new instance of the <see cref="SimObs"/> class.</summary>
         /// <param name="quirks">What the simulated OBS Studio does that a perfect one would not. The default is <see cref="SimQuirks.Real"/>.</param>
@@ -616,7 +617,8 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         // Puts the response and the events of a change in the queue of what OBS Studio sends. The events keep the order in which they were
-        // emitted among themselves; the response is somewhere among them (fact 1) and the times of events of different changes interleave.
+        // emitted among themselves, also across changes (SimQuirks.ReorderEventsAcrossChanges turns that off); the response is somewhere
+        // among the events of its change (fact 1), and does not wait for the events of other changes.
         private void Deliver(List<EmittedEvent> events, string? responseJson, int responseOp)
         {
             var now = Clock.Now;
@@ -629,26 +631,30 @@ namespace OBSStudioClient.Tests.Simulation
                 times[index] = now + SampleEventLatency(events[index].Type);
             }
 
+            // When the last event so far would be sent without waiting for the events of earlier changes, and when it is sent.
             var last = now;
+            var sent = now;
             for (var index = 0; index < before; index++)
             {
-                last = EnqueueEvent(events, times, index, last);
+                last = EnqueueEvent(events, times, index, last, ref sent);
             }
 
             if (responseJson is not null)
             {
-                var at = responseAt > last ? responseAt : last;
+                // In Event First mode every event of the change is sent before the response, wherever it had to wait for.
+                var floor = Quirks.EventResponseOrder == SimEventResponseOrder.EventFirst ? sent : last;
+                var at = responseAt > floor ? responseAt : floor;
                 Enqueue(new SimMessage(_messageSequence++, at, responseOp, responseJson));
                 last = at;
             }
 
             for (var index = before; index < count; index++)
             {
-                last = EnqueueEvent(events, times, index, last);
+                last = EnqueueEvent(events, times, index, last, ref sent);
             }
         }
 
-        private TimeSpan EnqueueEvent(List<EmittedEvent> events, TimeSpan[] times, int index, TimeSpan last)
+        private TimeSpan EnqueueEvent(List<EmittedEvent> events, TimeSpan[] times, int index, TimeSpan last, ref TimeSpan sent)
         {
             var emitted = events[index];
             var at = times[index] > last ? times[index] : last;
@@ -661,11 +667,23 @@ namespace OBSStudioClient.Tests.Simulation
                 }
             }
 
-            times[index] = at;
+            // It is not sent before an event of an earlier change, unless the quirk says it may be.
+            var sentAt = !Quirks.ReorderEventsAcrossChanges && _lastEventAt > at ? _lastEventAt : at;
+            times[index] = sentAt;
+            if (sentAt > sent)
+            {
+                sent = sentAt;
+            }
+
+            if (sentAt > _lastEventAt)
+            {
+                _lastEventAt = sentAt;
+            }
+
             var json = Serialize(Obj(
                 ("d", Obj(("eventData", emitted.Data), ("eventIntent", emitted.Intent), ("eventType", emitted.Type))),
                 ("op", SimOp.Event)));
-            Enqueue(new SimMessage(_messageSequence++, at, SimOp.Event, json));
+            Enqueue(new SimMessage(_messageSequence++, sentAt, SimOp.Event, json));
             return at;
         }
 

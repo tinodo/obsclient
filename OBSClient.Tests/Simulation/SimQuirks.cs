@@ -121,6 +121,14 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the long latency that an event sometimes has (fact 1: within 50 ms).</summary>
         public SimRange EventLatencyTail { get; init; }
 
+        /// <summary>
+        /// Gets a value indicating whether an event can be sent before an event of an earlier change, so that the events of two changes
+        /// interleave according to their latencies. It is off in every preset. Events are sent from a thread pool (fact 1), so it can happen, but
+        /// it was never seen: after bursts of 100 requests the last event always equalled the state of OBS Studio (fact 3). When it happens, two
+        /// events for one value arrive in the wrong order, no client can tell, and the older value stays until something else tells.
+        /// </summary>
+        public bool ReorderEventsAcrossChanges { get; init; }
+
         /// <summary>Gets the latency of <c>InputSettingsChanged</c> (fact 2: 14 to 50 ms after the response). That event is not emitted yet.</summary>
         public SimRange InputSettingsChangedLatency { get; init; }
 

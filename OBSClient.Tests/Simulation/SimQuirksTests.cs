@@ -142,13 +142,33 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
-        public void Fact1_TheEventsOfDifferentChangesInterleave_AccordingToTheirLatencies()
+        public void Fact3_TheEventsOfDifferentChangesKeepTheirOrder_ByDefault()
+        {
+            foreach (var quirks in new[] { Ideal with { EventLatency = new SimRange(0, 100) }, SimQuirks.Real, SimQuirks.Hostile })
+            {
+                for (var seed = 1; seed <= 100; seed++)
+                {
+                    var h = new SimHarness(quirks, seed);
+
+                    h.Sim.External.CreateScene("A");
+                    h.Sim.External.CreateScene("B");
+                    h.Sim.External.CreateScene("C");
+                    h.Settle();
+
+                    var names = h.Log.Where(entry => entry.Name == "SceneCreated").Select(entry => entry.String("sceneName")).Distinct().ToArray();
+                    Assert.Equal(["A", "B", "C"], names);
+                }
+            }
+        }
+
+        [Fact]
+        public void Fact1_TheEventsOfDifferentChangesInterleave_AccordingToTheirLatencies_WhenTheyMay()
         {
             var otherFirst = false;
             var sameFirst = false;
             for (var seed = 1; seed <= 100; seed++)
             {
-                var h = new SimHarness(Ideal with { EventLatency = new SimRange(0, 100) }, seed);
+                var h = new SimHarness(Ideal with { EventLatency = new SimRange(0, 100), ReorderEventsAcrossChanges = true }, seed);
 
                 h.Sim.External.CreateScene("A");
                 h.Sim.External.CreateScene("B");
