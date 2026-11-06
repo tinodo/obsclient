@@ -50,6 +50,7 @@ namespace OBSStudioClient.Tests.Studio
         private readonly int _seed;
         private readonly List<string> _trace = [];
         private readonly List<string> _names = [];
+        private readonly HashSet<Guid> _pinsReleased = [];
         private readonly List<Operation> _operations = [];
         private TimeSpan _clock;
         private long _seq;
@@ -187,6 +188,10 @@ namespace OBSStudioClient.Tests.Studio
             }
 
             var problems = Differences(truth, model);
+            problems.AddRange(this.Leaks(truth, model));
+
+            // What the model holds has to be consistent with itself too: a source that OBS destroyed can be absent from every comparison below and still be held.
+            problems.AddRange(this._engine.CheckConsistency().Select(problem => "inconsistent: " + problem));
             if (model.State != StudioEngineState.Synchronized)
             {
                 problems.Add($"The engine is {model.State}, not Synchronized.");
@@ -222,6 +227,19 @@ namespace OBSStudioClient.Tests.Studio
             }
 
             return problems;
+        }
+
+        // A removed input that no scene item uses is not compared (see Project), but the model may hold one only when OBS Studio does. One that OBS Studio destroyed
+        // and that the model still holds is a leak, unless OBS Studio destroyed it by letting go of its pin: a global audio device stays alive that way, silently
+        // (no event says so, and the model learns it from the next list of inputs that it reads).
+        private List<string> Leaks(SimSnapshot truth, EngineSnapshot model)
+        {
+            var alive = truth.Inputs.Select(input => input.Uuid).ToHashSet();
+            var shown = ReferencedSources(model);
+            return model.Inputs
+                .Where(input => input.State == SourceState.Detached && !shown.Contains(input.Uuid) && !alive.Contains(input.Uuid) && !this._pinsReleased.Contains(input.Uuid))
+                .Select(input => $"leak: the model holds the input {input.Uuid:D} \"{input.Name}\", which OBS Studio destroyed, as removed but alive.")
+                .ToList();
         }
 
         // The decibels tell quiet levels apart (6 dB at -60 dB is a difference of 0.001 in the multiplier), and the multiplier is compared by its share, so that
@@ -264,7 +282,7 @@ namespace OBSStudioClient.Tests.Studio
         private static List<string> Project(EngineSnapshot snapshot)
         {
             var lines = new List<string> { "program scene " + (snapshot.ProgramSceneUuid?.ToString("D") ?? "(none)") };
-            var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
+            var referenced = ReferencedSources(snapshot);
             foreach (var scene in snapshot.Scenes)
             {
                 lines.Add($"scene [{scene.Index.ToString(CultureInfo.InvariantCulture)}] {scene.Uuid:D} \"{scene.Name}\"");
@@ -277,6 +295,8 @@ namespace OBSStudioClient.Tests.Studio
                 lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
             }
 
+            // The same as the other side: a removed input that no scene item uses is not compared (the model can hold it, when OBS Studio keeps it alive, and
+            // Differences checks that OBS Studio does).
             foreach (var input in snapshot.Inputs.OrderBy(input => input.Uuid))
             {
                 var detached = input.State == SourceState.Detached;
@@ -287,6 +307,11 @@ namespace OBSStudioClient.Tests.Studio
             }
 
             return lines;
+        }
+
+        private static HashSet<Guid> ReferencedSources(EngineSnapshot snapshot)
+        {
+            return snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
         }
 
         private static string ItemLine(int id, int index, Guid source, bool enabled, bool locked)
@@ -688,6 +713,7 @@ namespace OBSStudioClient.Tests.Studio
                 if (pinned.Length > 0)
                 {
                     var input = this.Pick(pinned);
+                    this._pinsReleased.Add(input.Uuid);
                     this.Act($"let go of the pin of input \"{input.Name}\" {Short(input.Uuid)}", () => this._sim.External.DisableGlobalInput(input.Uuid));
                 }
             });

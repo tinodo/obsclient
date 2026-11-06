@@ -31,8 +31,10 @@ namespace OBSStudioClient.Tests.Studio
         public void After_a_random_walk_the_model_holds_what_OBS_Studio_holds(string quirks, int maxBatch, bool reconnects)
         {
             var failures = new List<string>();
-            for (var seed = FirstSeed; seed < FirstSeed + Seeds; seed++)
+            var walks = 0;
+            foreach (var seed in SeedRange(FirstSeed, Seeds))
             {
+                walks++;
                 var result = Run(seed, quirks, maxBatch, reconnects);
                 if (result.Problem is not null)
                 {
@@ -44,9 +46,35 @@ namespace OBSStudioClient.Tests.Studio
                 }
             }
 
+            Assert.True(walks > 0, "No walk was run.");
             Assert.True(
                 failures.Count == 0,
                 $"{failures.Count} of the walks ended with a model that is not what OBS Studio is (the first ones are shown):{Environment.NewLine}{string.Join(Environment.NewLine + new string('=', 100) + Environment.NewLine, failures)}");
+        }
+
+        // The seeds of a run. The first seed and the number of seeds are not added in an int: for a first seed near the end of the range the sum overflows, the loop
+        // does not run, and the test passes without having walked once.
+        internal static IEnumerable<int> SeedRange(int first, int count)
+        {
+            var last = Math.Min((long)first + count - 1, int.MaxValue);
+            for (var seed = (long)first; seed <= last; seed++)
+            {
+                yield return (int)seed;
+            }
+        }
+
+        [Fact]
+        public void The_seeds_of_a_run_are_the_ones_that_were_asked_for()
+        {
+            Assert.Equal(new[] { 5, 6, 7 }, SeedRange(5, 3));
+            Assert.Equal(25, SeedRange(1, 25).Count());
+        }
+
+        [Fact]
+        public void The_seeds_of_a_run_do_not_overflow_at_the_end_of_the_range_and_are_never_none()
+        {
+            Assert.Equal(new[] { int.MaxValue - 1, int.MaxValue }, SeedRange(int.MaxValue - 1, 10));
+            Assert.Equal(new[] { int.MaxValue }, SeedRange(int.MaxValue, 5));
         }
 
         [Fact]
