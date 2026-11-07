@@ -50,17 +50,26 @@ namespace OBSStudioClient.Tests.Unit
         }
 
         [Fact]
-        public void EveryPublicClass_IsSealed_ExceptTheExceptionsAndTheBaseOfTransitionResponse()
+        public void EveryPublicClass_IsSealed_ExceptTheExceptionsAndTheTwoBases()
         {
-            // Transition is what TransitionResponse (the answer to GetCurrentSceneTransition) adds to, so it cannot be sealed. An exception
-            // can be derived from by the code that catches it, as it can in the framework.
+            // Transition is what TransitionResponse (the answer to GetCurrentSceneTransition) adds to, so it cannot be sealed. ObsSource is the base
+            // of ObsScene and ObsInput, whose constructor is private protected: only this library can derive from it, so it cannot be made a
+            // problem by someone else. An exception can be derived from by the code that catches it, as it can in the framework.
             var open = PublicTypes
                 .Where(type => type.IsClass && !type.IsSealed && !typeof(Exception).IsAssignableFrom(type))
                 .Select(type => type.FullName)
                 .Order()
                 .ToList();
 
-            Assert.Equal(["OBSStudioClient.Classes.Transition"], open);
+            Assert.Equal(["OBSStudioClient.Classes.Transition", "OBSStudioClient.Studio.ObsSource"], open);
+        }
+
+        [Fact]
+        public void TheBaseOfTheStudioObjects_CannotBeDerivedFromOutsideTheLibrary()
+        {
+            var constructors = typeof(OBSStudioClient.Studio.ObsSource).GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            Assert.All(constructors, constructor => Assert.True(constructor.IsFamilyAndAssembly, "The constructor of ObsSource has to be private protected."));
         }
 
         [Fact]
@@ -121,7 +130,7 @@ namespace OBSStudioClient.Tests.Unit
             Assert.True(unused.Count == 0, "Public types that nothing in the API uses (remove them, or make them internal): " + string.Join(", ", unused) + ".");
         }
 
-        // The type itself, and every type that it is made of: the element of an array, the arguments of a generic type.
+        // The type itself, and every type that it is made of: the element of an array, the definition and the arguments of a generic type.
         private static IEnumerable<Type> TypesIn(Type type)
         {
             while (type.HasElementType)
@@ -132,6 +141,7 @@ namespace OBSStudioClient.Tests.Unit
             yield return type;
             if (type.IsGenericType)
             {
+                yield return type.GetGenericTypeDefinition();
                 foreach (var argument in type.GetGenericArguments())
                 {
                     foreach (var inner in TypesIn(argument))

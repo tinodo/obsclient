@@ -226,16 +226,23 @@
             }
         }
 
-        // The setter of AutoReconnect. With a session it only changes the setting while that session is the active one: the check and the
-        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the
-        // setting of the one that replaced it.
-        private void SetAutoReconnect(bool value, ConnectionSession? onlyForSession = null)
+        // The setter of AutoReconnect.
+        private void SetAutoReconnect(bool value)
+        {
+            this.ChangeAutoReconnect(value, null)?.Invoke();
+        }
+
+        // Changes the setting, and returns what raises the notification of the change (null when nothing was changed): the caller raises it when it likes.
+        // A handler runs on the thread that raises it. With a session it only changes the setting while that session is the active one: the check and the
+        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the setting of
+        // the one that replaced it.
+        private Action? ChangeAutoReconnect(bool value, ConnectionSession? onlyForSession)
         {
             lock (_syncRoot)
             {
                 if (onlyForSession is not null && !ReferenceEquals(this._session, onlyForSession))
                 {
-                    return;
+                    return null;
                 }
 
                 // The timer is disposed by Dispose, after it took this lock to set _disposed.
@@ -249,7 +256,7 @@
 
             // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
             // property, so a handler must not be able to deadlock the client or break those calls.
-            this.RaisePropertyChangedSafely(nameof(AutoReconnect));
+            return () => this.RaisePropertyChangedSafely(nameof(AutoReconnect));
         }
 
         /// <summary>
@@ -557,6 +564,51 @@
             this._session?.Cancellation.Cancel();
         }
 
+        // Disconnect() for a caller that holds a lock of its own: the connection is ended and AutoReconnect is switched off at once, but the notification of
+        // that change is returned, for the caller to raise when it has let go of its lock (a handler runs on the thread that raises it).
+        internal Action? DisconnectDeferred()
+        {
+            _logger.LogInformation("Disconnecting from OBS Studio");
+            var raise = this.ChangeAutoReconnect(false, null);
+            try
+            {
+                this._session?.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+            }
+
+            return raise;
+        }
+
+        // Disconnect() for the connection with that number and for nothing else (see EndAttempt): AutoReconnect is switched off only while that connection is
+        // still the active one, so a connection that was made in its place is left as it is. Returns whether there was such a connection.
+        internal bool EndSession(int sessionId)
+        {
+            ConnectionSession? session;
+            lock (_syncRoot)
+            {
+                session = this._session;
+            }
+
+            if (session is null || session.Id != sessionId)
+            {
+                return false;
+            }
+
+            try
+            {
+                this.EndAttempt(session);
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+                return false;
+            }
+        }
+
         /// <summary>
         /// Sends a Batch Request.
         /// </summary>
@@ -728,8 +780,21 @@
         private void EndAttempt(ConnectionSession session)
         {
             _logger.LogInformation("Ending the attempt to connect to OBS Studio");
-            this.SetAutoReconnect(false, session);
-            session.Cancellation.Cancel();
+            var raise = this.ChangeAutoReconnect(false, session);
+            try
+            {
+                session.Cancellation.Cancel();
+            }
+            finally
+            {
+                // The handlers of the notification are the application's code. This usually runs as the callback of the token that was cancelled, and the attempt
+                // cannot end before that callback has returned: a handler that waits for something that needs the attempt to end (the DisconnectAsync of another thread,
+                // for one) would wait for itself. So they are told on another thread, when the setting is changed and the attempt is ended.
+                if (raise is not null)
+                {
+                    _ = Task.Run(raise);
+                }
+            }
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)

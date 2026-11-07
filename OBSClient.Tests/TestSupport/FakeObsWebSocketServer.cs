@@ -30,6 +30,9 @@
 
         private readonly TcpListener _listener;
         private readonly SemaphoreSlim _connectionSignal = new(0);
+        private readonly CancellationTokenSource _stopping = new();
+        private readonly object _gate = new();
+        private readonly List<Task> _upgrades = [];
         private Task? _acceptLoop;
         private TcpClient? _tcpClient;
         private WebSocket? _socket;
@@ -55,10 +58,26 @@
 
         public int Port { get; }
 
+        /// <summary>Gets the number of clients that the server accepted and that have not sent their upgrade request yet.</summary>
+        public int PendingUpgrades
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _upgrades.Count(upgrade => !upgrade.IsCompleted);
+                }
+            }
+        }
+
         public void Start()
         {
             _acceptLoop = AcceptLoopAsync();
         }
+
+        // How long a client may take to send its upgrade request before the server lets go of it. A call that is cancelled while it connects can leave a
+        // connection that is open and silent (the connection pool of the client keeps it), and it must not hold up the next client.
+        private static readonly TimeSpan UpgradeTimeout = TimeSpan.FromSeconds(10);
 
         private async Task AcceptLoopAsync()
         {
@@ -67,13 +86,17 @@
                 while (!_stopped)
                 {
                     var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                    client.NoDelay = true;
-                    var stream = client.GetStream();
-                    await PerformHandshakeAsync(stream).ConfigureAwait(false);
+                    lock (_gate)
+                    {
+                        if (_stopped)
+                        {
+                            client.Dispose();
+                            break;
+                        }
 
-                    _tcpClient = client;
-                    _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
-                    _connectionSignal.Release();
+                        _upgrades.RemoveAll(upgrade => upgrade.IsCompleted);
+                        _upgrades.Add(UpgradeAsync(client));
+                    }
                 }
             }
             catch (Exception) when (_stopped)
@@ -82,9 +105,41 @@
             }
         }
 
-        private static async Task PerformHandshakeAsync(NetworkStream stream)
+        // Upgrades one client, apart from the others: one that went away, or never says a word, does not keep the next one from connecting. The upgrades are
+        // tracked, and ended with the server (see DisposeAsync): one that finishes during the shutdown does not make a connection that nobody closes.
+        private async Task UpgradeAsync(TcpClient client)
         {
-            var headers = await ReadHttpHeadersAsync(stream).ConfigureAwait(false);
+            try
+            {
+                client.NoDelay = true;
+                var stream = client.GetStream();
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token);
+                timeout.CancelAfter(UpgradeTimeout);
+                await PerformHandshakeAsync(stream, timeout.Token).ConfigureAwait(false);
+
+                lock (_gate)
+                {
+                    if (_stopped)
+                    {
+                        client.Dispose();
+                        return;
+                    }
+
+                    _tcpClient = client;
+                    _socket = WebSocket.CreateFromStream(stream, new WebSocketCreationOptions { IsServer = true });
+                    _connectionSignal.Release();
+                }
+            }
+            catch (Exception)
+            {
+                // The client went away or never said a word (or the server was disposed of): there is nothing to serve.
+                client.Dispose();
+            }
+        }
+
+        private static async Task PerformHandshakeAsync(NetworkStream stream, CancellationToken cancellationToken)
+        {
+            var headers = await ReadHttpHeadersAsync(stream, cancellationToken).ConfigureAwait(false);
             var key = ExtractHeaderValue(headers, "Sec-WebSocket-Key")
                 ?? throw new InvalidOperationException("Handshake request was missing Sec-WebSocket-Key.");
             var accept = Convert.ToBase64String(SHA1.HashData(Encoding.ASCII.GetBytes(key + WebSocketGuid)));
@@ -95,16 +150,16 @@
                 "Connection: Upgrade\r\n" +
                 $"Sec-WebSocket-Accept: {accept}\r\n\r\n";
             var responseBytes = Encoding.ASCII.GetBytes(response);
-            await stream.WriteAsync(responseBytes).ConfigureAwait(false);
+            await stream.WriteAsync(responseBytes, cancellationToken).ConfigureAwait(false);
         }
 
-        private static async Task<string> ReadHttpHeadersAsync(NetworkStream stream)
+        private static async Task<string> ReadHttpHeadersAsync(NetworkStream stream, CancellationToken cancellationToken)
         {
             var builder = new StringBuilder();
             var buffer = new byte[1];
             while (true)
             {
-                var read = await stream.ReadAsync(buffer.AsMemory(0, 1)).ConfigureAwait(false);
+                var read = await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                 {
                     throw new IOException("Connection closed before the WebSocket handshake completed.");
@@ -141,6 +196,12 @@
             if (!await _connectionSignal.WaitAsync(timeout).ConfigureAwait(false))
             {
                 throw new TimeoutException("No client connected to the fake OBS server in time.");
+            }
+
+            // Disposing of the server wakes a test that waits for a client: there is none to wait for any more.
+            if (_stopped)
+            {
+                throw new ObjectDisposedException(nameof(FakeObsWebSocketServer), "The fake OBS server was disposed while a client was awaited.");
             }
         }
 
@@ -376,16 +437,27 @@
 
         public async ValueTask DisposeAsync()
         {
-            _stopped = true;
+            Task[] upgrades;
+            lock (_gate)
+            {
+                // From here on an upgrade that finishes does not publish its connection (see UpgradeAsync).
+                _stopped = true;
+                upgrades = _upgrades.ToArray();
+            }
+
+            _stopping.Cancel();
             try
             {
                 _socket?.Abort();
                 _tcpClient?.Close();
                 _listener.Stop();
+                var ending = new List<Task>(upgrades);
                 if (_acceptLoop != null)
                 {
-                    await Task.WhenAny(_acceptLoop, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+                    ending.Add(_acceptLoop);
                 }
+
+                await Task.WhenAny(Task.WhenAll(ending), Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
             }
             catch
             {
@@ -393,7 +465,16 @@
             }
             finally
             {
+                try
+                {
+                    _connectionSignal.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
                 _connectionSignal.Dispose();
+                _stopping.Dispose();
             }
         }
     }

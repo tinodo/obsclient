@@ -5,6 +5,7 @@ namespace OBSStudioClient.Tests
     using System.Text.Json;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
+    using OBSStudioClient.Tests.Studio;
     using OBSStudioClient.Tests.TestSupport;
     using Xunit;
 
@@ -408,6 +409,43 @@ namespace OBSStudioClient.Tests
 
             await Assert.ThrowsAsync<TimeoutException>(() => server.WaitForConnectionAsync(TimeSpan.FromMilliseconds(500)));
             Assert.Equal(ConnectionState.Disconnected, client.ConnectionState);
+        }
+
+        [Fact]
+        public async Task ATokenThatIsCancelledWhileConnecting_EndsTheAttempt_WhenAHandlerOfAutoReconnectWaitsForTheCall()
+        {
+            // A server that upgrades the connection and then says nothing: the client waits for its Hello, inside its attempt to connect.
+            await using var server = new FakeObsWebSocketServer();
+            server.Start();
+            using var client = new ObsClient();
+            using var cancellation = new CancellationTokenSource();
+            Task<bool>? connect = null;
+            var handlerSawTheCallEnd = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsClient.AutoReconnect) && connect is not null)
+                {
+                    // The handler is the application's, and it waits for the call that the cancellation ends. The call cannot end before the callback of the token has
+                    // returned, so the handler must not run inside that callback.
+                    try
+                    {
+                        handlerSawTheCallEnd.TrySetResult(connect.Wait(TimeSpan.FromSeconds(8)));
+                    }
+                    catch (AggregateException)
+                    {
+                        handlerSawTheCallEnd.TrySetResult(true);
+                    }
+                }
+            };
+            connect = client.ConnectAsync(autoReconnect: true, hostname: "127.0.0.1", port: server.Port, cancellationToken: cancellation.Token);
+            await StudioRig.EventuallyAsync(() => client.ConnectionState != ConnectionState.Disconnected, "the client to be connecting");
+
+            // The callbacks of the token run on this thread, inside Cancel().
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connect.WithTimeoutAsync(Timeout));
+            Assert.True(await handlerSawTheCallEnd.Task.WithTimeoutAsync(Timeout), "The call that was cancelled did not end while the handler waited for it.");
+            Assert.False(client.AutoReconnect);
         }
 
         [Fact]
