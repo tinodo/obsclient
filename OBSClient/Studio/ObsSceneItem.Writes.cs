@@ -181,8 +181,9 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
-        /// The source that the item shows is not removed. When it was the last scene item that showed an input that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>),
-        /// OBS Studio destroys the input with it.
+        /// The source that the item shows is not removed, but OBS Studio keeps an input only for as long as something uses it: when this was the last scene item that showed the input,
+        /// OBS Studio destroys the input with it (it is not in <see cref="ObsStudio.Inputs"/> any more, and its <see cref="ObsSource.State"/> is <see cref="ObsObjectState.Gone"/>),
+        /// whether the input was removed (<see cref="ObsObjectState.Detached"/>) or not. An input that something else holds, such as an audio device of the settings of OBS Studio, stays.
         /// </remarks>
         public Task RemoveAsync(CancellationToken cancellationToken = default)
         {

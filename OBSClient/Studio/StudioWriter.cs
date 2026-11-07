@@ -59,6 +59,13 @@ namespace OBSStudioClient.Studio
         public Func<IReadOnlyList<RequestResponseMessage>, object?> ReadResponses { get; init; } = static _ => null;
 
         /// <summary>
+        /// Gets what says in the terms of the model why OBS Studio refused a request of the change (its position in the batch, and the answer), or null to leave it to the
+        /// default: not ready, "not found" (the subject was removed), and the refusal as OBS Studio says it. For a refusal that the model can explain (the name is taken, and
+        /// by what), and for a change of several requests, where "not found" can be about any of them.
+        /// </summary>
+        public Func<int, RequestResponseMessage, Exception?>? Map { get; init; }
+
+        /// <summary>
         /// Gets what says that the model shows the change. The loop of the model calls it after every step that publishes, so it only reads the objects of the studio; the
         /// writer calls it once more, from its own thread, when the model could not be read again in time (what it reads is published, so that is safe). It is true too when
         /// the object was removed meanwhile (the change does not show then).
@@ -76,6 +83,19 @@ namespace OBSStudioClient.Studio
         /// the changes that are about the same part are confirmed in the order in which they were made (see <see cref="StudioHost.ConfirmAsync"/>).
         /// </summary>
         public IReadOnlyList<RefreshTarget> Refresh { get; init; } = [];
+
+        /// <summary>
+        /// Gets the parts of the model that a read has to cover as well once the result of the change is known: what the change made has parts of its own that the model reads
+        /// before it shows the object (the audio of an input, which the list of inputs does not say), and that no read of <see cref="Refresh"/> covers, because the object is not
+        /// in the model before the list that shows it has been read. A part that the model does not have has nothing to read.
+        /// </summary>
+        public Func<object?, IReadOnlyList<RefreshTarget>>? RefreshFor { get; init; }
+
+        /// <summary>Gets what the read covers when the events did not show the change in time: <see cref="Refresh"/>, and the parts of the result (<see cref="RefreshFor"/>).</summary>
+        internal IReadOnlyList<RefreshTarget> RefreshWith(object? result)
+        {
+            return this.RefreshFor is { } more ? [.. this.Refresh, .. more(result)] : this.Refresh;
+        }
 
         /// <summary>Gets or sets the connection that the change was asked for on.</summary>
         internal int Session { get; set; }
@@ -290,9 +310,14 @@ namespace OBSStudioClient.Studio
             return (T)(await task.ConfigureAwait(false))!;
         }
 
-        // The error that a failed request is: what OBS Studio says, in the terms of the model.
-        private static Exception MapFailure(WriteJob job, RequestResponseMessage response)
+        // The error that a failed request is: what the change says about it (WriteJob.Map; not for a question), or what OBS Studio says, in the terms of the model.
+        private static Exception MapFailure(WriteJob job, int? index, RequestResponseMessage response)
         {
+            if (index is { } position && job.Map?.Invoke(position, response) is { } mapped)
+            {
+                return mapped;
+            }
+
             var status = response.RequestStatus;
             return status.Code switch
             {
@@ -391,7 +416,7 @@ namespace OBSStudioClient.Studio
             var result = response.Results[0];
             if (!result.RequestStatus.Result)
             {
-                throw MapFailure(job, result);
+                throw MapFailure(job, null, result);
             }
 
             return result;
@@ -480,6 +505,25 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
+            if (requests.Count == 0)
+            {
+                // Nothing to send: there is nothing for the change to do (an input that no scene item shows has no scene item to show or hide). The turn is over, and the
+                // confirmation goes on as it does for any change, so that the call ends in its place in the order of the changes.
+                object? emptyResult;
+                try
+                {
+                    emptyResult = job.ReadResponses([]);
+                }
+                catch (Exception ex)
+                {
+                    job.Fail(ex);
+                    return;
+                }
+
+                _ = this.ConfirmAsync(job, emptyResult);
+                return;
+            }
+
             var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
             foreach (var request in requests)
             {
@@ -542,7 +586,7 @@ namespace OBSStudioClient.Studio
                 if (!results[i].RequestStatus.Result)
                 {
                     // The requests before the one that failed were made: a change of several requests that stopped halfway leaves the model to read again.
-                    job.Fail(MapFailure(job, results[i]));
+                    job.Fail(MapFailure(job, i, results[i]));
                     if (i > 0)
                     {
                         this.RefreshQuietly(job.Refresh);
@@ -627,7 +671,7 @@ namespace OBSStudioClient.Studio
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
             using var eventsTimedOut = events.Token.Register(() =>
             {
-                var asked = this._host.RefreshAsync(job.Refresh, linked.Token);
+                var asked = this._host.RefreshAsync(job.RefreshWith(result), linked.Token);
                 this.AfterTheReadWasAskedFor?.Invoke(asked);
                 Volatile.Write(ref read, asked);
 

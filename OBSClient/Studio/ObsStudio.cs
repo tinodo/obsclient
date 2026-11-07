@@ -48,6 +48,13 @@ namespace OBSStudioClient.Studio
     /// <see cref="ObsNotConfirmedException"/>: the change was made, so do not send it again. A token that ends a call ends the wait at once and keeps a change that was not
     /// sent yet from being sent; one that was sent is not undone, and the next change still waits for the answer of OBS Studio to it, so that the order holds.
     /// </para>
+    /// <para>
+    /// Scenes, inputs and scene items are made, renamed and removed in the same way: <see cref="CreateSceneAsync"/>, <see cref="ObsScene.CreateInputAsync"/>,
+    /// <see cref="ObsScene.AddAsync"/>, <see cref="ObsScene.RenameAsync"/>, <see cref="ObsScene.RemoveAsync"/>, <see cref="ObsInput.RenameAsync"/> and
+    /// <see cref="ObsInput.RemoveAsync"/>. A name that is taken is refused with an <see cref="ObsNameInUseException"/> that says what holds it. OBS Studio keeps a scene or an input
+    /// that was removed alive for as long as scene items show it (it is <see cref="ObsObjectState.Detached"/>), and its name stays taken: <c>RemoveAsync</c> removes those scene
+    /// items too, so that OBS Studio destroys the object (<see cref="ObsObjectState.Gone"/>) and the name is free.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -60,7 +67,7 @@ namespace OBSStudioClient.Studio
     /// obs.Changed += (_, e) => Console.WriteLine(e);
     /// </code>
     /// </example>
-    public sealed class ObsStudio : INotifyPropertyChanged, IDisposable, IAsyncDisposable
+    public sealed partial class ObsStudio : INotifyPropertyChanged, IDisposable, IAsyncDisposable
     {
         private static readonly TimeSpan ClosingTimeout = TimeSpan.FromSeconds(5);
 
@@ -609,6 +616,32 @@ namespace OBSStudioClient.Studio
             }
 
             return found?.ToArray() ?? [];
+        }
+
+        // The scene items that show a scene or an input that OBS Studio removed and keeps alive (Detached), the name of which is given: while they exist, so does the source, with
+        // its name. They are the items of one source: when a scene and an input have the name (OBS Studio does not allow it, and the model can show both for a moment), the
+        // one of the kind that is preferred.
+        internal IReadOnlyList<ObsSceneItem> FindItemsOfRemovedSource(string name, bool preferScene)
+        {
+            List<ObsSceneItem>? found = null;
+            foreach (var scene in this._view.AllScenes)
+            {
+                foreach (var item in scene.Items)
+                {
+                    if (item.Source is { State: ObsObjectState.Detached } source && string.Equals(source.Name, name, StringComparison.Ordinal))
+                    {
+                        (found ??= []).Add(item);
+                    }
+                }
+            }
+
+            if (found is null)
+            {
+                return [];
+            }
+
+            var chosen = found.Select(item => item.Source).FirstOrDefault(source => (source is ObsScene) == preferScene) ?? found[0].Source;
+            return found.Where(item => ReferenceEquals(item.Source, chosen)).ToArray();
         }
 
         // Raises a PropertyChanged event so that a handler that throws does not keep the other handlers from running.

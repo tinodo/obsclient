@@ -77,6 +77,9 @@ namespace OBSStudioClient.Studio
         // The number of the pass of the publisher that last saw the object in the model: an object that a pass does not see is gone.
         internal int Pass { get; set; }
 
+        // What the object is, in words, for the messages: "scene 'Gaming'" or "input 'Webcam'".
+        internal string Label => $"{(this is ObsScene ? "scene" : "input")} '{this.Name}'";
+
         internal bool SetName(string name)
         {
             if (string.Equals(this._name, name, StringComparison.Ordinal))

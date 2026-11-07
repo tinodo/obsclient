@@ -239,6 +239,9 @@ namespace OBSStudioClient.Tests.Studio
         private async Task AnswerBatchAsync(JsonElement d)
         {
             var results = new List<object>();
+
+            // OBS Studio stops a batch at its first refusal when the batch says so, and the answer holds the results of the requests that were run.
+            var haltOnFailure = d.TryGetProperty("haltOnFailure", out var halt) && halt.ValueKind == JsonValueKind.True;
             foreach (var request in d.GetProperty("requests").EnumerateArray())
             {
                 var type = request.GetProperty("requestType").GetString()!;
@@ -281,6 +284,10 @@ namespace OBSStudioClient.Tests.Studio
                     requestStatus = new { result = code == 100, code },
                     responseData = answer,
                 });
+                if (haltOnFailure && code != 100)
+                {
+                    break;
+                }
             }
 
             var json = JsonSerializer.Serialize(new { op = 9, d = new { requestId = d.GetProperty("requestId").GetString(), results } });
