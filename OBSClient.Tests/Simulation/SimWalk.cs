@@ -140,8 +140,9 @@ namespace OBSStudioClient.Tests.Simulation
 
             result.Order.AddRange(_orderProblems);
             CheckAnswers(result);
-            if (Quirks == SimQuirks.Ideal)
+            if (Quirks == SimQuirks.Ideal && !Counters.ContainsKey("event CurrentSceneCollectionChanged"))
             {
+                // The events of a switch of the scene collection do not hold what is in the other collection, so they cannot be replayed.
                 result.Replays.AddRange(SimReplay.Compare(Initial, _messages, Sim.Snapshot()).Select(problem => $"seed {Seed}: {problem}"));
             }
 
@@ -613,6 +614,9 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => ("GetGroupList", null));
             Request(1, () => ("GetVersion", null));
             Request(1, () => ("GetInputKindList", _random.Chance(0.5) ? Data(("unversioned", _random.Chance(0.5))) : null));
+            Request(1, () => ("GetSceneCollectionList", null));
+            Request(1, () => ("SetCurrentSceneCollection", Data(("sceneCollectionName", CollectionName()))));
+            Request(1, () => ("CreateSceneCollection", Data(("sceneCollectionName", NewCollectionName()))));
 
             Operation("client request", 54, () => Send(Pick()));
             Operation("client batch", 5, AskBatch);
@@ -639,6 +643,22 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SetMute", 1, () => Do(() => Sim.External.SetMute(PickInput(audio: true, tidy: true).Uuid, _random.Chance(0.5)), "SetMute"));
             Operation("external SetVolumeDb", 1, () => Do(() => Sim.External.SetVolumeDb(PickInput(audio: true, tidy: true).Uuid, Decibels[_random.Next(Decibels.Length)]), "SetVolumeDb"));
             Operation("external SwitchProgramScene", 3, () => Do(() => Sim.External.SwitchProgramScene(PickScene(tidy: true).Uuid), "SwitchProgramScene"));
+            Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
+            Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
+        }
+
+        // A scene collection to point at: mostly one that is there, and now and then one that is not.
+        private string CollectionName()
+        {
+            var names = Sim.Collections;
+            return _random.Chance(0.85) ? names[_random.Next(names.Count)] : Name(0.1);
+        }
+
+        // A name for a scene collection that is to be made: a new one, and now and then the name of one that is there.
+        private string NewCollectionName()
+        {
+            var names = Sim.Collections;
+            return _random.Chance(0.1) ? names[_random.Next(names.Count)] : Name(0.0);
         }
 
         private void Request(int weight, Func<(string Type, Dictionary<string, object?>? Data)> make)

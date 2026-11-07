@@ -32,8 +32,13 @@ namespace OBSStudioClient.Tests.Simulation
     /// </example>
     internal sealed class SimObs
     {
+        // What obs-websocket answers with, in the comment of the status, while it is not ready (WebSocketServer::ProcessMessage).
+        private const string NotReadyComment = "OBS is not ready to perform the request.";
+
         private static readonly Dictionary<string, Func<int>> EventIntents = new(StringComparer.Ordinal)
         {
+            ["CurrentSceneCollectionChanging"] = static () => SimIntent.Config,
+            ["CurrentSceneCollectionChanged"] = static () => SimIntent.Config,
             ["SceneCreated"] = static () => SimIntent.Scenes,
             ["SceneRemoved"] = static () => SimIntent.Scenes,
             ["SceneNameChanged"] = static () => SimIntent.Scenes,
@@ -55,13 +60,16 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneItemSelected"] = static () => SimIntent.SceneItems,
         };
 
-        private readonly SimWorld _world;
         private readonly SimRequests _requests;
+        private readonly Dictionary<string, SimSavedCollection> _saved = new(StringComparer.Ordinal);
         private readonly PriorityQueue<Action, (TimeSpan At, long Sequence)> _actions = new();
         private readonly PriorityQueue<SimMessage, (TimeSpan At, long Sequence)> _outbound = new();
         private readonly SortedSet<TimeSpan> _deadlines = [];
         private readonly List<SimProtocolViolation> _violations = [];
+        private SimWorld _world;
         private List<EmittedEvent>? _events;
+        private bool _ready = true;
+        private bool _loading;
         private long _messageSequence;
         private long _actionSequence;
         private int _requestCounter;
@@ -76,7 +84,7 @@ namespace OBSStudioClient.Tests.Simulation
             Random = new SimRandom(seed);
             Clock = new SimClock();
             _world = new SimWorld(this);
-            _requests = new SimRequests(_world);
+            _requests = new SimRequests(this, _world);
             External = new SimExternal(this, _world);
         }
 
@@ -88,6 +96,22 @@ namespace OBSStudioClient.Tests.Simulation
 
         /// <summary>Gets the changes that someone else makes: the user interface of OBS Studio, or another websocket client.</summary>
         public SimExternal External { get; }
+
+        /// <summary>
+        /// Gets the name of the scene collection that OBS Studio has loaded. While it changes its scene collection (<see cref="IsSwitching"/>) it is
+        /// the one that it is leaving.
+        /// </summary>
+        public string CurrentCollection => _world.Name;
+
+        /// <summary>Gets the names of the scene collections, the current one included, in alphabetical order.</summary>
+        /// <remarks>ASSUMPTION: the order is alphabetical, without regard to case. OBS Studio lists the files of its scene collections, and the order of that was not measured.</remarks>
+        public IReadOnlyList<string> Collections => _saved.Keys.Append(_world.Name).Order(StringComparer.OrdinalIgnoreCase).ThenBy(name => name, StringComparer.Ordinal).ToArray();
+
+        /// <summary>
+        /// Gets a value indicating whether OBS Studio is changing its scene collection: from <c>CurrentSceneCollectionChanging</c> until it has
+        /// done so. obs-websocket is not ready in the meantime: it answers every request with 207, and sends no event.
+        /// </summary>
+        public bool IsSwitching => !_ready;
 
         /// <summary>
         /// Gets the virtual time of the next thing that is scheduled: a request that has to run, a message that has to leave, the end of a lag of
@@ -244,6 +268,16 @@ namespace OBSStudioClient.Tests.Simulation
                 problems.Add("A change is still running.");
             }
 
+            if (_ready && _saved.ContainsKey(_world.Name))
+            {
+                problems.Add($"The collection \"{_world.Name}\" is the current one, and it is also saved as one that is left.");
+            }
+
+            if (_ready && _loading)
+            {
+                problems.Add("The events of a collection that loads are being sent, and OBS Studio is ready.");
+            }
+
             if (problems.Count > 0)
             {
                 throw new InvalidOperationException(
@@ -253,7 +287,9 @@ namespace OBSStudioClient.Tests.Simulation
             }
         }
 
-        // What the world calls to announce what happened. The index of the event tells later events to follow it by a gap.
+        // What the world calls to announce what happened. The index of the event tells later events to follow it by a gap. While obs-websocket is not
+        // ready (OBS Studio changes its scene collection) it sends no event (WebSocketServer::BroadcastEvent), so nothing is announced and -1 is
+        // returned, which no event follows by a gap.
         internal int Emit(string type, JsonObject data, int anchor, TimeSpan gap)
         {
             if (_events is null)
@@ -266,14 +302,30 @@ namespace OBSStudioClient.Tests.Simulation
                 throw new InvalidOperationException($"The simulation does not know the event {type}.");
             }
 
+            if (!_ready && !_loading)
+            {
+                return -1;
+            }
+
             _events.Add(new EmittedEvent(type, data, intent(), anchor, gap));
             return _events.Count - 1;
         }
 
-        // Something that happens later, for example the end of a transition. It is a change of its own: its events are announced alone.
+        // Something that happens later, for example the end of a transition. It is a change of its own: its events are announced alone. It does not
+        // happen when OBS Studio has left the scene collection that it was scheduled in: what it was going to do is gone with it. (While OBS Studio is
+        // changing its scene collection nothing is announced, whatever happens: see Emit.)
         internal void Schedule(TimeSpan at, Action action)
         {
-            _actions.Enqueue(() => RunChange(action), (at, _actionSequence++));
+            var scheduledIn = _world;
+            _actions.Enqueue(
+                () =>
+                {
+                    if (ReferenceEquals(scheduledIn, _world))
+                    {
+                        RunChange(action);
+                    }
+                },
+                (at, _actionSequence++));
         }
 
         // A moment at which something that depends on time ends, such as the lag of the list of scenes.
@@ -282,12 +334,18 @@ namespace OBSStudioClient.Tests.Simulation
             _deadlines.Add(at);
         }
 
-        // A change of someone else (SimExternal): it happens now, and is announced with the same latencies, but nothing is answered.
+        // A change of someone else (SimExternal): it happens now, and is announced with the same latencies, but nothing is answered. Nobody can
+        // change anything while OBS Studio changes its scene collection: its user interface is busy, and another client is told 207.
         internal T RunExternal<T>(Func<T> change)
         {
             BeginChange();
             try
             {
+                if (!_ready)
+                {
+                    throw new SimFailure(SimStatus.NotReady, NotReadyComment);
+                }
+
                 return change();
             }
             catch (SimFailure failure)
@@ -432,10 +490,19 @@ namespace OBSStudioClient.Tests.Simulation
             try
             {
                 var requestType = data["requestType"]!.GetValue<string>();
-                var result = RunRequest(requestType, data["requestData"] as JsonObject, variables: null, inputVariables: null);
+
+                // The check comes before the request is looked at, as in obs-websocket (WebSocketServer::ProcessMessage).
+                var result = _ready
+                    ? RunRequest(requestType, data["requestData"] as JsonObject, variables: null, inputVariables: null)
+                    : SimResult.Fail(SimStatus.NotReady, NotReadyComment);
                 if (result.NoAnswer)
                 {
                     HungCount++;
+                }
+                else if (result.SwitchTo is { } name)
+                {
+                    // The request blocks until the scene collection has changed: it is answered then, with the events of the end of the change.
+                    BeginSwitch(name, result.Create, new DeferredResponse(requestType, data["requestId"], tag));
                 }
                 else
                 {
@@ -520,7 +587,8 @@ namespace OBSStudioClient.Tests.Simulation
 
         private void ExecuteBatch(JsonNode? requestId, JsonArray requests, int executionType, bool haltOnFailure, JsonObject? variables, object? tag)
         {
-            if (executionType == 2 && requests.Count > 0)
+            // A batch that is not ready for is answered before its execution type is looked at.
+            if (executionType == 2 && requests.Count > 0 && _ready)
             {
                 StartParallelBatch(requestId, requests, tag);
                 return;
@@ -530,6 +598,12 @@ namespace OBSStudioClient.Tests.Simulation
             string? response = null;
             try
             {
+                if (!_ready)
+                {
+                    response = NotReadyBatchResponse(requestId, requests, haltOnFailure);
+                    return;
+                }
+
                 var labels = new List<(string Type, JsonNode? Id)>();
                 var results = new List<SimResult>();
                 var neverAnswered = false;
@@ -543,6 +617,11 @@ namespace OBSStudioClient.Tests.Simulation
                         // The thread of a request that is never answered is stuck, and so is the batch: there is no response at all.
                         neverAnswered = true;
                         break;
+                    }
+
+                    if (result.SwitchTo is { } name)
+                    {
+                        SwitchNow(name, result.Create);
                     }
 
                     variables = StoreOutputVariables(variables, item["outputVariables"] as JsonObject, result);
@@ -566,6 +645,22 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 EndChange(response, SimOp.RequestBatchResponse, tag);
             }
+        }
+
+        // obs-websocket answers a batch that it gets while it is not ready with 207 for every request of it, or for the first one only when it halts on
+        // failure (WebSocketServer::ProcessMessage). Nothing of the batch runs.
+        private static string NotReadyBatchResponse(JsonNode? requestId, JsonArray requests, bool haltOnFailure)
+        {
+            var labels = new List<(string Type, JsonNode? Id)>();
+            var results = new List<SimResult>();
+            foreach (var node in haltOnFailure ? requests.Take(1) : requests)
+            {
+                var item = node as JsonObject ?? new JsonObject();
+                labels.Add((TypeOf(item), item["requestId"]));
+                results.Add(SimResult.Fail(SimStatus.NotReady, NotReadyComment));
+            }
+
+            return BatchResponse(requestId, labels, results);
         }
 
         // obs-websocket replaces a requestType that is not a string by an empty one, which it then answers with 203.
@@ -611,6 +706,11 @@ namespace OBSStudioClient.Tests.Simulation
             try
             {
                 var result = RunRequest(batch.Labels[position].Type, item["requestData"] as JsonObject, variables: null, inputVariables: null);
+                if (result.SwitchTo is { } name)
+                {
+                    SwitchNow(name, result.Create);
+                }
+
                 batch.Remaining--;
                 if (result.NoAnswer)
                 {
@@ -665,6 +765,102 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             return BatchResponse(batch.RequestId, labels, results);
+        }
+
+        // The scene collection changes in two halves, and obs-websocket is not ready between them (EventHandler::OnFrontendEvent): the first half announces
+        // CurrentSceneCollectionChanging, which is sent because the server is still ready when it is broadcast, and then the server is not ready; the second
+        // half makes it ready again, and then announces CurrentSceneCollectionChanged. Both halves run inside a change.
+        private void StartSwitch()
+        {
+            Emit("CurrentSceneCollectionChanging", Obj(("sceneCollectionName", _world.Name)), -1, TimeSpan.Zero);
+            _ready = false;
+        }
+
+        // OBS Studio saves the collection that it leaves, and loads (or makes) the other. What the quirks say it sends while it loads goes first.
+        private void FinishSwitch(string name, bool create)
+        {
+            _saved[_world.Name] = _world.Save();
+            SimWorld next;
+            if (create)
+            {
+                next = new SimWorld(this, name);
+            }
+            else if (_saved.Remove(name, out var saved))
+            {
+                next = SimWorld.Load(this, saved);
+            }
+            else
+            {
+                throw new InvalidOperationException($"There is no scene collection named \"{name}\".");
+            }
+
+            _world = next;
+            _requests.Use(next);
+            External.Use(next);
+            if (Quirks.CreationEventsDuringSwitch)
+            {
+                _loading = true;
+                try
+                {
+                    next.EmitLoadEvents();
+                }
+                finally
+                {
+                    _loading = false;
+                }
+            }
+
+            _ready = true;
+            Emit("CurrentSceneCollectionChanged", Obj(("sceneCollectionName", name)), -1, TimeSpan.Zero);
+        }
+
+        // Starts a switch inside the change that asks for it (a request, or someone else), and finishes it when its time has come, as a change of its own.
+        // A request that asked for it is answered then, together with CurrentSceneCollectionChanged: it blocks until the collection has changed.
+        private void BeginSwitch(string name, bool create, DeferredResponse? deferred)
+        {
+            StartSwitch();
+            var at = Clock.Now + Quirks.CollectionSwitchTime.Sample(Random);
+            _actions.Enqueue(() => CompleteSwitch(name, create, deferred), (at, _actionSequence++));
+        }
+
+        // Someone else (the user interface of OBS Studio) switches to another scene collection, or makes one.
+        internal void BeginSwitch(string name, bool create)
+        {
+            BeginSwitch(name, create, deferred: null);
+        }
+
+        private void CompleteSwitch(string name, bool create, DeferredResponse? deferred)
+        {
+            BeginChange();
+            string? response = null;
+            try
+            {
+                FinishSwitch(name, create);
+                if (deferred is not null)
+                {
+                    response = Serialize(Obj(("d", ResponseData(deferred.RequestType, deferred.RequestId, SimResult.Ok(), includeNullId: true)), ("op", SimOp.RequestResponse)));
+                }
+            }
+            finally
+            {
+                EndChange(response, SimOp.RequestResponse, deferred?.Tag);
+            }
+        }
+
+        // A request of a batch that switches the scene collection: the batch waits for the switch, so the other requests find the server ready again at
+        // once, and both ends of the switch are announced in the change of the batch.
+        // ASSUMPTION: this is a simplification. A real batch waits as long as the switch takes, and any other request is answered 207 meanwhile; that is
+        // not simulated for a switch from a batch, because a batch here runs inside one change. A batch is not how a client switches (the library
+        // never does), and a switch that is asked for while another is under way is not made: OBS Studio does not define what happens.
+        private void SwitchNow(string name, bool create)
+        {
+            if (!_ready)
+            {
+                return;
+            }
+
+            StartSwitch();
+            FinishSwitch(name, create);
         }
 
         private void RunChange(Action change)
@@ -806,6 +1002,9 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         private sealed record EmittedEvent(string Type, JsonObject Data, int Intent, int Anchor, TimeSpan Gap);
+
+        // A request that switches the scene collection, and that is answered when the switch is done.
+        private sealed record DeferredResponse(string RequestType, JsonNode? RequestId, object? Tag);
 
         // A parallel batch that is under way: the type and ID of each request, the results in the order in which the requests finished, and
         // how many have not finished yet.

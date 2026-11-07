@@ -48,6 +48,8 @@ namespace OBSStudioClient.Tests.Simulation
             client.InputRemoved += (_, _) => log.Add("InputRemoved");
             client.SceneItemCreated += (_, _) => log.Add("SceneItemCreated");
             client.SceneItemSelected += (_, _) => log.Add("SceneItemSelected");
+            client.CurrentSceneCollectionChanging += (_, e) => log.Add("CurrentSceneCollectionChanging " + e.SceneCollectionName);
+            client.CurrentSceneCollectionChanged += (_, e) => log.Add("CurrentSceneCollectionChanged " + e.SceneCollectionName);
             return log;
         }
 
@@ -111,6 +113,50 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Equal("5.7.6", version.ObsWebSocketVersion);
             Assert.Equal(1, version.RpcVersion);
             Assert.Equal(SimRequests.Implemented.ToArray(), version.AvailableRequests.Order(StringComparer.Ordinal).ToArray());
+            client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ASwitchOfTheSceneCollection_IsTwoEventsAndAnAnswerThatWaits_AndARequestInBetweenIsNotReady()
+        {
+            // The switch takes two seconds of real time, which is long enough for a request to arrive in the middle of it on a slow machine.
+            await using var server = StartServer(Quirks with { CollectionSwitchTime = SimRange.Exactly(2000) });
+            using var client = await ConnectAsync(server);
+            client.MaxRequestRetries = 0;
+            var log = Listen(client);
+            var asked = Stopwatch.StartNew();
+
+            var creating = client.CreateSceneCollection("Second");
+            await log.WaitAsync(names => names.Contains("CurrentSceneCollectionChanging Untitled"));
+            var refused = await Assert.ThrowsAsync<OBSStudioClient.Exceptions.ObsResponseException>(() => client.GetSceneList());
+            await creating.WaitAsync(Timeout);
+            asked.Stop();
+            await log.WaitAsync(names => names.Contains("CurrentSceneCollectionChanged Second"));
+            var list = await client.GetSceneCollectionList();
+
+            Assert.Equal(RequestStatusCode.NotReady, refused.ErrorCode);
+            Assert.True(asked.Elapsed >= TimeSpan.FromMilliseconds(1500), $"The request that makes the collection came back after {asked.Elapsed}, and the switch takes 2 seconds.");
+            Assert.Equal(["CurrentSceneCollectionChanging Untitled", "CurrentSceneCollectionChanged Second"], log.Names);
+            Assert.Equal("Second", list.CurrentSceneCollectionName);
+            Assert.Equal(["Second", "Untitled"], list.SceneCollections);
+            client.Disconnect();
+        }
+
+        [Fact]
+        public async Task ARequestThatIsNotReady_IsRetriedByTheClient_AndGetsItsAnswerFromTheNewCollection()
+        {
+            await using var server = StartServer(Quirks with { CollectionSwitchTime = SimRange.Exactly(1000) });
+            using var client = await ConnectAsync(server);
+            client.RequestRetryInterval = 100;
+            var log = Listen(client);
+
+            var creating = client.CreateSceneCollection("Second");
+            await log.WaitAsync(names => names.Contains("CurrentSceneCollectionChanging Untitled"));
+            var list = await client.GetSceneCollectionList();
+            await creating.WaitAsync(Timeout);
+
+            // The answer is that of OBS Studio after the switch: the request waited for it, as the client does for a 207.
+            Assert.Equal("Second", list.CurrentSceneCollectionName);
             client.Disconnect();
         }
 

@@ -23,6 +23,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string> EventCategories = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            ["CurrentSceneCollectionChanging"] = "Config",
+            ["CurrentSceneCollectionChanged"] = "Config",
             ["SceneCreated"] = "Scenes",
             ["SceneRemoved"] = "Scenes",
             ["SceneNameChanged"] = "Scenes",

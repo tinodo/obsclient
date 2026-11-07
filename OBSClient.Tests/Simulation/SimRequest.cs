@@ -9,7 +9,9 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="Comment">The comment of the status, or null.</param>
     /// <param name="Data">The response data, or null for a request that has none.</param>
     /// <param name="NoAnswer">Whether OBS Studio never answers the request (fact 9).</param>
-    internal readonly record struct SimResult(int Code, string? Comment, JsonObject? Data, bool NoAnswer = false)
+    /// <param name="SwitchTo">The name of the scene collection that OBS Studio switches to because of the request, or null. The request is answered when the switch is done.</param>
+    /// <param name="Create">Whether the collection that is switched to is made by the request.</param>
+    internal readonly record struct SimResult(int Code, string? Comment, JsonObject? Data, bool NoAnswer = false, string? SwitchTo = null, bool Create = false)
     {
         /// <summary>Gets a value indicating whether the request succeeded.</summary>
         public bool IsSuccess => Code == SimStatus.Success && !NoAnswer;
@@ -22,6 +24,9 @@ namespace OBSStudioClient.Tests.Simulation
 
         /// <summary>Gets the result of a request that never gets an answer.</summary>
         public static SimResult Hung => new(0, null, null, true);
+
+        /// <summary>Gets the result of a request that switches to a scene collection, and is answered with a success when OBS Studio has done so.</summary>
+        public static SimResult Switching(string name, bool create) => new(SimStatus.Success, null, null, false, name, create);
     }
 
     /// <summary>

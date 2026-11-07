@@ -116,6 +116,7 @@ namespace OBSStudioClient.Tests.Simulation
                 "InputCreated", "InputRemoved", "InputNameChanged", "InputMuteStateChanged", "InputVolumeChanged",
                 "SceneTransitionStarted", "SceneTransitionEnded", "SceneTransitionVideoEnded",
                 "SceneItemCreated", "SceneItemRemoved", "SceneItemListReindexed", "SceneItemEnableStateChanged", "SceneItemLockStateChanged", "SceneItemSelected",
+                "CurrentSceneCollectionChanging", "CurrentSceneCollectionChanged",
             }.Select(name => "event " + name));
 
             // The codes of the answers: "answer GetSceneList 100" and "answer GetSceneList 100 (in a batch)" are both a 100.
@@ -126,7 +127,7 @@ namespace OBSStudioClient.Tests.Simulation
                 .Select(parts => int.Parse(parts[2], CultureInfo.InvariantCulture))
                 .ToHashSet();
             var missing = wanted.Where(name => total.GetValueOrDefault(name) == 0).ToList();
-            missing.AddRange(new[] { 600, 601, 602, 604, 300, 401, 402, 700, 703 }.Where(code => !codes.Contains(code)).Select(code => $"an answer with the code {code.ToString(CultureInfo.InvariantCulture)}"));
+            missing.AddRange(new[] { 207, 600, 601, 602, 604, 300, 401, 402, 700, 703 }.Where(code => !codes.Contains(code)).Select(code => $"an answer with the code {code.ToString(CultureInfo.InvariantCulture)}"));
             Assert.True(missing.Count == 0, "The hostile walks never reached: " + string.Join(", ", missing) + Environment.NewLine + string.Join(Environment.NewLine, total.OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => $"{entry.Key}: {entry.Value}")));
         }
 

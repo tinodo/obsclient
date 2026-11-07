@@ -54,6 +54,12 @@ namespace OBSStudioClient.Tests.Simulation
 
         /// <summary>The request type is not one that the simulation (or obs-websocket) knows. The protocol calls this <c>UnknownRequestType</c>.</summary>
         public const int UnknownRequestType = 204;
+
+        /// <summary>
+        /// The server is not ready to handle the request: obs-websocket answers every request with this, and sends no event, from the moment that
+        /// OBS Studio begins to change its scene collection until it has done so (or until it exits).
+        /// </summary>
+        public const int NotReady = 207;
         public const int MissingRequestField = 300;
         public const int MissingRequestData = 301;
         public const int InvalidRequestFieldType = 401;
@@ -91,6 +97,7 @@ namespace OBSStudioClient.Tests.Simulation
     internal static class SimIntent
     {
         public static readonly int General = Bit("General");
+        public static readonly int Config = Bit("Config");
         public static readonly int Scenes = Bit("Scenes");
         public static readonly int Inputs = Bit("Inputs");
         public static readonly int Transitions = Bit("Transitions");
