@@ -889,18 +889,30 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task AChangeWhoseCallerGivesUpRightAfterItWasPutInTheLine_IsNeverWritten()
         {
-            await using var test = await Fixture.StartAsync();
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+
+            // The line is busy with a change that OBS Studio holds, so it cannot take the next change before the test lets it. (A line that is free races with the caller: it can
+            // take the change and write it before the caller has given up at all, and then the test would prove nothing, and fail on a computer that is slow enough.)
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemLocked" ? (-1, null) : null;
+            var held = test.Camera.SetLockedAsync(true);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the first change to be held");
+
             using var cancellation = new CancellationTokenSource();
+            Task? answered = null;
             test.Rig.Studio.Writer.AfterPutInTheLine = () =>
             {
-                // The line can take the change now. The caller gives up, and waits long enough to see whether the line sends it all the same.
+                // The change is in the line, behind the one that OBS Studio holds. The caller gives up; then OBS Studio answers the first change, so that the line is free to take
+                // this one, and the test waits long enough to see whether the line sends it all the same.
                 cancellation.Cancel();
+                answered = test.Rig.Responder.AnswerHeldAsync();
                 Thread.Sleep(300);
             };
 
             var call = test.Camera.SetEnabledAsync(false, cancellation.Token);
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call.WithTimeoutAsync(Timeout));
+            await answered!.WithTimeoutAsync(Timeout);
+            await held.WithTimeoutAsync(Timeout);
             await Task.Delay(300);
             Assert.True(test.Count("SetSceneItemEnabled") == 0, "The change was written although its caller had given up before the line took it.");
         }
