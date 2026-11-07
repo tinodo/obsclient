@@ -155,8 +155,12 @@ namespace OBSStudioClient.Studio
         public event EventHandler<ObsChangedEventArgs>? Changed;
 
         /// <summary>
-        /// Occurs when the model has been read completely: after the first connection, and after a connection that was lost is restored. Everything that you
-        /// hold may have changed (scenes and inputs that were added, removed or renamed while the connection was down), so read what you need again. It is
+        /// Occurs when the model has been read completely: after the first connection, after a connection that was lost is restored, and after OBS Studio changed its
+        /// scene collection. Everything that you hold may have changed (scenes and inputs that were added, removed or renamed while the connection was down), so read what you
+        /// need again. When OBS Studio changes its scene collection every scene, input and scene item that you hold is <see cref="ObsObjectState.Gone"/>: they belong to the
+        /// collection that was left, and what is in the new one is new objects, also when a scene of the same name (or UUID) is in both. The same happens when the connection
+        /// is lost while OBS Studio is changing its scene collection and is restored afterwards: the studio cannot tell whether OBS Studio went to another collection or came
+        /// back to the same one, so it takes it for a change. It is
         /// also raised when notifications were dropped because your handlers were too slow (see <see cref="ObsStudioOptions.MaxPendingNotifications"/>).
         /// </summary>
         /// <remarks>
@@ -171,10 +175,20 @@ namespace OBSStudioClient.Studio
         /// Gets the <see cref="ObsClient"/> that the model is built on. Every request and every event of OBS Studio is available through it.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Use it to send the requests that this class does not offer yet. The model sees what they do through the events of OBS Studio, as it does for what any other
         /// program does. Do not connect or disconnect it yourself: see <see cref="ConnectAsync"/> and <see cref="DisconnectAsync"/>. The client switches
         /// <see cref="ObsClient.AutoReconnect"/> off by itself when OBS Studio ends the session on purpose (the Kick button of its session list): the
         /// <see cref="State"/> is then <see cref="ObsStudioState.Disconnected"/>, and you can connect again.
+        /// </para>
+        /// <para>
+        /// While OBS Studio changes its scene collection it answers every request with 207 (not ready). The client repeats a single request that is answered so (see
+        /// <see cref="ObsClient.MaxRequestRetries"/> and <see cref="ObsClient.RequestRetryInterval"/>); it does not repeat a batch: the results of a batch that was sent in that
+        /// time say 207, and it is for you to look at them and to send the batch again. A request that changes something and was held up that way is carried out in the
+        /// collection that OBS Studio has loaded when it is ready again, not in the one that you were looking at when you sent it. And the requests that change
+        /// the collection (SetCurrentSceneCollection and CreateSceneCollection) are answered when OBS Studio is done, which takes longer than the default
+        /// <see cref="ObsClient.RequestTimeout"/>: raise it before you send them, or the call throws a <see cref="TimeoutException"/> while OBS Studio switches all the same.
+        /// </para>
         /// </remarks>
         public ObsClient Client => this._client;
 

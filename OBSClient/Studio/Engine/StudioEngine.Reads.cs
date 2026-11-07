@@ -63,11 +63,12 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
-        // A read belongs to the connection that it was sent on. What another connection's read says, or what a connection that ended would say,
-        // means nothing to this one, and must not release the parts that this one is reading.
+        // A read belongs to the connection that it was sent on, and to the scene collection that OBS Studio had then. What another connection's read says, what
+        // a connection that ended would say, and what is said about a scene collection that OBS Studio has left (or is leaving) means nothing to this model, and
+        // must not release the parts that it is reading.
         private bool Owns(ReadTicket ticket)
         {
-            return this._state != StudioEngineState.Disconnected && ticket.SessionId == this._sessionId;
+            return this._state != StudioEngineState.Disconnected && !this._switching && ticket.SessionId == this._sessionId && ticket.Epoch == this._epoch;
         }
 
         private ScopeState? ScopeOf(ReadRequest request)

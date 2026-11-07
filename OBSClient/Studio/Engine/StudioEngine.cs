@@ -45,10 +45,11 @@ namespace OBSStudioClient.Studio.Engine
     /// </summary>
     internal sealed class ReadTicket
     {
-        public ReadTicket(int id, int sessionId, long sentSeq, TimeSpan sentAt, IReadOnlyList<ReadRequest> requests)
+        public ReadTicket(int id, int sessionId, int epoch, long sentSeq, TimeSpan sentAt, IReadOnlyList<ReadRequest> requests)
         {
             this.Id = id;
             this.SessionId = sessionId;
+            this.Epoch = epoch;
             this.SentSeq = sentSeq;
             this.SentAt = sentAt;
             this.Requests = requests;
@@ -59,6 +60,12 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets the connection that the read belongs to: its result means nothing to another one.</summary>
         public int SessionId { get; }
+
+        /// <summary>
+        /// Gets the number of the scene collection that the read belongs to (it goes up each time that OBS Studio has changed its scene collection): what
+        /// it says is about the collection that OBS Studio had when it was sent, and means nothing to the model of the one that it has now.
+        /// </summary>
+        public int Epoch { get; }
 
         /// <summary>Gets the number of the last message that had arrived when the requests were sent.</summary>
         public long SentSeq { get; }
@@ -78,7 +85,10 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>There is no connection (or it ended): what the model holds is the last that was known.</summary>
         Disconnected,
 
-        /// <summary>The model is being read for the first time on this connection.</summary>
+        /// <summary>
+        /// The model is being read: for the first time on this connection, or again because OBS Studio is changing its scene collection or has changed it
+        /// (what the model holds is then the collection that OBS Studio is leaving, until it has loaded the other).
+        /// </summary>
         Synchronizing,
 
         /// <summary>Everything was read, and nothing is waiting for a read.</summary>
@@ -177,6 +187,8 @@ namespace OBSStudioClient.Studio.Engine
         private TimeSpan _now;
         private int _nextTicket;
         private int _sessionId;
+        private int _epoch;
+        private bool _switching;
         private bool _scenesRead;
         private bool _inputsRead;
         private bool _programRead;
@@ -192,6 +204,12 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets the state of the connection of the engine.</summary>
         public StudioEngineState State => this._state;
+
+        /// <summary>Gets the number of the scene collection that the model is of: it goes up each time that OBS Studio has changed its scene collection. It is for tests and for the host.</summary>
+        internal int Epoch => this._epoch;
+
+        /// <summary>Gets whether OBS Studio is changing its scene collection: between the event that says so and the one that says that it has done so. It is for tests.</summary>
+        internal bool IsSwitching => this._switching;
 
         /// <summary>Gets the settings that the engine was made with. It is for tests.</summary>
         internal StudioEngineOptions Options => this._options;
@@ -213,13 +231,13 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>
         /// Gets the time at which the engine wants to be called again although nothing arrives (a read that waits for its turn), or null. While there
-        /// is no connection there is nothing to read, so it is null then.
+        /// is no connection there is nothing to read, so it is null then; and so it is while OBS Studio changes its scene collection, when nothing is read.
         /// </summary>
         public TimeSpan? NextWake
         {
             get
             {
-                if (this._state == StudioEngineState.Disconnected)
+                if (this._state == StudioEngineState.Disconnected || this._switching)
                 {
                     return null;
                 }
@@ -243,6 +261,15 @@ namespace OBSStudioClient.Studio.Engine
             this._now = now;
             this._sessionId = sessionId;
             this._state = StudioEngineState.Synchronizing;
+
+            // A switch of the scene collection that the connection before had begun, and that was not seen to its end: OBS Studio left the collection that the model holds, and
+            // what it has loaded now (maybe that very collection, with the UUIDs that it had) is read as the first collection of a connection is, with nothing of the old one
+            // merged into it. A connection that ended without a switch keeps the model, and merges what it reads by UUID.
+            if (this._switching)
+            {
+                this.ForgetCollection();
+            }
+
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
 
             // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has
@@ -351,8 +378,9 @@ namespace OBSStudioClient.Studio.Engine
         {
             this._now = now;
             ticket = null!;
-            if (this._state == StudioEngineState.Disconnected)
+            if (this._state == StudioEngineState.Disconnected || this._switching)
             {
+                // Nothing is asked of OBS Studio while it changes its scene collection: it answers 207, and a request that it is in the middle of can do harm.
                 return false;
             }
 
@@ -431,7 +459,7 @@ namespace OBSStudioClient.Studio.Engine
                 return false;
             }
 
-            ticket = new ReadTicket(++this._nextTicket, this._sessionId, lastIngress, now, requests);
+            ticket = new ReadTicket(++this._nextTicket, this._sessionId, this._epoch, lastIngress, now, requests);
             return true;
         }
 
@@ -476,7 +504,7 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
-            return pending + this._unresolved.Count + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead ? 0 : 1);
+            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead ? 0 : 1);
         }
 
         private IEnumerable<ScopeState> AllScopes()

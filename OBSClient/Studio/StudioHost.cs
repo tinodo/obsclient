@@ -621,6 +621,13 @@ namespace OBSStudioClient.Studio
 
         private void PumpReads(TimeSpan now)
         {
+            if (this._read is not null && this._engine.IsOutdated(this._read))
+            {
+                // OBS Studio changed its scene collection after the read was taken: its answer will not be applied, and it must not hold up the reads of the new collection.
+                // When it comes, or fails, it is not the read that the loop waits for (TakeRead).
+                this._read = null;
+            }
+
             if (this._session == 0 || this._read is not null)
             {
                 return;
@@ -684,6 +691,13 @@ namespace OBSStudioClient.Studio
             }
 
             this._held.Hold(this._publisher.Notices);
+            if (after == StudioEngineState.Synchronizing)
+            {
+                // OBS Studio is changing its scene collection, or has changed it and the model reads the new one: the model is not complete, and the application is told so.
+                // The state of a connection that is being made or restored is not changed: whoever owns that decides it.
+                this._studio.TrySetState(ObsStudioState.Synchronized, ObsStudioState.Synchronizing);
+            }
+
             if (after == StudioEngineState.Synchronized)
             {
                 // The first time, the objects are new to the application, which cannot hold any (nor be bound to one): what it can be bound to is the

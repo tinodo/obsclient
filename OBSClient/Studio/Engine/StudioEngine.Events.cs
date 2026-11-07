@@ -11,6 +11,9 @@ namespace OBSStudioClient.Studio.Engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<StudioEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<StudioEngine, EventMessage>>
         {
+            // The name in these two is not used (yet), so they are acted on whatever their data: a switch that is missed would leave the model of a collection that is gone.
+            [EventType.CurrentSceneCollectionChanging] = static (engine, _) => engine.OnCollectionChanging(),
+            [EventType.CurrentSceneCollectionChanged] = static (engine, _) => engine.OnCollectionChanged(),
             [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneCreated(e)),
             [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneRemoved(e)),
             [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e) => engine.OnSceneNameChanged(e)),
@@ -42,6 +45,14 @@ namespace OBSStudioClient.Studio.Engine
             this._now = now;
             this._seq = seq;
             if (this._state == StudioEngineState.Disconnected)
+            {
+                return;
+            }
+
+            // While OBS Studio changes its scene collection it has nothing to say about the collection that the model will hold: what it sends is about the one that
+            // it is leaving, or (when a server does send them) about the sources that load, and the model of the new collection is read when the switch is over.
+            // Only the end of the switch counts.
+            if (this._switching && message.EventType != EventType.CurrentSceneCollectionChanged)
             {
                 return;
             }

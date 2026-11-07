@@ -313,6 +313,7 @@ namespace OBSStudioClient.Tests.Studio
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
+                EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
             ];
 
             var handled = Enum.GetValues<EventType>().Where(StudioEngine.Handles).Order().ToArray();
@@ -346,6 +347,8 @@ namespace OBSStudioClient.Tests.Studio
                 (EventType.SceneItemEnableStateChanged, h => h.Event("SceneItemEnableStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemEnabled = false }, 128)),
                 (EventType.SceneItemLockStateChanged, h => h.Event("SceneItemLockStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemLocked = true }, 128)),
                 (EventType.StudioModeStateChanged, h => h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024)),
+                (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
+                (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
             };
 
             Assert.Equal(cases.Select(c => c.Type).Order(), Enum.GetValues<EventType>().Where(StudioEngine.Handles).Order());
@@ -361,9 +364,11 @@ namespace OBSStudioClient.Tests.Studio
                     world.Program = scene;
                 });
 
+                var epoch = h.Engine.Epoch;
                 send(h);
 
-                var acted = h.Engine.TakeChanges().Any() || NextRead(h).Length > 0;
+                // The two events of a switch change no value: they stop the model from reading, or make it forget the collection that it held.
+                var acted = h.Engine.TakeChanges().Any() || NextRead(h).Length > 0 || h.Engine.IsSwitching || h.Engine.Epoch != epoch;
                 Assert.True(acted, $"An event of type {type} that the host passes to the model changed nothing and caused no read.");
             }
         }
