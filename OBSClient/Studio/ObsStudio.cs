@@ -158,7 +158,9 @@ namespace OBSStudioClient.Studio
         /// Occurs when the model has been read completely: after the first connection, after a connection that was lost is restored, and after OBS Studio changed its
         /// scene collection. Everything that you hold may have changed (scenes and inputs that were added, removed or renamed while the connection was down), so read what you
         /// need again. When OBS Studio changes its scene collection every scene, input and scene item that you hold is <see cref="ObsObjectState.Gone"/>: they belong to the
-        /// collection that was left, and what is in the new one is new objects, also when a scene of the same name (or UUID) is in both. It is
+        /// collection that was left, and what is in the new one is new objects, also when a scene of the same name (or UUID) is in both. The same happens when the connection
+        /// is lost while OBS Studio is changing its scene collection and is restored afterwards: the studio cannot tell whether OBS Studio went to another collection or came
+        /// back to the same one, so it takes it for a change. It is
         /// also raised when notifications were dropped because your handlers were too slow (see <see cref="ObsStudioOptions.MaxPendingNotifications"/>).
         /// </summary>
         /// <remarks>

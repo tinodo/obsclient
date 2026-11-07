@@ -33,6 +33,24 @@ namespace OBSStudioClient.Studio.Engine
         // nothing of it is merged into the new one. A scene with the same UUID in both is the same scene when the collection is loaded again, but it is a new object.
         private void OnCollectionChanged()
         {
+            this.ForgetCollection();
+            this._state = StudioEngineState.Synchronizing;
+
+            // Studio mode is not a part of the collection, but it is read again with the rest.
+            foreach (var scope in this.AllScopes())
+            {
+                scope.InFlight = false;
+                scope.Attempts = 0;
+                scope.NotBefore = TimeSpan.Zero;
+                scope.Dirty = true;
+            }
+        }
+
+        // The model of the collection that OBS Studio has left is dropped, and the model is of the next collection: the reads that were taken for the old one are outdated.
+        // It is also what a new connection does when the one before it ended in the middle of a switch (OnSessionStarted): OBS Studio has loaded a collection since, maybe the
+        // one that the model holds (the same UUIDs), and its sources are new ones all the same.
+        private void ForgetCollection()
+        {
             this._switching = false;
             this._epoch++;
             this._scenes.Clear();
@@ -46,16 +64,6 @@ namespace OBSStudioClient.Studio.Engine
             this._programUuid = new Cell<Guid?>(null, 0);
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
             this._lastCleanup = this._now;
-            this._state = StudioEngineState.Synchronizing;
-
-            // Studio mode is not a part of the collection, but it is read again with the rest.
-            foreach (var scope in this.AllScopes())
-            {
-                scope.InFlight = false;
-                scope.Attempts = 0;
-                scope.NotBefore = TimeSpan.Zero;
-                scope.Dirty = true;
-            }
         }
     }
 }

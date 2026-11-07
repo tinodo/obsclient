@@ -274,6 +274,51 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void AConnectionThatEndedInTheMiddleOfASwitch_TakesNothingOfTheOldCollectionIntoTheNextOne_EvenWhenTheSameUuidsAreLoadedAgain()
+        {
+            // OBS Studio went from this collection to another and back while nobody was connected: the scene has the UUID that it had, and it is a new scene all the same.
+            var h = Started(world =>
+            {
+                var gaming = world.AddScene("Gaming");
+                world.AddItem(gaming, world.AddInput("Mic", "wasapi_input_capture", 2), "Mic");
+            });
+            var epoch = h.Engine.Epoch;
+            Changing(h);
+
+            h.End();
+            h.Start();
+
+            // The model of the old collection is dropped at once (the application is told by the objects that it holds), and what is read is the collection that OBS Studio has.
+            Assert.Equal(epoch + 1, h.Engine.Epoch);
+            Assert.False(h.Engine.IsSwitching);
+            Assert.Empty(h.Engine.Snapshot().Scenes);
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            h.Settle();
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(StudioEngineState.Synchronized, snapshot.State);
+            Assert.Equal(["Gaming"], snapshot.Scenes.Select(scene => scene.Name).ToArray());
+            Assert.Equal(["Mic"], snapshot.Inputs.Select(input => input.Name).ToArray());
+            Assert.Empty(h.Engine.CheckConsistency());
+        }
+
+        [Fact]
+        public void AConnectionThatEndedWithoutASwitch_KeepsTheModel_AndMergesWhatItReadsByUuid()
+        {
+            var h = Started(world => world.AddScene("Gaming"));
+            var epoch = h.Engine.Epoch;
+
+            h.End();
+            h.Start();
+
+            // The model is the last that was known until the new connection has read, and the collection is the same one.
+            Assert.Equal(epoch, h.Engine.Epoch);
+            Assert.Equal(["Gaming"], SceneNames(h));
+            h.Settle();
+            Assert.Equal(["Gaming"], SceneNames(h));
+            Assert.Equal(StudioEngineState.Synchronized, h.Engine.State);
+        }
+
+        [Fact]
         public void TheEventsOfASwitch_AreIgnored_WhenThereIsNoConnection()
         {
             var h = new EngineHarness();

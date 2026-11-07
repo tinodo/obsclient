@@ -262,8 +262,14 @@ namespace OBSStudioClient.Studio.Engine
             this._sessionId = sessionId;
             this._state = StudioEngineState.Synchronizing;
 
-            // A switch of the scene collection that the connection before had begun is over with it: this connection reads the collection that OBS Studio has.
-            this._switching = false;
+            // A switch of the scene collection that the connection before had begun, and that was not seen to its end: OBS Studio left the collection that the model holds, and
+            // what it has loaded now (maybe that very collection, with the UUIDs that it had) is read as the first collection of a connection is, with nothing of the old one
+            // merged into it. A connection that ended without a switch keeps the model, and merges what it reads by UUID.
+            if (this._switching)
+            {
+                this.ForgetCollection();
+            }
+
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
 
             // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has

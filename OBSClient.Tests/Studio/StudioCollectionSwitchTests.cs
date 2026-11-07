@@ -182,6 +182,40 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(ObsObjectState.Gone, gamingScene.State);
         }
 
+        [Fact]
+        public async Task AConnectionThatIsLostInTheMiddleOfASwitch_IsRestoredWithNewObjects_WhenTheFirstCollectionIsLoadedAgain()
+        {
+            await using var rig = new StudioSimRig(StudioSimRig.DefaultQuirks with { CollectionSwitchTime = SimRange.Exactly(800) });
+            rig.World(world => world.CreateInput(world.CreateScene("Gaming"), "Mic", Mic));
+            var original = rig.Server.Run(sim => sim.CurrentCollection);
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            await rig.ConvergedAsync("the first read");
+            var gamingScene = rig.Studio.Scenes["Gaming"];
+            var micInput = rig.Studio.Inputs["Mic"];
+
+            // Nothing connects again by itself. The studio sees a switch begin and loses the connection; OBS Studio finishes it, and goes back to the collection that it began with,
+            // so its sources have the UUIDs that they had: the studio cannot tell that it was away and back from the collection that it left never having changed.
+            rig.Studio.Client.AutoReconnect = false;
+            rig.World(world => world.CreateCollection("Podcast"));
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Synchronizing, "the studio to know that OBS Studio is switching");
+            rig.Server.AbortConnection();
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Disconnected, "the state to follow the connection", Patience);
+            await StudioRig.EventuallyAsync(() => !rig.Server.Run(sim => sim.IsSwitching), "OBS Studio to be done switching", Patience);
+            rig.World(world => world.SwitchCollection(original));
+            await StudioRig.EventuallyAsync(() => !rig.Server.Run(sim => sim.IsSwitching), "OBS Studio to be done switching back", Patience);
+
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            await rig.ConvergedAsync("the first collection, after the connection was made again");
+
+            // It is the same scene in OBS Studio, and a new object to the application: what it held belongs to the collection that was left.
+            Assert.Equal(ObsObjectState.Gone, gamingScene.State);
+            Assert.Equal(ObsObjectState.Gone, micInput.State);
+            var again = rig.Studio.Scenes["Gaming"];
+            Assert.NotSame(gamingScene, again);
+            Assert.Equal(gamingScene.Uuid, again.Uuid);
+            Assert.NotSame(micInput, rig.Studio.Inputs["Mic"]);
+        }
+
         [Theory]
         [InlineData("Real")]
         [InlineData("Hostile")]
