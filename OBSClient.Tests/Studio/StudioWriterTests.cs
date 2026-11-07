@@ -730,6 +730,40 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AChangeWhoseTimeForTheEventsHasNotRunWhenTheTimeForTheReadIsOver_StillHasTheModelRead()
+        {
+            var confirmation = TimeSpan.FromMilliseconds(1111);
+            var read = TimeSpan.FromMilliseconds(2222);
+            var limit = confirmation + read + read;
+            var time = new HeldTimersTimeProvider(confirmation, limit);
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = confirmation, ReadTimeout = read, WriteTimeout = TimeSpan.FromSeconds(5), TimeProvider = time });
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                // OBS Studio makes the change, and sends no event.
+                test.SetEnabledInWorld(false);
+                return (100, null);
+            };
+
+            var change = test.Camera.SetEnabledAsync(false);
+            await StudioRig.EventuallyAsync(() => time.Held(limit) == 1 && time.Held(confirmation) == 1, "the wait for the model to begin");
+
+            // The time that the wait is given is over, and the time for the events (the first to be over) has not been handled: a timer that is late, or a thread pool that is busy, handles
+            // two timers that are both over in either order. The wait ends with the callback for the time for the events let go of, and the read was never asked for.
+            time.Fire(limit);
+            var exception = await Assert.ThrowsAsync<ObsNotConfirmedException>(() => change.WithTimeoutAsync(Timeout));
+            Assert.Equal("hiding scene item 1 of scene 'Gaming'", exception.Operation);
+
+            // The call says that the model reads again, and it does: the model shows what OBS Studio holds. The change is not made again.
+            await StudioRig.EventuallyAsync(() => !test.Camera.IsEnabled, "the model to be read");
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
         public async Task AChangeThatTheCallerGaveUpWhileItWaitedForItsTurnToBeWritten_IsNeverWritten_AndTheLineGoesOn()
         {
             await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
@@ -1387,6 +1421,78 @@ namespace OBSStudioClient.Tests.Studio
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.Zero }));
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { WriteTimeout = TimeSpan.FromDays(25) }));
+        }
+
+        // A source of time whose timers with the given due times do not run by themselves: the test runs them, in the order that it likes (what a timer that is late does, and a
+        // thread pool that is busy). The other timers are the ones of the system.
+        private sealed class HeldTimersTimeProvider(params TimeSpan[] heldDueTimes) : TimeProvider
+        {
+            private readonly List<HeldTimer> _timers = [];
+
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                if (!heldDueTimes.Contains(dueTime))
+                {
+                    return base.CreateTimer(callback, state, dueTime, period);
+                }
+
+                var timer = new HeldTimer(callback, state, dueTime);
+                lock (this._timers)
+                {
+                    this._timers.Add(timer);
+                }
+
+                return timer;
+            }
+
+            public int Held(TimeSpan dueTime)
+            {
+                lock (this._timers)
+                {
+                    return this._timers.Count(timer => timer.DueTime == dueTime && !timer.Disposed);
+                }
+            }
+
+            public void Fire(TimeSpan dueTime)
+            {
+                HeldTimer timer;
+                lock (this._timers)
+                {
+                    timer = this._timers.Last(candidate => candidate.DueTime == dueTime && !candidate.Disposed);
+                }
+
+                timer.Fire();
+            }
+
+            private sealed class HeldTimer(TimerCallback callback, object? state, TimeSpan dueTime) : ITimer
+            {
+                private int _disposed;
+
+                public TimeSpan DueTime => dueTime;
+
+                public bool Disposed => Volatile.Read(ref this._disposed) != 0;
+
+                public void Fire()
+                {
+                    callback(state);
+                }
+
+                public bool Change(TimeSpan newDueTime, TimeSpan newPeriod)
+                {
+                    return !this.Disposed;
+                }
+
+                public void Dispose()
+                {
+                    Interlocked.Exchange(ref this._disposed, 1);
+                }
+
+                public ValueTask DisposeAsync()
+                {
+                    this.Dispose();
+                    return ValueTask.CompletedTask;
+                }
+            }
         }
 
         // A logger factory whose loggers hold the thread that logs a message that starts with a prefix ("Sending: …" for the batch that is about to be written, "Received: …" for a message that

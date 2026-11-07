@@ -655,6 +655,14 @@ namespace OBSStudioClient.Studio
                 // the change was about may have been applied all the same, with other reads still to do, and then the model shows the change.
                 if (!this.IsShown(job, result) && !this.Left(job))
                 {
+                    // The time for the events and the time for the read can both be over before the callback of the first one has run (a timer that is late, a thread pool that is
+                    // busy), and the callback is let go of when this wait ends: then the read was never asked for, and nothing would read the model again although the call ends
+                    // with "the model reads again". It is asked for now; a read that was asked for already goes on in the model.
+                    if (Volatile.Read(ref read) is null)
+                    {
+                        this.RefreshQuietly(job.Refresh);
+                    }
+
                     throw new ObsNotConfirmedException(job.Description);
                 }
             }
