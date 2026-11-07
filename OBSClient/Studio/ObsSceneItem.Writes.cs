@@ -2,12 +2,11 @@ namespace OBSStudioClient.Studio
 {
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
+    using OBSStudioClient.Responses;
     using OBSStudioClient.Studio.Engine;
 
     public sealed partial class ObsSceneItem
     {
-        private SemaphoreSlim? _toggleGate;
-
         /// <summary>
         /// Shows or hides the scene item, and returns when the model shows it.
         /// </summary>
@@ -18,18 +17,23 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
         /// <para>
         /// The changes that you ask for are made one at a time, in the order in which you asked for them. OBS Studio announces a change with an event, which can come a few
-        /// milliseconds after its answer: the task completes when <see cref="IsEnabled"/> says what you asked for, so that what you read next is what you changed. When the
+        /// milliseconds after its answer: the task completes when <see cref="IsEnabled"/> says what you asked for, so that what you read next is what you changed. When you ask
+        /// for several changes of the same scene one after the other without waiting for each, the model shows them one after the other, and each task completes when the model
+        /// shows its change after the changes before it (not when it shows the same value from before them). When the
         /// event does not come within <see cref="ObsStudioOptions.ConfirmationTimeout"/>, the model reads the scene items of the scene, and the task completes with what
         /// OBS Studio holds then (somebody else may have changed it again). When OBS Studio changes its scene collection before the model shows the change, the task completes
-        /// too: the change was made in the collection that was left, and this object is <see cref="ObsObjectState.Gone"/> by then.
+        /// too: the change was made in the collection that was left, and this object is <see cref="ObsObjectState.Gone"/> by then. When the model can not be read again
+        /// in time either, the task ends with an <see cref="ObsNotConfirmedException"/>: OBS Studio made the change, and the model does not show it yet.
         /// </para>
         /// <para>
         /// A token that ends before the request is sent keeps it from being sent. After that the change is not undone: OBS Studio may still make it, and the model follows it
-        /// through the events.
+        /// through the events. The next change waits until OBS Studio has answered this one (at most <see cref="ObsStudioOptions.WriteTimeout"/>), whether the token ended or
+        /// not, so that the changes are made in the order in which you asked for them.
         /// </para>
         /// </remarks>
         public Task SetEnabledAsync(bool value, CancellationToken cancellationToken = default)
@@ -54,27 +58,43 @@ namespace OBSStudioClient.Studio
         /// <returns>A task that completes with the value that <see cref="IsEnabled"/> was set to.</returns>
         /// <exception cref="ObsRemovedException">The scene item, or its scene, was removed.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
-        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call, or did not say in time whether the item is shown. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
-        /// OBS Studio has no request that toggles a scene item, so this reads <see cref="IsEnabled"/> and sets the opposite. Two calls on the same item do not run
-        /// together: the second one waits until the model shows the result of the first, so that two calls always make two toggles.
+        /// <para>
+        /// OBS Studio has no request that toggles a scene item. When its turn has come, after every change that you asked for before it has been answered, the change asks
+        /// OBS Studio whether the item is shown, and sets the opposite. So two calls make two toggles, in the order in which you asked for them, and a change that you asked
+        /// for between them is not overtaken: what a toggle turns over is what OBS Studio holds at its turn, not what the model showed when you called (the model can be a
+        /// few milliseconds behind OBS Studio, and does not know yet what a change that was just answered did).
+        /// </para>
+        /// <para>
+        /// The question changes nothing: when OBS Studio does not answer it in time, or the connection ends meanwhile, nothing was changed. See <see cref="SetEnabledAsync"/>
+        /// for the order of changes and the wait.
+        /// </para>
         /// </remarks>
-        public async Task<bool> ToggleEnabledAsync(CancellationToken cancellationToken = default)
+        public Task<bool> ToggleEnabledAsync(CancellationToken cancellationToken = default)
         {
-            var gate = LazyInitializer.EnsureInitialized(ref this._toggleGate, static () => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                var value = !this.IsEnabled;
-                await this.SetEnabledAsync(value, cancellationToken).ConfigureAwait(false);
-                return value;
-            }
-            finally
-            {
-                gate.Release();
-            }
+            // What OBS Studio holds when the turn of this change has come.
+            var enabled = false;
+            return this.Scene.Studio.Writer.ExecuteAsync<bool>(
+                new WriteJob
+                {
+                    Description = $"toggling {this.Subject()}",
+                    Subject = this.Subject(),
+                    Check = this.CheckWritable,
+                    Prepare = async ask =>
+                    {
+                        var answer = await ask(new WriteRequest(RequestType.GetSceneItemEnabled, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id })).ConfigureAwait(false);
+                        enabled = ((SceneItemEnabledResponse)answer.ResponseData!).SceneItemEnabled;
+                    },
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemEnabled = !enabled })],
+                    ReadResponses = _ => !enabled,
+                    IsConfirmed = result => this.IsRemoved || this.IsEnabled == (bool)result!,
+                    Refresh = [new RefreshTarget(ReadKind.Items, this.Scene.Uuid)],
+                },
+                cancellationToken);
         }
 
         /// <summary>
@@ -87,6 +107,7 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>See <see cref="SetEnabledAsync"/> for the order of changes and the wait.</remarks>
         public Task SetLockedAsync(bool value, CancellationToken cancellationToken = default)
@@ -115,6 +136,7 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
         /// The scene items between the old and the new position move by one place, and OBS Studio does not say so item by item: the model reads the scene items again when
@@ -146,6 +168,7 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
         /// The source that the item shows is not removed. When it was the last scene item that showed an input that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>),

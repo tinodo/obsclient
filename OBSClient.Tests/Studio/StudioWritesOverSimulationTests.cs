@@ -216,6 +216,29 @@ namespace OBSStudioClient.Tests.Studio
             await rig.ConvergedAsync("after five toggles each", Patience);
         }
 
+        [Theory]
+        [InlineData("Ideal")]
+        [InlineData("Real")]
+        [InlineData("Hostile")]
+        public async Task TogglesAndChangesThatAreAskedForTogether_AreMadeInTheOrderInWhichTheyWereAskedFor(string preset)
+        {
+            await using var rig = await StartAsync(Quirks(preset));
+            var webcam = rig.Studio.Scenes["Gaming"].Items["Webcam"];
+
+            var toggle1 = webcam.ToggleEnabledAsync();
+            var show = webcam.SetEnabledAsync(true);
+            var toggle2 = webcam.ToggleEnabledAsync();
+            var toggle3 = webcam.ToggleEnabledAsync();
+            var hide = webcam.SetEnabledAsync(false);
+            var toggle4 = webcam.ToggleEnabledAsync();
+            await Task.WhenAll(toggle1, show, toggle2, toggle3, hide, toggle4).WithTimeoutAsync(Patience);
+
+            // The scene item starts shown: the first toggle hides it, the change shows it, the next two toggles hide it and show it, the change hides it, the last toggle shows it.
+            Assert.Equal(new[] { false, false, true, true }, new[] { await toggle1, await toggle2, await toggle3, await toggle4 });
+            Assert.True(webcam.IsEnabled);
+            await rig.ConvergedAsync("after toggles and changes of a scene item that were asked for together", Patience);
+        }
+
         [Fact]
         public async Task AChange_ThatAnotherClientMakesAtTheSameTime_IsFollowedToo()
         {

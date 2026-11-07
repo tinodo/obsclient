@@ -38,7 +38,10 @@ namespace OBSStudioClient.Studio
     /// order), and each returns when the model shows the change, so that what you read next is what you changed. A change is never made twice: when OBS Studio does not
     /// answer, or the connection ends, the call ends with an <see cref="ObsUnknownOutcomeException"/>, and the model reads again what the change was about. A change is not
     /// sent when there is no connection (<see cref="ObsNotConnectedException"/>), while OBS Studio changes its scene collection (<see cref="ObsNotReadyException"/>), or to
-    /// something that OBS Studio removed (<see cref="ObsRemovedException"/>).
+    /// something that OBS Studio removed (<see cref="ObsRemovedException"/>). When OBS Studio made the change and the model can not show it (the events did not come in time,
+    /// and the model could not be read again in time) the call ends with an <see cref="ObsNotConfirmedException"/>: the change was made, so do not send it again. A token
+    /// that ends a call ends the wait at once and keeps a change that was not sent yet from being sent; one that was sent is not undone, and the next change still waits
+    /// for the answer of OBS Studio to it, so that the order holds.
     /// </para>
     /// </remarks>
     /// <example>

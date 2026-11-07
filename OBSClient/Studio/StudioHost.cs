@@ -232,16 +232,22 @@ namespace OBSStudioClient.Studio
         }
 
         /// <summary>
-        /// Returns a task that completes when <paramref name="predicate"/> is true: it is looked at once, and after every step of the loop that publishes what the model
-        /// holds. The predicate runs on the loop, so it must only read the objects of the studio, and be quick. When the token ends first, the task is cancelled and the loop
-        /// forgets the wait; when the connection ends or the loop stops, the task fails.
+        /// Returns a task that completes when <paramref name="predicate"/> is true: it is looked at when the wait is made (unless it is held back, see <paramref name="order"/>),
+        /// and after every step of the loop that publishes what the model holds. The predicate runs on the loop, so it must only read the objects of the studio, and be quick.
+        /// When the token ends first, the task is cancelled and the loop forgets the wait; when the connection ends or the loop stops, the task fails.
         /// </summary>
         /// <param name="predicate">What is waited for.</param>
         /// <param name="cancellationToken">A token that ends the wait.</param>
+        /// <param name="order">
+        /// The parts of the model that what is waited for is about, or null. The waits that name the same part are looked at in the order in which they were made, one
+        /// after the other: a wait is not looked at until the waits before it have what they waited for (or have ended). So a change to the value that the model still
+        /// shows from before an earlier change is not taken for shown at once, and the wait that follows an earlier one is looked at in the same step of the loop in which
+        /// the earlier one is done, so it does not miss the value that the model passes through.
+        /// </param>
         /// <returns>A task that completes when the predicate is true.</returns>
-        public Task ConfirmAsync(Func<bool> predicate, CancellationToken cancellationToken)
+        public Task ConfirmAsync(Func<bool> predicate, CancellationToken cancellationToken, IReadOnlyList<RefreshTarget>? order = null)
         {
-            return this.AddWaiter(HostItemKind.Confirm, cancellationToken, predicate);
+            return this.AddWaiter(HostItemKind.Confirm, cancellationToken, predicate, order);
         }
 
         /// <summary>
@@ -458,7 +464,7 @@ namespace OBSStudioClient.Studio
                     }
                     else
                     {
-                        this._confirmWaiters.Add(new ConfirmWaiter(item.Predicate!, item.Waiter!));
+                        this._confirmWaiters.Add(new ConfirmWaiter(item.Predicate!, item.Waiter!, item.Targets));
                     }
 
                     break;
@@ -834,9 +840,16 @@ namespace OBSStudioClient.Studio
 
         // Whoever waits for the model to show something has what it waited for, or is told when the predicate fails. The predicates read the objects that were just
         // published, so this comes after PublishStep.
+        //
+        // The waits that are about the same part of the model are looked at in the order in which they were made, one after the other, and in this same pass when the one before
+        // has what it waited for. A change can be made right after the change of the wait before it, and the model passes through both values: a wait that was looked at too early
+        // would find the value that the model still shows from before the change before it (and the call would return before the model showed its change), and one that was looked
+        // at too late would find that the model had passed the value that it waits for.
         private void ReleaseConfirmations()
         {
-            for (var i = this._confirmWaiters.Count - 1; i >= 0; i--)
+            HashSet<RefreshTarget>? held = null;
+            var i = 0;
+            while (i < this._confirmWaiters.Count)
             {
                 var waiter = this._confirmWaiters[i];
                 if (waiter.Done.Task.IsCompleted)
@@ -845,22 +858,66 @@ namespace OBSStudioClient.Studio
                     continue;
                 }
 
+                if (held is not null && IsHeldBack(waiter.Order, held))
+                {
+                    // A wait before this one, about the same part of the model, has not got what it waited for. This one has not either, and so it holds back the waits after it
+                    // for all of its parts, also for the ones that the wait before it does not name.
+                    Hold(ref held, waiter.Order);
+                    i++;
+                    continue;
+                }
+
                 try
                 {
-                    if (!waiter.Predicate())
+                    if (waiter.Predicate())
                     {
+                        waiter.Done.TrySetResult();
+                        this._confirmWaiters.RemoveAt(i);
                         continue;
                     }
-
-                    waiter.Done.TrySetResult();
                 }
                 catch (Exception ex)
                 {
                     waiter.Done.TrySetException(ex);
+                    this._confirmWaiters.RemoveAt(i);
+                    continue;
                 }
 
-                this._confirmWaiters.RemoveAt(i);
+                Hold(ref held, waiter.Order);
+                i++;
             }
+        }
+
+        private static void Hold(ref HashSet<RefreshTarget>? held, IReadOnlyList<RefreshTarget>? order)
+        {
+            if (order is not { Count: > 0 })
+            {
+                return;
+            }
+
+            held ??= [];
+            foreach (var part in order)
+            {
+                held.Add(part);
+            }
+        }
+
+        private static bool IsHeldBack(IReadOnlyList<RefreshTarget>? order, HashSet<RefreshTarget> held)
+        {
+            if (order is null)
+            {
+                return false;
+            }
+
+            foreach (var part in order)
+            {
+                if (held.Contains(part))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // What a change that the application makes needs to know: published after every item, and only made new when it differs.
@@ -1001,8 +1058,9 @@ namespace OBSStudioClient.Studio
             return true;
         }
 
-        // A wait for the model to show something: the predicate is looked at after every step that publishes (ReleaseConfirmations).
-        private sealed record ConfirmWaiter(Func<bool> Predicate, TaskCompletionSource Done);
+        // A wait for the model to show something: the predicate is looked at after every step that publishes (ReleaseConfirmations). The waits that are about the same part of the
+        // model (Order) are looked at one after the other.
+        private sealed record ConfirmWaiter(Func<bool> Predicate, TaskCompletionSource Done, IReadOnlyList<RefreshTarget>? Order);
 
         private readonly struct HostItem
         {

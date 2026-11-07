@@ -82,13 +82,16 @@ namespace OBSStudioClient.Studio
         /// OBS Studio announces a change with an event, which can arrive a few milliseconds after the answer to the request. A change method (for example
         /// <see cref="ObsSceneItem.SetEnabledAsync"/>) returns when the model shows the change, so that what you read next is what you changed. When the event has not made
         /// the model show it within this time (OBS Studio sends no event for some changes until a transition has ended, and an event can be lost), the model reads the part
-        /// that the change was about, and the method returns with what OBS Studio holds then.
+        /// that the change was about, and the method returns with what OBS Studio holds then. When that read does not complete in time either (twice <see cref="ReadTimeout"/>),
+        /// the method ends with an <see cref="Exceptions.ObsNotConfirmedException"/>.
         /// </remarks>
         public TimeSpan ConfirmationTimeout { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// Gets or sets how long a change may take: the time that OBS Studio is given to answer the request. The default is 10 seconds. It must be between 1 millisecond and
-        /// 24 days. When OBS Studio does not answer in time, the change ends with an <see cref="Exceptions.ObsUnknownOutcomeException"/>.
+        /// 24 days. When OBS Studio does not answer in time, the change ends with an <see cref="Exceptions.ObsUnknownOutcomeException"/>. It is also the time that OBS Studio is
+        /// given to answer the question that a toggle asks before it changes anything (see <see cref="ObsSceneItem.ToggleEnabledAsync"/>): then nothing was changed, and the
+        /// change ends with an <see cref="Exceptions.ObsNotReadyException"/>.
         /// </summary>
         public TimeSpan WriteTimeout { get; set; } = TimeSpan.FromSeconds(10);
 

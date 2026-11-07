@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Tests.Studio
 {
+    using System.Diagnostics;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Studio;
@@ -280,6 +281,7 @@ namespace OBSStudioClient.Tests.Studio
         public async Task TwoToggles_MakeTwoToggles_EvenWhenAskedForTogether()
         {
             await using var test = await Fixture.StartAsync();
+            var events = Task.CompletedTask;
             test.Rig.Responder.OnRequest = (type, data) =>
             {
                 if (type != "SetSceneItemEnabled")
@@ -289,11 +291,17 @@ namespace OBSStudioClient.Tests.Studio
 
                 var value = data!.Value.GetProperty("sceneItemEnabled").GetBoolean();
                 test.SetEnabledInWorld(value);
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(40);
-                    await test.SendEnabledEventAsync(value);
-                });
+
+                // OBS Studio sends its events in order, a moment after the answer (this runs on the one thread that answers, so the chain needs no lock).
+                events = events.ContinueWith(
+                    async _ =>
+                    {
+                        await Task.Delay(40);
+                        await test.SendEnabledEventAsync(value);
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.None,
+                    TaskScheduler.Default).Unwrap();
                 return (100, null);
             };
 
@@ -306,6 +314,80 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal([false, true, false], results);
             Assert.False(test.Camera.IsEnabled);
             Assert.Equal(3, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeToTheValueThatTheModelStillShowsFromBeforeAnEarlierChange_IsNotShownBeforeTheEarlierChangeIs()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromSeconds(5), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var events = Task.CompletedTask;
+            var eventSentAt = new long[2];
+            var answered = 0;
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                var value = data!.Value.GetProperty("sceneItemEnabled").GetBoolean();
+                var number = answered++;
+                test.SetEnabledInWorld(value);
+
+                // OBS Studio sends its events in order, a good while after the answers (this runs on the one thread that answers, so the chain needs no lock).
+                events = events.ContinueWith(
+                    async _ =>
+                    {
+                        await Task.Delay(150);
+                        Volatile.Write(ref eventSentAt[number], Stopwatch.GetTimestamp());
+                        await test.SendEnabledEventAsync(value);
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.None,
+                    TaskScheduler.Default).Unwrap();
+                return (100, null);
+            };
+
+            // The camera is shown. It is hidden and shown again, and the second call does not wait for the first.
+            var hide = test.Camera.SetEnabledAsync(false);
+            var show = test.Camera.SetEnabledAsync(true);
+            await show.WithTimeoutAsync(Timeout);
+            var returnedAt = Stopwatch.GetTimestamp();
+
+            // The model shows the camera when the calls are made, which is what the second call asks for: it must not take that for its own change. It returns when the model has
+            // been told of the first change, and then of the second.
+            var secondEventSentAt = Volatile.Read(ref eventSentAt[1]);
+            Assert.NotEqual(0, secondEventSentAt);
+            Assert.True(returnedAt >= secondEventSentAt);
+            Assert.True(test.Camera.IsEnabled);
+            await hide.WithTimeoutAsync(Timeout);
+        }
+
+        [Fact]
+        public async Task ChangesThatAreAskedForTogether_AreEachShownByTheirOwnEvent_WithoutWaitingForTheTimeout()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromSeconds(30), WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                var value = data!.Value.GetProperty("sceneItemEnabled").GetBoolean();
+                test.SetEnabledInWorld(value);
+
+                // The event is on its way before the answer, and the next change is sent when the answer has come: the model passes through the values one after the other, quickly.
+                _ = test.SendEnabledEventAsync(value);
+                return (100, null);
+            };
+
+            var calls = Enumerable.Range(0, 8).Select(_ => test.Camera.ToggleEnabledAsync()).ToArray();
+            var results = await Task.WhenAll(calls).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+
+            // With a confirmation timeout of 30 seconds, a call that did not see the value that it waits for would not have returned in 5.
+            Assert.Equal(Enumerable.Range(0, 8).Select(i => i % 2 == 1).ToArray(), results);
+            Assert.True(test.Camera.IsEnabled);
         }
 
         [Fact]
@@ -337,6 +419,312 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Contains("changed its scene collection before", exception.Message);
             Assert.Equal(0, test.Count("SetSceneItemLocked"));
             await first.WithTimeoutAsync(Timeout);
+        }
+
+        [Fact]
+        public async Task ChangesThatAreAskedForAfterAToggle_DoNotOvertakeIt()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var sent = new List<string>();
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemLocked":
+                        // The first change is held in OBS Studio: what is asked for meanwhile waits for its turn.
+                        return (-1, null);
+                    case "SetSceneItemEnabled":
+                        var value = data!.Value.GetProperty("sceneItemEnabled").GetBoolean();
+                        lock (sent)
+                        {
+                            sent.Add($"set {value}");
+                        }
+
+                        test.SetEnabledInWorld(value);
+                        _ = test.SendEnabledEventAsync(value);
+                        return (100, null);
+                    default:
+                        return null;
+                }
+            };
+            var held = test.Camera.SetLockedAsync(true);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the first change to be held");
+
+            var first = test.Camera.ToggleEnabledAsync();
+            var second = test.Camera.ToggleEnabledAsync();
+            var third = test.Camera.SetEnabledAsync(false);
+            await test.Rig.Responder.AnswerHeldAsync();
+            await Task.WhenAll(held, first, second, third).WithTimeoutAsync(Timeout);
+
+            // The camera is shown at the start. The toggles hide it and show it again, and the change that was asked for after them hides it. A change that overtook the second
+            // toggle would have been made before it, and the camera would have been left shown.
+            Assert.Equal(new[] { false, true }, new[] { await first, await second });
+            lock (sent)
+            {
+                Assert.Equal(new[] { "set False", "set True", "set False" }, sent.ToArray());
+            }
+
+            Assert.False(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public async Task AToggle_TurnsOverWhatOBSStudioHoldsAtItsTurn_NotWhatTheModelShowedWhenItWasAskedFor()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var sent = new List<string>();
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemLocked":
+                        return (-1, null);
+                    case "SetSceneItemEnabled":
+                        var value = data!.Value.GetProperty("sceneItemEnabled").GetBoolean();
+                        lock (sent)
+                        {
+                            sent.Add($"set {value}");
+                        }
+
+                        // OBS Studio makes the change, and no event tells the model: it shows the old value for as long as nothing reads it again.
+                        test.SetEnabledInWorld(value);
+                        return (100, null);
+                    default:
+                        return null;
+                }
+            };
+            var held = test.Camera.SetLockedAsync(true);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the first change to be held");
+
+            // Both are asked for while the camera is shown, and the model shows it until the toggle has been made.
+            var hide = test.Camera.SetEnabledAsync(false);
+            var toggle = test.Camera.ToggleEnabledAsync();
+            Assert.True(test.Camera.IsEnabled);
+            await test.Rig.Responder.AnswerHeldAsync();
+            await Task.WhenAll(held, hide, toggle).WithTimeoutAsync(Timeout);
+
+            // The toggle turned over what OBS Studio held at its turn (hidden), not what the model showed when it was asked for (shown): it showed the camera again.
+            Assert.True(await toggle);
+            lock (sent)
+            {
+                Assert.Equal(new[] { "set False", "set True" }, sent.ToArray());
+            }
+
+            Assert.True(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public async Task AToggleOfAnItemThatOBSStudioDoesNotKnow_IsARemovedException_AndNothingIsChanged()
+        {
+            await using var test = await Fixture.StartAsync();
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (600, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => test.Camera.ToggleEnabledAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Equal("scene item 1 of scene 'Gaming'", exception.Description);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AToggleWhoseQuestionIsNotAnswered_IsANotReadyException_AndNothingIsChanged_AndTheLineGoesOn()
+        {
+            await using var test = await Fixture.StartAsync();
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (0, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => test.Camera.ToggleEnabledAsync().WithTimeoutAsync(Timeout));
+
+            Assert.IsType<TimeoutException>(exception.InnerException);
+            Assert.Contains("Nothing was changed", exception.Message);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+            Assert.True(test.Camera.IsEnabled);
+
+            // The line is not stuck behind the question that nobody answered.
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabledInWorld(false);
+                _ = test.SendEnabledEventAsync(false);
+                return (100, null);
+            };
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
+            Assert.False(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public async Task AToggleWhoseQuestionIsUnderWayWhenTheConnectionEnds_IsANotConnectedException_AndNothingIsChanged()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30), AutoReconnect = false });
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (0, null) : null;
+            var toggle = test.Camera.ToggleEnabledAsync();
+            await StudioRig.EventuallyAsync(() => test.Count("GetSceneItemEnabled") == 1, "the question to be sent");
+
+            test.Rig.Responder.AbortConnection();
+
+            var exception = await Assert.ThrowsAsync<ObsNotConnectedException>(() => toggle.WithTimeoutAsync(Timeout));
+            Assert.Contains("Nothing was changed", exception.Message);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AToggleWhoseQuestionIsAnsweredAfterOBSStudioChangedItsSceneCollection_IsNotMade()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (-1, null) : null;
+            var toggle = test.Camera.ToggleEnabledAsync();
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the question to be held");
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.Gate.Switching, "the host to know that OBS Studio is switching");
+
+            await test.Rig.Responder.AnswerHeldAsync(_ => (100, new { sceneItemEnabled = true }));
+
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => toggle.WithTimeoutAsync(Timeout));
+            Assert.Contains("changed its scene collection before", exception.Message);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AToggleWhoseCallerGivesUpWhileOBSStudioIsAsked_IsNotMade_AndTheLineGoesOn()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (-1, null) : null;
+            using var cancellation = new CancellationTokenSource();
+            var toggle = test.Camera.ToggleEnabledAsync(cancellation.Token);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the question to be held");
+
+            await cancellation.CancelAsync();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => toggle.WithTimeoutAsync(Timeout));
+
+            // The question changes nothing: the line does not wait for its answer, and the change is not made when the answer comes.
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabledInWorld(false);
+                _ = test.SendEnabledEventAsync(false);
+                return (100, null);
+            };
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
+            await test.Rig.Responder.AnswerHeldAsync(_ => (100, new { sceneItemEnabled = true }));
+            await Task.Delay(200);
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeThatTheCallerGaveUpAfterItWasSent_KeepsItsTurnUntilOBSStudioAnswers_AndTheModelFollowsIt()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemEnabled":
+                        return (-1, null);
+                    case "SetSceneItemLocked":
+                        // Made, and announced at once: the second change is shown by its event, so it does not make the model read the scene items (which would show the first change
+                        // too, and hide whether the model follows it by itself).
+                        test.SetLockedInWorld(true);
+                        _ = test.SendLockedEventAsync(true);
+                        return (100, null);
+                    default:
+                        return null;
+                }
+            };
+            using var cancellation = new CancellationTokenSource();
+            var first = test.Camera.SetEnabledAsync(false, cancellation.Token);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the first change to be held");
+
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
+            var second = test.Camera.SetLockedAsync(true);
+            await Task.Delay(300);
+
+            // The caller is free, and OBS Studio may still make the first change: the second one must not be sent before OBS Studio has answered the first, or OBS Studio could
+            // make them in the other order.
+            Assert.Equal(0, test.Count("SetSceneItemLocked"));
+
+            test.SetEnabledInWorld(false);
+            await test.Rig.Responder.AnswerHeldAsync();
+            await second.WithTimeoutAsync(Timeout);
+
+            Assert.Equal(1, test.Count("SetSceneItemLocked"));
+
+            // The model follows the first change, whether the caller waits or not: no event came, so it reads the scene items.
+            await StudioRig.EventuallyAsync(() => !test.Camera.IsEnabled, "the model to follow the change that the caller gave up");
+        }
+
+        [Fact]
+        public async Task AChangeThatTheCallerGaveUpAfterItWasSent_KeepsItsTurnUntilTheWriteTimeout_WhenOBSStudioDoesNotAnswer()
+        {
+            var writeTimeout = TimeSpan.FromMilliseconds(1000);
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = writeTimeout });
+            long firstSent = 0;
+            long secondSent = 0;
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemEnabled":
+                        Interlocked.Exchange(ref firstSent, Stopwatch.GetTimestamp());
+                        return (0, null);
+                    case "SetSceneItemLocked":
+                        Interlocked.Exchange(ref secondSent, Stopwatch.GetTimestamp());
+                        return (100, null);
+                    default:
+                        return null;
+                }
+            };
+            using var cancellation = new CancellationTokenSource();
+            var first = test.Camera.SetEnabledAsync(false, cancellation.Token);
+            await StudioRig.EventuallyAsync(() => test.Count("SetSceneItemEnabled") == 1, "the first request to be sent");
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.WithTimeoutAsync(Timeout));
+
+            await test.Camera.SetLockedAsync(true).WithTimeoutAsync(Timeout);
+
+            var waited = Stopwatch.GetElapsedTime(Interlocked.Read(ref firstSent), Interlocked.Read(ref secondSent));
+            Assert.True(waited >= writeTimeout * 0.8, $"The second change was sent {waited.TotalMilliseconds:F0} ms after the first, which nobody answered.");
+        }
+
+        [Fact]
+        public async Task AChangeThatOBSStudioMade_ButThatTheModelCanNeitherBeToldNorReadAgain_IsANotConfirmedException()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions
+            {
+                ConfirmationTimeout = TimeSpan.FromMilliseconds(200),
+                ReadTimeout = TimeSpan.FromMilliseconds(300),
+                WriteTimeout = TimeSpan.FromSeconds(5),
+            });
+            var silent = false;
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "SetSceneItemEnabled")
+                {
+                    // OBS Studio makes the change, sends no event, and does not answer the reads of the model any more.
+                    test.SetEnabledInWorld(false);
+                    Volatile.Write(ref silent, true);
+                    return (100, null);
+                }
+
+                return Volatile.Read(ref silent) && type == "GetSceneItemList" ? (0, null) : null;
+            };
+
+            var exception = await Assert.ThrowsAsync<ObsNotConfirmedException>(() => test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout));
+
+            Assert.Equal("hiding scene item 1 of scene 'Gaming'", exception.Operation);
+            Assert.Contains("Do not send the change again", exception.Message);
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+
+            // The change is not made again, and the model goes on reading: it shows what OBS Studio holds as soon as OBS Studio answers.
+            Volatile.Write(ref silent, false);
+            await StudioRig.EventuallyAsync(() => !test.Camera.IsEnabled, "the model to catch up", TimeSpan.FromSeconds(30));
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
         }
 
         [Fact]
@@ -421,6 +809,21 @@ namespace OBSStudioClient.Tests.Studio
             public Task SendEnabledEventAsync(bool enabled)
             {
                 return this.Rig.Responder.SendEventAsync("SceneItemEnableStateChanged", new { sceneName = "Gaming", sceneUuid = this.Gaming, sceneItemId = 1, sceneItemEnabled = enabled }, SceneItemEvents);
+            }
+
+            // OBS Studio makes the change: the world holds it from now on.
+            public void SetLockedInWorld(bool locked)
+            {
+                this.Rig.Responder.Change(world =>
+                {
+                    var item = world.Items[this.Gaming][0];
+                    world.Items[this.Gaming][0] = (item.Id, item.Source, item.IsScene, item.SourceName, item.Index, item.Enabled, locked);
+                });
+            }
+
+            public Task SendLockedEventAsync(bool locked)
+            {
+                return this.Rig.Responder.SendEventAsync("SceneItemLockStateChanged", new { sceneName = "Gaming", sceneUuid = this.Gaming, sceneItemId = 1, sceneItemLocked = locked }, SceneItemEvents);
             }
 
             public int Count(string type)
