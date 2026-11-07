@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Tests.Studio
 {
     using System.Text.Json;
+    using Microsoft.Extensions.Logging;
     using OBSStudioClient.Studio;
     using OBSStudioClient.Studio.Engine;
     using OBSStudioClient.Tests.TestSupport;
@@ -359,9 +360,9 @@ namespace OBSStudioClient.Tests.Studio
         private readonly List<ObsChangedEventArgs> _changes = [];
         private readonly List<string> _properties = [];
 
-        private StudioRig(ObsStudioOptions? options)
+        private StudioRig(ObsStudioOptions? options, ILoggerFactory? loggerFactory)
         {
-            this.Studio = new ObsStudio(options);
+            this.Studio = new ObsStudio(options, loggerFactory);
             this.Studio.Changed += (_, e) =>
             {
                 lock (this._lock)
@@ -405,18 +406,18 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // A rig whose studio is not connected: the world is set up by the test, and the connection is made by the test.
-        public static StudioRig Create(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null)
+        public static StudioRig Create(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
         {
-            var rig = new StudioRig(options);
+            var rig = new StudioRig(options, loggerFactory);
             rig.Responder.World.AddScene("Scene");
             setup?.Invoke(rig.Responder.World);
             rig.Responder.Start();
             return rig;
         }
 
-        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null)
+        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
         {
-            var rig = Create(setup, options);
+            var rig = Create(setup, options, loggerFactory);
             try
             {
                 await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));

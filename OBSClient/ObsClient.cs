@@ -1291,14 +1291,22 @@
                 // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // The logger is code of the application: whether the message is logged is asked before the look at what has to be true, so that no code of the application runs
+                // between the last look and the write.
+                var logging = _logger.IsEnabled(LogLevel.Debug);
+
                 // What has to be true when the message is written, and may have changed while it waited for its turn (it is told which connection that is: the connection can have
                 // been replaced by another since the message was asked for). When it fails nothing is written, and the turn is given back.
                 beforeWriting?.Invoke(session.Id);
 
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
-                if (_logger.IsEnabled(LogLevel.Debug))
+                if (logging)
                 {
                     _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
+
+                    // The logger takes as long as it takes (one that writes to a console that nobody reads can take seconds): OBS Studio can have begun to change its scene collection
+                    // meanwhile, and the look has to be the last thing before the write, not the thing before the log.
+                    beforeWriting?.Invoke(session.Id);
                 }
 
                 // The last look: what ran since the first (the check of whoever asked for the message, the log) took time, and whoever gave up meanwhile is not waiting any more. What is

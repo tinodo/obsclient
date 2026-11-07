@@ -75,6 +75,8 @@ namespace OBSStudioClient
         /// meanwhile), with the number of the connection that the message is about to be written on (the number of <see cref="IngressItem.SessionId"/>): the connection can have
         /// been replaced by another since the message was asked for, and a message that was asked for on one connection must not be written on the next. When it throws, the
         /// message is not written, and the call throws what it threw. For what has to be true when the message is written, and may have changed while it waited for its turn.
+        /// It is called again after the message was logged (when the debug level is on), because a logger can take as long as it likes: it is what runs last before the write, so it has to
+        /// be safe to call twice.
         /// </param>
         internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {

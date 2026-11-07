@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Tests.Studio
 {
     using System.Diagnostics;
+    using Microsoft.Extensions.Logging;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Studio;
@@ -861,6 +862,26 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AChangeWhoseMessageIsBeingLogged_IsNotWritten_WhenOBSStudioBeginsToChangeItsSceneCollectionWhileTheLoggerIsBusy()
+        {
+            // The logger is code of the application, and it takes as long as it takes: the look at whether the batch can still be written has to come after the log.
+            using var logger = new HoldingLoggerFactory("SetSceneItemEnabled");
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) }, logger);
+            var change = test.Camera.SetEnabledAsync(false);
+            await logger.WaitUntilHoldingAsync();
+
+            // The batch has passed the look at its turn, and the logger holds it: OBS Studio begins to change its scene collection, and the model knows.
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.Gate.Switching, "the host to know that OBS Studio is switching");
+            logger.Release();
+
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => change.WithTimeoutAsync(Timeout));
+            Assert.Contains("changed its scene collection before", exception.Message);
+            await Task.Delay(200);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
         public async Task AChangeWhoseCallerGivesUpWhileItIsBeingPutInTheLine_IsNeverWritten()
         {
             await using var test = await Fixture.StartAsync();
@@ -1268,6 +1289,68 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { WriteTimeout = TimeSpan.FromDays(25) }));
         }
 
+        // A logger factory whose loggers hold the thread that logs the message about a batch that is about to be written ("Sending: …") when it contains a text, until the test lets
+        // it go: the application's own logger that takes its time.
+        private sealed class HoldingLoggerFactory : ILoggerFactory
+        {
+            private readonly string _text;
+            private readonly ManualResetEventSlim _holding = new();
+            private readonly ManualResetEventSlim _released = new();
+
+            public HoldingLoggerFactory(string text)
+            {
+                this._text = text;
+            }
+
+            public Task WaitUntilHoldingAsync()
+            {
+                return Task.Run(() =>
+                {
+                    if (!this._holding.Wait(Timeout))
+                    {
+                        throw new TimeoutException("The message was never logged.");
+                    }
+                });
+            }
+
+            public void Release()
+            {
+                this._released.Set();
+            }
+
+            public ILogger CreateLogger(string categoryName)
+            {
+                return new HoldingLogger(this);
+            }
+
+            public void AddProvider(ILoggerProvider provider)
+            {
+            }
+
+            public void Dispose()
+            {
+                this._released.Set();
+            }
+
+            private sealed class HoldingLogger(HoldingLoggerFactory owner) : ILogger
+            {
+                public IDisposable? BeginScope<TState>(TState state)
+                    where TState : notnull => null;
+
+                public bool IsEnabled(LogLevel logLevel) => true;
+
+                public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                {
+                    var message = formatter(state, exception);
+                    if (message.StartsWith("Sending: ", StringComparison.Ordinal) && message.Contains(owner._text, StringComparison.Ordinal))
+                    {
+                        owner._holding.Set();
+                        owner._released.Wait(Timeout);
+                    }
+                }
+            }
+        }
+
         // An OBS Studio with one scene, "Gaming", that shows one input without audio, "Camera", and the studio that follows it.
         private sealed class Fixture : IAsyncDisposable
         {
@@ -1284,7 +1367,7 @@ namespace OBSStudioClient.Tests.Studio
 
             public ObsSceneItem Camera { get; }
 
-            public static async Task<Fixture> StartAsync(ObsStudioOptions? options = null)
+            public static async Task<Fixture> StartAsync(ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
             {
                 var gaming = Guid.Empty;
                 var rig = await StudioRig.ConnectedAsync(
@@ -1294,7 +1377,8 @@ namespace OBSStudioClient.Tests.Studio
                         var camera = world.AddInput("Camera");
                         world.AddItem(gaming, camera, "Camera");
                     },
-                    options ?? Options());
+                    options ?? Options(),
+                    loggerFactory);
                 return new Fixture(rig, gaming);
             }
 
