@@ -1376,6 +1376,84 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
+        // The same, when the event that lets go of the last scene item that was held for the input comes before the read that completes the discovery of the scene
+        // items: the removal is resolved then, and a scene item that OBS made for the input can still be on its way.
+        [Fact]
+        public void AnInputThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenTheEventThatLetGoOfTheLastHeldSceneItemCameBeforeTheDiscoveryWasComplete()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            // A scene that the model has not read appeared, and the input was removed: until its scene items are known the model cannot tell what OBS did. The event
+            // that removes the scene item of A arrives before the read that completes the discovery: nothing is held for the input any more when it is resolved.
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            h.SettleWithTime();
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        // The same for a scene.
+        [Fact]
+        public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenTheEventThatLetGoOfTheLastHeldSceneItemCameBeforeTheDiscoveryWasComplete()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid c = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                c = world.AddScene("C");
+                itemOfA = world.AddItem(a, c, "C", isScene: true);
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            h.World.Scenes.RemoveAll(scene => scene.Uuid == c);
+            EngineEvents.SceneRemoved(h, c, "C");
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, c, "C");
+            var itemOfB = h.World.AddItem(b, c, "C", isScene: true);
+            h.SettleWithTime();
+            Assert.Single(h.Engine.Snapshot().DetachedScenes, scene => scene.Uuid == c);
+
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, c, "C");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Single(snapshot.DetachedScenes, scene => scene.Uuid == c);
+            Assert.Equal(c, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
         // The same for a scene.
         [Fact]
         public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenAReadTookTheOnlyKnownSceneItemAwayAndAnotherOneIsOnItsWay()

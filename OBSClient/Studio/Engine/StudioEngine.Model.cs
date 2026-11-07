@@ -231,7 +231,8 @@ namespace OBSStudioClient.Studio.Engine
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
                     {
-                        this.DestroyInput(input);
+                        // Nothing uses it: it is destroyed, unless it is settling (see JudgeUnusedInput).
+                        this.JudgeUnusedInput(input);
                     }
                     else
                     {
@@ -252,9 +253,10 @@ namespace OBSStudioClient.Studio.Engine
                         continue;
                     }
 
-                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    if (this.RefCount(uuid) == 0 && (this.HeldByRead(uuid) || this._readReleased.Settling(uuid)))
                     {
-                        // See HeldByRead: the count is behind OBS, so a read of the scene items of the scene says.
+                        // See HeldByRead: the count is behind OBS (for a scene that is settling, the events that were on their way when the read was taken can still
+                        // follow), so a read of the scene items of the scene says: OBS has the scene, and it is kept, or it does not, and it is destroyed.
                         this.RequireCheck(scene);
                         scene.ItemsScope.MarkDirty();
                         continue;
