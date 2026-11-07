@@ -630,7 +630,7 @@
         }
 
         // The batch of SendRequestBatchAsync, with the whole response message.
-        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken)
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
@@ -640,7 +640,7 @@
             var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken, cancelUntilWritten, beforeWriting).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData;
@@ -1118,16 +1118,35 @@
             }
 
             var response = responseBuilder.ToString();
-            _logger.LogDebug("Received: {Response}", response);
 
-            ObsMessage? message;
+            ObsMessage? message = null;
+            Exception? unreadable = null;
             try
             {
                 message = JsonSerializer.Deserialize<ObsMessage>(response);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.HandleUnreadableMessage(session, response, ex);
+                unreadable = ex;
+            }
+
+            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs). An event is handed to the studio layer before anything of the application runs: the logger takes
+            // as long as it takes (one that writes to a console that nobody reads can take seconds), and until the studio knows of an event that begins a change of the scene collection
+            // it lets a change through that OBS Studio would make in the collection that it has left.
+            long sequence = 0;
+            var tapped = false;
+            if (message is { Op: OpCode.Event, Data: EventMessage eventMessage })
+            {
+                sequence = this.NextIngress();
+                this.Tap(IngressKind.Event, sequence, session, eventMessage);
+                tapped = true;
+            }
+
+            _logger.LogDebug("Received: {Response}", response);
+
+            if (unreadable is not null)
+            {
+                this.HandleUnreadableMessage(session, response, unreadable);
                 return;
             }
 
@@ -1137,8 +1156,10 @@
                 return;
             }
 
-            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs).
-            var sequence = this.NextIngress();
+            if (!tapped)
+            {
+                sequence = this.NextIngress();
+            }
 
             switch (message.Op)
             {
@@ -1152,12 +1173,6 @@
                     this.ProcessRequestResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Event:
-                    // Before the event is queued for the handlers, and for every event: the studio layer does not depend on who listens.
-                    if (message.Data is EventMessage eventMessage)
-                    {
-                        this.Tap(IngressKind.Event, sequence, session, eventMessage);
-                    }
-
                     try
                     {
                         this.ProcessEventMessage(message);
@@ -1259,7 +1274,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null, Action<int>? beforeWriting = null)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -1287,11 +1302,31 @@
                 await session.SendLock.WaitAsync(turn).ConfigureAwait(false);
                 lockTaken = true;
 
+                // The semaphore processes the end of a wait after the fact: a turn that is given up while another message is done can be handed over all the same. Whoever gave
+                // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // The logger is code of the application: whether the message is logged is asked before the look at what has to be true, so that no code of the application runs
+                // between the last look and the write.
+                var logging = _logger.IsEnabled(LogLevel.Debug);
+
+                // What has to be true when the message is written, and may have changed while it waited for its turn (it is told which connection that is: the connection can have
+                // been replaced by another since the message was asked for). When it fails nothing is written, and the turn is given back.
+                beforeWriting?.Invoke(session.Id);
+
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
-                if (_logger.IsEnabled(LogLevel.Debug))
+                if (logging)
                 {
                     _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
+
+                    // The logger takes as long as it takes (one that writes to a console that nobody reads can take seconds): OBS Studio can have begun to change its scene collection
+                    // meanwhile, and the look has to be the last thing before the write, not the thing before the log.
+                    beforeWriting?.Invoke(session.Id);
                 }
+
+                // The last look: what ran since the first (the check of whoever asked for the message, the log) took time, and whoever gave up meanwhile is not waiting any more. What is
+                // left is the moment between this look and the write, which can not be told from a token that ends a moment after the write.
+                cancellationToken.ThrowIfCancellationRequested();
 
                 await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
 
@@ -1544,9 +1579,10 @@
             this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            cancelUntilWritten.ThrowIfCancellationRequested();
 
             var session = this._session;
             if (session is null || this._connectionState != ConnectionState.Connected)
@@ -1577,9 +1613,12 @@
                 // The wait of the caller ends with its token or with the timeout, whatever the write is doing: when OBS Studio does not read,
                 // a write can block, and it cannot be cancelled without aborting the connection. So it is left to finish by itself, still
                 // holding the turn (nothing can be written in the middle of it), and what goes wrong with it is observed. A message that
-                // still waits for its turn is given up together with the wait.
-                using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-                var write = this.SendAsync(session, request, turnCts.Token);
+                // still waits for its turn is given up together with the wait. The token that ends the call only until the message is written
+                // (cancelUntilWritten) is part of the wait for the turn and of nothing after it: once the message is being written it has no effect.
+                using var turnCts = cancelUntilWritten.CanBeCanceled
+                    ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token, cancelUntilWritten)
+                    : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
+                var write = this.SendAsync(session, request, turnCts.Token, beforeWriting: beforeWriting);
                 if (await Task.WhenAny(write, tcs.Task).ConfigureAwait(false) == write)
                 {
                     await write.ConfigureAwait(false);
@@ -1590,6 +1629,11 @@
                 }
 
                 return await tcs.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancelUntilWritten.IsCancellationRequested && !cancellationToken.IsCancellationRequested && !cts.IsCancellationRequested)
+            {
+                // The message was still waiting for its turn when that token ended (nothing else ends a wait for the turn, and after the turn nothing is cancelled by it): it was not written.
+                throw;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {

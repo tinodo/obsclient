@@ -54,9 +54,12 @@ namespace OBSStudioClient.Studio
         private readonly StudioNoticeHold _held;
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
-        private readonly List<TaskCompletionSource> _settleWaiters = new();
+        private readonly List<SettleWaiter> _settleWaiters = new();
+        private readonly List<ConfirmWaiter> _confirmWaiters = new();
         private readonly List<TaskCompletionSource> _disconnectWaiters = new();
+        private volatile WriteGate _gate = new(0, false, 0, 0);
         private int _settleWaiterCount;
+        private int _confirmWaiterCount;
         private int _disconnectWaiterCount;
         private Task _loop = Task.CompletedTask;
         private ITimer? _timer;
@@ -72,6 +75,14 @@ namespace OBSStudioClient.Studio
         private ReadTicket? _read;
         private int _readFailures;
         private TimeSpan _lastTime;
+
+        // The events that begin and end a change of the scene collection of OBS Studio: how many the receive loop of the client has read (it counts them as it reads them), and how
+        // many the loop of the model has handled (the loop counts them when it has applied them, and publishes the number in the gate). The model learns of a change of collection
+        // when the loop handles the event, which can be some time after the client read it (the receive loop does not wait for the model), and the objects that the application holds
+        // are the old collection's until then. A change that were written in that time would reach the collection that OBS Studio has loaded, with what the application learned
+        // from the one that it left, so no change is written while the two numbers differ.
+        private int _collectionEventsRead;
+        private int _collectionEventsHandled;
 
         public StudioHost(ObsStudio studio, ObsClient client, ObsStudioOptions options, ILogger logger, StudioNotifier notifier)
         {
@@ -96,10 +107,31 @@ namespace OBSStudioClient.Studio
             ReadFailed,
             Wake,
             Settle,
+            Confirm,
+            Refresh,
             Disconnect,
             ReconnectChanged,
             Prune,
+            Recheck,
         }
+
+        /// <summary>
+        /// What a change that the application makes needs to know about the connection and the scene collection, from any thread: the loop publishes it after every item.
+        /// </summary>
+        /// <param name="Session">The connection that the model follows, or 0 when there is none.</param>
+        /// <param name="Switching">Whether OBS Studio is changing its scene collection: it takes no change meanwhile.</param>
+        /// <param name="Epoch">The number of the scene collection that the model is of; it goes up each time that OBS Studio has changed it.</param>
+        /// <param name="CollectionEvents">How many events that begin or end a change of the scene collection the loop has handled (see <see cref="CollectionEventsRead"/>).</param>
+        internal sealed record WriteGate(int Session, bool Switching, int Epoch, int CollectionEvents);
+
+        /// <summary>Gets what a change that the application makes needs to know about the connection and the scene collection.</summary>
+        public WriteGate Gate => this._gate;
+
+        /// <summary>
+        /// Gets how many events that begin or end a change of the scene collection the client has read. When it is not <see cref="WriteGate.CollectionEvents"/> of the gate,
+        /// the loop of the model has not handled all of them yet, and what the model shows (and the objects that the application holds) is of the collection before them.
+        /// </summary>
+        public int CollectionEventsRead => Volatile.Read(ref this._collectionEventsRead);
 
         /// <summary>Gets what is published now.</summary>
         public StudioView View => this._publisher.View;
@@ -148,6 +180,9 @@ namespace OBSStudioClient.Studio
 
         /// <summary>Gets the number of waits for the model to settle that the loop holds. It is for tests.</summary>
         internal int SettleWaiterCount => Volatile.Read(ref this._settleWaiterCount);
+
+        /// <summary>Gets the number of waits for the model to show something that the loop holds. It is for tests.</summary>
+        internal int ConfirmWaiterCount => Volatile.Read(ref this._confirmWaiterCount);
 
         /// <summary>Gets the number of waits for the end of the connection that the loop holds. It is for tests.</summary>
         internal int DisconnectWaiterCount => Volatile.Read(ref this._disconnectWaiterCount);
@@ -213,6 +248,47 @@ namespace OBSStudioClient.Studio
         }
 
         /// <summary>
+        /// Returns a task that completes when <paramref name="predicate"/> is true: it is looked at when the wait is made (unless it is held back, see <paramref name="order"/>),
+        /// and after every step of the loop that publishes what the model holds. The predicate runs on the loop, so it must only read the objects of the studio, and be quick.
+        /// When the token ends first, the task is cancelled and the loop forgets the wait; when the connection ends or the loop stops, the task fails.
+        /// </summary>
+        /// <param name="predicate">What is waited for.</param>
+        /// <param name="cancellationToken">A token that ends the wait.</param>
+        /// <param name="order">
+        /// The parts of the model that what is waited for is about, or null. The waits that name the same part are looked at in the order in which they were made, one
+        /// after the other: a wait is not looked at until the waits before it have what they waited for (or have ended). So a change to the value that the model still
+        /// shows from before an earlier change is not taken for shown at once, and the wait that follows an earlier one is looked at in the same step of the loop in which
+        /// the earlier one is done, so it does not miss the value that the model passes through.
+        /// </param>
+        /// <returns>A task that completes when the predicate is true.</returns>
+        public Task ConfirmAsync(Func<bool> predicate, CancellationToken cancellationToken, IReadOnlyList<RefreshTarget>? order = null)
+        {
+            return this.AddWaiter(HostItemKind.Confirm, cancellationToken, predicate, order);
+        }
+
+        /// <summary>
+        /// Asks the model to read the given parts again, and returns a task that completes when it has read those parts and applied the answers. What else the model has to read
+        /// is not waited for: another part that keeps failing does not keep this wait from ending.
+        /// </summary>
+        /// <param name="targets">The parts.</param>
+        /// <param name="cancellationToken">A token that ends the wait (the parts are read all the same).</param>
+        /// <returns>A task that completes when the parts have been read again.</returns>
+        public Task RefreshAsync(IReadOnlyList<RefreshTarget> targets, CancellationToken cancellationToken)
+        {
+            return this.AddWaiter(HostItemKind.Refresh, cancellationToken, targets: targets);
+        }
+
+        /// <summary>
+        /// Asks the loop to look at the waits for the model to show something again (<see cref="ConfirmAsync"/>), as it does after every item that it handles. For whoever
+        /// changed what a predicate reads after the loop had looked at it, so that the loop would not look at it again before the next item (which can be long in coming): the end
+        /// of a read that a wait asked for, which the loop can have handled before the wait had written the read down.
+        /// </summary>
+        public void Recheck()
+        {
+            _ = this.Post(new HostItem { Kind = HostItemKind.Recheck });
+        }
+
+        /// <summary>
         /// Returns a task that completes when the connection that the client had is over, and the model knows. It is for the end of the connection that the
         /// application just asked for; when the model has not been told within the time, it is a <see cref="TimeoutException"/>, and the loop forgets the wait.
         /// </summary>
@@ -231,10 +307,10 @@ namespace OBSStudioClient.Studio
 
         // Asks the loop to keep a wait, and to forget it when the token ends: a wait that ended without being forgotten would stay in the loop for as long as the
         // model does not settle, or the connection does not end.
-        private Task AddWaiter(HostItemKind kind, CancellationToken cancellationToken)
+        private Task AddWaiter(HostItemKind kind, CancellationToken cancellationToken, Func<bool>? predicate = null, IReadOnlyList<RefreshTarget>? targets = null)
         {
             var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!this.Post(new HostItem { Kind = kind, Waiter = waiter }))
+            if (!this.Post(new HostItem { Kind = kind, Waiter = waiter, Predicate = predicate, Targets = targets }))
             {
                 // The loop has ended: nothing will end a connection or settle the model any more.
                 if (kind == HostItemKind.Disconnect)
@@ -270,8 +346,19 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
+            if (item.Kind == IngressKind.Event && IsCollectionEvent(item.Event!.EventType))
+            {
+                // Counted before the item is queued, so that the loop never handles more of them than were read.
+                Interlocked.Increment(ref this._collectionEventsRead);
+            }
+
             this.Post(new HostItem { Kind = HostItemKind.Ingress, Ingress = item });
             this.AfterIngressPosted?.Invoke(item);
+        }
+
+        private static bool IsCollectionEvent(EventType eventType)
+        {
+            return eventType is EventType.CurrentSceneCollectionChanging or EventType.CurrentSceneCollectionChanged;
         }
 
         // The client decides by itself, a little after it has reported the end of a connection, that it will not reconnect (OBS Studio ended the session on
@@ -404,7 +491,35 @@ namespace OBSStudioClient.Studio
                     }
                     else
                     {
-                        this._settleWaiters.Add(item.Waiter!);
+                        this._settleWaiters.Add(new SettleWaiter(item.Waiter!, null));
+                    }
+
+                    break;
+                case HostItemKind.Confirm:
+                    if (this._engine.State == StudioEngineState.Disconnected)
+                    {
+                        item.Waiter!.TrySetException(new ObsNotConnectedException());
+                    }
+                    else
+                    {
+                        this._confirmWaiters.Add(new ConfirmWaiter(item.Predicate!, item.Waiter!, item.Targets));
+                    }
+
+                    break;
+                case HostItemKind.Refresh:
+                    if (this._engine.State == StudioEngineState.Disconnected)
+                    {
+                        item.Waiter!.TrySetException(new ObsNotConnectedException());
+                    }
+                    else
+                    {
+                        foreach (var target in item.Targets!)
+                        {
+                            this._engine.RequestRefresh(target.Kind, target.Target, now);
+                        }
+
+                        // The wait is for these parts to be read, and they were marked in this same step: it can not be done before they are read.
+                        this._settleWaiters.Add(new SettleWaiter(item.Waiter!, item.Targets));
                     }
 
                     break;
@@ -424,19 +539,43 @@ namespace OBSStudioClient.Studio
 
                     break;
                 case HostItemKind.Prune:
-                    this._settleWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    this._settleWaiters.RemoveAll(static waiter => waiter.Waiter.Task.IsCompleted);
+                    this._confirmWaiters.RemoveAll(static waiter => waiter.Done.Task.IsCompleted);
                     this._disconnectWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    break;
+                case HostItemKind.Recheck:
+                    // Nothing to do here: what comes after every item looks at the waits again (see Recheck).
                     break;
             }
 
             this.PumpReads(now);
             this.PublishStep(before);
+            this.PublishGate();
             this.ReleaseWaiters();
+            this.ReleaseConfirmations();
             this.ArmTimer(this.Now());
             this.PublishWaiterCounts();
         }
 
+        // An event that begins or ends a change of the scene collection is counted when the loop is done with it, whether the model applied it or failed to (it reads everything
+        // again then, see RecoverFrom): the client counted it when it read it, and a count that fell behind for good would keep every change from being made.
         private void HandleIngress(IngressItem ingress, TimeSpan now)
+        {
+            try
+            {
+                this.ApplyIngress(ingress, now);
+            }
+            finally
+            {
+                if (ingress.Kind == IngressKind.Event && IsCollectionEvent(ingress.Event!.EventType))
+                {
+                    // Whatever connection it came on: the gate is published after this step.
+                    this._collectionEventsHandled++;
+                }
+            }
+        }
+
+        private void ApplyIngress(IngressItem ingress, TimeSpan now)
         {
             this.BeforeIngress?.Invoke(ingress);
             switch (ingress.Kind)
@@ -718,6 +857,8 @@ namespace OBSStudioClient.Studio
             }
         }
 
+        // The waits for the model to settle are done when nothing is left to read, anywhere; the waits for the parts that a refresh asked for, when those parts have been read, whatever
+        // else the model has to read (another part that keeps failing would keep a call from ending that was about this one).
         private void ReleaseWaiters()
         {
             if (this._settleWaiters.Count == 0)
@@ -731,25 +872,140 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
-            if (this._versionKnown && this._read is null && this._engine.IsSettled)
+            var settled = this._versionKnown && this._read is null && this._engine.IsSettled;
+            this._settleWaiters.RemoveAll(waiter =>
             {
-                foreach (var waiter in this._settleWaiters)
+                var done = waiter.Targets is null ? settled : this._versionKnown && this.AreRefreshed(waiter.Targets);
+                if (done)
                 {
-                    waiter.TrySetResult();
+                    waiter.Waiter.TrySetResult();
                 }
 
-                this._settleWaiters.Clear();
+                return done;
+            });
+        }
+
+        private bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
+        {
+            foreach (var target in targets)
+            {
+                if (!this._engine.IsRefreshed(target.Kind, target.Target))
+                {
+                    return false;
+                }
             }
+
+            return true;
         }
 
         private void FailWaiters(Exception exception)
         {
             foreach (var waiter in this._settleWaiters)
             {
-                waiter.TrySetException(exception);
+                waiter.Waiter.TrySetException(exception);
             }
 
             this._settleWaiters.Clear();
+            foreach (var waiter in this._confirmWaiters)
+            {
+                waiter.Done.TrySetException(exception);
+            }
+
+            this._confirmWaiters.Clear();
+        }
+
+        // Whoever waits for the model to show something has what it waited for, or is told when the predicate fails. The predicates read the objects that were just
+        // published, so this comes after PublishStep.
+        //
+        // The waits that are about the same part of the model are looked at in the order in which they were made, one after the other, and in this same pass when the one before
+        // has what it waited for. A change can be made right after the change of the wait before it, and the model passes through both values: a wait that was looked at too early
+        // would find the value that the model still shows from before the change before it (and the call would return before the model showed its change), and one that was looked
+        // at too late would find that the model had passed the value that it waits for.
+        private void ReleaseConfirmations()
+        {
+            HashSet<RefreshTarget>? held = null;
+            var i = 0;
+            while (i < this._confirmWaiters.Count)
+            {
+                var waiter = this._confirmWaiters[i];
+                if (waiter.Done.Task.IsCompleted)
+                {
+                    this._confirmWaiters.RemoveAt(i);
+                    continue;
+                }
+
+                if (held is not null && IsHeldBack(waiter.Order, held))
+                {
+                    // A wait before this one, about the same part of the model, has not got what it waited for. This one has not either, and so it holds back the waits after it
+                    // for all of its parts, also for the ones that the wait before it does not name.
+                    Hold(ref held, waiter.Order);
+                    i++;
+                    continue;
+                }
+
+                try
+                {
+                    if (waiter.Predicate())
+                    {
+                        waiter.Done.TrySetResult();
+                        this._confirmWaiters.RemoveAt(i);
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    waiter.Done.TrySetException(ex);
+                    this._confirmWaiters.RemoveAt(i);
+                    continue;
+                }
+
+                Hold(ref held, waiter.Order);
+                i++;
+            }
+        }
+
+        private static void Hold(ref HashSet<RefreshTarget>? held, IReadOnlyList<RefreshTarget>? order)
+        {
+            if (order is not { Count: > 0 })
+            {
+                return;
+            }
+
+            held ??= [];
+            foreach (var part in order)
+            {
+                held.Add(part);
+            }
+        }
+
+        private static bool IsHeldBack(IReadOnlyList<RefreshTarget>? order, HashSet<RefreshTarget> held)
+        {
+            if (order is null)
+            {
+                return false;
+            }
+
+            foreach (var part in order)
+            {
+                if (held.Contains(part))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // What a change that the application makes needs to know: published after every item, and only made new when it differs.
+        private void PublishGate()
+        {
+            var gate = this._gate;
+            var switching = this._engine.IsSwitching;
+            var epoch = this._engine.Epoch;
+            if (gate.Session != this._session || gate.Switching != switching || gate.Epoch != epoch || gate.CollectionEvents != this._collectionEventsHandled)
+            {
+                this._gate = new WriteGate(this._session, switching, epoch, this._collectionEventsHandled);
+            }
         }
 
         // The connection is over, or the loop has ended: whoever waits for the end of the connection has what it waited for.
@@ -766,6 +1022,7 @@ namespace OBSStudioClient.Studio
         private void PublishWaiterCounts()
         {
             Volatile.Write(ref this._settleWaiterCount, this._settleWaiters.Count);
+            Volatile.Write(ref this._confirmWaiterCount, this._confirmWaiters.Count);
             Volatile.Write(ref this._disconnectWaiterCount, this._disconnectWaiters.Count);
         }
 
@@ -877,6 +1134,13 @@ namespace OBSStudioClient.Studio
             return true;
         }
 
+        // A wait for the model to settle (Targets is null: nothing is left to read, anywhere) or for the parts that a refresh asked for to be read (Targets: nothing else matters).
+        private sealed record SettleWaiter(TaskCompletionSource Waiter, IReadOnlyList<RefreshTarget>? Targets);
+
+        // A wait for the model to show something: the predicate is looked at after every step that publishes (ReleaseConfirmations). The waits that are about the same part of the
+        // model (Order) are looked at one after the other.
+        private sealed record ConfirmWaiter(Func<bool> Predicate, TaskCompletionSource Done, IReadOnlyList<RefreshTarget>? Order);
+
         private readonly struct HostItem
         {
             public HostItemKind Kind { get; init; }
@@ -894,6 +1158,10 @@ namespace OBSStudioClient.Studio
             public Exception? Error { get; init; }
 
             public TaskCompletionSource? Waiter { get; init; }
+
+            public Func<bool>? Predicate { get; init; }
+
+            public IReadOnlyList<RefreshTarget>? Targets { get; init; }
 
             // The time at which the item was put in the inbox (a timestamp of the time provider), which is the time that the loop gives it.
             public long Stamp { get; init; }

@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Tests.Studio
 {
     using System.Text.Json;
+    using Microsoft.Extensions.Logging;
     using OBSStudioClient.Studio;
     using OBSStudioClient.Studio.Engine;
     using OBSStudioClient.Tests.TestSupport;
@@ -16,9 +17,12 @@ namespace OBSStudioClient.Tests.Studio
         private readonly FakeObsWebSocketServer _server = new();
         private readonly SemaphoreSlim _write = new(1, 1);
         private readonly object _worldLock = new();
+        private readonly List<string> _requestLog = [];
+        private readonly List<JsonElement> _held = [];
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
         private int _batches;
+        private int _handshakes;
 
         public FakeWorld World { get; } = new();
 
@@ -30,8 +34,44 @@ namespace OBSStudioClient.Tests.Studio
         /// <summary>Gets or sets whether the batches of reads are answered.</summary>
         public bool AnswerBatches { get; set; } = true;
 
+        /// <summary>
+        /// Gets or sets what answers a request before the world does (the changes of the application are not in the world): null leaves the request to the world, a code of
+        /// 0 means that the batch is not answered at all, a code of -1 holds the batch until <see cref="AnswerHeldAsync"/> answers it (as a success without data, which is what
+        /// a change gets; the loop goes on reading meanwhile, so what the studio sends next shows in <see cref="RequestLog"/>), a code of -2 answers the request with an entry
+        /// that is null (a malformed answer), and anything else is the code and the data of the answer. It runs on the thread that answers, so it can hold the answers back by
+        /// blocking.
+        /// </summary>
+        public Func<string, JsonElement?, (int Code, object? Data)?>? OnRequest { get; set; }
+
+        /// <summary>Gets the number of batches that <see cref="OnRequest"/> held, and that <see cref="AnswerHeldAsync"/> has not answered yet.</summary>
+        public int HeldCount
+        {
+            get
+            {
+                lock (this._worldLock)
+                {
+                    return this._held.Count;
+                }
+            }
+        }
+
+        /// <summary>Gets the types of the requests that were received, in the order in which they were read.</summary>
+        public string[] RequestLog
+        {
+            get
+            {
+                lock (this._worldLock)
+                {
+                    return this._requestLog.ToArray();
+                }
+            }
+        }
+
         /// <summary>Gets the number of batches that were received.</summary>
         public int Batches => Volatile.Read(ref this._batches);
+
+        /// <summary>Gets the number of connections that the server has taken (the handshake is done): the studio that reconnects makes another.</summary>
+        public int Handshakes => Volatile.Read(ref this._handshakes);
 
         public void Start()
         {
@@ -45,6 +85,47 @@ namespace OBSStudioClient.Tests.Studio
             lock (this._worldLock)
             {
                 change(this.World);
+            }
+        }
+
+        /// <summary>
+        /// Answers the batches that <see cref="OnRequest"/> held, in the order in which they came. Every request of them is answered with success and without data, unless
+        /// <paramref name="answer"/> says what the answer to a request type is.
+        /// </summary>
+        /// <param name="answer">What answers a request, by its type, or null.</param>
+        public async Task AnswerHeldAsync(Func<string, (int Code, object? Data)>? answer = null)
+        {
+            JsonElement[] held;
+            lock (this._worldLock)
+            {
+                held = this._held.ToArray();
+                this._held.Clear();
+            }
+
+            foreach (var batch in held)
+            {
+                var results = batch.GetProperty("requests").EnumerateArray().Select(request =>
+                {
+                    var type = request.GetProperty("requestType").GetString()!;
+                    var (code, data) = answer?.Invoke(type) ?? (100, (object?)null);
+                    return (object)new
+                    {
+                        requestType = type,
+                        requestId = request.GetProperty("requestId").GetString(),
+                        requestStatus = new { result = code == 100, code },
+                        responseData = data,
+                    };
+                }).ToArray();
+                var json = JsonSerializer.Serialize(new { op = 9, d = new { requestId = batch.GetProperty("requestId").GetString(), results } });
+                await this._write.WaitAsync();
+                try
+                {
+                    await this._server.SendRawAsync(json);
+                }
+                finally
+                {
+                    this._write.Release();
+                }
             }
         }
 
@@ -101,6 +182,7 @@ namespace OBSStudioClient.Tests.Studio
                 try
                 {
                     await this._server.HandshakeAsync(timeout: Timeout);
+                    Interlocked.Increment(ref this._handshakes);
                     while (!this._stopping.IsCancellationRequested)
                     {
                         using var message = await this._server.ReceiveJsonAsync(TimeSpan.FromMinutes(1));
@@ -160,13 +242,44 @@ namespace OBSStudioClient.Tests.Studio
             foreach (var request in d.GetProperty("requests").EnumerateArray())
             {
                 var type = request.GetProperty("requestType").GetString()!;
-                var (code, data) = this.Answer(type, request.TryGetProperty("requestData", out var requestData) ? requestData : null);
+                JsonElement? data = request.TryGetProperty("requestData", out var requestData) ? requestData : null;
+                lock (this._worldLock)
+                {
+                    this._requestLog.Add(type);
+                }
+
+                var custom = this.OnRequest?.Invoke(type, data);
+                if (custom is { Code: 0 })
+                {
+                    // Nobody answers this batch.
+                    return;
+                }
+
+                if (custom is { Code: -1 })
+                {
+                    // The batch is kept (the message goes away when the loop reads the next one): AnswerHeldAsync answers it.
+                    lock (this._worldLock)
+                    {
+                        this._held.Add(d.Clone());
+                    }
+
+                    return;
+                }
+
+                if (custom is { Code: -2 })
+                {
+                    // A malformed answer: the entry of this request is null (the client hands such an answer on as it came).
+                    results.Add(null!);
+                    continue;
+                }
+
+                var (code, answer) = custom ?? this.Answer(type, data);
                 results.Add(new
                 {
                     requestType = type,
                     requestId = request.GetProperty("requestId").GetString(),
                     requestStatus = new { result = code == 100, code },
-                    responseData = data,
+                    responseData = answer,
                 });
             }
 
@@ -203,6 +316,17 @@ namespace OBSStudioClient.Tests.Studio
                 return data is { } value && value.TryGetProperty(property, out var element) && element.TryGetGuid(out var guid) ? guid : Guid.Empty;
             }
 
+            if (type == "GetSceneItemEnabled")
+            {
+                // The state that a toggle asks for: what the world holds, whatever the model has been told so far.
+                var itemId = data is { } requested && requested.TryGetProperty("sceneItemId", out var idElement) && idElement.TryGetInt32(out var parsed) ? parsed : 0;
+                lock (this._worldLock)
+                {
+                    var found = this.World.Items.TryGetValue(Target("sceneUuid"), out var items) ? items.Where(i => i.Id == itemId).Select(i => (bool?)i.Enabled).FirstOrDefault() : null;
+                    return found is { } enabled ? (100, new { sceneItemEnabled = enabled }) : (600, null);
+                }
+            }
+
             ReadRequest? request = type switch
             {
                 "GetSceneList" => new ReadRequest(ReadKind.Scenes, OBSStudioClient.Enums.RequestType.GetSceneList, null, Guid.Empty),
@@ -236,9 +360,9 @@ namespace OBSStudioClient.Tests.Studio
         private readonly List<ObsChangedEventArgs> _changes = [];
         private readonly List<string> _properties = [];
 
-        private StudioRig(ObsStudioOptions? options)
+        private StudioRig(ObsStudioOptions? options, ILoggerFactory? loggerFactory)
         {
-            this.Studio = new ObsStudio(options);
+            this.Studio = new ObsStudio(options, loggerFactory);
             this.Studio.Changed += (_, e) =>
             {
                 lock (this._lock)
@@ -282,18 +406,18 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // A rig whose studio is not connected: the world is set up by the test, and the connection is made by the test.
-        public static StudioRig Create(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null)
+        public static StudioRig Create(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
         {
-            var rig = new StudioRig(options);
+            var rig = new StudioRig(options, loggerFactory);
             rig.Responder.World.AddScene("Scene");
             setup?.Invoke(rig.Responder.World);
             rig.Responder.Start();
             return rig;
         }
 
-        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null)
+        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
         {
-            var rig = Create(setup, options);
+            var rig = Create(setup, options, loggerFactory);
             try
             {
                 await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));

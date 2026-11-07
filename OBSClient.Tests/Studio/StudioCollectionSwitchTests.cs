@@ -81,8 +81,9 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task WhileOBSStudioSwitches_TheStudioHoldsWhatItKnew_SaysThatItIsBeingRead_AndAsksNothing()
         {
-            // A switch that takes a second and a half: long enough to look at what the studio does in the middle of it.
-            await using var rig = new StudioSimRig(StudioSimRig.DefaultQuirks with { CollectionSwitchTime = SimRange.Exactly(1500) });
+            // A switch that takes five seconds: long enough to look at what the studio does in the middle of it, also on a slow or busy machine (the studio is looked at about
+            // 650 ms after it knew that OBS Studio is switching; a switch of a second and a half was over by then now and then, on a runner with two cores).
+            await using var rig = new StudioSimRig(StudioSimRig.DefaultQuirks with { CollectionSwitchTime = SimRange.Exactly(5000) });
             rig.World(world => world.CreateInput(world.CreateScene("Gaming"), "Mic", Mic));
             await rig.ConnectAsync().WithTimeoutAsync(Timeout);
             await rig.ConvergedAsync("the first read");

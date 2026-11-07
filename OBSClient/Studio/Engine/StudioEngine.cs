@@ -41,6 +41,13 @@ namespace OBSStudioClient.Studio.Engine
     internal sealed record ReadRequest(ReadKind Kind, RequestType Type, object? Data, Guid Target);
 
     /// <summary>
+    /// A part of the model that the application asks to have read again: a change that it made was not shown by the events in time.
+    /// </summary>
+    /// <param name="Kind">What is read: the list of scenes, the program scene, the scene items of a scene, the audio state of an input, and so on.</param>
+    /// <param name="Target">The scene or input that it is about, or <see cref="Guid.Empty"/> for the lists, the program scene and studio mode.</param>
+    internal readonly record struct RefreshTarget(ReadKind Kind, Guid Target = default);
+
+    /// <summary>
     /// The requests that the engine wants to have sent, as one serial batch, and what it needs to know about the moment they were sent.
     /// </summary>
     internal sealed class ReadTicket
