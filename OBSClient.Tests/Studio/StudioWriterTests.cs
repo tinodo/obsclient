@@ -4,6 +4,7 @@ namespace OBSStudioClient.Tests.Studio
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Studio;
+    using OBSStudioClient.Studio.Engine;
     using OBSStudioClient.Tests.TestSupport;
 
     /// <summary>
@@ -725,6 +726,97 @@ namespace OBSStudioClient.Tests.Studio
             Volatile.Write(ref silent, false);
             await StudioRig.EventuallyAsync(() => !test.Camera.IsEnabled, "the model to catch up", TimeSpan.FromSeconds(30));
             Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeThatTheCallerGaveUpWhileItWaitedForItsTurnToBeWritten_IsNeverWritten_AndTheLineGoesOn()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemLocked")
+                {
+                    return null;
+                }
+
+                test.SetLockedInWorld(true);
+                _ = test.SendLockedEventAsync(true);
+                return (100, null);
+            };
+
+            // Another message is being written on the connection (a request that was sent through the client to an OBS Studio that does not read): nothing else is written until
+            // it is done, and the batch of the change waits for its turn.
+            var turn = await test.Rig.Studio.Client.TakeTheTurnToWriteAsync();
+            using var cancellation = new CancellationTokenSource();
+            var given = test.Camera.SetEnabledAsync(false, cancellation.Token);
+            await Task.Delay(300);
+            Assert.False(given.IsCompleted);
+
+            await cancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => given.WithTimeoutAsync(Timeout));
+            turn.Dispose();
+
+            // The batch was not written when the turn came (the caller had gone, and the batch was not on its way yet), and the line goes on: the next change is made.
+            await test.Camera.SetLockedAsync(true).WithTimeoutAsync(Timeout);
+            await Task.Delay(200);
+            var log = string.Join(", ", test.Rig.Responder.RequestLog.Where(type => type.StartsWith("SetSceneItem", StringComparison.Ordinal)));
+            Assert.True(test.Count("SetSceneItemEnabled") == 0, $"The change that the caller gave up was written. What the server received: {log}.");
+            Assert.Equal(1, test.Count("SetSceneItemLocked"));
+            Assert.True(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public async Task AChangeAfterAnEarlierOneThatTheEventsDidNotShow_IsNotShownAgainstWhatTheModelShowedBeforeTheModelIsReadAgain()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var holdReads = false;
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "SetSceneItemEnabled")
+                {
+                    // OBS Studio makes the change and answers, and sends no event: the model knows nothing of it.
+                    test.SetEnabledInWorld(data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                    Volatile.Write(ref holdReads, true);
+                    return (100, null);
+                }
+
+                return type == "GetSceneItemList" && Volatile.Read(ref holdReads) ? (-1, null) : null;
+            };
+
+            // The camera is shown. It is hidden and shown again, and no event says so.
+            var hide = test.Camera.SetEnabledAsync(false);
+            var show = test.Camera.SetEnabledAsync(true);
+
+            // The events do not come within 300 ms, the model is asked to read the scene items, and OBS Studio does not answer that yet. The second change asks for what the model
+            // has shown from the start (shown): it must not be taken for shown before the model has been read again, or the call would return against what an earlier change left.
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the read of the scene items to be held");
+            await Task.Delay(300);
+            Assert.False(hide.IsCompleted);
+            Assert.False(show.IsCompleted);
+
+            // The read is answered: the model shows what OBS Studio holds (shown), and both calls end.
+            Volatile.Write(ref holdReads, false);
+            (int Code, object? Data) answer = default;
+            test.Rig.Responder.Change(world => answer = world.Answer(new ReadRequest(ReadKind.Items, RequestType.GetSceneItemList, null, test.Gaming)));
+            await test.Rig.Responder.AnswerHeldAsync(_ => answer);
+            await Task.WhenAll(hide, show).WithTimeoutAsync(Timeout);
+            Assert.True(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public void WhenTheCallerGivesUp_TheWaitForTheTurnToWriteEndsBeforeTheCallDoes()
+        {
+            // A batch that waits for its turn to be written on the connection is given up first: whoever sees the call end can let the turn go at once, and the batch must not
+            // be the one that gets it.
+            var job = new WriteJob { Description = "something", BuildRequests = () => [] };
+            job.PrepareToGiveUp();
+            bool? callEndedWhenTheWaitEnded = null;
+            using var registration = job.BeforeWritten.Register(() => callEndedWhenTheWaitEnded = job.IsCompleted);
+
+            job.GiveUp();
+
+            Assert.False(callEndedWhenTheWaitEnded);
+            Assert.True(job.IsCompleted);
         }
 
         [Fact]

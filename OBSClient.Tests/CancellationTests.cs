@@ -398,6 +398,105 @@ namespace OBSStudioClient.Tests
         }
 
         [Fact]
+        public async Task ABatchThatWaitsForItsTurnToBeWritten_IsNotWritten_WhenTheTokenThatEndsTheWaitForTheTurnEnds()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+
+            // Another message is being written: the batch waits for its turn.
+            using var turn = await client.TakeTheTurnToWriteAsync();
+            using var cancelUntilWritten = new CancellationTokenSource();
+            var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+            batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+            var sent = client.SendRawBatchAsync(batch, 30_000, default, cancelUntilWritten.Token);
+            await Task.Delay(200);
+            Assert.False(sent.IsCompleted);
+
+            await cancelUntilWritten.CancelAsync();
+
+            // It is the token that ended the call, and not the time limit (which would be a TimeoutException): the batch was not written.
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sent.WithTimeoutAsync(Timeout));
+            turn.Dispose();
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // Nothing was written when the turn came: the first message that the server receives is the request that is sent now.
+            var next = client.GetStudioModeEnabled();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("GetStudioModeEnabled", requestType);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { studioModeEnabled = true });
+            Assert.True(await next.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task ABatchThatWaitsForItsTurnToBeWritten_IsNeverWritten_WhenTheTurnIsGivenBackRightAfterTheWaitEnded()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var writtenBefore = client.TotalMessagesSent;
+
+            // A semaphore processes the end of a wait after the fact: when the turn is given back right after the wait ended, it can be handed over to the wait that ended. The
+            // batch must not be written then. The batch has to be waiting when the wait ends for the race to be there, which it is in most of the rounds.
+            for (var round = 0; round < 300; round++)
+            {
+                var turn = await client.TakeTheTurnToWriteAsync();
+                using var cancelUntilWritten = new CancellationTokenSource();
+                var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+                batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+                var sent = client.SendRawBatchAsync(batch, 30_000, default, cancelUntilWritten.Token);
+                await Task.Delay(3);
+
+                cancelUntilWritten.Cancel();
+                turn.Dispose();
+
+                var finished = await Task.WhenAny(sent, Task.Delay(2000));
+                Assert.True(ReferenceEquals(finished, sent), $"The batch was written in round {round}: it does not end by itself, it waits for a response.");
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sent);
+            }
+
+            Assert.Equal(writtenBefore, client.TotalMessagesSent);
+        }
+
+        [Fact]
+        public async Task ABatchThatIsBeingWritten_IsNotCancelled_ByTheTokenThatEndsTheWaitForTheTurn()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var turn = await client.TakeTheTurnToWriteAsync();
+            using var cancelUntilWritten = new CancellationTokenSource();
+            var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+            batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+            var sent = client.SendRawBatchAsync(batch, 30_000, default, cancelUntilWritten.Token);
+            await Task.Delay(200);
+
+            // It has its turn, and is written.
+            turn.Dispose();
+            using var received = await server.ReceiveJsonAsync(Timeout);
+            Assert.Equal(8, received.RootElement.GetProperty("op").GetInt32());
+
+            // From now on the token is of no use: the message is on its way, and the wait for the response goes on.
+            await cancelUntilWritten.CancelAsync();
+            await Task.Delay(200);
+            Assert.False(sent.IsCompleted);
+            var d = received.RootElement.GetProperty("d");
+            var request = d.GetProperty("requests")[0];
+            var results = new[]
+            {
+                new
+                {
+                    requestType = request.GetProperty("requestType").GetString(),
+                    requestId = request.GetProperty("requestId").GetString(),
+                    requestStatus = new { result = true, code = 100 },
+                    responseData = new { studioModeEnabled = true },
+                },
+            };
+            await server.SendRawAsync(JsonSerializer.Serialize(new { op = 9, d = new { requestId = d.GetProperty("requestId").GetString(), results } }));
+
+            var response = await sent.WithTimeoutAsync(Timeout);
+            Assert.Single(response.Results);
+            Assert.True(response.Results[0].RequestStatus.Result);
+        }
+
+        [Fact]
         public async Task ConnectAsync_OnADisposedClient_Throws_AndOpensNothing()
         {
             await using var server = new FakeObsWebSocketServer();

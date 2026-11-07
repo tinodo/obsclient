@@ -59,9 +59,41 @@ namespace OBSStudioClient
         /// <param name="requestBatchMessage">The batch.</param>
         /// <param name="timeOutInMilliseconds">The time limit, or null for the one of the client.</param>
         /// <param name="cancellationToken">A token that ends the wait for the responses.</param>
-        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default)
+        /// <param name="cancelUntilWritten">
+        /// A token that ends the call only while the message waits for its turn to be written on the connection (another message is being written): it is not written then,
+        /// and the call throws an <see cref="OperationCanceledException"/>. From the moment that the message is being written it has no effect: the wait for the responses
+        /// ends with <paramref name="cancellationToken"/> and the time limit only.
+        /// </param>
+        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default)
         {
-            return this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken);
+            return this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken, cancelUntilWritten);
+        }
+
+        /// <summary>
+        /// Takes the turn to write messages on the current connection, and returns what gives it back. What is sent meanwhile waits for its turn, as it does while a message is
+        /// being written that OBS Studio does not read. For the tests of what happens to a message that waits for its turn.
+        /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait for the turn.</param>
+        /// <returns>What gives the turn back when it is disposed of.</returns>
+        /// <exception cref="Exceptions.ObsClientException">There is no connection.</exception>
+        internal async Task<IDisposable> TakeTheTurnToWriteAsync(CancellationToken cancellationToken = default)
+        {
+            var session = this._session ?? throw new Exceptions.ObsClientException("Not connected.");
+            await session.SendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new TurnToWrite(session.SendLock);
+        }
+
+        private sealed class TurnToWrite(SemaphoreSlim sendLock) : IDisposable
+        {
+            private int _given;
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref this._given, 1) == 0)
+                {
+                    sendLock.Release();
+                }
+            }
         }
 
         private long NextIngress()

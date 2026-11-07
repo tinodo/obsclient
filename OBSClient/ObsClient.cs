@@ -630,7 +630,7 @@
         }
 
         // The batch of SendRequestBatchAsync, with the whole response message.
-        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken)
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default)
         {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
@@ -640,7 +640,7 @@
             var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken, cancelUntilWritten).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData;
@@ -1287,6 +1287,10 @@
                 await session.SendLock.WaitAsync(turn).ConfigureAwait(false);
                 lockTaken = true;
 
+                // The semaphore processes the end of a wait after the fact: a turn that is given up while another message is done can be handed over all the same. Whoever gave
+                // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
@@ -1544,9 +1548,10 @@
             this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            cancelUntilWritten.ThrowIfCancellationRequested();
 
             var session = this._session;
             if (session is null || this._connectionState != ConnectionState.Connected)
@@ -1577,8 +1582,11 @@
                 // The wait of the caller ends with its token or with the timeout, whatever the write is doing: when OBS Studio does not read,
                 // a write can block, and it cannot be cancelled without aborting the connection. So it is left to finish by itself, still
                 // holding the turn (nothing can be written in the middle of it), and what goes wrong with it is observed. A message that
-                // still waits for its turn is given up together with the wait.
-                using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
+                // still waits for its turn is given up together with the wait. The token that ends the call only until the message is written
+                // (cancelUntilWritten) is part of the wait for the turn and of nothing after it: once the message is being written it has no effect.
+                using var turnCts = cancelUntilWritten.CanBeCanceled
+                    ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token, cancelUntilWritten)
+                    : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
                 var write = this.SendAsync(session, request, turnCts.Token);
                 if (await Task.WhenAny(write, tcs.Task).ConfigureAwait(false) == write)
                 {
@@ -1590,6 +1598,11 @@
                 }
 
                 return await tcs.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancelUntilWritten.IsCancellationRequested && !cancellationToken.IsCancellationRequested && !cts.IsCancellationRequested)
+            {
+                // The message was still waiting for its turn when that token ended (nothing else ends a wait for the turn, and after the turn nothing is cancelled by it): it was not written.
+                throw;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {

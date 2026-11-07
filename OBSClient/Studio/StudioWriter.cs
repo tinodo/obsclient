@@ -28,6 +28,7 @@ namespace OBSStudioClient.Studio
     internal sealed class WriteJob
     {
         private readonly TaskCompletionSource<object?> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private CancellationTokenSource? _beforeWritten;
 
         /// <summary>Gets what is done, in words, for the messages: "enable scene item 3 of scene 'Gaming'".</summary>
         public required string Description { get; init; }
@@ -88,10 +89,31 @@ namespace OBSStudioClient.Studio
         /// </summary>
         internal CancellationToken Cancellation { get; set; }
 
+        /// <summary>
+        /// Gets the token that ends when the caller gives up, and only matters until the batch of the change is written: it ends the wait for the turn to write it on the
+        /// connection (another message is being written), so that a batch that waits for its turn is not written when the turn comes. It is ended before the call is (see
+        /// <see cref="GiveUp"/>), so that nobody who sees the call end can let the turn go before the batch has been given up. It never ends when the caller has no token.
+        /// </summary>
+        internal CancellationToken BeforeWritten => this._beforeWritten?.Token ?? default;
+
         /// <summary>Gets the task that ends the call.</summary>
         internal Task<object?> Task => this._completion.Task;
 
         internal bool IsCompleted => this._completion.Task.IsCompleted;
+
+        /// <summary>Makes the job end when its caller gives up: <see cref="BeforeWritten"/> is the first to end.</summary>
+        internal void PrepareToGiveUp()
+        {
+            // No timer and no registration of its own: there is nothing to dispose of.
+            this._beforeWritten = new CancellationTokenSource();
+        }
+
+        /// <summary>The caller gave up: the wait for the turn to write the batch ends first (this returns when it has), and then the call.</summary>
+        internal void GiveUp()
+        {
+            this._beforeWritten?.Cancel();
+            this.Cancel();
+        }
 
         internal void Complete(object? result)
         {
@@ -122,7 +144,9 @@ namespace OBSStudioClient.Studio
     /// <para>
     /// A change is confirmed when the model shows it. The changes that are about the same part of the model (the scene items of a scene, the audio of an input) are confirmed in
     /// the order in which they were made, by the loop of the model (see <see cref="StudioHost.ConfirmAsync"/>): the model passes through the values of changes that were made
-    /// right after one another, and a confirmation that looked at the model too early would take the value that an earlier change left for its own.
+    /// right after one another, and a confirmation that looked at the model too early would take the value that an earlier change left for its own. The wait of a change keeps
+    /// its place in that order while the model is read again (when the events did not show the change in time): the waits after it are looked at when that read has been
+    /// applied, not before.
     /// </para>
     /// <para>
     /// The turn belongs to the line, not to the caller. A caller that gives up (its token ends) stops waiting at once, and a change that was not sent yet is not sent. A change
@@ -215,6 +239,11 @@ namespace OBSStudioClient.Studio
             job.Session = gate.Session;
             job.Epoch = gate.Epoch;
             job.Cancellation = cancellationToken;
+            if (cancellationToken.CanBeCanceled)
+            {
+                job.PrepareToGiveUp();
+            }
+
             if (!this._queue.Writer.TryWrite(job))
             {
                 return Task.FromException<T>(new ObjectDisposedException(nameof(ObsStudio)));
@@ -223,8 +252,9 @@ namespace OBSStudioClient.Studio
             if (cancellationToken.CanBeCanceled)
             {
                 // The call ends with the token. A change that has not been sent yet is then skipped when its turn comes; one that was sent keeps its turn until it is
-                // answered, and the model follows it all the same (see SendAsync and ConfirmAsync).
-                var registration = cancellationToken.Register(static state => ((WriteJob)state!).Cancel(), job);
+                // answered, and the model follows it all the same (see SendAsync and ConfirmAsync). A batch that waits for its turn to be written on the connection is given
+                // up before the call ends.
+                var registration = cancellationToken.Register(static state => ((WriteJob)state!).GiveUp(), job);
                 _ = job.Task.ContinueWith(_ => registration.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
 
@@ -405,8 +435,15 @@ namespace OBSStudioClient.Studio
             try
             {
                 // Only the end of the studio ends the wait for the answer, not the token of the caller: the batch is on its way, OBS Studio may still make the change, and the next
-                // change is not sent before this one is answered. The caller stops waiting by itself (see ExecuteAsync).
-                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token).ConfigureAwait(false);
+                // change is not sent before this one is answered. The caller stops waiting by itself (see ExecuteAsync). The caller giving up does end the wait for the turn to
+                // write the batch on the connection (when another message is being written): the batch was not written then, and there is nothing to wait for.
+                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (job.Cancellation.IsCancellationRequested && !this._stopping.IsCancellationRequested)
+            {
+                // The caller gave up while the batch waited for its turn to be written: it was not written, so nothing was changed, and nothing is left to look at.
+                job.Cancel();
+                return;
             }
             catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
             {
@@ -497,72 +534,56 @@ namespace OBSStudioClient.Studio
             }
         }
 
+        // Waits until the model shows the change: first for the events, and when they do not say it in time, for a read of the parts that it was about.
+        //
+        // It is one wait of the loop of the model from the start to the end, not a wait for the events followed by a wait for the read: the wait keeps its place in the order of the
+        // waits about the same part (see StudioHost.ConfirmAsync) while the model is read again. The waits after it are not looked at before that read has been applied, because
+        // what the model shows until then is what an earlier change left, and a change to the same value would be taken for shown.
         private async Task WaitForModelAsync(WriteJob job, object? result)
         {
+            // The read of the model that is asked for when the events did not show the change in time.
+            Task? read = null;
+
             // What the model can not show any more ends the wait: OBS Studio changed its scene collection (or the connection changed) since the change was asked for, so
-            // the change was made in a collection that the model has left (or is leaving), and nothing will show it.
-            bool Done() => job.IsConfirmed(result) || this.Left(job);
+            // the change was made in a collection that the model has left (or is leaving), and nothing will show it. So does the end of the read (what a read says is what
+            // OBS Studio holds, whatever the events said or did not say), also when it ends in failure: the connection ended, or the studio is disposed of. A read that was
+            // cancelled is the end of the time that the wait was given, not the end of the read.
+            bool Done() => job.IsConfirmed(result) || this.Left(job) || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
 
-            using (var limit = new CancellationTokenSource(this._confirmationTimeout, this._time))
-            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token))
+            using var events = new CancellationTokenSource(this._confirmationTimeout, this._time);
+            using var limit = new CancellationTokenSource(this._confirmationTimeout + this._readTimeout + this._readTimeout, this._time);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
+            using var eventsTimedOut = events.Token.Register(() => Volatile.Write(ref read, this._host.RefreshAsync(job.Refresh, linked.Token)));
+            try
             {
-                try
+                await this._host.ConfirmAsync(Done, linked.Token, job.Refresh).ConfigureAwait(false);
+            }
+            catch (ObsNotConnectedException)
+            {
+                // The connection ended. OBS Studio has answered: the change was made, and the model is read again when the connection is restored.
+            }
+            catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
+            {
+                // The studio is disposed of: the change was made, and nothing will show it.
+            }
+            catch (OperationCanceledException) when (limit.IsCancellationRequested)
+            {
+                this._logger.LogWarning("The model was not read again in time after {Description}.", job.Description);
+
+                // The model could not be read again in time, and OBS Studio did say that it made the change: that is not an end that the call can call well. The read of the part that
+                // the change was about may have been applied all the same, with other reads still to do, and then the model shows the change.
+                if (!this.IsShown(job, result) && !this.Left(job))
                 {
-                    await this._host.ConfirmAsync(Done, linked.Token, job.Refresh).ConfigureAwait(false);
-                    return;
-                }
-                catch (OperationCanceledException) when (limit.IsCancellationRequested && !this._stopping.IsCancellationRequested)
-                {
-                    // The events did not show it in time.
-                }
-                catch (ObsNotConnectedException)
-                {
-                    // The connection ended. OBS Studio has answered: the change was made, and the model is read again when the connection is restored.
-                    return;
-                }
-                catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
-                {
-                    // The studio is disposed of: the change was made, and nothing will show it.
-                    return;
+                    throw new ObsNotConfirmedException(job.Description);
                 }
             }
-
-            // What a read says is what OBS Studio holds, whatever the events said or did not say.
-            using (var limit = new CancellationTokenSource(this._readTimeout + this._readTimeout, this._time))
-            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token))
-            using (var race = CancellationTokenSource.CreateLinkedTokenSource(linked.Token))
+            finally
             {
-                try
+                if (Volatile.Read(ref read) is { } asked)
                 {
-                    var read = this._host.RefreshAsync(job.Refresh, race.Token);
-                    var left = this._host.ConfirmAsync(() => this.Left(job), race.Token);
-                    var first = await Task.WhenAny(read, left).ConfigureAwait(false);
-                    await race.CancelAsync().ConfigureAwait(false);
-                    _ = this.ObserveAsync(ReferenceEquals(first, read) ? left : read);
-                    await first.ConfigureAwait(false);
-                    return;
+                    // Whatever became of the read is of no interest any more: it was asked for to end this wait.
+                    _ = this.ObserveAsync(asked);
                 }
-                catch (OperationCanceledException) when (limit.IsCancellationRequested && !this._stopping.IsCancellationRequested)
-                {
-                    this._logger.LogWarning("The model was not read again in time after {Description}.", job.Description);
-                }
-                catch (ObsNotConnectedException)
-                {
-                    // The connection ended: see above.
-                    return;
-                }
-                catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
-                {
-                    // The studio is disposed of: see above.
-                    return;
-                }
-            }
-
-            // The model could not be read again in time, and OBS Studio did say that it made the change: that is not an end that the call can call well. The read of the part that
-            // the change was about may have been applied all the same, with other reads still to do, and then the model shows the change.
-            if (!this.IsShown(job, result) && !this.Left(job))
-            {
-                throw new ObsNotConfirmedException(job.Description);
             }
         }
 
