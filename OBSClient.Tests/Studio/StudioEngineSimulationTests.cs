@@ -89,7 +89,8 @@ namespace OBSStudioClient.Tests.Studio
             var letGo = 0L;
             for (var seed = 1; seed <= 20; seed++)
             {
-                var result = Run(seed, "Hostile", 4, reconnects: true, ShortRetention);
+                // Without changes of the scene collection: a switch lets the model forget what it remembers, all at once, before the retention does.
+                var result = Run(seed, "Hostile", 4, reconnects: true, ShortRetention, collections: false);
                 Assert.Null(result.Problem);
                 letGo += result.LetGo;
             }
@@ -106,6 +107,8 @@ namespace OBSStudioClient.Tests.Studio
             var timeouts = 0;
             var reconnects = 0;
             var messages = 0;
+            var switches = 0;
+            var outdated = 0;
             for (var seed = 1; seed <= 20; seed++)
             {
                 var result = Run(seed, "Hostile", 4, reconnects: true);
@@ -114,6 +117,8 @@ namespace OBSStudioClient.Tests.Studio
                 timeouts += result.Timeouts;
                 reconnects += result.Reconnects;
                 messages += result.Messages;
+                switches += result.Switches;
+                outdated += result.Outdated;
             }
 
             // If the walks did not do these, a model that is right after them would prove little.
@@ -122,6 +127,28 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(late > 20, $"Only {late} results of reads were handed to the engine after other messages.");
             Assert.True(timeouts > 5, $"Only {timeouts} reads were given up.");
             Assert.True(reconnects > 5, $"The connection ended only {reconnects} times.");
+            Assert.True(switches > 40, $"The engine was told of only {switches} changes of the scene collection.");
+        }
+
+        [Fact]
+        public void The_walks_let_OBS_Studio_change_its_scene_collection_while_a_read_is_under_way()
+        {
+            var switches = 0;
+            var outdated = 0;
+            foreach (var quirks in new[] { "Ideal", "Real", "Hostile" })
+            {
+                for (var seed = 1; seed <= 40; seed++)
+                {
+                    var result = Run(seed, quirks, 4, reconnects: true);
+                    Assert.Null(result.Problem);
+                    switches += result.Switches;
+                    outdated += result.Outdated;
+                }
+            }
+
+            // If no read was under way when OBS Studio changed its scene collection, the answers that the model has to ignore would never have reached it.
+            Assert.True(switches > 400, $"The engine was told of only {switches} changes of the scene collection.");
+            Assert.True(outdated > 20, $"Only {outdated} reads were under way when the scene collection changed.");
         }
 
         [Fact]
@@ -195,7 +222,7 @@ namespace OBSStudioClient.Tests.Studio
             return db <= -100 ? 0 : Math.Pow(10, db / 20);
         }
 
-        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0)
+        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0, bool collections = true)
         {
             var presets = quirks switch
             {
@@ -213,7 +240,7 @@ namespace OBSStudioClient.Tests.Studio
                 options.TombstoneCleanupInterval = TimeSpan.FromSeconds(1);
             }
 
-            return EngineSimRun.Execute(seed, presets, quirks, Steps, reconnects, options);
+            return EngineSimRun.Execute(seed, presets, quirks, Steps, reconnects, options, collections: collections);
         }
 
         private static int ReadNumber(string name, int fallback)

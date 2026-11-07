@@ -16,10 +16,13 @@ namespace OBSStudioClient.Tests.Studio
     /// <param name="Messages">The number of messages of OBS Studio that arrived.</param>
     /// <param name="Digest">A digest of everything that happened: every operation, every message that arrived with its payload, every read that was sent, and the states that were compared.</param>
     /// <param name="LetGo">The number of things that the engine let go of because it had remembered them for long enough.</param>
-    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages, string Digest, long LetGo);
+    /// <param name="Switches">The number of times that the engine was told that OBS Studio had changed its scene collection.</param>
+    /// <param name="Outdated">The number of reads that were let go of because OBS Studio changed its scene collection after they were sent.</param>
+    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages, string Digest, long LetGo, int Switches, int Outdated);
 
     /// <summary>
-    /// Runs a <see cref="StudioEngine"/> against a <see cref="SimObs"/> for a random walk: someone else changes OBS Studio at random moments, and the
+    /// Runs a <see cref="StudioEngine"/> against a <see cref="SimObs"/> for a random walk: someone else changes OBS Studio at random moments (its scene collection
+    /// too: OBS Studio is not ready while it switches, and the model starts again from what the new collection holds), and the
     /// engine is given what a client would be given, in the order in which a client would be given it. The reads that it asks for are sent to the
     /// simulation, and what they return is handed to the engine late, at random, after other messages. Now and then a read is given up, and the
     /// connection ends and another begins. When the walk is paused and the simulation has settled, what the engine holds has to be what the
@@ -41,13 +44,14 @@ namespace OBSStudioClient.Tests.Studio
         private static readonly int TraceLines = int.TryParse(Environment.GetEnvironmentVariable("OBSCLIENT_SIM_TRACE"), out var lines) && lines > 0 ? lines : 150;
 
         // What the model subscribes to (see ObsStudio): OBS Studio only sends the events of these categories.
-        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems;
+        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config;
 
         private readonly SimObs _sim;
         private readonly StudioEngine _engine;
         private readonly StudioEngineOptions _options;
         private readonly SimRandom _random;
         private readonly string _quirks;
+        private readonly bool _collections;
         private readonly int _seed;
         private readonly List<string> _trace = [];
         private readonly List<string> _names = [];
@@ -68,12 +72,14 @@ namespace OBSStudioClient.Tests.Studio
         private int _lateResults;
         private int _timeouts;
         private int _reconnects;
+        private int _outdated;
         private ulong _digest = 14695981039346656037UL;
-        public EngineSimRun(int seed, SimQuirks quirks, string quirksName, StudioEngineOptions? options = null)
+        public EngineSimRun(int seed, SimQuirks quirks, string quirksName, StudioEngineOptions? options = null, bool collections = true)
         {
             this._seed = seed;
             this._quirks = quirksName;
             this._options = options ?? new StudioEngineOptions();
+            this._collections = collections;
             this._sim = new SimObs(quirks, seed);
             this._engine = new StudioEngine(this._options);
             this._random = new SimRandom(seed ^ 0x5EED);
@@ -103,10 +109,11 @@ namespace OBSStudioClient.Tests.Studio
         /// <param name="reconnects">Whether the connection ends now and then.</param>
         /// <param name="options">The options of the engine.</param>
         /// <param name="checkEvery">The number of steps between two comparisons.</param>
+        /// <param name="collections">Whether OBS Studio changes its scene collection now and then. A walk that does not keeps what it has removed for as long as the retention says (a switch lets the model forget all of it at once).</param>
         /// <returns>What was found.</returns>
-        public static EngineSimResult Execute(int seed, SimQuirks quirks, string quirksName, int steps, bool reconnects, StudioEngineOptions? options = null, int checkEvery = 100)
+        public static EngineSimResult Execute(int seed, SimQuirks quirks, string quirksName, int steps, bool reconnects, StudioEngineOptions? options = null, int checkEvery = 100, bool collections = true)
         {
-            var run = new EngineSimRun(seed, quirks, quirksName, options);
+            var run = new EngineSimRun(seed, quirks, quirksName, options, collections);
             string? problem = null;
             try
             {
@@ -123,7 +130,7 @@ namespace OBSStudioClient.Tests.Studio
                 problem = run.Describe("An exception: " + exception);
             }
 
-            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages, run._digest.ToString("x16", CultureInfo.InvariantCulture), run._engine.LetGoCount);
+            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages, run._digest.ToString("x16", CultureInfo.InvariantCulture), run._engine.LetGoCount, run._engine.Epoch, run._outdated);
         }
 
         public void Connect()
@@ -378,6 +385,7 @@ namespace OBSStudioClient.Tests.Studio
                 var before = this._progress;
                 this._sim.AdvanceTo(this.Now);
                 this.Deliver();
+                this.DropOutdatedRead();
                 this.CheckTimeout();
                 this.Pump();
                 if (this._progress == before)
@@ -438,6 +446,36 @@ namespace OBSStudioClient.Tests.Studio
             }
 
             return next;
+        }
+
+        // The host lets go of a read whose answer is about a scene collection that OBS Studio has left (StudioHost.PumpReads): the answer would not be applied, and the first
+        // read of the new collection does not wait for it. Now and then the engine is handed what the read ended with anyway, as late as the read of a connection that ended
+        // is (Reconnect): the engine does not trust the host to keep that from it, and has to ignore it.
+        private void DropOutdatedRead()
+        {
+            if (!this._connected || this._read is not { } read || !this._engine.IsOutdated(read.Ticket))
+            {
+                return;
+            }
+
+            this._read = null;
+            this._outdated++;
+            this._progress++;
+            this.Log($"read {read.Ticket.Id.ToString(CultureInfo.InvariantCulture)} is about the scene collection that OBS Studio has left: it is let go of");
+            if (this._random.Chance(0.5))
+            {
+                this.Log($"read {read.Ticket.Id.ToString(CultureInfo.InvariantCulture)} of the scene collection that was left is handed over late");
+                if (read.Results is not null)
+                {
+                    this._engine.OnReadCompleted(read.Ticket, read.Results, this.Tick(this.Now));
+                }
+                else
+                {
+                    this._engine.OnReadFailed(read.Ticket, this.Tick(this.Now));
+                }
+
+                this.DrainChanges();
+            }
         }
 
         // Sends the next read of the engine, when there is one and none is under way.
@@ -555,6 +593,13 @@ namespace OBSStudioClient.Tests.Studio
         {
             if (this._read is { Results: not null } read && (this._seq >= read.ApplyAfter || at >= read.ApplyAt))
             {
+                // Now and then the result that is due while OBS Studio changes its scene collection reaches the engine only after the change (the host was busy, or OBS Studio
+                // answered late): by then the host has let go of the read (DropOutdatedRead), and when it has not, the engine has to ignore the result.
+                read.Held ??= this._engine.IsSwitching && this._random.Chance(0.3);
+                if (read.Held == true && (this._engine.IsSwitching || this._engine.IsOutdated(read.Ticket)))
+                {
+                    return;
+                }
                 if (this._seq > read.ArrivedSeq)
                 {
                     this._lateResults++;
@@ -809,6 +854,41 @@ namespace OBSStudioClient.Tests.Studio
                     this.Reconnect();
                 }
             }, OperationKind.Reconnect);
+            if (!this._collections)
+            {
+                return;
+            }
+
+            this.Add("switch the scene collection", 3, _ =>
+            {
+                this.ChangeJustBefore();
+
+                // Mostly to another one (the current one now and then: nothing happens; one that is not there now and then: OBS Studio refuses).
+                var others = this._sim.Collections.Where(name => !string.Equals(name, this._sim.CurrentCollection, StringComparison.Ordinal)).ToArray();
+                var name = others.Length > 0 && this._random.Chance(0.9) ? this.Pick(others) : this._random.Chance(0.5) ? this._sim.CurrentCollection : "No such collection";
+                this.Act($"switch to scene collection \"{name}\"", () => this._sim.External.SwitchCollection(name));
+            });
+            this.Add("create a scene collection", 2, _ =>
+            {
+                this.ChangeJustBefore();
+
+                // A new name, and now and then the name of one that is there (OBS Studio refuses).
+                var names = this._sim.Collections;
+                var name = this._random.Chance(0.1) ? this.Pick(names) : this.NewName("Collection");
+                this.Act($"create scene collection \"{name}\"", () => this._sim.External.CreateCollection(name));
+            });
+        }
+
+        // Often OBS Studio changes its scene collection a moment after something else was changed: then the model is reading what that change did when the switch begins, which is when
+        // a read is under way that is about the collection that OBS Studio leaves.
+        private void ChangeJustBefore()
+        {
+            if (!this._quiet && this._random.Chance(0.6))
+            {
+                var name = this.NewName("Scene");
+                this.Act($"create scene \"{name}\"", () => this._sim.External.CreateScene(name));
+                this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(1, 20)));
+            }
         }
 
         private void Add(string name, int weight, Action<SimSnapshot> run, OperationKind kind = OperationKind.Change)
@@ -903,6 +983,9 @@ namespace OBSStudioClient.Tests.Studio
             public long ApplyAfter { get; set; }
 
             public TimeSpan ApplyAt { get; set; }
+
+            // Whether the result is kept from the engine until OBS Studio has changed its scene collection (decided when the result is first due).
+            public bool? Held { get; set; }
         }
     }
 }
