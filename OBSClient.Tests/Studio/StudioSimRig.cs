@@ -24,10 +24,11 @@ namespace OBSStudioClient.Tests.Studio
         public static string? Compare(SimSnapshot truth, ObsStudio studio)
         {
             var truthLines = Project(truth);
-            var modelLines = Project(studio, out var modelInputs);
+            var modelLines = Project(studio, out var modelInputs, out var disagreements);
             var problems = new List<string>();
             problems.AddRange(truthLines.Except(modelLines).Select(line => "only in OBS Studio: " + line));
             problems.AddRange(modelLines.Except(truthLines).Select(line => "only in the model:  " + line));
+            problems.AddRange(disagreements);
             if (problems.Count == 0 && !truthLines.SequenceEqual(modelLines))
             {
                 problems.Add("The same things are in a different order.");
@@ -90,33 +91,54 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // What the studio shows: the scenes and inputs of its collections, and what a scene item reaches that the collections do not have any more (a scene or an input
-        // that OBS Studio removed, and keeps alive for the scene items that use it).
-        private static List<string> Project(ObsStudio studio, out Dictionary<Guid, ObsInput> inputs)
+        // that OBS Studio removed, and keeps alive for the scene items that use it). What is live is what the collections list; the State of the object has to say the
+        // same. It can disagree for a moment: a step of the model changes its objects in place, and swaps in the collections after that, and a reader that is between
+        // the two sees an object that says Detached and a collection that still lists it. That is reported as a difference, so that a studio is only called the same
+        // as OBS Studio when the collections and the objects agree.
+        private static List<string> Project(ObsStudio studio, out Dictionary<Guid, ObsInput> inputs, out List<string> disagreements)
         {
             var lines = new List<string> { "program scene " + (studio.ProgramScene?.Uuid.ToString("D") ?? "(none)") };
+            var liveScenes = studio.Scenes;
+            var liveInputs = studio.Inputs;
+            var liveSceneUuids = liveScenes.Select(scene => scene.Uuid).ToHashSet();
+            var liveInputUuids = liveInputs.Select(input => input.Uuid).ToHashSet();
             var detachedScenes = new SortedDictionary<Guid, ObsScene>();
             var detachedInputs = new Dictionary<Guid, ObsInput>();
+            var found = new List<string>();
 
             void Collect(ObsScene scene)
             {
                 foreach (var item in scene.Items)
                 {
-                    if (item.Source is ObsScene child && child.State != ObsObjectState.Live)
+                    if (item.Source is ObsScene child && !liveSceneUuids.Contains(child.Uuid))
                     {
                         if (detachedScenes.TryAdd(child.Uuid, child))
                         {
+                            if (child.State == ObsObjectState.Live)
+                            {
+                                found.Add($"The scene \"{child.Name}\" is reached by a scene item and is not in Scenes, but says that it is {child.State}.");
+                            }
+
                             Collect(child);
                         }
                     }
-                    else if (item.Source is ObsInput input && input.State != ObsObjectState.Live)
+                    else if (item.Source is ObsInput input && !liveInputUuids.Contains(input.Uuid))
                     {
-                        detachedInputs[input.Uuid] = input;
+                        if (detachedInputs.TryAdd(input.Uuid, input) && input.State == ObsObjectState.Live)
+                        {
+                            found.Add($"The input \"{input.Name}\" is reached by a scene item and is not in Inputs, but says that it is {input.State}.");
+                        }
                     }
                 }
             }
 
-            foreach (var scene in studio.Scenes)
+            foreach (var scene in liveScenes)
             {
+                if (scene.State != ObsObjectState.Live)
+                {
+                    found.Add($"The scene \"{scene.Name}\" is in Scenes, but says that it is {scene.State}.");
+                }
+
                 lines.Add(SceneLine(scene.Index, scene.Uuid, scene.Name));
                 lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.Source.Uuid, item.IsEnabled, item.IsLocked)));
                 Collect(scene);
@@ -129,7 +151,12 @@ namespace OBSStudioClient.Tests.Studio
                 Collect(scene);
             }
 
-            inputs = studio.Inputs.ToDictionary(input => input.Uuid);
+            inputs = liveInputs.ToDictionary(input => input.Uuid);
+            foreach (var input in liveInputs.Where(input => input.State != ObsObjectState.Live))
+            {
+                found.Add($"The input \"{input.Name}\" is in Inputs, but says that it is {input.State}.");
+            }
+
             foreach (var detached in detachedInputs.Values)
             {
                 inputs[detached.Uuid] = detached;
@@ -137,9 +164,10 @@ namespace OBSStudioClient.Tests.Studio
 
             foreach (var input in inputs.Values.OrderBy(input => input.Uuid))
             {
-                lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.IsMuted, input.State != ObsObjectState.Live));
+                lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.IsMuted, !liveInputUuids.Contains(input.Uuid)));
             }
 
+            disagreements = found;
             return lines;
         }
 
