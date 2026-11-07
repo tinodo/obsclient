@@ -974,19 +974,20 @@ namespace OBSStudioClient.Tests.Studio
             var gotTheLock = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // The notification that the client raises when the failed call ends the connection is the application's. What it does can need the state of the
-            // studio (here another thread disconnects it, which takes the lock of the state): it cannot be raised while the call holds that lock.
+            // studio (here another thread disconnects it, which takes the lock of the state): it cannot be raised while the call holds that lock. A lock that is held
+            // is never let go of, so how long the handler waits only decides how slow a machine can be.
             rig.Studio.Client.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ObsClient.AutoReconnect) && !rig.Studio.Client.AutoReconnect && Interlocked.Increment(ref checkedOnce) == 1)
                 {
                     var other = Task.Run(() => rig.Studio.DisconnectAsync());
-                    gotTheLock.TrySetResult(other.Wait(TimeSpan.FromSeconds(4)));
+                    gotTheLock.TrySetResult(other.Wait(TimeSpan.FromSeconds(20)));
                 }
             };
 
             await Assert.ThrowsAsync<ObsNotConnectedException>(() => rig.Studio.ConnectAsync("127.0.0.1", FreePort()).WithTimeoutAsync(Timeout));
 
-            Assert.True(await gotTheLock.Task.WithTimeoutAsync(Timeout), "The handler ran under the lock of the state of the studio.");
+            Assert.True(await gotTheLock.Task.WithTimeoutAsync(TimeSpan.FromSeconds(30)), "The handler ran under the lock of the state of the studio.");
         }
 
         [Fact]

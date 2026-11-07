@@ -45,7 +45,13 @@
 
         private readonly int _reconnectInterval = 3000;
 
-        private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(2);
+        // The time that a connection to OBS Studio is given to open (the TCP connection and the upgrade to a WebSocket) before the attempt is given up. It is not a setting
+        // of the client: the tests of the assembly allow more than this by default (see TestAssemblyInitializer), because a machine that is too busy can take longer than
+        // two seconds to open a connection to itself.
+        internal static TimeSpan DefaultConnectTimeout { get; set; } = TimeSpan.FromSeconds(2);
+
+        // What this client gives a connection to open: the default when it was made. A test of the timeout itself sets it for one client.
+        internal TimeSpan ConnectTimeout { get; set; } = DefaultConnectTimeout;
 
         private static readonly TimeSpan _authenticationTimeout = TimeSpan.FromSeconds(10);
 
@@ -741,7 +747,7 @@
             try
             {
                 using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(session.Cancellation.Token);
-                connectCts.CancelAfter(_connectTimeout);
+                connectCts.CancelAfter(this.ConnectTimeout);
                 await session.Socket.ConnectAsync(this._uri, connectCts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
