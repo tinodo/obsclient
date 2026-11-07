@@ -182,9 +182,10 @@ namespace OBSStudioClient.Studio
         /// <see cref="State"/> is then <see cref="ObsStudioState.Disconnected"/>, and you can connect again.
         /// </para>
         /// <para>
-        /// While OBS Studio changes its scene collection it answers every request with 207 (not ready), which the client repeats (see
-        /// <see cref="ObsClient.MaxRequestRetries"/> and <see cref="ObsClient.RequestRetryInterval"/>). A request that changes something and was held up that way is carried out
-        /// in the collection that OBS Studio has loaded when it is ready again, not in the one that you were looking at when you sent it. And the requests that change
+        /// While OBS Studio changes its scene collection it answers every request with 207 (not ready). The client repeats a single request that is answered so (see
+        /// <see cref="ObsClient.MaxRequestRetries"/> and <see cref="ObsClient.RequestRetryInterval"/>); it does not repeat a batch: the results of a batch that was sent in that
+        /// time say 207, and it is for you to look at them and to send the batch again. A request that changes something and was held up that way is carried out in the
+        /// collection that OBS Studio has loaded when it is ready again, not in the one that you were looking at when you sent it. And the requests that change
         /// the collection (SetCurrentSceneCollection and CreateSceneCollection) are answered when OBS Studio is done, which takes longer than the default
         /// <see cref="ObsClient.RequestTimeout"/>: raise it before you send them, or the call throws a <see cref="TimeoutException"/> while OBS Studio switches all the same.
         /// </para>
