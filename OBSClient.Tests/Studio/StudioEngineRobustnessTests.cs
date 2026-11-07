@@ -1416,6 +1416,34 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
+        // The same, when OBS destroyed the input: the model must not keep it for the time that it is settling. A list says (nothing uses the input, and the list lacks it).
+        [Fact]
+        public void AnInputThatOBSDestroyed_IsNotKept_WhenTheEventThatLetGoOfTheLastHeldSceneItemCameBeforeTheDiscoveryWasComplete()
+        {
+            Guid a = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            h.World.Inputs.RemoveAll(input => input.Uuid == mic);
+            h.SettleWithTime();
+
+            Assert.DoesNotContain(h.Engine.Snapshot().Inputs, input => input.Uuid == mic);
+            Assert.True(h.Engine.IsSettled);
+        }
+
         // The same for a scene.
         [Fact]
         public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenTheEventThatLetGoOfTheLastHeldSceneItemCameBeforeTheDiscoveryWasComplete()

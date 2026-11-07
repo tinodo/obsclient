@@ -219,9 +219,11 @@ namespace OBSStudioClient.Studio.Engine
                         continue;
                     }
 
-                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    if (this.RefCount(uuid) == 0 && (this.HeldByRead(uuid) || this._readReleased.Settling(uuid)))
                     {
-                        // See HeldByRead: the count is behind OBS, so a read of the list of inputs says.
+                        // See HeldByRead: the count is behind OBS (for an input that is settling, the events that were on their way when the read was taken can still
+                        // follow), so a read of the list of inputs says. A list that lacks the input proves that OBS destroyed it; one that has it leaves the verdict to
+                        // JudgeUnusedInput, which does not judge an input that is settling.
                         this.RequireCheck(input);
                         this._inputsScope.MarkDirty();
                         continue;
@@ -231,7 +233,6 @@ namespace OBSStudioClient.Studio.Engine
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
                     {
-                        // Nothing uses it: it is destroyed, unless it is settling (see JudgeUnusedInput).
                         this.JudgeUnusedInput(input);
                     }
                     else
