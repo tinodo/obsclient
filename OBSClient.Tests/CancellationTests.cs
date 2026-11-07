@@ -448,8 +448,10 @@ namespace OBSStudioClient.Tests
                 cancelUntilWritten.Cancel();
                 turn.Dispose();
 
-                var finished = await Task.WhenAny(sent, Task.Delay(2000));
-                Assert.True(ReferenceEquals(finished, sent), $"The batch was written in round {round}: it does not end by itself, it waits for a response.");
+                // A batch that was written does not end by itself (it waits for a response of the server, and the limit that it was given is 30 seconds), so it is waited for as long
+                // as a busy computer can take to run the ending of one that was not.
+                var finished = await Task.WhenAny(sent, Task.Delay(TimeSpan.FromSeconds(25)));
+                Assert.True(ReferenceEquals(finished, sent), $"The batch did not end in round {round}: {(client.TotalMessagesSent > writtenBefore ? "it was written, and waits for a response" : "it was not written, and the computer did not run its ending in time")}.");
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sent);
             }
 

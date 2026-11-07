@@ -159,10 +159,12 @@ namespace OBSStudioClient.Studio
     /// </para>
     /// <para>
     /// A change is not sent when there is no connection, when the connection is not the one that it was asked for on (that one was lost, and the client made another), when OBS
-    /// Studio is changing its scene collection, or when the collection is not the one that it was asked for in; each of those is certain: nothing was changed. The model knows of
-    /// these a moment after OBS Studio does (the gate that the checks read follows the loop of the model, which is behind the client by the time that it takes to handle what has
-    /// arrived): the checks are made again when the batch is about to be written, and what is sent in the moment between is refused by OBS Studio (it is not ready while it changes
-    /// its scene collection), which is certain too. A change that was sent and not answered in time, or whose connection ended, is not certain
+    /// Studio is changing its scene collection, or when the collection is not the one that it was asked for in; each of those is certain: nothing was changed. The model applies
+    /// what the client reads a moment later (its loop is behind the client by the time that it takes to handle what has arrived), so the checks do not rest on the model alone:
+    /// the connection that a batch is written on is told to the check before the batch is written, and a change of the scene collection that the client has read and the model has
+    /// not applied yet stops the changes (<see cref="StudioHost.CollectionEventsRead"/>) until it has. What is left is the time between OBS Studio sending the event and the client
+    /// reading it: a change that is sent then is refused by OBS Studio while it changes its scene collection (it is not ready), which is certain too. A change that was sent and
+    /// not answered in time, or whose connection ended, is not certain
     /// (<see cref="ObsUnknownOutcomeException"/>): it is never sent again, the model reads again what it was about.
     /// </para>
     /// </remarks>
@@ -241,6 +243,12 @@ namespace OBSStudioClient.Studio
                 return Task.FromException<T>(new ObsNotReadyException($"OBS Studio is changing its scene collection: {job.Description} was not sent."));
             }
 
+            if (this._host.CollectionEventsRead != gate.CollectionEvents)
+            {
+                // The client has read the event of a change of the scene collection that the model has not applied yet: what the application holds is of the collection before it.
+                return Task.FromException<T>(new ObsNotReadyException($"OBS Studio is changing its scene collection, and the model has not caught up yet: {job.Description} was not sent."));
+            }
+
             try
             {
                 job.Check();
@@ -309,8 +317,10 @@ namespace OBSStudioClient.Studio
 
         // What has to be true when the turn of a change has come, and again when it is about to be sent: the connection and the scene collection are the ones that the change
         // was asked for in, OBS Studio is not changing its scene collection, and the object can be changed. The gate is what the loop of the model has published, and the loop can
-        // be behind the client (the client has made another connection, and the model does not know yet): when the batch is about to be written, the client says on which
-        // connection (writtenOn), and that is the one that counts.
+        // be behind the client (the client has made another connection, or has read the end of a change of the scene collection, and the model does not know yet): when the batch
+        // is about to be written, the client says on which connection (writtenOn), and that is the one that counts; and a change of the scene collection that the client has read
+        // and the loop has not applied yet is counted (CollectionEventsRead), so that nothing is written in the collection that OBS Studio has loaded now with what the application
+        // learned from the one that it left.
         private void EnsureItCanBeSent(WriteJob job, int? writtenOn = null)
         {
             var gate = this._host.Gate;
@@ -319,7 +329,7 @@ namespace OBSStudioClient.Studio
                 throw new ObsNotConnectedException($"The connection to OBS Studio ended before {job.Description} was sent. Nothing was changed.");
             }
 
-            if (gate.Switching || gate.Epoch != job.Epoch)
+            if (gate.Switching || gate.Epoch != job.Epoch || this._host.CollectionEventsRead != gate.CollectionEvents)
             {
                 throw new ObsNotReadyException($"OBS Studio changed its scene collection before {job.Description} was sent. Nothing was changed.");
             }

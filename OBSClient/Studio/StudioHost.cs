@@ -57,7 +57,7 @@ namespace OBSStudioClient.Studio
         private readonly List<SettleWaiter> _settleWaiters = new();
         private readonly List<ConfirmWaiter> _confirmWaiters = new();
         private readonly List<TaskCompletionSource> _disconnectWaiters = new();
-        private volatile WriteGate _gate = new(0, false, 0);
+        private volatile WriteGate _gate = new(0, false, 0, 0);
         private int _settleWaiterCount;
         private int _confirmWaiterCount;
         private int _disconnectWaiterCount;
@@ -75,6 +75,14 @@ namespace OBSStudioClient.Studio
         private ReadTicket? _read;
         private int _readFailures;
         private TimeSpan _lastTime;
+
+        // The events that begin and end a change of the scene collection of OBS Studio: how many the receive loop of the client has read (it counts them as it reads them), and how
+        // many the loop of the model has handled (the loop counts them when it has applied them, and publishes the number in the gate). The model learns of a change of collection
+        // when the loop handles the event, which can be some time after the client read it (the receive loop does not wait for the model), and the objects that the application holds
+        // are the old collection's until then. A change that were written in that time would reach the collection that OBS Studio has loaded, with what the application learned
+        // from the one that it left, so no change is written while the two numbers differ.
+        private int _collectionEventsRead;
+        private int _collectionEventsHandled;
 
         public StudioHost(ObsStudio studio, ObsClient client, ObsStudioOptions options, ILogger logger, StudioNotifier notifier)
         {
@@ -113,10 +121,17 @@ namespace OBSStudioClient.Studio
         /// <param name="Session">The connection that the model follows, or 0 when there is none.</param>
         /// <param name="Switching">Whether OBS Studio is changing its scene collection: it takes no change meanwhile.</param>
         /// <param name="Epoch">The number of the scene collection that the model is of; it goes up each time that OBS Studio has changed it.</param>
-        internal sealed record WriteGate(int Session, bool Switching, int Epoch);
+        /// <param name="CollectionEvents">How many events that begin or end a change of the scene collection the loop has handled (see <see cref="CollectionEventsRead"/>).</param>
+        internal sealed record WriteGate(int Session, bool Switching, int Epoch, int CollectionEvents);
 
         /// <summary>Gets what a change that the application makes needs to know about the connection and the scene collection.</summary>
         public WriteGate Gate => this._gate;
+
+        /// <summary>
+        /// Gets how many events that begin or end a change of the scene collection the client has read. When it is not <see cref="WriteGate.CollectionEvents"/> of the gate,
+        /// the loop of the model has not handled all of them yet, and what the model shows (and the objects that the application holds) is of the collection before them.
+        /// </summary>
+        public int CollectionEventsRead => Volatile.Read(ref this._collectionEventsRead);
 
         /// <summary>Gets what is published now.</summary>
         public StudioView View => this._publisher.View;
@@ -331,8 +346,19 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
+            if (item.Kind == IngressKind.Event && IsCollectionEvent(item.Event!.EventType))
+            {
+                // Counted before the item is queued, so that the loop never handles more of them than were read.
+                Interlocked.Increment(ref this._collectionEventsRead);
+            }
+
             this.Post(new HostItem { Kind = HostItemKind.Ingress, Ingress = item });
             this.AfterIngressPosted?.Invoke(item);
+        }
+
+        private static bool IsCollectionEvent(EventType eventType)
+        {
+            return eventType is EventType.CurrentSceneCollectionChanging or EventType.CurrentSceneCollectionChanged;
         }
 
         // The client decides by itself, a little after it has reported the end of a connection, that it will not reconnect (OBS Studio ended the session on
@@ -602,6 +628,12 @@ namespace OBSStudioClient.Studio
                     if (ingress.SessionId == this._session)
                     {
                         this._engine.OnEvent(ingress.Event!, ingress.Sequence, now);
+                    }
+
+                    if (IsCollectionEvent(ingress.Event!.EventType))
+                    {
+                        // Counted when it has been applied, whatever connection it came on: the client counted it when it read it, and the gate is published after this step.
+                        this._collectionEventsHandled++;
                     }
 
                     break;
@@ -958,9 +990,9 @@ namespace OBSStudioClient.Studio
             var gate = this._gate;
             var switching = this._engine.IsSwitching;
             var epoch = this._engine.Epoch;
-            if (gate.Session != this._session || gate.Switching != switching || gate.Epoch != epoch)
+            if (gate.Session != this._session || gate.Switching != switching || gate.Epoch != epoch || gate.CollectionEvents != this._collectionEventsHandled)
             {
-                this._gate = new WriteGate(this._session, switching, epoch);
+                this._gate = new WriteGate(this._session, switching, epoch, this._collectionEventsHandled);
             }
         }
 

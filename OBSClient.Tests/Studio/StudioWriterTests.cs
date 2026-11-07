@@ -944,13 +944,106 @@ namespace OBSStudioClient.Tests.Studio
                 // Asked for on the connection that ended, as far as the model knows. The client would write it on the new one: it must not.
                 var change = test.Camera.SetEnabledAsync(false);
 
-                await Assert.ThrowsAsync<ObsNotConnectedException>(() => change.WithTimeoutAsync(TimeSpan.FromSeconds(3)));
+                await Assert.ThrowsAsync<ObsNotConnectedException>(() => change.WithTimeoutAsync(Timeout));
                 Assert.Equal(0, test.Count("SetSceneItemEnabled"));
             }
             finally
             {
                 release.Set();
             }
+        }
+
+        [Fact]
+        public async Task AChange_IsNotSent_WhileTheModelHasNotAppliedTheEndOfASwitchThatTheClientHasRead()
+        {
+            await using var test = await Fixture.StartAsync();
+            var camera = test.Camera;
+            using var held = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+
+            // The loop of the model is held before it applies the first event of the switch, and the client goes on reading: it reads the end of the switch, OBS Studio is ready
+            // again, and the model (and the objects that the application holds) are still those of the collection that was left. Asking for a change now would reach the collection
+            // that is loaded, with what the application learned from the other.
+            test.Rig.Studio.Host.BeforeIngress = item =>
+            {
+                if (item.Kind == IngressKind.Event && item.Event!.EventType == EventType.CurrentSceneCollectionChanging)
+                {
+                    held.Set();
+                    release.Wait(Timeout);
+                }
+            };
+
+            try
+            {
+                await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+                Assert.True(held.Wait(Timeout), "The loop of the model was not given the first event of the switch.");
+                await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanged", new { sceneCollectionName = "Untitled" }, 2);
+                await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.CollectionEventsRead == 2, "the client to read both events of the switch");
+                Assert.False(test.Rig.Studio.Host.Gate.Switching);
+                Assert.False(camera.IsRemoved);
+
+                var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout));
+
+                Assert.Contains("has not caught up", exception.Message);
+                Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            // The loop applies the switch: the model is read again, the objects of the old collection are Gone, and what is asked for now goes to the new ones.
+            await StudioRig.EventuallyAsync(() => camera.IsRemoved, "the model to apply the switch");
+            await Assert.ThrowsAsync<ObsRemovedException>(() => camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout));
+            await test.Rig.Studio.WaitUntilSettledAsync(Timeout);
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemLocked" ? (100, null) : null;
+            await test.Rig.Studio.Scenes["Gaming"].Items["Camera"].SetLockedAsync(true).WithTimeoutAsync(Timeout);
+            Assert.Equal(1, test.Count("SetSceneItemLocked"));
+        }
+
+        [Fact]
+        public async Task AChangeThatWaitsInTheLine_IsNotSent_WhenTheClientReadTheEndOfASwitchBeforeItsTurn_AndTheModelHasNotAppliedItYet()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+            using var held = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemLocked" ? (-1, null) : null;
+            test.Rig.Studio.Host.BeforeIngress = item =>
+            {
+                if (item.Kind == IngressKind.Event && item.Event!.EventType == EventType.CurrentSceneCollectionChanging)
+                {
+                    held.Set();
+                    release.Wait(Timeout);
+                }
+            };
+
+            // OBS Studio holds the first change, and the second is asked for while the model is still of the collection that it knows, and waits for its turn.
+            var first = test.Camera.SetLockedAsync(true);
+            await StudioRig.EventuallyAsync(() => test.Rig.Responder.HeldCount == 1, "the first change to be held");
+            var second = test.Camera.SetEnabledAsync(false);
+
+            try
+            {
+                await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+                Assert.True(held.Wait(Timeout), "The loop of the model was not given the first event of the switch.");
+                await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanged", new { sceneCollectionName = "Untitled" }, 2);
+                await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.CollectionEventsRead == 2, "the client to read both events of the switch");
+
+                // The first change is answered, and the second has its turn: the model has not applied the switch, so only the number of events that the client read says that it
+                // must not be sent.
+                await test.Rig.Responder.AnswerHeldAsync();
+                var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => second.WithTimeoutAsync(Timeout));
+
+                Assert.Contains("changed its scene collection before", exception.Message);
+                Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            // The first change was made in the collection that was left: its call ends when the model has applied the switch.
+            await first.WithTimeoutAsync(Timeout);
         }
 
         [Fact]
@@ -973,7 +1066,7 @@ namespace OBSStudioClient.Tests.Studio
 
             // Nothing but the next item of the loop makes it look at the wait again, and none is coming: without the look after the read was written down, the call would end
             // with the time that the wait was given (more than twenty seconds), not with the read.
-            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
 
             Assert.True(test.Camera.IsEnabled);
         }
@@ -1050,7 +1143,7 @@ namespace OBSStudioClient.Tests.Studio
             {
                 // The call ends with the read of the scene items, which says what OBS Studio holds. Waiting for the whole model to settle, it would end with the time that the wait
                 // was given (more than twenty seconds), and with an ObsNotConfirmedException, although the part that the change was about had been read.
-                await camera.SetEnabledAsync(false).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+                await camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
             }
             finally
             {

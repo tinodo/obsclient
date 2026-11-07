@@ -38,10 +38,12 @@ namespace OBSStudioClient.Studio
     /// order), and each returns when the model shows the change, so that what you read next is what you changed. A change is never made twice: when OBS Studio does not
     /// answer, or the connection ends, or the answer can not be read, the call ends with an <see cref="ObsUnknownOutcomeException"/>, and the model reads again what the change was about. A change is not
     /// sent when there is no connection, or when the connection that it was asked for on has ended and another was made (<see cref="ObsNotConnectedException"/>), while OBS
-    /// Studio changes its scene collection (<see cref="ObsNotReadyException"/>), or to something that OBS Studio removed (<see cref="ObsRemovedException"/>). The model learns of
-    /// such a thing a moment after OBS Studio does, so a change can be sent in that moment: OBS Studio refuses it while it changes its scene collection (it answers that it is
-    /// not ready, and the call ends with the same <see cref="ObsNotReadyException"/>), and nothing was changed. The checks are made again when the change is about to be
-    /// written, which can be much later than when it was asked for. When OBS Studio
+    /// Studio changes its scene collection (<see cref="ObsNotReadyException"/>), or to something that OBS Studio removed (<see cref="ObsRemovedException"/>). The model applies
+    /// what the client reads a moment later, so the checks do not rest on the model alone: they are made again when the change is about to be written (which can be much later than
+    /// when it was asked for), they look at the connection that it is written on, and a change of the scene collection that the client has read and the model has not applied yet
+    /// stops the changes until it has. What is left is the time between OBS Studio sending the event and the client reading it (a few milliseconds on a local connection): a change
+    /// that is sent then is refused by OBS Studio while it changes its scene collection (it answers that it is not ready, and the call ends with the same
+    /// <see cref="ObsNotReadyException"/>), and nothing was changed. When OBS Studio
     /// made the change and the model can not show it (the events did not come in time, and the model could not be read again in time) the call ends with an
     /// <see cref="ObsNotConfirmedException"/>: the change was made, so do not send it again. A token that ends a call ends the wait at once and keeps a change that was not
     /// sent yet from being sent; one that was sent is not undone, and the next change still waits for the answer of OBS Studio to it, so that the order holds.

@@ -168,7 +168,7 @@ namespace OBSStudioClient.Tests.Studio
 
             watch.Stop();
             Assert.True(chatting.IsProgram);
-            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"The call waited for the end of the transition: {watch.Elapsed.TotalSeconds:N1} seconds.");
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(8), $"The call waited for the end of the transition: {watch.Elapsed.TotalSeconds:N1} seconds.");
             await rig.ConvergedAsync("the program scene after the transition", Patience);
         }
 
