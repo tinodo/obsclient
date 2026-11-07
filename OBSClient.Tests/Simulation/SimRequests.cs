@@ -48,11 +48,22 @@ namespace OBSStudioClient.Tests.Simulation
             ["SetSceneItemEnabled"] = static (self, request) => self.SetSceneItemEnabled(request),
             ["SetSceneItemLocked"] = static (self, request) => self.SetSceneItemLocked(request),
             ["SetSceneItemIndex"] = static (self, request) => self.SetSceneItemIndex(request),
+            ["GetSceneCollectionList"] = static (self, request) => self.GetSceneCollectionList(request),
+            ["SetCurrentSceneCollection"] = static (self, request) => self.SetCurrentSceneCollection(request),
+            ["CreateSceneCollection"] = static (self, request) => self.CreateSceneCollection(request),
         };
 
-        private readonly SimWorld _world;
+        private readonly SimObs _obs;
+        private SimWorld _world;
 
-        public SimRequests(SimWorld world)
+        public SimRequests(SimObs obs, SimWorld world)
+        {
+            _obs = obs;
+            _world = world;
+        }
+
+        /// <summary>Makes the requests work on another scene collection: the one that OBS Studio has loaded now.</summary>
+        internal void Use(SimWorld world)
         {
             _world = world;
         }
@@ -554,6 +565,42 @@ namespace OBSStudioClient.Tests.Simulation
 
             _world.SetItemIndex(item, (int)index);
             return SimResult.Ok();
+        }
+
+        private SimResult GetSceneCollectionList(SimRequest request)
+        {
+            return SimResult.Ok(Obj(
+                ("currentSceneCollectionName", _obs.CurrentCollection),
+                ("sceneCollections", Arr(_obs.Collections.Select(name => (JsonNode?)name)))));
+        }
+
+        // ASSUMPTION: read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp), and not measured. A name that is not a collection is
+        // answered with 600 and no comment; the collection that is the current one is switched to without anything happening (no event).
+        private SimResult SetCurrentSceneCollection(SimRequest request)
+        {
+            if (!request.RequireString("sceneCollectionName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!_obs.Collections.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound);
+            }
+
+            return string.Equals(name, _obs.CurrentCollection, StringComparison.Ordinal) ? SimResult.Ok() : SimResult.Switching(name, create: false);
+        }
+
+        // ASSUMPTION: read from the source of obs-websocket 5.7.6, and not measured. A name that is a collection is answered with 601 and no comment. The
+        // collection that is made has one scene, as OBS Studio makes it for a collection that is new (a global audio device is not made).
+        private SimResult CreateSceneCollection(SimRequest request)
+        {
+            if (!request.RequireString("sceneCollectionName", out var name))
+            {
+                return Failed(request);
+            }
+
+            return _obs.Collections.Contains(name) ? SimResult.Fail(SimStatus.ResourceAlreadyExists) : SimResult.Switching(name, create: true);
         }
     }
 }

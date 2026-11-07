@@ -85,6 +85,7 @@ namespace OBSStudioClient.Tests.Simulation
             HangOnRemovedSceneRename = true,
             ParallelBatchMisorders = true,
             DestroyCascadeDelay = TimeSpan.FromMilliseconds(2),
+            CollectionSwitchTime = new SimRange(100, 600),
         };
 
         /// <summary>
@@ -104,6 +105,8 @@ namespace OBSStudioClient.Tests.Simulation
             SceneListLag = new SimRange(200, 3000),
             StaleSceneListChangedPayload = true,
             TransitionOverhead = new SimRange(0, 80),
+            CollectionSwitchTime = new SimRange(300, 4000),
+            CreationEventsDuringSwitch = true,
         };
 
         /// <summary>Gets the order of the response and the events of a change.</summary>
@@ -191,5 +194,27 @@ namespace OBSStudioClient.Tests.Simulation
         /// (fact 7: about 2 ms).
         /// </summary>
         public TimeSpan DestroyCascadeDelay { get; init; }
+
+        /// <summary>
+        /// Gets how long OBS Studio takes to change its scene collection: from <c>CurrentSceneCollectionChanging</c> to
+        /// <c>CurrentSceneCollectionChanged</c>, drawn for each switch. During that time obs-websocket is not ready (it answers every request with
+        /// 207 and sends no event). None means that the switch is done in the same instant, but still after the change that began it.
+        /// </summary>
+        /// <remarks>
+        /// ASSUMPTION: the range is a guess. A switch has to load every source of the collection, which takes from a tenth of a second for a
+        /// few simple sources to several seconds for capture devices. A measurement on a real OBS Studio (the time between the two events for a
+        /// small and for a large collection) would replace it.
+        /// </remarks>
+        public SimRange CollectionSwitchTime { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether the events of the sources that are created while a collection loads (<c>SceneCreated</c>,
+        /// <c>InputCreated</c>, <c>SceneItemCreated</c>) are sent between <c>CurrentSceneCollectionChanging</c> and
+        /// <c>CurrentSceneCollectionChanged</c>. obs-websocket 5.4.0 and later send no event while it is not ready, so they are not (it is off
+        /// in <see cref="Real"/>). It is on in <see cref="Hostile"/>, for a client that has to cope with a server that does send them: the
+        /// design notes of the studio layer (fact 14) say that creation events can arrive in a switch, and what an older or another version
+        /// does was not checked.
+        /// </summary>
+        public bool CreationEventsDuringSwitch { get; init; }
     }
 }

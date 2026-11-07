@@ -9,12 +9,61 @@ namespace OBSStudioClient.Tests.Simulation
     internal sealed class SimExternal
     {
         private readonly SimObs _obs;
-        private readonly SimWorld _world;
+        private SimWorld _world;
 
         internal SimExternal(SimObs obs, SimWorld world)
         {
             _obs = obs;
             _world = world;
+        }
+
+        /// <summary>Gets the names of the scene collections, the current one included, in alphabetical order.</summary>
+        public IReadOnlyList<string> Collections => _obs.Collections;
+
+        /// <summary>Makes the changes work on another scene collection: the one that OBS Studio has loaded now.</summary>
+        internal void Use(SimWorld world)
+        {
+            _world = world;
+        }
+
+        /// <summary>
+        /// Switches to another scene collection, as the user does in the menu. It announces <c>CurrentSceneCollectionChanging</c> now, and
+        /// <c>CurrentSceneCollectionChanged</c> when the switch is done (<see cref="SimQuirks.CollectionSwitchTime"/>); in between nothing can be changed
+        /// and every request is answered with 207. Switching to the collection that is current does nothing.
+        /// </summary>
+        public void SwitchCollection(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (!_obs.Collections.Contains(name))
+                {
+                    throw SimFailure.NotFound($"There is no scene collection named \"{name}\".");
+                }
+
+                if (!string.Equals(name, _obs.CurrentCollection, StringComparison.Ordinal))
+                {
+                    _obs.BeginSwitch(name, create: false);
+                }
+
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a new scene collection and switches to it, as the user does in the menu: it has one scene. It is announced like any other switch.</summary>
+        public void CreateCollection(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (_obs.Collections.Contains(name))
+                {
+                    throw SimFailure.Exists($"A scene collection named \"{name}\" exists already.");
+                }
+
+                _obs.BeginSwitch(name, create: true);
+                return 0;
+            });
         }
 
         /// <summary>Creates a scene, which is first in the list of scenes.</summary>

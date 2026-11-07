@@ -17,8 +17,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>The name of the main canvas.</summary>
         public const string MainCanvasName = "Main";
 
-        /// <summary>The name of the scene collection.</summary>
-        public const string CollectionName = "Untitled";
+        /// <summary>The name of the scene collection that OBS Studio starts with.</summary>
+        public const string DefaultCollectionName = "Untitled";
 
         private const string FadeName = "Fade";
         private const string FadeUuid = "30a9a58c-7ffb-4c38-a170-ad8377ccf2fa";
@@ -48,9 +48,13 @@ namespace OBSStudioClient.Tests.Simulation
         private Transition? _transition;
         private long _serial;
 
-        public SimWorld(SimObs obs)
+        /// <summary>Initializes a new instance of the <see cref="SimWorld"/> class: a new scene collection, which has one scene (the one that OBS Studio makes).</summary>
+        /// <param name="obs">The simulated OBS Studio that the collection is in.</param>
+        /// <param name="name">The name of the scene collection.</param>
+        public SimWorld(SimObs obs, string name = DefaultCollectionName)
         {
             _obs = obs;
+            Name = name;
 
             // A collection starts with one scene, and it is the program scene (fact 24: "the original Scene").
             var scene = new SimScene(obs.Random.NextGuid(), "Scene", NextSerial());
@@ -59,6 +63,9 @@ namespace OBSStudioClient.Tests.Simulation
             _uiList.Add(scene);
             _program = scene;
         }
+
+        /// <summary>Gets the name of the scene collection.</summary>
+        public string Name { get; }
 
         /// <summary>Gets the scenes of the list of scenes, in the order of the list.</summary>
         public IReadOnlyList<SimScene> LiveScenes => _liveScenes;

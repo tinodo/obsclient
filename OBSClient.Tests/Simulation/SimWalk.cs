@@ -142,7 +142,7 @@ namespace OBSStudioClient.Tests.Simulation
             CheckAnswers(result);
             if (Quirks == SimQuirks.Ideal)
             {
-                result.Replays.AddRange(SimReplay.Compare(Initial, _messages, Sim.Snapshot()).Select(problem => $"seed {Seed}: {problem}"));
+                result.Replays.AddRange(ReplayInStretches().Select(problem => $"seed {Seed}: {problem}"));
             }
 
             try
@@ -236,6 +236,46 @@ namespace OBSStudioClient.Tests.Simulation
         private void Count(string name)
         {
             Counters[name] = Counters.GetValueOrDefault(name) + 1;
+        }
+
+        // The events of a switch of the scene collection do not hold what is in the collection that is loaded, so the events are replayed in stretches: each one from
+        // what OBS Studio held when the stretch began (the start of the walk, or the loading of a collection) to what it held when it ended (the beginning of a switch,
+        // or the end of the walk).
+        private List<string> ReplayInStretches()
+        {
+            var problems = new List<string>();
+            var start = Initial;
+            var stretch = new List<SimMessage>();
+            var switches = Sim.Switches;
+            var done = 0;
+            foreach (var message in _messages)
+            {
+                var type = message.Op == SimOp.Event ? EventTypeOf(message) : null;
+                if (type == "CurrentSceneCollectionChanging")
+                {
+                    problems.AddRange(SimReplay.Compare(start, stretch, switches[done].Left));
+                    Count("replay: stretches");
+                    stretch.Clear();
+                }
+                else if (type == "CurrentSceneCollectionChanged")
+                {
+                    start = switches[done++].Loaded;
+                }
+                else
+                {
+                    stretch.Add(message);
+                }
+            }
+
+            problems.AddRange(SimReplay.Compare(start, stretch, Sim.Snapshot()));
+            Count("replay: stretches");
+            return problems;
+        }
+
+        private static string EventTypeOf(SimMessage message)
+        {
+            using var document = JsonDocument.Parse(message.Json);
+            return document.RootElement.GetProperty("d").GetProperty("eventType").GetString()!;
         }
 
         // Remembers every source that was alive, with its name, so that a request can later point at one that is gone.
@@ -613,6 +653,9 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => ("GetGroupList", null));
             Request(1, () => ("GetVersion", null));
             Request(1, () => ("GetInputKindList", _random.Chance(0.5) ? Data(("unversioned", _random.Chance(0.5))) : null));
+            Request(1, () => ("GetSceneCollectionList", null));
+            Request(1, () => ("SetCurrentSceneCollection", Data(("sceneCollectionName", CollectionName()))));
+            Request(1, () => ("CreateSceneCollection", Data(("sceneCollectionName", NewCollectionName()))));
 
             Operation("client request", 54, () => Send(Pick()));
             Operation("client batch", 5, AskBatch);
@@ -639,6 +682,22 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SetMute", 1, () => Do(() => Sim.External.SetMute(PickInput(audio: true, tidy: true).Uuid, _random.Chance(0.5)), "SetMute"));
             Operation("external SetVolumeDb", 1, () => Do(() => Sim.External.SetVolumeDb(PickInput(audio: true, tidy: true).Uuid, Decibels[_random.Next(Decibels.Length)]), "SetVolumeDb"));
             Operation("external SwitchProgramScene", 3, () => Do(() => Sim.External.SwitchProgramScene(PickScene(tidy: true).Uuid), "SwitchProgramScene"));
+            Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
+            Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
+        }
+
+        // A scene collection to point at: mostly one that is there, and now and then one that is not.
+        private string CollectionName()
+        {
+            var names = Sim.Collections;
+            return _random.Chance(0.85) ? names[_random.Next(names.Count)] : Name(0.1);
+        }
+
+        // A name for a scene collection that is to be made: a new one, and now and then the name of one that is there.
+        private string NewCollectionName()
+        {
+            var names = Sim.Collections;
+            return _random.Chance(0.1) ? names[_random.Next(names.Count)] : Name(0.0);
         }
 
         private void Request(int weight, Func<(string Type, Dictionary<string, object?>? Data)> make)

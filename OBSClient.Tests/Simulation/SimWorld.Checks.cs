@@ -27,7 +27,7 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Pins > 0,
                     input.Removed))
                 .ToArray();
-            return new SimSnapshot(CollectionName, scenes, detached, inputs, _program.Uuid, null, false);
+            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, null, false);
         }
 
         /// <summary>
