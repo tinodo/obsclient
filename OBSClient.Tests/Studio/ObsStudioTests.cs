@@ -253,10 +253,12 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task ARetryRightAfterATimeout_IsNotFailedByTheEndOfTheConnectionOfTheFirstAttempt()
         {
-            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
+            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(3) });
             rig.Responder.AnswerBatches = false;
             using var held = new ManualResetEventSlim();
             var atTheEnd = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondStartQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var starts = 0;
             rig.Studio.Host.BeforeIngress = item =>
             {
                 // The loop of the host is held at the end of the first connection until the retry has begun: the order in which an immediate retry can meet it,
@@ -267,12 +269,22 @@ namespace OBSStudioClient.Tests.Studio
                     held.Wait(Timeout);
                 }
             };
+            rig.Studio.Host.AfterIngressPosted = item =>
+            {
+                if (item.Kind == IngressKind.SessionStarted && Interlocked.Increment(ref starts) == 2)
+                {
+                    secondStartQueued.TrySetResult();
+                }
+            };
 
             await Assert.ThrowsAsync<TimeoutException>(() => rig.ConnectAsync());
             await atTheEnd.Task.WithTimeoutAsync(Timeout);
             rig.Responder.AnswerBatches = true;
             var retry = rig.ConnectAsync();
-            await Task.Delay(400);
+
+            // The start of the connection of the retry is queued behind the end of the first one, which the loop is held at. (Not a wait of a fixed time: the model of the
+            // retry is given a time of its own, and what a busy machine takes of it before the loop is let go would be missing from it.)
+            await secondStartQueued.Task.WithTimeoutAsync(Timeout);
             held.Set();
 
             await retry.WithTimeoutAsync(Timeout);
@@ -345,7 +357,7 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task ARetryWhileTheStartOfTheFirstConnectionIsStillQueued_IsNotBoundToThatConnection()
         {
-            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
+            await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromSeconds(3) });
             using var held = new ManualResetEventSlim();
             var atTheStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var secondStartQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -918,7 +930,7 @@ namespace OBSStudioClient.Tests.Studio
             await Task.Delay(200);
             Assert.False(waiting.IsCompleted);
             cancellation.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting.WithTimeoutAsync(TimeSpan.FromSeconds(2)));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting.WithTimeoutAsync(Timeout));
 
             // And it ends when the client says that it is closed.
             var closing = obs.WaitForClientDisconnectedAsync(TimeSpan.FromSeconds(30));
@@ -972,21 +984,25 @@ namespace OBSStudioClient.Tests.Studio
             await using var rig = StudioRig.Create();
             var checkedOnce = 0;
             var gotTheLock = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var handlerWaits = TimeSpan.FromSeconds(20);
+            var limit = TimeSpan.FromSeconds(30);
 
             // The notification that the client raises when the failed call ends the connection is the application's. What it does can need the state of the
-            // studio (here another thread disconnects it, which takes the lock of the state): it cannot be raised while the call holds that lock.
+            // studio (here another thread disconnects it, which takes the lock of the state): it cannot be raised while the call holds that lock. A lock that is held
+            // is never let go of, so how long the handler waits only decides how slow a machine can be. The handler runs before the call returns, so the call is given
+            // longer than the handler waits.
             rig.Studio.Client.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ObsClient.AutoReconnect) && !rig.Studio.Client.AutoReconnect && Interlocked.Increment(ref checkedOnce) == 1)
                 {
                     var other = Task.Run(() => rig.Studio.DisconnectAsync());
-                    gotTheLock.TrySetResult(other.Wait(TimeSpan.FromSeconds(4)));
+                    gotTheLock.TrySetResult(other.Wait(handlerWaits));
                 }
             };
 
-            await Assert.ThrowsAsync<ObsNotConnectedException>(() => rig.Studio.ConnectAsync("127.0.0.1", FreePort()).WithTimeoutAsync(Timeout));
+            await Assert.ThrowsAsync<ObsNotConnectedException>(() => rig.Studio.ConnectAsync("127.0.0.1", FreePort()).WithTimeoutAsync(limit));
 
-            Assert.True(await gotTheLock.Task.WithTimeoutAsync(Timeout), "The handler ran under the lock of the state of the studio.");
+            Assert.True(await gotTheLock.Task.WithTimeoutAsync(limit), "The handler ran under the lock of the state of the studio.");
         }
 
         [Fact]
@@ -1360,8 +1376,9 @@ namespace OBSStudioClient.Tests.Studio
 
             rig.Studio.Dispose();
 
-            // It ends with the model, and not after the ten seconds that the wait for the model is allowed.
-            await disconnecting.WithTimeoutAsync(TimeSpan.FromSeconds(3));
+            // It ends with the model, and not after the ten seconds that the wait for the model is allowed: seven seconds are well short of those, and a busy machine
+            // does not need them.
+            await disconnecting.WithTimeoutAsync(TimeSpan.FromSeconds(7));
         }
 
         [Fact]
