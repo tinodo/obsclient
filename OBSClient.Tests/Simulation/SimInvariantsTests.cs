@@ -73,8 +73,14 @@ namespace OBSStudioClient.Tests.Simulation
         [Fact]
         public void TheEventsAlone_RebuildTheStateOfOBSStudio_WhenTheyArriveInOrder()
         {
-            // What a model of OBS Studio does with the events (without a single request), in the one setting in which they are not mixed up.
+            // What a model of OBS Studio does with the events (without a single request), in the one setting in which they are not mixed up. A switch of the scene collection
+            // ends a stretch of events and begins another, from what OBS Studio held when it loaded the collection.
             SimAssert.NoProblems(IdealWalks.Value.SelectMany(result => result.Replays), "walks whose events do not lead to the state that OBS Studio has");
+
+            // The replay is not left out where it is not looked for: every walk was replayed, and some of them in stretches, across switches of the scene collection.
+            var replayed = IdealWalks.Value.Where(result => result.Invariants.Count == 0).ToArray();
+            Assert.All(replayed, result => Assert.True(result.Counters.GetValueOrDefault("replay: stretches") >= 1, "A walk was not replayed."));
+            Assert.True(replayed.Sum(result => result.Counters.GetValueOrDefault("replay: stretches")) > replayed.Length + 10, "Too few of the walks were replayed across a switch of the scene collection.");
         }
 
         [Fact]

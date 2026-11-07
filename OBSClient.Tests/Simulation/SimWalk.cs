@@ -140,10 +140,9 @@ namespace OBSStudioClient.Tests.Simulation
 
             result.Order.AddRange(_orderProblems);
             CheckAnswers(result);
-            if (Quirks == SimQuirks.Ideal && !Counters.ContainsKey("event CurrentSceneCollectionChanged"))
+            if (Quirks == SimQuirks.Ideal)
             {
-                // The events of a switch of the scene collection do not hold what is in the other collection, so they cannot be replayed.
-                result.Replays.AddRange(SimReplay.Compare(Initial, _messages, Sim.Snapshot()).Select(problem => $"seed {Seed}: {problem}"));
+                result.Replays.AddRange(ReplayInStretches().Select(problem => $"seed {Seed}: {problem}"));
             }
 
             try
@@ -237,6 +236,46 @@ namespace OBSStudioClient.Tests.Simulation
         private void Count(string name)
         {
             Counters[name] = Counters.GetValueOrDefault(name) + 1;
+        }
+
+        // The events of a switch of the scene collection do not hold what is in the collection that is loaded, so the events are replayed in stretches: each one from
+        // what OBS Studio held when the stretch began (the start of the walk, or the loading of a collection) to what it held when it ended (the beginning of a switch,
+        // or the end of the walk).
+        private List<string> ReplayInStretches()
+        {
+            var problems = new List<string>();
+            var start = Initial;
+            var stretch = new List<SimMessage>();
+            var switches = Sim.Switches;
+            var done = 0;
+            foreach (var message in _messages)
+            {
+                var type = message.Op == SimOp.Event ? EventTypeOf(message) : null;
+                if (type == "CurrentSceneCollectionChanging")
+                {
+                    problems.AddRange(SimReplay.Compare(start, stretch, switches[done].Left));
+                    Count("replay: stretches");
+                    stretch.Clear();
+                }
+                else if (type == "CurrentSceneCollectionChanged")
+                {
+                    start = switches[done++].Loaded;
+                }
+                else
+                {
+                    stretch.Add(message);
+                }
+            }
+
+            problems.AddRange(SimReplay.Compare(start, stretch, Sim.Snapshot()));
+            Count("replay: stretches");
+            return problems;
+        }
+
+        private static string EventTypeOf(SimMessage message)
+        {
+            using var document = JsonDocument.Parse(message.Json);
+            return document.RootElement.GetProperty("d").GetProperty("eventType").GetString()!;
         }
 
         // Remembers every source that was alive, with its name, so that a request can later point at one that is gone.

@@ -62,11 +62,13 @@ namespace OBSStudioClient.Tests.Simulation
 
         private readonly SimRequests _requests;
         private readonly Dictionary<string, SimSavedCollection> _saved = new(StringComparer.Ordinal);
+        private readonly List<SimSwitchRecord> _switches = [];
         private readonly PriorityQueue<Action, (TimeSpan At, long Sequence)> _actions = new();
         private readonly PriorityQueue<SimMessage, (TimeSpan At, long Sequence)> _outbound = new();
         private readonly SortedSet<TimeSpan> _deadlines = [];
         private readonly List<SimProtocolViolation> _violations = [];
         private SimWorld _world;
+        private SimSnapshot? _leaving;
         private List<EmittedEvent>? _events;
         private bool _ready = true;
         private bool _loading;
@@ -112,6 +114,9 @@ namespace OBSStudioClient.Tests.Simulation
         /// done so. obs-websocket is not ready in the meantime: it answers every request with 207, and sends no event.
         /// </summary>
         public bool IsSwitching => !_ready;
+
+        /// <summary>Gets what OBS Studio held at both ends of each switch of its scene collection that is done, in order (see <see cref="SimSwitchRecord"/>).</summary>
+        internal IReadOnlyList<SimSwitchRecord> Switches => _switches;
 
         /// <summary>
         /// Gets the virtual time of the next thing that is scheduled: a request that has to run, a message that has to leave, the end of a lag of
@@ -788,6 +793,7 @@ namespace OBSStudioClient.Tests.Simulation
         // half makes it ready again, and then announces CurrentSceneCollectionChanged. Both halves run inside a change.
         private void StartSwitch()
         {
+            _leaving = _world.Snapshot();
             Emit("CurrentSceneCollectionChanging", Obj(("sceneCollectionName", _world.Name)), -1, TimeSpan.Zero);
             _ready = false;
         }
@@ -813,6 +819,7 @@ namespace OBSStudioClient.Tests.Simulation
             _world = next;
             _requests.Use(next);
             External.Use(next);
+            _switches.Add(new SimSwitchRecord(_leaving!, next.Snapshot()));
             if (Quirks.CreationEventsDuringSwitch)
             {
                 _loading = true;

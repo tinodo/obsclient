@@ -38,6 +38,14 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="ProgramSceneUuid">The UUID of the program scene.</param>
     internal sealed record SimSavedCollection(string Name, IReadOnlyList<SimSavedScene> Scenes, IReadOnlyList<SimSavedInput> Inputs, Guid ProgramSceneUuid);
 
+    /// <summary>
+    /// What OBS Studio held when it began to change its scene collection, and what it held when it had loaded the other: the events of a switch say nothing of what
+    /// is in the collection that is loaded, so a replay of the events (<see cref="SimReplay"/>) starts again from the second.
+    /// </summary>
+    /// <param name="Left">What the collection that was left held when OBS Studio began to leave it.</param>
+    /// <param name="Loaded">What the collection that was loaded held when it was loaded.</param>
+    internal sealed record SimSwitchRecord(SimSnapshot Left, SimSnapshot Loaded);
+
     /// <summary>Saving a scene collection when OBS Studio leaves it, and loading one when it comes back.</summary>
     internal sealed partial class SimWorld
     {
