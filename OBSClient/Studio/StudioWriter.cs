@@ -159,8 +159,10 @@ namespace OBSStudioClient.Studio
     /// </para>
     /// <para>
     /// A change is not sent when there is no connection, when the connection is not the one that it was asked for on (that one was lost, and the client made another), when OBS
-    /// Studio is changing its scene collection, or when the collection is not the one that it was asked for in; each of those is certain: nothing was changed. A change that was
-    /// sent and not answered in time, or whose connection ended, is not certain
+    /// Studio is changing its scene collection, or when the collection is not the one that it was asked for in; each of those is certain: nothing was changed. The model knows of
+    /// these a moment after OBS Studio does (the gate that the checks read follows the loop of the model, which is behind the client by the time that it takes to handle what has
+    /// arrived): the checks are made again when the batch is about to be written, and what is sent in the moment between is refused by OBS Studio (it is not ready while it changes
+    /// its scene collection), which is certain too. A change that was sent and not answered in time, or whose connection ended, is not certain
     /// (<see cref="ObsUnknownOutcomeException"/>): it is never sent again, the model reads again what it was about.
     /// </para>
     /// </remarks>
