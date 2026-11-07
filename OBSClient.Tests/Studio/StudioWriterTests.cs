@@ -979,6 +979,46 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AChangeThatOBSStudioDidNotMake_EndsWithTheReadOfItsPart_WhileAnotherPartOfTheModelKeepsFailing()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(
+                world =>
+                {
+                    var gaming = world.AddScene("Gaming");
+                    world.AddItem(gaming, world.AddInput("Camera"), "Camera");
+                    world.AddInput("Mic", "wasapi_input_capture", 2, false, 1.0);
+                },
+                new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(200), ReadTimeout = TimeSpan.FromSeconds(10), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var camera = rig.Studio.Scenes["Gaming"].Items["Camera"];
+            var mic = rig.Studio.Inputs["Mic"];
+
+            // OBS Studio is not ready for the audio of the microphone, which the model asks for: it tries again and again, and never settles. And OBS Studio answers that it made
+            // a change, and made none, and sends no event: only a read of the scene items shows what it holds.
+            rig.Responder.OnRequest = (type, data) => type switch
+            {
+                "GetInputMute" or "GetInputVolume" => (207, null),
+                "SetSceneItemEnabled" => (100, null),
+                _ => null,
+            };
+            using var asked = new CancellationTokenSource();
+            _ = rig.Studio.Host.RefreshAsync([new RefreshTarget(ReadKind.AudioMute, mic.Uuid)], asked.Token);
+            await StudioRig.EventuallyAsync(() => rig.Responder.RequestLog.Count(type => type == "GetInputMute") >= 2, "the model to try to read the audio of the microphone again");
+
+            try
+            {
+                // The call ends with the read of the scene items, which says what OBS Studio holds. Waiting for the whole model to settle, it would end with the time that the wait
+                // was given (more than twenty seconds), and with an ObsNotConfirmedException, although the part that the change was about had been read.
+                await camera.SetEnabledAsync(false).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                asked.Cancel();
+            }
+
+            Assert.True(camera.IsEnabled);
+        }
+
+        [Fact]
         public async Task TheLongestTimesThatTheOptionsAllow_DoNotMakeAChangeFail()
         {
             // The wait for the model adds up the time for the events and twice the time for a read: three times 24 days is more than a timer can be given.

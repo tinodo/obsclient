@@ -100,7 +100,29 @@ namespace OBSStudioClient.Studio.Engine
                 return;
             }
 
-            ScopeState? scope = kind switch
+            this.RefreshScope(kind, target)?.MarkDirtyNotBefore(this._now);
+        }
+
+        // Whether the part that a refresh asked for has been read since it was asked: it does not need a read, and none is under way. (A mark that comes while a part is read
+        // keeps it marked, so a read that was under way when the refresh was asked for does not count: the part is read once more.) What else the model has to read does not matter
+        // here: another part that keeps failing does not keep this one from being read. A part that the model does not have has nothing to read. Not while there is no connection,
+        // or while OBS Studio changes its scene collection: nothing is read then.
+        public bool IsRefreshed(ReadKind kind, Guid target)
+        {
+            if (this._state == StudioEngineState.Disconnected || this._switching)
+            {
+                return false;
+            }
+
+            var scope = this.RefreshScope(kind, target);
+            return scope is null || (!scope.Dirty && !scope.InFlight);
+        }
+
+        // The part of the model that a refresh of the given kind and target is about, or null when the model has nothing to read for it: the scene or the input is not in the
+        // model, or the input has no audio.
+        private ScopeState? RefreshScope(ReadKind kind, Guid target)
+        {
+            return kind switch
             {
                 ReadKind.Scenes => this._scenesScope,
                 ReadKind.Inputs => this._inputsScope,
@@ -109,7 +131,6 @@ namespace OBSStudioClient.Studio.Engine
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
-            scope?.MarkDirtyNotBefore(this._now);
         }
 
         // The part is read again, after a wait that gets longer every time.

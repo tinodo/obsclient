@@ -54,7 +54,7 @@ namespace OBSStudioClient.Studio
         private readonly StudioNoticeHold _held;
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
-        private readonly List<TaskCompletionSource> _settleWaiters = new();
+        private readonly List<SettleWaiter> _settleWaiters = new();
         private readonly List<ConfirmWaiter> _confirmWaiters = new();
         private readonly List<TaskCompletionSource> _disconnectWaiters = new();
         private volatile WriteGate _gate = new(0, false, 0);
@@ -252,11 +252,12 @@ namespace OBSStudioClient.Studio
         }
 
         /// <summary>
-        /// Asks the model to read the given parts again, and returns a task that completes when it has applied the answers and has nothing left to read.
+        /// Asks the model to read the given parts again, and returns a task that completes when it has read those parts and applied the answers. What else the model has to read
+        /// is not waited for: another part that keeps failing does not keep this wait from ending.
         /// </summary>
         /// <param name="targets">The parts.</param>
         /// <param name="cancellationToken">A token that ends the wait (the parts are read all the same).</param>
-        /// <returns>A task that completes when the model is up to date.</returns>
+        /// <returns>A task that completes when the parts have been read again.</returns>
         public Task RefreshAsync(IReadOnlyList<RefreshTarget> targets, CancellationToken cancellationToken)
         {
             return this.AddWaiter(HostItemKind.Refresh, cancellationToken, targets: targets);
@@ -464,7 +465,7 @@ namespace OBSStudioClient.Studio
                     }
                     else
                     {
-                        this._settleWaiters.Add(item.Waiter!);
+                        this._settleWaiters.Add(new SettleWaiter(item.Waiter!, null));
                     }
 
                     break;
@@ -491,8 +492,8 @@ namespace OBSStudioClient.Studio
                             this._engine.RequestRefresh(target.Kind, target.Target, now);
                         }
 
-                        // The wait is for the model to settle, and the parts were marked in this same step: it can not settle before they are read.
-                        this._settleWaiters.Add(item.Waiter!);
+                        // The wait is for these parts to be read, and they were marked in this same step: it can not be done before they are read.
+                        this._settleWaiters.Add(new SettleWaiter(item.Waiter!, item.Targets));
                     }
 
                     break;
@@ -512,7 +513,7 @@ namespace OBSStudioClient.Studio
 
                     break;
                 case HostItemKind.Prune:
-                    this._settleWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    this._settleWaiters.RemoveAll(static waiter => waiter.Waiter.Task.IsCompleted);
                     this._confirmWaiters.RemoveAll(static waiter => waiter.Done.Task.IsCompleted);
                     this._disconnectWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
                     break;
@@ -812,6 +813,8 @@ namespace OBSStudioClient.Studio
             }
         }
 
+        // The waits for the model to settle are done when nothing is left to read, anywhere; the waits for the parts that a refresh asked for, when those parts have been read, whatever
+        // else the model has to read (another part that keeps failing would keep a call from ending that was about this one).
         private void ReleaseWaiters()
         {
             if (this._settleWaiters.Count == 0)
@@ -825,22 +828,37 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
-            if (this._versionKnown && this._read is null && this._engine.IsSettled)
+            var settled = this._versionKnown && this._read is null && this._engine.IsSettled;
+            this._settleWaiters.RemoveAll(waiter =>
             {
-                foreach (var waiter in this._settleWaiters)
+                var done = waiter.Targets is null ? settled : this._versionKnown && this.AreRefreshed(waiter.Targets);
+                if (done)
                 {
-                    waiter.TrySetResult();
+                    waiter.Waiter.TrySetResult();
                 }
 
-                this._settleWaiters.Clear();
+                return done;
+            });
+        }
+
+        private bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
+        {
+            foreach (var target in targets)
+            {
+                if (!this._engine.IsRefreshed(target.Kind, target.Target))
+                {
+                    return false;
+                }
             }
+
+            return true;
         }
 
         private void FailWaiters(Exception exception)
         {
             foreach (var waiter in this._settleWaiters)
             {
-                waiter.TrySetException(exception);
+                waiter.Waiter.TrySetException(exception);
             }
 
             this._settleWaiters.Clear();
@@ -1071,6 +1089,9 @@ namespace OBSStudioClient.Studio
             version = parsed;
             return true;
         }
+
+        // A wait for the model to settle (Targets is null: nothing is left to read, anywhere) or for the parts that a refresh asked for to be read (Targets: nothing else matters).
+        private sealed record SettleWaiter(TaskCompletionSource Waiter, IReadOnlyList<RefreshTarget>? Targets);
 
         // A wait for the model to show something: the predicate is looked at after every step that publishes (ReleaseConfirmations). The waits that are about the same part of the
         // model (Order) are looked at one after the other.

@@ -117,5 +117,67 @@ namespace OBSStudioClient.Tests.Studio
 
             Assert.NotNull(h.Take());
         }
+
+        [Fact]
+        public void APartThatWasAskedFor_IsRefreshed_WhenItHasBeenRead_WhateverElseTheModelStillHasToRead()
+        {
+            var gaming = Guid.Empty;
+            var mic = Guid.Empty;
+            var h = Started(world =>
+            {
+                gaming = world.AddScene("Gaming");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+            });
+            Assert.True(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+
+            // Both parts are asked for. The scene items are read, and the audio of the microphone fails: it is repeated after a wait, and the model is not settled meanwhile.
+            h.Engine.RequestRefresh(ReadKind.Items, gaming, h.Now);
+            h.Engine.RequestRefresh(ReadKind.AudioMute, mic, h.Now);
+            Assert.False(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+            Assert.False(h.Engine.IsRefreshed(ReadKind.AudioMute, mic));
+            while (h.Take() is { } ticket)
+            {
+                h.Complete(ticket, request => request.Kind is ReadKind.AudioMute or ReadKind.AudioVolume ? (207, null) : h.World.Answer(request));
+            }
+
+            Assert.True(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+            Assert.False(h.Engine.IsRefreshed(ReadKind.AudioMute, mic));
+            Assert.False(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void APartThatWasBeingRead_WhenItWasAskedFor_IsRefreshed_OnlyWhenItHasBeenReadAgain()
+        {
+            var gaming = Guid.Empty;
+            var h = Started(world => gaming = world.AddScene("Gaming"));
+            h.Engine.RequestRefresh(ReadKind.Items, gaming, h.Now);
+            var first = h.Take();
+            Assert.NotNull(first);
+
+            // Asked for again while the read is under way: that read was sent before, so what it says can be older than what the refresh is for.
+            h.Engine.RequestRefresh(ReadKind.Items, gaming, h.Now);
+            h.Complete(first!);
+            Assert.False(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+
+            var second = h.Take();
+            Assert.NotNull(second);
+            h.Complete(second!);
+            Assert.True(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+        }
+
+        [Fact]
+        public void NothingIsRefreshed_WithoutAConnection_OrWhileOBSStudioChangesItsSceneCollection_AndAPartThatTheModelDoesNotHaveHasNothingToRead()
+        {
+            var gaming = Guid.Empty;
+            var h = Started(world => gaming = world.AddScene("Gaming"));
+            Assert.True(h.Engine.IsRefreshed(ReadKind.Items, Guid.NewGuid()));
+            Assert.True(h.Engine.IsRefreshed(ReadKind.AudioMute, Guid.NewGuid()));
+
+            h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            Assert.False(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+
+            h.End();
+            Assert.False(h.Engine.IsRefreshed(ReadKind.Items, gaming));
+        }
     }
 }
