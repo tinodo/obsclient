@@ -398,6 +398,14 @@ namespace OBSStudioClient.Studio
             switch (ingress.Kind)
             {
                 case IngressKind.SessionStarted:
+                    if (!this.Wants(ingress))
+                    {
+                        // A connection that nobody asked for: the call of ConnectAsync that made it was ended (a token, DisconnectAsync, a disposal), and has unwound,
+                        // and its start reached the loop late. Its end is on its way, and finds nothing to end here (this is not the connection of the loop). Following
+                        // it would publish Synchronizing for a connection that is on its way out, and refuse the application that connects again in that moment.
+                        break;
+                    }
+
                     this._session = ingress.SessionId;
                     this._versionKnown = false;
                     this._versionRetryAt = null;
@@ -456,6 +464,15 @@ namespace OBSStudioClient.Studio
 
                     break;
             }
+        }
+
+        // Whether the model follows the connection whose start this is: the connection that the call of ConnectAsync that is under way made (it started after the
+        // attempt began, and no connection is bound to the attempt yet), or the one that the client restored after it lost one (the state is Reconnecting, which only
+        // the loop changes while it lasts). The client connects by itself in no other case.
+        private bool Wants(IngressItem ingress)
+        {
+            return (Volatile.Read(ref this._attempt) is { Session: 0 } attempt && ingress.Sequence > attempt.After)
+                || this._studio.State == ObsStudioState.Reconnecting;
         }
 
         private void HandleVersion(in HostItem item, TimeSpan now)

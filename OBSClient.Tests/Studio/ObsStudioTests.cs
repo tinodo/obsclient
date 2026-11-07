@@ -280,6 +280,50 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task TheStartOfAConnectionThatWasEnded_IsNotFollowed_WhenItReachesTheModelAfterTheCallHasUnwound()
+        {
+            await using var rig = StudioRig.Create();
+            using var heldAtTheStart = new ManualResetEventSlim();
+            using var heldAtTheEnd = new ManualResetEventSlim();
+            var atTheStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var atTheEnd = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            rig.Studio.Host.BeforeIngress = item =>
+            {
+                // The loop of the host is held at the start of the connection of the first call, until that call has been ended and has unwound (it does not need the
+                // loop to do that): the order in which a loop that is late can meet it. Then it is held at the end of that connection, after it has handled the start.
+                if (item.Kind == IngressKind.SessionStarted && !heldAtTheStart.IsSet)
+                {
+                    atTheStart.TrySetResult();
+                    heldAtTheStart.Wait(Timeout);
+                }
+                else if (item.Kind == IngressKind.SessionEnded && !heldAtTheEnd.IsSet)
+                {
+                    atTheEnd.TrySetResult();
+                    heldAtTheEnd.Wait(Timeout);
+                }
+            };
+
+            using var cancellation = new CancellationTokenSource();
+            var connecting = rig.ConnectAsync(cancellation.Token);
+            await atTheStart.Task.WithTimeoutAsync(Timeout);
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connecting.WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+
+            // The loop handles the start of that connection now. Nobody wants it: no call is under way, and nothing is being restored. The state does not follow it,
+            // and the application that connects again is not refused.
+            heldAtTheStart.Set();
+            await atTheEnd.Task.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+            var again = rig.ConnectAsync();
+            Assert.False(again.IsFaulted, "The call was refused: " + again.Exception?.GetBaseException().Message);
+            heldAtTheEnd.Set();
+
+            await again.WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+        }
+
+        [Fact]
         public async Task ARetryWhileTheStartOfTheFirstConnectionIsStillQueued_IsNotBoundToThatConnection()
         {
             await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
