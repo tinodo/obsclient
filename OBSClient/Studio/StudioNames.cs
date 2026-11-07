@@ -26,7 +26,8 @@ namespace OBSStudioClient.Studio
             IReadOnlyList<ObsSceneItem> keepingItAlive = [];
             if (holder is null)
             {
-                // A source that was removed stays in the list of sources of OBS Studio, with its name taken, for as long as scene items show it.
+                // An input that was removed stays in the list of sources of OBS Studio, with its name taken, for as long as scene items show it, and so does a scene with obs-websocket
+                // 5.6 and older. OBS Studio 32 and newer (obs-websocket 5.7) take the name of a scene that was removed out of the list of its canvas at once.
                 keepingItAlive = studio.FindItemsOfRemovedSource(name, forScene);
                 holder = keepingItAlive.Count > 0 ? keepingItAlive[0].Source : null;
             }
@@ -41,6 +42,10 @@ namespace OBSStudioClient.Studio
                 var kind = Kind(holder!);
                 reason = $"{(holder is ObsScene ? "a" : "an")} {kind} named '{name}' was removed, but OBS Studio keeps it alive because {Count(keepingItAlive.Count, "scene item")} still show{(keepingItAlive.Count == 1 ? "s" : string.Empty)} it ({Describe(keepingItAlive)}), "
                     + $"and a name stays taken until the last of them is gone. Call RemoveAsync() on the {kind} (HeldBy of this exception) to destroy it and free the name";
+            }
+            else if (holder is ObsScene { IsGroup: true })
+            {
+                reason = $"a group named '{name}' exists already, and a group holds its name like any other source";
             }
             else if (holder is ObsScene)
             {
@@ -62,8 +67,9 @@ namespace OBSStudioClient.Studio
             return new ObsNameInUseException(name, $"OBS Studio refused {operation}: {reason}. Nothing was changed.", holder);
         }
 
-        // What holds a name among the sources that are alive and that the collections list: for the name of a scene a scene first, for the name of an input an input first. An object
-        // that says that it was removed is not live, also when the collection still lists it: the model changes the objects first, and swaps the collections after that.
+        // What holds a name among the sources that are alive and that the collections list: for the name of a scene a scene first, for the name of an input an input first. A group is
+        // not in the collection of scenes, and holds its name like any source: it is looked for last. An object that says that it was removed is not live, also when the collection still
+        // lists it: the model changes the objects first, and swaps the collections after that.
         private static ObsSource? FindLive(ObsStudio studio, string name, bool forScene)
         {
             ObsSource? scene = null;
@@ -86,12 +92,13 @@ namespace OBSStudioClient.Studio
                 }
             }
 
-            return forScene ? scene ?? input : input ?? scene;
+            var found = forScene ? scene ?? input : input ?? scene;
+            return found ?? studio.FindLiveGroup(name);
         }
 
         private static string Kind(ObsSource source)
         {
-            return source is ObsScene ? "scene" : "input";
+            return source is ObsScene { IsGroup: true } ? "group" : source is ObsScene ? "scene" : "input";
         }
 
         private static string Count(int count, string noun)

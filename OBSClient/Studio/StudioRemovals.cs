@@ -5,8 +5,9 @@ namespace OBSStudioClient.Studio
     using OBSStudioClient.Messages;
 
     /// <summary>
-    /// What removing a scene or an input is made of. OBS Studio keeps a source that was removed alive for as long as scene items show it, and its name stays taken, so removing
-    /// one for good is: remove the source (when it is not removed yet), and then each scene item that shows it. The last scene item destroys it.
+    /// What removing a scene or an input is made of. OBS Studio keeps a source that was removed alive for as long as scene items show it (and, for an input, and for a scene before
+    /// obs-websocket 5.7, its name stays taken), so removing one for good is: remove the source (when it is not removed yet), and then each scene item that shows it. The last scene
+    /// item destroys it.
     /// </summary>
     internal static class StudioRemovals
     {
@@ -30,6 +31,41 @@ namespace OBSStudioClient.Studio
             }
 
             return requests;
+        }
+
+        /// <summary>
+        /// Says what the model shows when the requests of a removal before the one that was refused have been applied: the source is removed (when the first request removed it), and the
+        /// scene items before the refused one are gone. A call that is made again at once (the message of the refusal asks for that) builds its requests from what the model shows, and
+        /// would repeat the ones that were made if it did not show it yet.
+        /// </summary>
+        /// <param name="source">The source that is removed.</param>
+        /// <param name="includesRemoval">Whether the first request removes the source itself.</param>
+        /// <param name="showing">The scene items that the requests after it remove.</param>
+        /// <param name="index">The position of the request that was refused.</param>
+        /// <returns>What says that the model shows it.</returns>
+        internal static Func<bool> Reconciled(ObsSource source, bool includesRemoval, ObsSceneItem[] showing, int index)
+        {
+            var done = Math.Max(index - (includesRemoval ? 1 : 0), 0);
+            return () => (!includesRemoval || source.IsRemoved) && showing.Take(done).All(item => item.IsRemoved);
+        }
+
+        /// <summary>
+        /// Refuses the removal of a source that a scene item inside a group shows. obs-websocket removes the scene items of scenes only (<c>RemoveSceneItem</c>: "Scenes only"; a group's
+        /// UUID is refused as the wrong type of resource), so the removal could not be finished: the source would be removed, and kept alive by the scene item of the group for good.
+        /// </summary>
+        /// <param name="source">The source that is removed.</param>
+        /// <exception cref="InvalidOperationException">A scene item in a group shows the source. Nothing was changed.</exception>
+        internal static void ThrowIfAGroupShows(ObsSource source)
+        {
+            foreach (var item in source.GetSceneItems())
+            {
+                if (!item.IsRemoved && item.Scene.IsGroup)
+                {
+                    throw new InvalidOperationException(
+                        $"The {source.Label} is shown by scene item {item.Id} of the group '{item.Scene.Name}'. obs-websocket removes the scene items of scenes only (RemoveSceneItem), not those of a group, "
+                        + "so it can not be removed for good from here: take it out of the group in OBS Studio first. Nothing was changed.");
+                }
+            }
         }
 
         /// <summary>

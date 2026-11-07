@@ -11,7 +11,8 @@ namespace OBSStudioClient.Tests.Studio
     /// <remarks>
     /// The collection: "Gaming" shows a camera (scene item 1, an input without audio), a microphone (2, an input with audio), an overlay (3, an input without audio), and the scene
     /// "Chatting" (4). "Chatting" shows the microphone (1) and the overlay (2). "Spare" is a scene that nothing shows, and "Desktop Audio" an input that no scene item shows (OBS Studio
-    /// keeps its audio devices that way). "Scene" is empty, and is the program scene. With a group: "Gaming" shows a group, "Group" (5), that shows nothing.
+    /// keeps its audio devices that way). "Scene" is empty, and is the program scene. With a group: "Gaming" shows a group, "Group" (5), that shows nothing, or, when it is asked to, the
+    /// input "Logo" (1) and the scene "Spare" (2).
     /// </remarks>
     internal sealed class ByNameFixture : IAsyncDisposable
     {
@@ -56,7 +57,7 @@ namespace OBSStudioClient.Tests.Studio
 
         public Guid Group { get; }
 
-        public static async Task<ByNameFixture> StartAsync(ObsStudioOptions? options = null, bool withGroup = false)
+        public static async Task<ByNameFixture> StartAsync(ObsStudioOptions? options = null, bool withGroup = false, bool inGroup = false, string? webSocketVersion = null)
         {
             Guid gaming = default, chatting = default, spare = default, camera = default, mic = default, overlay = default, desktop = default, group = default;
             var rig = await StudioRig.ConnectedAsync(
@@ -81,9 +82,16 @@ namespace OBSStudioClient.Tests.Studio
                         world.Groups.Add(group);
                         world.Items[group] = [];
                         world.AddItem(gaming, group, "Group", isScene: true);
+                        if (inGroup)
+                        {
+                            var logo = world.AddInput("Logo");
+                            world.AddItem(group, logo, "Logo");
+                            world.AddItem(group, spare, "Spare", isScene: true);
+                        }
                     }
                 },
-                options ?? new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(5) });
+                options ?? new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(5) },
+                webSocketVersion: webSocketVersion);
             return new ByNameFixture(rig, gaming, chatting, spare, camera, mic, overlay, desktop, group);
         }
 

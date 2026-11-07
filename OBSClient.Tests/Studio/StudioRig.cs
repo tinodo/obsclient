@@ -18,6 +18,7 @@ namespace OBSStudioClient.Tests.Studio
         private readonly SemaphoreSlim _write = new(1, 1);
         private readonly object _worldLock = new();
         private readonly List<string> _requestLog = [];
+        private readonly List<string[]> _batchLog = [];
         private readonly List<JsonElement> _held = [];
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
@@ -63,6 +64,18 @@ namespace OBSStudioClient.Tests.Studio
                 lock (this._worldLock)
                 {
                     return this._requestLog.ToArray();
+                }
+            }
+        }
+
+        /// <summary>Gets the types of the requests of each batch that was received, in the order in which the batches were read.</summary>
+        public string[][] BatchLog
+        {
+            get
+            {
+                lock (this._worldLock)
+                {
+                    return this._batchLog.ToArray();
                 }
             }
         }
@@ -195,6 +208,11 @@ namespace OBSStudioClient.Tests.Studio
                         else if (op == 8)
                         {
                             Interlocked.Increment(ref this._batches);
+                            lock (this._worldLock)
+                            {
+                                this._batchLog.Add(d.GetProperty("requests").EnumerateArray().Select(request => request.GetProperty("requestType").GetString()!).ToArray());
+                            }
+
                             if (this.AnswerBatches)
                             {
                                 await this.AnswerBatchAsync(d);
@@ -422,11 +440,16 @@ namespace OBSStudioClient.Tests.Studio
             return rig;
         }
 
-        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
+        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null)
         {
             var rig = Create(setup, options, loggerFactory);
             try
             {
+                if (webSocketVersion is not null)
+                {
+                    rig.Responder.WebSocketVersion = webSocketVersion;
+                }
+
                 await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
             }
             catch

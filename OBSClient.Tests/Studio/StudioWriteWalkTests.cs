@@ -12,9 +12,10 @@ namespace OBSStudioClient.Tests.Studio
     /// A random walk of changes by name over the whole stack: an <see cref="ObsStudio"/> on a real <see cref="ObsClient"/>, connected to the simulation of OBS Studio, asks for random
     /// changes (some of them together, so that they wait for each other in the line), and the user of OBS Studio makes random changes of his own in between (so that names are taken,
     /// and objects are removed under the feet of the calls). Whatever the walk does, a call ends with the change, or with an exception that says what OBS Studio refused or what is gone
-    /// (never with one that says that the outcome is unknown, or that the model could not show it), and after a batch of calls the model shows what OBS Studio holds, with no wait left in
-    /// the model. A walk that fails says its seed: set <c>OBSCLIENT_WALK_FIRST</c> to it and <c>OBSCLIENT_WALK_SEEDS</c> to 1 to run just that walk (the order in which the threads
-    /// run is not the same twice, so it can take a few runs), or <c>OBSCLIENT_WALK_SEEDS</c> to a large number, and <c>OBSCLIENT_WALK_STEPS</c> to a longer walk, for a campaign.
+    /// (never with one that says that the outcome is unknown, or that the model could not show it; the one exception is the rename of a scene that the user removed meanwhile, which a real
+    /// OBS Studio never answers, so that the outcome is unknown), and after a batch of calls the model shows what OBS Studio holds, with no wait left in the model. A walk that fails says
+    /// its seed: set <c>OBSCLIENT_WALK_FIRST</c> to it and <c>OBSCLIENT_WALK_SEEDS</c> to 1 to run just that walk (the order in which the threads run is not the same twice, so it can take
+    /// a few runs), or <c>OBSCLIENT_WALK_SEEDS</c> to a large number, and <c>OBSCLIENT_WALK_STEPS</c> to a longer walk, for a campaign.
     /// </summary>
     public class StudioWriteWalkTests
     {
@@ -49,9 +50,35 @@ namespace OBSStudioClient.Tests.Studio
                 {
                     failures.Add($"Seed {seed}: {failure}");
                 }
+                else if (TooFewChanges(statistics, Steps) is { } nothing)
+                {
+                    failures.Add($"Seed {seed}: {nothing}");
+                }
             }
 
             Assert.True(failures.Count == 0, string.Join(Environment.NewLine + Environment.NewLine, failures));
+        }
+
+        // The seeds that campaigns found, and the walks that they were found with. 273: OBS Studio made a scene item in a scene that the user removed while the call was under way (it sends no event
+        // for the scene items of a scene that it removed), and the model did not show it when the call ended (StudioWriter.RefreshDetached). 286 and 1024: the walk renamed a scene that the
+        // user removed meanwhile, which a real OBS Studio never answers (RenameSceneAsync).
+        [Theory]
+        [InlineData(273, 20)]
+        [InlineData(286, 18)]
+        [InlineData(1024, 16)]
+        public async Task AWalkThatACampaignFoundAProblemWith_ShowsWhatOBSStudioHoldsWhenItEnds(int seed, int steps)
+        {
+            var statistics = new Dictionary<string, int>();
+            var failure = await WalkAsync(seed, steps, statistics);
+
+            Assert.True(failure is null, failure);
+            Assert.Null(TooFewChanges(statistics, steps));
+        }
+
+        // A walk in which (nearly) every call is refused shows nothing: the calls have to change something, as often as one in two steps.
+        private static string? TooFewChanges(Dictionary<string, int> statistics, int steps)
+        {
+            return statistics.GetValueOrDefault("ok") < steps / 2 ? $"only {statistics.GetValueOrDefault("ok")} calls changed anything in {steps} steps: the walk shows nothing." : null;
         }
 
         private static int ReadNumber(string name, int fallback)
@@ -104,7 +131,7 @@ namespace OBSStudioClient.Tests.Studio
                     var together = random.Next(1, 4);
                     for (var i = 0; i < together; i++)
                     {
-                        if (Pick(rig.Studio, random, log) is { } call)
+                        if (Pick(rig, random, log) is { } call)
                         {
                             calls.Add(Observe(call.Description, call.Run, log, unexpected));
                         }
@@ -201,11 +228,11 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // One call that the application can ask for now, chosen from what the model shows (some choices find nothing to ask for: another is tried).
-        private static (string Description, Func<Task> Run)? Pick(ObsStudio studio, Random random, List<string> log)
+        private static (string Description, Func<Task> Run)? Pick(StudioSimRig rig, Random random, List<string> log)
         {
             for (var attempt = 0; attempt < 8; attempt++)
             {
-                if (PickOnce(studio, random, log) is { } call)
+                if (PickOnce(rig, random, log) is { } call)
                 {
                     return call;
                 }
@@ -214,9 +241,24 @@ namespace OBSStudioClient.Tests.Studio
             return null;
         }
 
-        // One call that the application can ask for now, chosen from what the model shows: what it is about can be gone by the time that it has its turn.
-        private static (string Description, Func<Task> Run)? PickOnce(ObsStudio studio, Random random, List<string> log)
+        // A real OBS Studio never answers SetSceneName for a scene that was removed and is kept alive (fact 9). A scene that the user removes while the rename is under way gets no
+        // answer, and the call says that the outcome is not known, which is right: it is the walk that raced the user. The world says whether that is what happened.
+        private static async Task RenameSceneAsync(StudioSimRig rig, ObsScene scene, string name)
         {
+            try
+            {
+                await scene.RenameAsync(name);
+            }
+            catch (ObsUnknownOutcomeException) when (rig.Server.Run(sim => sim.Snapshot()).DetachedScenes.Any(detached => detached.Uuid == scene.Uuid))
+            {
+                throw new ObsRemovedException($"scene '{name}'", ObsObjectState.Detached);
+            }
+        }
+
+        // One call that the application can ask for now, chosen from what the model shows: what it is about can be gone by the time that it has its turn.
+        private static (string Description, Func<Task> Run)? PickOnce(StudioSimRig rig, Random random, List<string> log)
+        {
+            var studio = rig.Studio;
             var scenes = studio.Scenes.ToArray();
             var inputs = studio.Inputs.ToArray();
             var scene = One(scenes, random);
@@ -272,7 +314,7 @@ namespace OBSStudioClient.Tests.Studio
 
                     break;
                 case 12 when scene is not null:
-                    call = ($"scene '{scene.Name}': rename to '{sceneName}'", () => scene.RenameAsync(sceneName));
+                    call = ($"scene '{scene.Name}': rename to '{sceneName}'", () => RenameSceneAsync(rig, scene, sceneName));
                     break;
                 case 13 when input is not null:
                     call = ($"input '{input.Name}': rename to '{inputName}'", () => input.RenameAsync(inputName));

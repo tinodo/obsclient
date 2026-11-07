@@ -129,9 +129,10 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public async Task AScene_WhoseNewNameIsTakenByASceneThatWasRemovedAndIsAlive_IsANameInUseException_ThatSaysWhatKeepsItAlive()
+        public async Task AScene_WhoseNewNameIsTakenByASceneThatWasRemovedAndIsAlive_WithObsWebsocket56_IsANameInUseException_ThatSaysWhatKeepsItAlive()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            // Before obs-websocket 5.7 the name of a scene that was removed stays taken for as long as the scene is alive.
+            await using var test = await ByNameFixture.StartAsync(webSocketVersion: "5.6.3");
             var chatting = test.Studio.Scenes["Chatting"];
             test.RemoveScene(test.Chatting);
             await StudioRig.EventuallyAsync(() => chatting.State == ObsObjectState.Detached, "the scene to be detached");
@@ -142,6 +143,24 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Same(chatting, exception.HeldBy);
             Assert.Contains("a scene named 'Chatting' was removed, but OBS Studio keeps it alive because 1 scene item still shows it (scene item 4 of scene 'Gaming')", exception.Message);
             Assert.Contains("Call RemoveAsync() on the scene (HeldBy of this exception)", exception.Message);
+        }
+
+        [Fact]
+        public async Task AScene_WhoseNewNameIsThatOfASceneThatWasRemovedAndIsAlive_WithObsWebsocket57_IsNotBlamedOnThatScene()
+        {
+            // OBS Studio 32 takes the name of a scene that was removed out of the list of its canvas at once (obs_canvas_remove_source), and obs-websocket 5.7 looks the name up there: whatever
+            // refused the name, it was not that scene.
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            test.RemoveScene(test.Chatting);
+            await StudioRig.EventuallyAsync(() => chatting.State == ObsObjectState.Detached, "the scene to be detached");
+            test.Responder.OnRequest = (type, data) => type == "SetSceneName" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Studio.Scenes["Spare"].RenameAsync("Chatting").WithTimeoutAsync(Timeout));
+
+            Assert.Null(exception.HeldBy);
+            Assert.Contains("the model does not show which", exception.Message);
+            Assert.DoesNotContain("keeps it alive", exception.Message);
         }
 
         [Fact]
@@ -279,6 +298,9 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(ObsObjectState.Gone, chatting.State);
             Assert.False(test.Studio.Scenes.Contains("Chatting"));
             Assert.Equal(["RemoveScene", "RemoveSceneItem"], Removals(test));
+
+            // One batch: the requests are not sent one after the other (a batch stops at its first refusal; separate requests would go on).
+            Assert.Single(test.Responder.BatchLog, batch => batch.SequenceEqual(["RemoveScene", "RemoveSceneItem"]));
             Assert.Equal(test.Chatting, JsonDocument.Parse(asked[0]).RootElement.GetProperty("sceneUuid").GetGuid());
             var item = JsonDocument.Parse(asked[1]).RootElement;
             Assert.Equal(test.Gaming, item.GetProperty("sceneUuid").GetGuid());
@@ -379,6 +401,14 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(ObsObjectState.Gone, gone.State);
             Assert.Contains("The group 'Group' is removed by removing the scene item that shows it", refused.Message);
             Assert.Empty(Removals(test));
+
+            // A group that is gone is gone, whatever it was: the call says that, as it does for a scene (the state is looked at before the kind). OBS Studio announces the removal of a group as it
+            // does that of a scene (with isGroup), a moment before the scene item that showed it is announced as removed.
+            test.RemoveItem(test.Gaming, 5);
+            await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Group", sceneUuid = test.Group, isGroup = true }, 4);
+            await StudioRig.EventuallyAsync(() => group.State == ObsObjectState.Gone, "the group to be gone");
+            var goneGroup = await Assert.ThrowsAsync<ObsRemovedException>(() => group.RemoveAsync().WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsObjectState.Gone, goneGroup.State);
         }
 
         [Fact]
@@ -403,6 +433,9 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(ObsObjectState.Gone, mic.State);
             Assert.False(test.Studio.Inputs.Contains("Mic"));
             Assert.Equal(["RemoveInput", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
+
+            // One batch: the requests are not sent one after the other (a batch stops at its first refusal; separate requests would go on).
+            Assert.Single(test.Responder.BatchLog, batch => batch.SequenceEqual(["RemoveInput", "RemoveSceneItem", "RemoveSceneItem"]));
             Assert.Contains(test.Mic.ToString(), asked[0]);
             Assert.Single(asked, entry => entry.Contains($"\"sceneUuid\":\"{test.Gaming}\"", StringComparison.Ordinal) && entry.Contains("\"sceneItemId\":2", StringComparison.Ordinal));
             Assert.Single(asked, entry => entry.Contains($"\"sceneUuid\":\"{test.Chatting}\"", StringComparison.Ordinal) && entry.Contains("\"sceneItemId\":1", StringComparison.Ordinal));
@@ -497,6 +530,122 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AnInput_ThatAGroupShows_IsNotRemoved_BecauseObsWebsocketRemovesNoSceneItemOfAGroup_AndNothingIsSent()
+        {
+            await using var test = await ByNameFixture.StartAsync(withGroup: true, inGroup: true);
+            var logo = test.Studio.Inputs["Logo"];
+            test.Responder.OnRequest = ObsRemoves(test);
+
+            // RemoveSceneItem is for scenes only (obs-websocket 5.7.6 refuses the UUID of a group): the input would be removed and kept alive by the scene item of the group for good.
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => logo.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Contains("The input 'Logo' is shown by scene item 1 of the group 'Group'", exception.Message);
+            Assert.Contains("take it out of the group in OBS Studio first. Nothing was changed.", exception.Message);
+            Assert.Equal(ObsObjectState.Live, logo.State);
+            Assert.Empty(Removals(test));
+        }
+
+        [Fact]
+        public async Task AScene_ThatAGroupShows_IsNotRemoved_BecauseObsWebsocketRemovesNoSceneItemOfAGroup_AndNothingIsSent()
+        {
+            await using var test = await ByNameFixture.StartAsync(withGroup: true, inGroup: true);
+            var spare = test.Studio.Scenes["Spare"];
+            test.Responder.OnRequest = ObsRemoves(test);
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => spare.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Contains("The scene 'Spare' is shown by scene item 2 of the group 'Group'", exception.Message);
+            Assert.Equal(ObsObjectState.Live, spare.State);
+            Assert.Empty(Removals(test));
+        }
+
+        [Fact]
+        public async Task AnInput_WhoseSceneItemOBSStudioRefuses_ShowsWhatWasDone_WhenTheCallEnds_SoThatRemovingItAtOnceSendsOnlyWhatIsLeft()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var sceneItemRequests = 0;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                // The second scene item request is refused: the first one removed a scene item, which OBS Studio announces a moment after it answered.
+                if (type == "RemoveSceneItem" && Interlocked.Increment(ref sceneItemRequests) == 2)
+                {
+                    return (600, null);
+                }
+
+                return null;
+            });
+
+            await Assert.ThrowsAsync<ObsResponseException>(() => mic.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            // The call ended with the model showing what the requests before the refusal made, so that a call made at once builds its requests from that, and does not repeat them.
+            Assert.Equal(ObsObjectState.Detached, mic.State);
+            Assert.Single(test.Studio.Scenes, scene => scene.Items.TryGet("Mic", out _));
+            await mic.RemoveAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(ObsObjectState.Gone, mic.State);
+            Assert.Equal(["RemoveInput", "RemoveSceneItem", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AScene_WhoseSceneItemOBSStudioRefuses_ShowsWhatWasDone_WhenTheCallEnds_SoThatRemovingItAtOnceSendsOnlyWhatIsLeft()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            var refuse = 1;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) => type == "RemoveSceneItem" && Interlocked.Exchange(ref refuse, 0) == 1 ? (600, null) : null);
+
+            await Assert.ThrowsAsync<ObsResponseException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Equal(ObsObjectState.Detached, chatting.State);
+            await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            Assert.Equal(["RemoveScene", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AChangeToTheSceneItemsOfAnInput_ReadsTheScenesThatShowItWhenTheChangeHasItsTurn_NotThoseThatShowedItWhenItWasAskedFor()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var camera = test.Studio.Scenes["Gaming"].Items["Camera"];
+            var read = new System.Collections.Concurrent.ConcurrentBag<Guid>();
+            var held = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemEnabled":
+                        // OBS Studio makes the change and sends no event: the model learns of it by a read. The first change is held, and the line waits for its answer.
+                        test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                        return Interlocked.Exchange(ref held, 1) == 0 ? (-1, null) : (100, null);
+                    case "GetSceneItemList":
+                        read.Add(Uuid(data, "sceneUuid"));
+                        return null;
+                    default:
+                        return null;
+                }
+            };
+            var first = camera.SetEnabledAsync(false);
+            await StudioRig.EventuallyAsync(() => test.Responder.HeldCount == 1, "the first change to be held");
+
+            // The second change is asked for while the model shows the microphone in two scenes, and OBS Studio shows it in a third before the second change has its turn.
+            var second = mic.SetEnabledInAllScenesAsync(false);
+            var item = test.MakeItem(test.Spare, test.Mic, "Mic");
+            await test.Responder.SendEventAsync("SceneItemCreated", new { sceneName = "Spare", sceneUuid = test.Spare, sourceName = "Mic", sourceUuid = test.Mic, sceneItemId = item, sceneItemIndex = 0 }, 128);
+            await StudioRig.EventuallyAsync(() => test.Studio.Scenes["Spare"].Items.Count == 1, "the scene item of the third scene to be known");
+            read.Clear();
+            await test.Responder.AnswerHeldAsync();
+            await first.WithTimeoutAsync(Timeout);
+            await second.WithTimeoutAsync(Timeout);
+
+            // The scene items that were changed are the ones that the model showed at its turn, and so are the scenes that are read when the events do not show the changes.
+            Assert.False(test.Studio.Scenes["Spare"].Items["Mic"].IsEnabled);
+            Assert.Contains(test.Spare, read);
+        }
+
+        [Fact]
         public async Task AnInput_IsShownOrHidden_InEverySceneThatShowsIt()
         {
             await using var test = await ByNameFixture.StartAsync();
@@ -577,8 +726,90 @@ namespace OBSStudioClient.Tests.Studio
 
             var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout));
 
-            Assert.Matches("^scene item (1|2) of scene '(Gaming|Chatting)'$", exception.Description);
+            // The first request of the batch is the one that is refused (it halts at the first refusal), and it is the scene item of the microphone in "Gaming" (2) or in "Chatting" (1).
+            Assert.Matches("^scene item (2 of scene 'Gaming'|1 of scene 'Chatting')$", exception.Description);
             Assert.Equal(ObsObjectState.Gone, exception.State);
+        }
+
+        [Fact]
+        public async Task ARefusalBecauseOBSStudioIsNotReady_AfterTheFirstRequestOfAChange_DoesNotSayThatNothingWasChanged()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var requests = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                // The first scene item is changed; OBS Studio begins to change its scene collection, and is not ready for the second.
+                if (Interlocked.Increment(ref requests) == 1)
+                {
+                    test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), false);
+                    return (100, null);
+                }
+
+                return (207, null);
+            };
+
+            var exception = await Assert.ThrowsAsync<ObsResponseException>(() => mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout));
+
+            Assert.Equal(RequestStatusCode.NotReady, exception.ErrorCode);
+            Assert.Contains("OBS Studio was not ready for request 2 of hiding input 'Mic' in every scene: it is changing its scene collection. The requests before it were made, and the ones after it were not.", exception.Message);
+            Assert.DoesNotContain("Nothing was changed", exception.Message);
+        }
+
+        [Fact]
+        public async Task ARefusalBecauseOBSStudioIsNotReady_OfTheFirstRequestOfAChange_SaysThatNothingWasChanged()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            test.Responder.OnRequest = (type, data) => type == "SetSceneItemEnabled" ? (207, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout));
+
+            Assert.Contains("hiding input 'Mic' in every scene: it is changing its scene collection. Nothing was changed.", exception.Message);
+        }
+
+        [Fact]
+        public async Task TheProgramScene_WhenItIsRemoved_IsReplacedInTheModelWhenTheCallReturns()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var program = test.Studio.ProgramScene!;
+            var hold = 1;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                switch (type)
+                {
+                    case "RemoveScene":
+                        // OBS Studio makes the first scene of its list the program scene, and the model is told by a read: the answers to the reads are held.
+                        test.RemoveScene(Uuid(data, "sceneUuid"));
+                        test.Responder.Change(world => world.Program = world.Scenes[0].Uuid);
+                        return (100, null);
+                    case "GetCurrentProgramScene":
+                        return Volatile.Read(ref hold) == 1 ? (-1, null) : null;
+                    default:
+                        return null;
+                }
+            });
+            Assert.Equal("Scene", program.Name);
+
+            var remove = program.RemoveAsync();
+            await StudioRig.EventuallyAsync(() => test.Responder.HeldCount >= 1, "the read of the program scene to be held");
+            await Task.Delay(200);
+
+            // The scene is removed, and the model does not show the new program scene yet: the call has not returned.
+            Assert.True(program.IsRemoved);
+            Assert.False(remove.IsCompleted);
+            Volatile.Write(ref hold, 0);
+            await test.Responder.AnswerHeldAsync(type => type == "GetCurrentProgramScene" ? (100, new { sceneName = "Spare", sceneUuid = test.Spare }) : (100, null));
+            await remove.WithTimeoutAsync(Timeout);
+
+            Assert.NotSame(program, test.Studio.ProgramScene);
+            Assert.False(program.IsProgram);
+            Assert.True(test.Studio.ProgramScene!.IsProgram);
         }
 
         [Fact]

@@ -305,6 +305,20 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AnInput_WhoseNameIsTakenByAGroup_IsANameInUseException_ThatNamesTheGroup()
+        {
+            await using var test = await ByNameFixture.StartAsync(withGroup: true);
+            var group = test.Studio.Scenes["Gaming"].Items["Group"].Source;
+            test.Responder.OnRequest = (type, data) => type == "CreateInput" ? (601, null) : null;
+
+            // A group is not in the collection of scenes, and holds its name like any source.
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Studio.Scenes["Gaming"].CreateInputAsync("Group", "color_source_v3").WithTimeoutAsync(Timeout));
+
+            Assert.Same(group, exception.HeldBy);
+            Assert.Contains("a group named 'Group' exists already, and a group holds its name like any other source", exception.Message);
+        }
+
+        [Fact]
         public async Task AnInput_WhoseNameIsTakenByAnInputThatWasRemovedAndIsAlive_IsANameInUseException_ThatSaysWhatKeepsItAlive()
         {
             await using var test = await ByNameFixture.StartAsync();
@@ -522,6 +536,65 @@ namespace OBSStudioClient.Tests.Studio
 
             Assert.Equal("scene 'Chatting'", exception.Description);
             Assert.Equal(0, test.Count("CreateSceneItem"));
+        }
+
+        [Fact]
+        public async Task ASceneItem_ThatOBSStudioMadeInASceneThatWasRemovedMeanwhile_IsReadWhenTheModelLearnsThatTheSceneIsRemoved()
+        {
+            // The seed 273 of the random walks. OBS Studio removed the scene (the scene item of "Gaming" keeps it alive) before the request came, and the event that says so is on its way: the
+            // model shows the scene as live, the request is written, and OBS Studio makes the scene item and sends no event for it (it sends none for a scene that it removed). The call ends
+            // when the model learns that the scene is removed, and the scene items of that scene are read all the same, so that the model shows what OBS Studio holds.
+            await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromSeconds(20), WriteTimeout = TimeSpan.FromSeconds(5) });
+            var chatting = test.Studio.Scenes["Chatting"];
+            var camera = test.Studio.Inputs["Camera"];
+            test.Responder.Change(world => world.Scenes.RemoveAll(scene => scene.Uuid == test.Chatting));
+            test.Responder.OnRequest = (type, data) => type == "CreateSceneItem" ? (100, new { sceneItemId = test.MakeItem(test.Chatting, test.Camera, "Camera") }) : null;
+
+            var add = chatting.AddAsync(camera);
+            await StudioRig.EventuallyAsync(() => test.Count("CreateSceneItem") == 1, "the request to be sent");
+            await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Chatting", sceneUuid = test.Chatting, isGroup = false }, 4);
+
+            var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => add.WithTimeoutAsync(Timeout));
+
+            Assert.Equal(ObsObjectState.Detached, exception.State);
+            await StudioRig.EventuallyAsync(() => chatting.Items.TryGet("Camera", out _), "the scene items of the removed scene to be read");
+        }
+
+        [Fact]
+        public async Task AnInputOrASceneItem_IsRefusedAtOnce_ForAGroup_BecauseObsWebsocketMakesThemInScenesOnly()
+        {
+            await using var test = await ByNameFixture.StartAsync(withGroup: true);
+            var group = (ObsScene)test.Studio.Scenes["Gaming"].Items["Group"].Source;
+
+            var input = await Assert.ThrowsAsync<InvalidOperationException>(() => group.CreateInputAsync("Logo", "color_source_v3").WithTimeoutAsync(Timeout));
+            var item = await Assert.ThrowsAsync<InvalidOperationException>(() => group.AddAsync(test.Studio.Inputs["Camera"]).WithTimeoutAsync(Timeout));
+
+            Assert.Contains("The group 'Group' can not be given a new scene item: obs-websocket makes inputs and scene items in scenes only, not in a group. Nothing was changed.", input.Message);
+            Assert.Equal(input.Message, item.Message);
+            Assert.Equal(0, test.Count("CreateInput") + test.Count("CreateSceneItem"));
+        }
+
+        [Fact]
+        public async Task TheSettingsOfAnInput_ThatAreNotAnObject_OrCanNotBeWritten_OrAreACancellationToken_AreAnArgumentException()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var scene = test.Studio.Scenes["Scene"];
+            using var source = new CancellationTokenSource();
+            var cyclic = new Dictionary<string, object?>();
+            cyclic["self"] = cyclic;
+
+            // A token passed by position is taken for the settings (the parameter is an object so that new { width = 640 } can be passed): the call says so, and nothing was sent.
+            var token = Assert.Throws<ArgumentException>(() => { _ = scene.CreateInputAsync("Logo", "color_source_v3", source.Token); });
+            var number = Assert.Throws<ArgumentException>(() => { _ = scene.CreateInputAsync("Logo", "color_source_v3", 5); });
+            var unwritable = Assert.Throws<ArgumentException>(() => { _ = scene.CreateInputAsync("Logo", "color_source_v3", cyclic); });
+
+            Assert.Equal("settings", token.ParamName);
+            Assert.Contains("Pass it by name (cancellationToken: token)", token.Message);
+            Assert.Contains("are an object", number.Message);
+            Assert.Equal("settings", unwritable.ParamName);
+            Assert.Contains("can not be written as JSON", unwritable.Message);
+            Assert.NotNull(unwritable.InnerException);
+            Assert.Equal(0, test.Count("CreateInput"));
         }
     }
 }

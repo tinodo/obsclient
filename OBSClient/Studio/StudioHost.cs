@@ -673,6 +673,7 @@ namespace OBSStudioClient.Studio
             if (TryParseVersion(reported, out var version) && version >= RequiredWebSocketVersion)
             {
                 this._versionKnown = true;
+                this._studio.SetWebSocketVersion(version);
                 return;
             }
 

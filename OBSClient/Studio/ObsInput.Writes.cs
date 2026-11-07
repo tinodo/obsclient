@@ -195,6 +195,7 @@ namespace OBSStudioClient.Studio
         /// </summary>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when the input is removed (<see cref="ObsSource.State"/> is not <see cref="ObsObjectState.Live"/>) and the scene items that were showing it are gone.</returns>
+        /// <exception cref="InvalidOperationException">A scene item in a group shows the input: obs-websocket removes the scene items of scenes only, not those of a group, so the input can not be removed for good from here (take it out of the group in OBS Studio first). Nothing was changed.</exception>
         /// <exception cref="ObsRemovedException">The input does not exist any more.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
@@ -206,8 +207,9 @@ namespace OBSStudioClient.Studio
         /// OBS Studio keeps an input alive after it is removed for as long as scene items show it: the input is not in <see cref="ObsStudio.Inputs"/> then (it is
         /// <see cref="ObsObjectState.Detached"/>), its scene items stay in their scenes and keep working, and its name stays taken. This call removes the input and then the scene items
         /// that show it, one request after the other, so that OBS Studio destroys it (<see cref="ObsObjectState.Gone"/>) and the name is free. Calling it on an input that is Detached
-        /// removes the scene items that are left. When OBS Studio refuses one of the scene items (it was removed meanwhile), the call ends with the exception, the input stays
-        /// Detached, and calling <see cref="RemoveAsync"/> again removes what is left. An input that a scene item shows that the model did not know yet (OBS Studio announces
+        /// removes the scene items that are left. When OBS Studio refuses one of the scene items (it was removed meanwhile: by the user, or by OBS Studio itself, which takes the scene items
+        /// of a removed input out of the scenes that it is rendering on the next frame, so a scene item can be gone between two requests of this call), the call ends with the exception once
+        /// the model shows what the requests before it made (the input is Detached, and the scene items that were removed are gone), so that calling <see cref="RemoveAsync"/> again removes what is left. An input that a scene item shows that the model did not know yet (OBS Studio announces
         /// it a few milliseconds late) stays Detached in the same way.
         /// </para>
         /// <para>
@@ -233,10 +235,12 @@ namespace OBSStudioClient.Studio
                         return StudioRemovals.Requests(includesRemoval ? new WriteRequest(RequestType.RemoveInput, new { inputUuid = this.Uuid }) : null, showing);
                     },
                     ReadResponses = _ => showing,
-                    IsConfirmed = result => this.State == ObsObjectState.Gone || (this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved)),
+                    IsConfirmed = result => this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved),
                     Finish = static _ => null,
-                    Refresh = [new RefreshTarget(ReadKind.Inputs), .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
+                    Refresh = [new RefreshTarget(ReadKind.Inputs)],
+                    RefreshAtTurn = () => [new RefreshTarget(ReadKind.Inputs), .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
+                    Reconcile = index => StudioRemovals.Reconciled(this, includesRemoval, showing, index),
                 },
                 cancellationToken);
         }
@@ -278,7 +282,7 @@ namespace OBSStudioClient.Studio
                     ReadResponses = _ => targets,
                     IsConfirmed = result => this.IsRemoved || ((ObsSceneItem[])result!).All(item => item.IsRemoved || item.IsEnabled == value),
                     Finish = static _ => null,
-                    Refresh = [.. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
+                    RefreshAtTurn = () => [.. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
                     Map = (index, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && index < targets.Length
                         ? new ObsRemovedException($"scene item {targets[index].Id} of scene '{targets[index].Scene.Name}'", ObsObjectState.Gone)
                         : null,
@@ -294,13 +298,15 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        // An input that was removed and that OBS Studio keeps alive can be removed for good (its scene items), and one that is gone can not be removed.
+        // An input that was removed and that OBS Studio keeps alive can be removed for good (its scene items), and one that is gone can not be removed. Nor can one that a group shows.
         private void CheckCanBeRemoved()
         {
             if (this.State == ObsObjectState.Gone)
             {
                 throw new ObsRemovedException($"input '{this.Name}'", this.State);
             }
+
+            StudioRemovals.ThrowIfAGroupShows(this);
         }
     }
 }

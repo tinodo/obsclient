@@ -65,8 +65,9 @@ namespace OBSStudioClient.Studio
         /// <param name="enabled">Whether the scene item that shows the input is shown.</param>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>The input, which is in <see cref="ObsStudio.Inputs"/>; its scene item is in <see cref="Items"/> (<see cref="ObsSource.GetSceneItems"/> of the input finds it), unless somebody removed it meanwhile.</returns>
-        /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="kind"/> is empty, or <paramref name="settings"/> is not an object.</exception>
-        /// <exception cref="ObsNameInUseException">The name is taken (by a scene, by an input, or by an input that was removed and that OBS Studio keeps alive). Nothing was changed.</exception>
+        /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="kind"/> is empty, or <paramref name="settings"/> is not an object (a <see cref="CancellationToken"/> passed in its place is refused with a message that says so: pass it as <paramref name="cancellationToken"/>), or can not be written as JSON.</exception>
+        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): obs-websocket makes inputs in scenes only, not in a group. Nothing was changed.</exception>
+        /// <exception cref="ObsNameInUseException">The name is taken (by a scene, by an input, by a group, or by an input that was removed and that OBS Studio keeps alive). Nothing was changed.</exception>
         /// <exception cref="ObsRemovedException">The scene was removed.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
@@ -90,13 +91,7 @@ namespace OBSStudioClient.Studio
             };
             if (settings is not null)
             {
-                var element = JsonSerializer.SerializeToElement(settings, settings.GetType());
-                if (element.ValueKind != JsonValueKind.Object)
-                {
-                    throw new ArgumentException("The settings of an input are an object: the fields of its kind and their values, for example new { width = 640, height = 360 }.", nameof(settings));
-                }
-
-                data["inputSettings"] = element;
+                data["inputSettings"] = SettingsAsObject(settings);
             }
 
             var description = $"creating input '{name}' in scene '{this.Name}'";
@@ -106,7 +101,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"scene '{this.Name}'",
-                    Check = this.CheckLive,
+                    Check = this.CheckCanHoldItems,
                     BuildRequests = () => [new WriteRequest(RequestType.CreateInput, data)],
                     ReadResponses = static responses =>
                     {
@@ -143,6 +138,7 @@ namespace OBSStudioClient.Studio
         /// <returns>The scene item, which is in <see cref="Items"/>.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="source"/> is null.</exception>
         /// <exception cref="ArgumentException"><paramref name="source"/> is this scene, or belongs to another <see cref="ObsStudio"/>.</exception>
+        /// <exception cref="InvalidOperationException">This scene is a group (<see cref="IsGroup"/>): obs-websocket makes scene items in scenes only, not in a group. Nothing was changed.</exception>
         /// <exception cref="ObsRemovedException">The scene or the source was removed.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
@@ -173,7 +169,7 @@ namespace OBSStudioClient.Studio
                     Subject = $"scene '{this.Name}' or {source.Label}",
                     Check = () =>
                     {
-                        this.CheckLive();
+                        this.CheckCanHoldItems();
                         if (source.State != ObsObjectState.Live)
                         {
                             throw new ObsRemovedException(source.Label, source.State);
@@ -232,7 +228,7 @@ namespace OBSStudioClient.Studio
         /// </summary>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when the scene is removed (<see cref="ObsSource.State"/> is not <see cref="ObsObjectState.Live"/>) and the scene items that were showing it are gone.</returns>
-        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): remove the scene item that shows it.</exception>
+        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): remove the scene item that shows it. Or a scene item in a group shows the scene: obs-websocket removes the scene items of scenes only, not those of a group, so the scene can not be removed for good from here (take it out of the group in OBS Studio first); nothing was changed.</exception>
         /// <exception cref="ObsRemovedException">The scene does not exist any more.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
@@ -242,9 +238,11 @@ namespace OBSStudioClient.Studio
         /// <remarks>
         /// <para>
         /// OBS Studio keeps a scene alive after it is removed for as long as scene items in other scenes show it (the scene is <see cref="ObsObjectState.Detached"/>: it is
-        /// not in <see cref="ObsStudio.Scenes"/> and it can not be changed, and OBS Studio can keep its name taken). This call removes those scene items too, so that OBS Studio destroys the scene
+        /// not in <see cref="ObsStudio.Scenes"/> and it can not be changed; with obs-websocket 5.6 and older its name stays taken, and OBS Studio 32 and newer free the name at once). This call removes those scene items too, so that OBS Studio destroys the scene
         /// (<see cref="ObsObjectState.Gone"/>). The scene is removed first, and the scene items after it, one request after the other: when OBS Studio refuses one of the
-        /// scene items (it was removed meanwhile), the call ends with the exception, the scene stays Detached, and calling <see cref="RemoveAsync"/> again removes what is left.
+        /// scene items (it was removed meanwhile: by the user, or by OBS Studio itself, which takes the scene items of a removed scene out of the scenes that it is rendering on the next
+        /// frame), the call ends with the exception once the model shows what the requests before it made (the scene is Detached, and the scene items that were
+        /// removed are gone), so that calling <see cref="RemoveAsync"/> again removes what is left.
         /// A scene that a scene item shows that the model did not know yet (OBS Studio announces it a few milliseconds late) stays Detached in the same way.
         /// </para>
         /// <para>
@@ -255,14 +253,10 @@ namespace OBSStudioClient.Studio
         /// </remarks>
         public Task RemoveAsync(CancellationToken cancellationToken = default)
         {
-            if (this.IsGroup)
-            {
-                throw new InvalidOperationException($"The group '{this.Name}' is removed by removing the scene item that shows it.");
-            }
-
             var description = $"removing scene '{this.Name}'";
             ObsSceneItem[] showing = [];
             var includesRemoval = false;
+            var wasProgram = false;
             return this.Studio.Writer.ExecuteAsync<object?>(
                 new WriteJob
                 {
@@ -273,13 +267,23 @@ namespace OBSStudioClient.Studio
                     {
                         showing = this.GetSceneItems().Where(item => !item.IsRemoved).ToArray();
                         includesRemoval = this.State == ObsObjectState.Live;
+                        wasProgram = this.IsProgram;
                         return StudioRemovals.Requests(includesRemoval ? new WriteRequest(RequestType.RemoveScene, new { sceneUuid = this.Uuid }) : null, showing);
                     },
                     ReadResponses = _ => showing,
-                    IsConfirmed = result => this.State == ObsObjectState.Gone || (this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved)),
+
+                    // When the scene was the program scene, OBS Studio makes another one the program scene, and the call returns when the model shows that too.
+                    IsConfirmed = result => this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved) && (!wasProgram || !this.IsProgram),
                     Finish = static _ => null,
-                    Refresh = [new RefreshTarget(ReadKind.Scenes), .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
+                    Refresh = [new RefreshTarget(ReadKind.Scenes)],
+                    RefreshAtTurn = () =>
+                    [
+                        new RefreshTarget(ReadKind.Scenes),
+                        .. wasProgram ? [new RefreshTarget(ReadKind.Program)] : Array.Empty<RefreshTarget>(),
+                        .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct(),
+                    ],
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
+                    Reconcile = index => StudioRemovals.Reconciled(this, includesRemoval, showing, index),
                 },
                 cancellationToken);
         }
@@ -314,13 +318,57 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        // A scene that was removed and that OBS Studio keeps alive can be removed for good (its scene items), and one that is gone can not be removed.
+        // obs-websocket makes inputs and scene items in scenes only: CreateInput and CreateSceneItem refuse a group ("The specified source is not a scene. (Is group)").
+        private void CheckCanHoldItems()
+        {
+            this.CheckLive();
+            if (this.IsGroup)
+            {
+                throw new InvalidOperationException($"The group '{this.Name}' can not be given a new scene item: obs-websocket makes inputs and scene items in scenes only, not in a group. Nothing was changed.");
+            }
+        }
+
+        // A scene that was removed and that OBS Studio keeps alive can be removed for good (its scene items), and one that is gone can not be removed. A group is removed by removing the
+        // scene item that shows it. Nor can a scene be removed that a group shows.
         private void CheckCanBeRemoved()
         {
             if (this.State == ObsObjectState.Gone)
             {
                 throw new ObsRemovedException($"scene '{this.Name}'", this.State);
             }
+
+            if (this.IsGroup)
+            {
+                throw new InvalidOperationException($"The group '{this.Name}' is removed by removing the scene item that shows it. Nothing was changed.");
+            }
+
+            StudioRemovals.ThrowIfAGroupShows(this);
+        }
+
+        private static JsonElement SettingsAsObject(object settings)
+        {
+            // The parameter is an object so that new { width = 640 } can be passed: a token that was meant for cancellationToken would be taken for settings, and this is what the call says then.
+            if (settings is CancellationToken)
+            {
+                throw new ArgumentException("A CancellationToken was passed as the settings of the input. Pass it by name (cancellationToken: token) when the settings are left out.", nameof(settings));
+            }
+
+            JsonElement element;
+            try
+            {
+                element = JsonSerializer.SerializeToElement(settings, settings.GetType());
+            }
+            catch (Exception ex) when (ex is NotSupportedException or JsonException or InvalidOperationException)
+            {
+                throw new ArgumentException($"The settings of an input can not be written as JSON: {ex.Message}", nameof(settings), ex);
+            }
+
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                throw new ArgumentException("The settings of an input are an object: the fields of its kind and their values, for example new { width = 640, height = 360 }.", nameof(settings));
+            }
+
+            return element;
         }
 
         private readonly record struct CreatedInput(Guid Uuid, int ItemId);

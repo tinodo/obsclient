@@ -318,14 +318,19 @@ namespace OBSStudioClient.Tests.Studio
 
             var scene = studio.CreateSceneAsync("Backstage");
             var rename = chatting.RenameAsync("Talking");
+
+            // The name "Chatting" is free only after the rename before it: the calls are made in the order in which they were asked for, or this one is refused.
+            var again = studio.CreateSceneAsync("Chatting");
             var input = chatting.CreateInputAsync("Logo", Colour);
             var hide = studio.Inputs["Mic"].SetEnabledInAllScenesAsync(false);
             var item = gaming.AddAsync(chatting);
             var remove = studio.Inputs["Backdrop"].RemoveAsync();
-            await Task.WhenAll(scene, rename, input, hide, item, remove).WithTimeoutAsync(Patience);
+            await Task.WhenAll(scene, rename, again, input, hide, item, remove).WithTimeoutAsync(Patience);
 
             await rig.ConvergedAsync("changes of several kinds", Patience);
             Assert.Equal("Talking", chatting.Name);
+            Assert.NotSame(chatting, await again);
+            Assert.Equal("Chatting", (await again).Name);
             Assert.False(studio.Inputs.Contains("Backdrop"));
             Assert.Same(chatting, (await item).Source);
         }

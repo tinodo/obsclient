@@ -8,14 +8,15 @@ namespace OBSStudioClient.Exceptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Nothing was changed. The message says what holds the name, as far as the model knows: a scene, an input, or an input that was removed and that OBS Studio keeps alive
-    /// (<see cref="ObsObjectState.Detached"/>) because scene items still show it. The name of such an input stays taken until its last scene item is gone, so creating or
-    /// renaming something to that name fails until the input is removed for good: <see cref="HeldBy"/> is the object to call <c>RemoveAsync</c> on.
+    /// Nothing was changed. The message says what holds the name, as far as the model knows: a scene, a group (a group holds its name like any source), an input, or an input that was
+    /// removed and that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>) because scene items still show it. The name of such an input stays taken until its last scene
+    /// item is gone, so creating or renaming something to that name fails until the input is removed for good: <see cref="HeldBy"/> is the object to call <c>RemoveAsync</c> on. With
+    /// obs-websocket 5.6 and older a scene that was removed and is alive holds its name in the same way; OBS Studio 32 and newer (obs-websocket 5.7) free the name of a scene at once.
     /// </para>
     /// <para>
-    /// The names of scenes and inputs are not alike. An input can not have the name of a scene or of another input (also not of one that was removed and is alive). A scene can not have
-    /// the name of another scene, and whether it can have the name of an input depends on the version of OBS Studio: obs-websocket 5.7 and newer allows it, and obs-websocket 5.6 and older
-    /// refuse the name of any source (the message says so when that is what happened). The names are case sensitive.
+    /// The names of scenes and inputs are not alike. An input can not have the name of a scene or of another input (also not of an input that was removed and is alive). A scene can
+    /// not have the name of another scene, and whether it can have the name of an input depends on the version of OBS Studio: obs-websocket 5.7 and newer allows it, and obs-websocket
+    /// 5.6 and older refuse the name of any source (the message says so when that is what happened). The names are case sensitive.
     /// </para>
     /// </remarks>
     [Serializable]
@@ -40,7 +41,7 @@ namespace OBSStudioClient.Exceptions
         public string Name { get; } = string.Empty;
 
         /// <summary>
-        /// Gets the object that holds the name, as far as the model knows: a scene, an input, or an input that was removed and that OBS Studio keeps alive. It is null when the model
+        /// Gets the object that holds the name, as far as the model knows: a scene, a group, an input, or an input that was removed and that OBS Studio keeps alive. It is null when the model
         /// does not show what holds the name (it can be behind OBS Studio by a few milliseconds).
         /// </summary>
         /// <remarks>

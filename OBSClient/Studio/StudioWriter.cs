@@ -80,9 +80,24 @@ namespace OBSStudioClient.Studio
 
         /// <summary>
         /// Gets the parts of the model that the change is about. They are read again when the events did not show the change in time, and when its outcome is not known; and
-        /// the changes that are about the same part are confirmed in the order in which they were made (see <see cref="StudioHost.ConfirmAsync"/>).
+        /// the changes that are about the same part are confirmed in the order in which they were made (see <see cref="StudioHost.ConfirmAsync"/>). A change whose parts depend on what
+        /// the model shows when it has its turn names them in <see cref="RefreshAtTurn"/>, and what that says replaces this once the turn has come.
         /// </summary>
-        public IReadOnlyList<RefreshTarget> Refresh { get; init; } = [];
+        public IReadOnlyList<RefreshTarget> Refresh { get; internal set; } = [];
+
+        /// <summary>
+        /// Gets what makes <see cref="Refresh"/> when the change has its turn, right after <see cref="BuildRequests"/> (the scene items that a removal removes, in the scenes that show them: a scene item
+        /// that was published between the call and the turn is changed too, and its scene has to be read like the others, and confirmed in the same order).
+        /// </summary>
+        public Func<IReadOnlyList<RefreshTarget>>? RefreshAtTurn { get; init; }
+
+        /// <summary>
+        /// Gets what says, for a change of several requests that stopped halfway, what the model shows when the requests before the one that was refused (its position, which is more
+        /// than 0) have been applied, or null when the call may end at once. The call ends with the refusal when the model shows it, or when it was not shown in time: the model
+        /// learns of what the first requests made a moment after the answer, and a call that is made again at once (the message of the refusal asks for that) would otherwise see the
+        /// objects as they were, and repeat the requests that were made.
+        /// </summary>
+        public Func<int, Func<bool>?>? Reconcile { get; init; }
 
         /// <summary>
         /// Gets the parts of the model that a read has to cover as well once the result of the change is known: what the change made has parts of its own that the model reads
@@ -319,6 +334,14 @@ namespace OBSStudioClient.Studio
             }
 
             var status = response.RequestStatus;
+            if (index is > 0 && status.Code == RequestStatusCode.NotReady)
+            {
+                // ObsNotReadyException says that nothing was changed, and the requests before this one were made (the batch stops at the first refusal).
+                return new ObsResponseException(
+                    status.Code,
+                    $"OBS Studio was not ready for request {index + 1} of {job.Description}: it is changing its scene collection. The requests before it were made, and the ones after it were not.");
+            }
+
             return status.Code switch
             {
                 RequestStatusCode.NotReady => new ObsNotReadyException($"OBS Studio was not ready for {job.Description}: it is changing its scene collection. Nothing was changed."),
@@ -486,6 +509,12 @@ namespace OBSStudioClient.Studio
                 }
 
                 requests = job.BuildRequests();
+
+                // What the change is about is what the model shows now, as it is for the requests: the parts that were named when the change was asked for can be behind.
+                if (job.RefreshAtTurn is { } atTurn)
+                {
+                    job.Refresh = atTurn();
+                }
             }
             catch (OperationCanceledException) when (job.Cancellation.IsCancellationRequested)
             {
@@ -585,8 +614,17 @@ namespace OBSStudioClient.Studio
             {
                 if (!results[i].RequestStatus.Result)
                 {
+                    var failure = MapFailure(job, i, results[i]);
+                    if (i > 0 && job.Reconcile?.Invoke(i) is { } reconciled)
+                    {
+                        // The requests before the one that failed were made, and the model learns of what they made a moment after the answer: the call ends with the refusal when the model
+                        // shows it (see WriteJob.Reconcile). The turn is over, and the next change goes on meanwhile.
+                        _ = this.FailWhenReconciledAsync(job, failure, reconciled);
+                        return;
+                    }
+
                     // The requests before the one that failed were made: a change of several requests that stopped halfway leaves the model to read again.
-                    job.Fail(MapFailure(job, i, results[i]));
+                    job.Fail(failure);
                     if (i > 0)
                     {
                         this.RefreshQuietly(job.Refresh);
@@ -617,6 +655,24 @@ namespace OBSStudioClient.Studio
             _ = this.ConfirmAsync(job, result);
         }
 
+        // Ends the call of a change that stopped halfway with the refusal, once the model shows what the requests before it made. The wait is the one of any change (the events, and when
+        // they do not show it in time a read of the parts that the change was about), and when it ends without the model showing it the call ends with the refusal all the same.
+        private async Task FailWhenReconciledAsync(WriteJob job, Exception failure, Func<bool> reconciled)
+        {
+            try
+            {
+                await this.WaitForModelAsync(job, null, reconciled).ConfigureAwait(false);
+                this.RefreshDetached(job);
+            }
+            catch (Exception ex)
+            {
+                // Not shown in time (ObsNotConfirmedException), or the studio is disposed of: the refusal is what the call says, and the model goes on reading by itself.
+                this._logger.LogDebug(ex, "The model did not show what the requests before the refusal made: {Description}", job.Description);
+            }
+
+            job.Fail(failure);
+        }
+
         // Waits until the model shows the change: first for the events, and when they do not say it in time, for a read of the parts that it was about. The wait is not the caller's:
         // when the caller gave up, the model still has to follow the change. It always goes through the loop of the model, also when the model shows the change already: the loop
         // looks at the changes that are about the same part in the order in which they were made (see StudioHost.ConfirmAsync), and a look from here could find the value that an
@@ -626,6 +682,7 @@ namespace OBSStudioClient.Studio
             try
             {
                 await this.WaitForModelAsync(job, result).ConfigureAwait(false);
+                this.RefreshDetached(job);
                 if (!job.IsCompleted)
                 {
                     job.Complete(job.Finish(result));
@@ -637,11 +694,44 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        private bool IsShown(WriteJob job, object? result)
+        // OBS Studio sends no events for the scene items of a scene that it removed and keeps alive, and a change that was made there (the model could not know that the scene was
+        // removed when the change was written: the event was on its way) is shown by a read only. The wait for the model ends at once for a scene that the model knows to be
+        // removed (the change says that a removed scene needs no more), so the scene items of such a scene that the change was about are read here, and the model shows what OBS Studio holds.
+        private void RefreshDetached(WriteJob job)
+        {
+            List<RefreshTarget>? targets = null;
+            foreach (var target in job.Refresh)
+            {
+                if (target.Kind == ReadKind.Items && this.IsDetached(target.Target))
+                {
+                    (targets ??= []).Add(target);
+                }
+            }
+
+            if (targets is not null)
+            {
+                this.RefreshQuietly(targets);
+            }
+        }
+
+        private bool IsDetached(Guid scene)
+        {
+            foreach (var candidate in this._host.View.AllScenes)
+            {
+                if (candidate.Uuid == scene)
+                {
+                    return candidate.State == ObsObjectState.Detached;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsShown(WriteJob job, object? result, Func<bool>? shown = null)
         {
             try
             {
-                return job.IsConfirmed(result);
+                return shown is not null ? shown() : job.IsConfirmed(result);
             }
             catch (Exception ex)
             {
@@ -650,12 +740,13 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        // Waits until the model shows the change: first for the events, and when they do not say it in time, for a read of the parts that it was about.
+        // Waits until the model shows the change: first for the events, and when they do not say it in time, for a read of the parts that it was about. What the model has to show is what
+        // the change says (WriteJob.IsConfirmed), or what is given: a change that stopped halfway waits for what its first requests made.
         //
         // It is one wait of the loop of the model from the start to the end, not a wait for the events followed by a wait for the read: the wait keeps its place in the order of the
         // waits about the same part (see StudioHost.ConfirmAsync) while the model is read again. The waits after it are not looked at before that read has been applied, because
         // what the model shows until then is what an earlier change left, and a change to the same value would be taken for shown.
-        private async Task WaitForModelAsync(WriteJob job, object? result)
+        private async Task WaitForModelAsync(WriteJob job, object? result, Func<bool>? shown = null)
         {
             // The read of the model that is asked for when the events did not show the change in time.
             Task? read = null;
@@ -664,7 +755,7 @@ namespace OBSStudioClient.Studio
             // the change was made in a collection that the model has left (or is leaving), and nothing will show it. So does the end of the read (what a read says is what
             // OBS Studio holds, whatever the events said or did not say), also when it ends in failure: the connection ended, or the studio is disposed of. A read that was
             // cancelled is the end of the time that the wait was given, not the end of the read.
-            bool Done() => job.IsConfirmed(result) || this.Left(job) || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
+            bool Done() => (shown is not null ? shown() : job.IsConfirmed(result)) || this.Left(job) || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
 
             using var events = new CancellationTokenSource(this._confirmationTimeout, this._time);
             using var limit = new CancellationTokenSource(Shortest(this._confirmationTimeout + this._readTimeout + this._readTimeout, LongestTimer), this._time);
@@ -697,7 +788,7 @@ namespace OBSStudioClient.Studio
 
                 // The model could not be read again in time, and OBS Studio did say that it made the change: that is not an end that the call can call well. The read of the part that
                 // the change was about may have been applied all the same, with other reads still to do, and then the model shows the change.
-                if (!this.IsShown(job, result) && !this.Left(job))
+                if (!this.IsShown(job, result, shown) && !this.Left(job))
                 {
                     // The time for the events and the time for the read can both be over before the callback of the first one has run (a timer that is late, a thread pool that is
                     // busy), and the callback is let go of when this wait ends: then the read was never asked for, and nothing would read the model again although the call ends
