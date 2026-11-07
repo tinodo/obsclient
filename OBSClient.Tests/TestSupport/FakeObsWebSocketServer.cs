@@ -85,7 +85,18 @@
             {
                 while (!_stopped)
                 {
-                    var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    TcpClient client;
+                    try
+                    {
+                        client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    }
+                    catch (SocketException ex) when (!_stopped && ex.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+                    {
+                        // A client that was ended while it connected (a call that was cancelled) can reset its connection before it is accepted, and the accept reports that: the
+                        // connection is gone, and the next one is accepted all the same. A loop that ended here left every later client in the backlog for good.
+                        continue;
+                    }
+
                     lock (_gate)
                     {
                         if (_stopped)
