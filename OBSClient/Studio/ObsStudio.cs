@@ -53,7 +53,7 @@ namespace OBSStudioClient.Studio
     /// <see cref="ObsScene.AddAsync"/>, <see cref="ObsScene.RenameAsync"/>, <see cref="ObsScene.RemoveAsync"/>, <see cref="ObsInput.RenameAsync"/> and
     /// <see cref="ObsInput.RemoveAsync"/>. A name that is taken is refused with an <see cref="ObsNameInUseException"/> that says what holds it. OBS Studio keeps an input or a scene
     /// that was removed alive for as long as scene items show it (it is <see cref="ObsObjectState.Detached"/>): the name of the input stays taken, and so does the name of the scene
-    /// with obs-websocket 5.6 and older (OBS Studio 32 and newer free the name of a scene that was removed at once). <c>RemoveAsync</c> removes those scene items too, so that OBS Studio
+    /// with OBS Studio 31.0 and older (OBS Studio 31.1 and newer free the name of a scene that was removed at once). <c>RemoveAsync</c> removes those scene items too, so that OBS Studio
     /// destroys the object (<see cref="ObsObjectState.Gone"/>) and the name is free.
     /// </para>
     /// </remarks>
@@ -75,8 +75,9 @@ namespace OBSStudioClient.Studio
         // The longest wait that the model asks a timer or a request for: they take whole milliseconds as an int.
         private static readonly TimeSpan LongestTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
 
-        // The first version of obs-websocket (it comes with OBS Studio 32) from which a scene that was removed gives up its name at once.
-        private static readonly Version ScenesFreeTheirNameFrom = new(5, 7, 0);
+        // The first version of OBS Studio from which a scene that was removed gives up its name at once: libobs 31.1.0 takes it out of the list of its canvas in obs_source_remove (what OBS Studio
+        // 31.0 and older do not). It is the version of OBS Studio, not that of obs-websocket: OBS Studio 31.1 and 32.0 come with obs-websocket 5.6.
+        private static readonly Version ScenesFreeTheirNameFrom = new(31, 1, 0);
 
         private readonly ObsClient _client;
         private readonly bool _ownsClient;
@@ -91,8 +92,8 @@ namespace OBSStudioClient.Studio
         private volatile bool _everSynchronized;
         private volatile bool _disposed;
 
-        // Whether a scene that OBS Studio removed and keeps alive keeps its name taken: before obs-websocket 5.7 (OBS Studio 31 and older) it does, from 5.7 on (OBS Studio 32) the name is
-        // free at once. It is what the version of the connection says (StudioHost.HandleVersion).
+        // Whether a scene that OBS Studio removed and keeps alive keeps its name taken: with OBS Studio 31.0 and older it does, from 31.1 on the name is free at once. It is what the version of
+        // OBS Studio that the connection reports says (StudioHost.HandleVersion); until that is known the newest behaviour is assumed (nothing is written before it is known).
         private volatile bool _removedScenesKeepTheirName;
 
         // The number of the call of ConnectAsync that has the connection: only that call may end it (see AbandonConnect). Under _stateLock.
@@ -629,8 +630,8 @@ namespace OBSStudioClient.Studio
         // Whether a scene that OBS Studio removed and keeps alive keeps its name taken (see _removedScenesKeepTheirName).
         internal bool RemovedScenesKeepTheirName => this._removedScenesKeepTheirName;
 
-        // Called by the loop of the model when the connection says which version of obs-websocket OBS Studio has.
-        internal void SetWebSocketVersion(Version version)
+        // Called by the loop of the model when the connection says which version of OBS Studio it is connected to.
+        internal void SetObsVersion(Version version)
         {
             this._removedScenesKeepTheirName = version < ScenesFreeTheirNameFrom;
         }
@@ -650,8 +651,8 @@ namespace OBSStudioClient.Studio
         }
 
         // The scene items that show a scene or an input that OBS Studio removed and keeps alive (Detached), the name of which is given: while they exist, so does the source, with
-        // its name. An input keeps its name until it is destroyed; a scene keeps it only before obs-websocket 5.7 (OBS Studio 32 takes the name of a scene out of the list of its
-        // canvas when it is removed, and looks scene names up there). They are the items of one source: when a scene and an input have the name (OBS Studio does not allow it, and the
+        // its name. An input keeps its name until it is destroyed; a scene keeps it only with OBS Studio 31.0 and older (libobs 31.1 takes the name of a scene out of the list of its canvas when it
+        // is removed, and every version of obs-websocket looks scene names up there or in the sources that it lists). They are the items of one source: when a scene and an input have the name (OBS Studio does not allow it, and the
         // model can show both for a moment), the one of the kind that is preferred.
         internal IReadOnlyList<ObsSceneItem> FindItemsOfRemovedSource(string name, bool preferScene)
         {

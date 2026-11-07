@@ -240,7 +240,7 @@ namespace OBSStudioClient.Studio
                     Refresh = [new RefreshTarget(ReadKind.Inputs)],
                     RefreshAtTurn = () => [new RefreshTarget(ReadKind.Inputs), .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
-                    Reconcile = index => StudioRemovals.Reconciled(this, includesRemoval, showing, index),
+                    Reconcile = (index, code) => StudioRemovals.Reconciled(this, includesRemoval, showing, index, code),
                 },
                 cancellationToken);
         }

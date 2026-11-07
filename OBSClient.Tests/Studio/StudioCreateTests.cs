@@ -554,9 +554,11 @@ namespace OBSStudioClient.Tests.Studio
             await StudioRig.EventuallyAsync(() => test.Count("CreateSceneItem") == 1, "the request to be sent");
             await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Chatting", sceneUuid = test.Chatting, isGroup = false }, 4);
 
-            var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => add.WithTimeoutAsync(Timeout));
+            // The call ends with ObsRemovedException when the model learns that the scene is removed before it shows the scene item, and with the scene item when the read of the scene items of the
+            // removed scene (see above) is applied first: a race between two threads, and the model shows what OBS Studio holds either way.
+            var outcome = await Record.ExceptionAsync(() => add.WithTimeoutAsync(Timeout));
 
-            Assert.Equal(ObsObjectState.Detached, exception.State);
+            Assert.True(outcome is null or ObsRemovedException { State: ObsObjectState.Detached }, outcome?.ToString());
             await StudioRig.EventuallyAsync(() => chatting.Items.TryGet("Camera", out _), "the scene items of the removed scene to be read");
         }
 

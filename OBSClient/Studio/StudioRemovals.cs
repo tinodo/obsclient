@@ -5,8 +5,8 @@ namespace OBSStudioClient.Studio
     using OBSStudioClient.Messages;
 
     /// <summary>
-    /// What removing a scene or an input is made of. OBS Studio keeps a source that was removed alive for as long as scene items show it (and, for an input, and for a scene before
-    /// obs-websocket 5.7, its name stays taken), so removing one for good is: remove the source (when it is not removed yet), and then each scene item that shows it. The last scene
+    /// What removing a scene or an input is made of. OBS Studio keeps a source that was removed alive for as long as scene items show it (and, for an input, and for a scene with OBS Studio
+    /// 31.0 and older, its name stays taken), so removing one for good is: remove the source (when it is not removed yet), and then each scene item that shows it. The last scene
     /// item destroys it.
     /// </summary>
     internal static class StudioRemovals
@@ -42,10 +42,11 @@ namespace OBSStudioClient.Studio
         /// <param name="includesRemoval">Whether the first request removes the source itself.</param>
         /// <param name="showing">The scene items that the requests after it remove.</param>
         /// <param name="index">The position of the request that was refused.</param>
+        /// <param name="code">The code of the refusal: a scene item that OBS Studio does not know (600) is gone, and the model has to show that too.</param>
         /// <returns>What says that the model shows it.</returns>
-        internal static Func<bool> Reconciled(ObsSource source, bool includesRemoval, ObsSceneItem[] showing, int index)
+        internal static Func<bool> Reconciled(ObsSource source, bool includesRemoval, ObsSceneItem[] showing, int index, RequestStatusCode code)
         {
-            var done = Math.Max(index - (includesRemoval ? 1 : 0), 0);
+            var done = Math.Max(index - (includesRemoval ? 1 : 0), 0) + (code == RequestStatusCode.ResourceNotFound ? 1 : 0);
             return () => (!includesRemoval || source.IsRemoved) && showing.Take(done).All(item => item.IsRemoved);
         }
 

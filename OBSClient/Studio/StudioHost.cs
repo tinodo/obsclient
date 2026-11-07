@@ -673,7 +673,13 @@ namespace OBSStudioClient.Studio
             if (TryParseVersion(reported, out var version) && version >= RequiredWebSocketVersion)
             {
                 this._versionKnown = true;
-                this._studio.SetWebSocketVersion(version);
+
+                // What a removed scene does to its name depends on the version of OBS Studio (libobs), not on that of obs-websocket. A version that can not be read leaves the newest behaviour.
+                if (TryParseVersion(item.Version.ObsVersion, out var obsVersion))
+                {
+                    this._studio.SetObsVersion(obsVersion);
+                }
+
                 return;
             }
 
@@ -886,7 +892,8 @@ namespace OBSStudioClient.Studio
             });
         }
 
-        private bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
+        // Whether every one of the parts has been read since it was asked for. It reads the engine, so it is for the loop only (the waits for the model to show something are looked at there).
+        internal bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
         {
             foreach (var target in targets)
             {

@@ -57,7 +57,7 @@ namespace OBSStudioClient.Tests.Studio
 
         public Guid Group { get; }
 
-        public static async Task<ByNameFixture> StartAsync(ObsStudioOptions? options = null, bool withGroup = false, bool inGroup = false, string? webSocketVersion = null)
+        public static async Task<ByNameFixture> StartAsync(ObsStudioOptions? options = null, bool withGroup = false, bool inGroup = false, string? webSocketVersion = null, string? obsVersion = null)
         {
             Guid gaming = default, chatting = default, spare = default, camera = default, mic = default, overlay = default, desktop = default, group = default;
             var rig = await StudioRig.ConnectedAsync(
@@ -91,7 +91,8 @@ namespace OBSStudioClient.Tests.Studio
                     }
                 },
                 options ?? new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(5) },
-                webSocketVersion: webSocketVersion);
+                webSocketVersion: webSocketVersion,
+                obsVersion: obsVersion);
             return new ByNameFixture(rig, gaming, chatting, spare, camera, mic, overlay, desktop, group);
         }
 

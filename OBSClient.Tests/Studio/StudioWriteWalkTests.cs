@@ -59,13 +59,12 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(failures.Count == 0, string.Join(Environment.NewLine + Environment.NewLine, failures));
         }
 
-        // The seeds that campaigns found, and the walks that they were found with. 273: OBS Studio made a scene item in a scene that the user removed while the call was under way (it sends no event
-        // for the scene items of a scene that it removed), and the model did not show it when the call ended (StudioWriter.RefreshDetached). 286 and 1024: the walk renamed a scene that the
-        // user removed meanwhile, which a real OBS Studio never answers (RenameSceneAsync).
+        // The seed that a campaign found a problem with, and that fails without the fix. 273: OBS Studio made a scene item in a scene that the user removed while the call was under way (it sends
+        // no event for the scene items of a scene that it removed), and the model did not show it when the call ended (StudioWriter.RefreshDetached; a test of its own pins that without the
+        // interleaving). The seeds 286 and 1024 of the same campaigns were the walk renaming a scene that the user removed meanwhile (RenameSceneAsync): a seed does not replay an interleaving,
+        // so they pin nothing and are not here.
         [Theory]
         [InlineData(273, 20)]
-        [InlineData(286, 18)]
-        [InlineData(1024, 16)]
         public async Task AWalkThatACampaignFoundAProblemWith_ShowsWhatOBSStudioHoldsWhenItEnds(int seed, int steps)
         {
             var statistics = new Dictionary<string, int>();
@@ -242,14 +241,16 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // A real OBS Studio never answers SetSceneName for a scene that was removed and is kept alive (fact 9). A scene that the user removes while the rename is under way gets no
-        // answer, and the call says that the outcome is not known, which is right: it is the walk that raced the user. The world says whether that is what happened.
+        // answer, and the call says that the outcome is not known, which is right: it is the walk that raced the user. Only a missing answer is taken for that, and only when the world shows
+        // the scene removed; the guards that keep the library from asking for a rename of a scene that the model knows to be removed are pinned by tests of their own
+        // (StudioRenameRemoveTests, StudioCreateTests): the walk can not tell them from the race.
         private static async Task RenameSceneAsync(StudioSimRig rig, ObsScene scene, string name)
         {
             try
             {
                 await scene.RenameAsync(name);
             }
-            catch (ObsUnknownOutcomeException) when (rig.Server.Run(sim => sim.Snapshot()).DetachedScenes.Any(detached => detached.Uuid == scene.Uuid))
+            catch (ObsUnknownOutcomeException ex) when (ex.InnerException is TimeoutException && rig.Server.Run(sim => sim.Snapshot()).DetachedScenes.Any(detached => detached.Uuid == scene.Uuid))
             {
                 throw new ObsRemovedException($"scene '{name}'", ObsObjectState.Detached);
             }

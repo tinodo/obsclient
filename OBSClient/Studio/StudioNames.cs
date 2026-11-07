@@ -26,8 +26,8 @@ namespace OBSStudioClient.Studio
             IReadOnlyList<ObsSceneItem> keepingItAlive = [];
             if (holder is null)
             {
-                // An input that was removed stays in the list of sources of OBS Studio, with its name taken, for as long as scene items show it, and so does a scene with obs-websocket
-                // 5.6 and older. OBS Studio 32 and newer (obs-websocket 5.7) take the name of a scene that was removed out of the list of its canvas at once.
+                // An input that was removed stays in the list of sources of OBS Studio, with its name taken, for as long as scene items show it, and so does a scene with OBS Studio 31.0 and
+                // older. OBS Studio 31.1 and newer take the name of a scene that was removed out of the list of its canvas at once.
                 keepingItAlive = studio.FindItemsOfRemovedSource(name, forScene);
                 holder = keepingItAlive.Count > 0 ? keepingItAlive[0].Source : null;
             }
@@ -40,8 +40,12 @@ namespace OBSStudioClient.Studio
             else if (keepingItAlive.Count > 0)
             {
                 var kind = Kind(holder!);
+                var inGroup = keepingItAlive.FirstOrDefault(item => item.Scene.IsGroup);
+                var advice = inGroup is null
+                    ? $"Call RemoveAsync() on the {kind} (HeldBy of this exception) to destroy it and free the name"
+                    : $"A scene item inside the group '{inGroup.Scene.Name}' shows it, and RemoveAsync() refuses {(holder is ObsScene ? "a" : "an")} {kind} that a group shows (obs-websocket removes the scene items of scenes only): take it out of the group in OBS Studio, and then call RemoveAsync() on the {kind} (HeldBy of this exception)";
                 reason = $"{(holder is ObsScene ? "a" : "an")} {kind} named '{name}' was removed, but OBS Studio keeps it alive because {Count(keepingItAlive.Count, "scene item")} still show{(keepingItAlive.Count == 1 ? "s" : string.Empty)} it ({Describe(keepingItAlive)}), "
-                    + $"and a name stays taken until the last of them is gone. Call RemoveAsync() on the {kind} (HeldBy of this exception) to destroy it and free the name";
+                    + $"and a name stays taken until the last of them is gone. {advice}";
             }
             else if (holder is ObsScene { IsGroup: true })
             {

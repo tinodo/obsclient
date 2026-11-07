@@ -10,8 +10,9 @@ namespace OBSStudioClient.Exceptions
     /// <para>
     /// Nothing was changed. The message says what holds the name, as far as the model knows: a scene, a group (a group holds its name like any source), an input, or an input that was
     /// removed and that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>) because scene items still show it. The name of such an input stays taken until its last scene
-    /// item is gone, so creating or renaming something to that name fails until the input is removed for good: <see cref="HeldBy"/> is the object to call <c>RemoveAsync</c> on. With
-    /// obs-websocket 5.6 and older a scene that was removed and is alive holds its name in the same way; OBS Studio 32 and newer (obs-websocket 5.7) free the name of a scene at once.
+    /// item is gone, so creating or renaming something to that name fails until the input is removed for good: <see cref="HeldBy"/> is the object to call <c>RemoveAsync</c> on (unless a scene
+    /// item inside a group shows it: <c>RemoveAsync</c> refuses that, and it has to be taken out of the group in OBS Studio first). With OBS Studio 31.0 and older a scene that was removed and is
+    /// alive holds its name in the same way; OBS Studio 31.1 and newer free the name of a scene at once.
     /// </para>
     /// <para>
     /// The names of scenes and inputs are not alike. An input can not have the name of a scene or of another input (also not of an input that was removed and is alive). A scene can

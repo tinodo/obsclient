@@ -238,7 +238,7 @@ namespace OBSStudioClient.Studio
         /// <remarks>
         /// <para>
         /// OBS Studio keeps a scene alive after it is removed for as long as scene items in other scenes show it (the scene is <see cref="ObsObjectState.Detached"/>: it is
-        /// not in <see cref="ObsStudio.Scenes"/> and it can not be changed; with obs-websocket 5.6 and older its name stays taken, and OBS Studio 32 and newer free the name at once). This call removes those scene items too, so that OBS Studio destroys the scene
+        /// not in <see cref="ObsStudio.Scenes"/> and it can not be changed; with OBS Studio 31.0 and older its name stays taken, and OBS Studio 31.1 and newer free the name at once). This call removes those scene items too, so that OBS Studio destroys the scene
         /// (<see cref="ObsObjectState.Gone"/>). The scene is removed first, and the scene items after it, one request after the other: when OBS Studio refuses one of the
         /// scene items (it was removed meanwhile: by the user, or by OBS Studio itself, which takes the scene items of a removed scene out of the scenes that it is rendering on the next
         /// frame), the call ends with the exception once the model shows what the requests before it made (the scene is Detached, and the scene items that were
@@ -282,7 +282,7 @@ namespace OBSStudioClient.Studio
                     ],
                     ObserveAtTurn = () => includesRemoval ? [new RefreshTarget(ReadKind.Program)] : [],
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
-                    Reconcile = index => StudioRemovals.Reconciled(this, includesRemoval, showing, index),
+                    Reconcile = (index, code) => StudioRemovals.Reconciled(this, includesRemoval, showing, index, code),
                 },
                 cancellationToken);
         }

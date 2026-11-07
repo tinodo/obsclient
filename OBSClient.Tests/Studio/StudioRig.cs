@@ -32,6 +32,9 @@ namespace OBSStudioClient.Tests.Studio
         /// <summary>Gets or sets the obs-websocket version that GetVersion answers.</summary>
         public string WebSocketVersion { get; set; } = "5.7.6";
 
+        /// <summary>Gets or sets the OBS Studio version that GetVersion answers (the default goes with the obs-websocket version: OBS Studio 33.0.0 has obs-websocket 5.7.6).</summary>
+        public string ObsVersion { get; set; } = "33.0.0";
+
         /// <summary>Gets or sets whether the batches of reads are answered.</summary>
         public bool AnswerBatches { get; set; } = true;
 
@@ -326,7 +329,7 @@ namespace OBSStudioClient.Tests.Studio
             {
                 return (100, new
                 {
-                    obsVersion = "31.0.0",
+                    obsVersion = this.ObsVersion,
                     obsWebSocketVersion = this.WebSocketVersion,
                     rpcVersion = 1,
                     availableRequests = Array.Empty<string>(),
@@ -440,7 +443,7 @@ namespace OBSStudioClient.Tests.Studio
             return rig;
         }
 
-        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null)
+        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null)
         {
             var rig = Create(setup, options, loggerFactory);
             try
@@ -448,6 +451,11 @@ namespace OBSStudioClient.Tests.Studio
                 if (webSocketVersion is not null)
                 {
                     rig.Responder.WebSocketVersion = webSocketVersion;
+                }
+
+                if (obsVersion is not null)
+                {
+                    rig.Responder.ObsVersion = obsVersion;
                 }
 
                 await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
