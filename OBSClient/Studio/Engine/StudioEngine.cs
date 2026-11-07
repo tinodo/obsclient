@@ -113,7 +113,9 @@ namespace OBSStudioClient.Studio.Engine
         /// came): the messages that it guards against (a read that was sent before the removal, the second copy of a creation event, an event that is late) arrive
         /// within the time that a read may take and the lag of OBS, which is seconds. Without a limit the memory would grow for as long as a connection lasts.
         /// A source is remembered until a list of its kind shows that OBS is done with it (OBS goes on listing an input that it keeps alive for something that
-        /// nothing shows), and then for this time; one that no list confirmed in this time is asked about with a read of the list.
+        /// nothing shows), and then for this time; one that no list confirmed in this time is asked about with a read of the list. A removed input that nothing
+        /// that the model knows uses is destroyed when the time for the scene items that a read found gone, and that it was used by, is up (counted from the
+        /// read, also when an event told about them first: the events that were on their way when the read was taken can still follow).
         /// </summary>
         public TimeSpan TombstoneRetention { get; set; } = TimeSpan.FromMinutes(5);
 
@@ -189,7 +191,7 @@ namespace OBSStudioClient.Studio.Engine
         public StudioEngineState State => this._state;
 
         /// <summary>Gets the number of things that the engine remembers because of what it was told was removed (see <see cref="StudioEngineOptions.TombstoneRetention"/>). It is for tests.</summary>
-        public int RememberedCount => this._gone.Count + this._goneItems.Count + this._removedUnknown.Count + this._readReleased.Count;
+        public int RememberedCount => this._gone.Count + this._goneItems.Count + this._removedUnknown.Count + this._readReleased.Count + this._readReleased.SettlingCount;
 
         /// <summary>Gets the number of scene items that a read took away and that the events have not told about, which keep the engine from concluding from a count. It is for tests.</summary>
         public int HeldItemCount => this._readReleased.Count;

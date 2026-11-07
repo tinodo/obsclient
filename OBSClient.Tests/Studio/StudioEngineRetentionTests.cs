@@ -231,7 +231,7 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public void AnInputThatIsStillHeldFor_IsLetGoOf_WhenTheEventOfTheLastSceneItemThatIsHeldForItArrives()
+        public void AnInputThatIsStillHeldFor_Settles_WhenTheEventOfTheLastSceneItemThatIsHeldForItArrives_AndIsLetGoOfWhenTheTimeIsUp()
         {
             Guid doomed = Guid.Empty;
             Guid mic = Guid.Empty;
@@ -253,25 +253,28 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
             Assert.Equal(1, h.Engine.HeldItemCount);
 
-            // The event of that scene item arrives, long before the retention is over: nothing that the model knows uses the input, and nothing is held for it. The count
-            // does not decide (a scene item that OBS made for the input can still be on its way): a read of the list does.
+            // The event of that scene item arrives, long before the retention is over: nothing is held for the input any more, but the count does not decide yet (a
+            // scene item that OBS made for the input can still be on its way, and a list says that OBS has the input, not who uses it), and no list is read for it.
             EngineEvents.ItemRemoved(h, doomed, "Doomed", itemId, mic, "Mic");
-            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
             var lists = 0;
             h.SettleWithTime(request =>
             {
                 lists += request.Kind == ReadKind.Inputs ? 1 : 0;
                 return h.World.Answer(request);
             });
-
-            Assert.Equal(1, lists);
-            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, lists);
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
             Assert.Equal(0, h.Engine.HeldItemCount);
+
+            // The time that the hold would have lasted is up: nothing shows the input, and it goes, as it does when what was held for it ends by time.
+            LaterAMessageArrives(h, TimeSpan.FromMinutes(2), "Two");
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
             Assert.True(h.Engine.IsSettled);
         }
 
         [Fact]
-        public void AnInputThatIsStillHeldFor_IsLetGoOf_WhenAnEventRemovesTheSceneThatTheSceneItemsThatAreHeldForItWereIn()
+        public void AnInputThatIsStillHeldFor_Settles_WhenAnEventRemovesTheSceneThatTheSceneItemsThatAreHeldForItWereIn_AndIsLetGoOfWhenTheTimeIsUp()
         {
             Guid a = Guid.Empty;
             Guid mic = Guid.Empty;
@@ -292,21 +295,23 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(1, h.Engine.HeldItemCount);
 
             // OBS removes the scene: what a read took away from it went with it (no event tells about it), so nothing is held for the input any more. The count does not
-            // decide (see above): a read of the list does.
+            // decide yet (see above), and no list is read for the input.
             h.World.Scenes.RemoveAll(scene => scene.Uuid == a);
             h.World.Items.Remove(a);
             EngineEvents.SceneRemoved(h, a, "A");
-            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
             var lists = 0;
             h.SettleWithTime(request =>
             {
                 lists += request.Kind == ReadKind.Inputs ? 1 : 0;
                 return h.World.Answer(request);
             });
-
-            Assert.Equal(1, lists);
-            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.Equal(0, lists);
+            Assert.Equal(SourceState.Detached, Assert.Single(h.Engine.Snapshot().Inputs).State);
             Assert.Equal(0, h.Engine.HeldItemCount);
+
+            LaterAMessageArrives(h, TimeSpan.FromMinutes(2), "Two");
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
             Assert.True(h.Engine.IsSettled);
         }
 

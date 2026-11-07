@@ -1321,6 +1321,61 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
+        // The same, when the check of the list of inputs is done between the event that removes the only scene item that the model knew and the event that makes the
+        // other one: the list says that OBS has the input, and not who uses it, so a count of nothing does not destroy it (the event of the other scene item is on its way).
+        [Fact]
+        public void AnInputThatOBSRemoved_IsNotDestroyedByCounting_WhenItsCheckIsDoneBetweenTheEventThatRemovesTheOnlyKnownSceneItemAndTheEventThatMakesAnother()
+        {
+            Guid a = Guid.Empty;
+            Guid b = Guid.Empty;
+            Guid mic = Guid.Empty;
+            var itemOfA = 0;
+            var h = Started(world =>
+            {
+                a = world.AddScene("A");
+                b = world.AddScene("B");
+                mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                itemOfA = world.AddItem(a, mic, "Mic");
+            });
+
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.SettleWithTime();
+            Assert.Empty(h.Engine.Snapshot().Scenes.Single(scene => scene.Uuid == a).Items);
+
+            // A scene that the model has not read appeared, and the input was removed: until its scene items are known the model cannot tell what OBS did. Everything is
+            // read but the list of inputs that the model asks for then (the check): its answer is on its way.
+            EngineEvents.SceneCreated(h, h.World.AddScene("New"), "New");
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            var itemOfB = h.World.AddItem(b, mic, "Mic");
+            ReadTicket? check = null;
+            while (h.Take() is { } ticket)
+            {
+                if (ticket.Requests.Any(request => request.Kind == ReadKind.Inputs))
+                {
+                    check = ticket;
+                    break;
+                }
+
+                h.Complete(ticket);
+            }
+
+            Assert.NotNull(check);
+
+            // The event that removes the scene item of A arrives (nothing is held for the input any more), then the answer to the check (OBS has the input), and then
+            // the event of the scene item that OBS made for it.
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            h.Complete(check!);
+            Assert.Equal(SourceState.Detached, h.Engine.Snapshot().Inputs.Single(input => input.Uuid == mic).State);
+            EngineEvents.ItemCreated(h, b, "B", itemOfB, 0, mic, "Mic");
+            h.SettleWithTime();
+
+            var snapshot = h.Engine.Snapshot();
+            Assert.Equal(SourceState.Detached, snapshot.Inputs.Single(input => input.Uuid == mic).State);
+            Assert.Equal(mic, Assert.Single(snapshot.Scenes.Single(scene => scene.Uuid == b).Items).SourceUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
         // The same for a scene.
         [Fact]
         public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenAReadTookTheOnlyKnownSceneItemAwayAndAnotherOneIsOnItsWay()

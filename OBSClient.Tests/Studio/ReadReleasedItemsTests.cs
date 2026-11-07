@@ -128,48 +128,142 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public void Remove_SaysWhenNoSceneItemThatIsHeldUsesTheSourceAnyMore()
+        public void ASourceWhoseLastSceneItemWasLetGoOfByAnEvent_IsSettling_UntilTheTimeThatTheHoldWouldHaveLastedIsUp()
         {
             var held = new ReadReleasedItems();
             var scene = Guid.NewGuid();
             var source = Guid.NewGuid();
-            held.Add(new ItemKey(scene, 1), source, Zero);
-            held.Add(new ItemKey(scene, 2), source, Zero);
+            held.Add(new ItemKey(scene, 1), source, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(scene, 2), source, TimeSpan.FromSeconds(2));
 
+            // While another scene item is held the source is held, not settling.
+            Assert.True(held.Remove(new ItemKey(scene, 1)));
+            Assert.True(held.Holds(source));
+            Assert.False(held.Settling(source));
+
+            // The event of the last one: nothing is held for the source, and it settles, counted from the read that took the scene item away.
+            Assert.True(held.Remove(new ItemKey(scene, 2)));
+            Assert.False(held.Holds(source));
+            Assert.True(held.Settling(source));
+            Assert.Equal(1, held.SettlingCount);
+            Assert.Equal(0, held.Count);
+
+            // The time at which it was held stays settling, and the time ends it: the source is told to the caller, who judges it.
             var freed = new List<Guid>();
-            Assert.True(held.Remove(new ItemKey(scene, 1), freed));
+            Assert.Equal(0, held.Prune(TimeSpan.FromSeconds(2), freed));
+            Assert.True(held.Settling(source));
             Assert.Empty(freed);
-            Assert.True(held.Remove(new ItemKey(scene, 2), freed));
-            Assert.Equal(new[] { source }, freed);
-
-            // A scene item that is not held frees nothing, and a source is in the list of the caller once.
-            Assert.False(held.Remove(new ItemKey(scene, 2), freed));
-            held.Add(new ItemKey(scene, 3), source, Zero);
-            Assert.True(held.Remove(new ItemKey(scene, 3), freed));
+            Assert.Equal(1, held.Prune(TimeSpan.FromSeconds(3), freed));
+            Assert.False(held.Settling(source));
+            Assert.Equal(0, held.SettlingCount);
             Assert.Equal(new[] { source }, freed);
         }
 
         [Fact]
-        public void RemoveScene_SaysWhichSourcesNoSceneItemThatIsHeldUsesAnyMore()
+        public void ASceneItemThatIsNotHeld_LeavesNothingSettling()
+        {
+            var held = new ReadReleasedItems();
+
+            Assert.False(held.Remove(new ItemKey(Guid.NewGuid(), 1)));
+            Assert.Equal(0, held.SettlingCount);
+        }
+
+        [Fact]
+        public void ASourceThatIsHeldAgainWhileItSettles_IsToldWhenTheNewHoldEnds_NotBefore()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var source = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), source, TimeSpan.FromSeconds(1));
+            held.Remove(new ItemKey(scene, 1));
+            held.Add(new ItemKey(scene, 2), source, TimeSpan.FromSeconds(5));
+
+            // The time for the first is up while the second is held: the settling goes, and nothing is told.
+            var freed = new List<Guid>();
+            Assert.Equal(1, held.Prune(TimeSpan.FromSeconds(3), freed));
+            Assert.False(held.Settling(source));
+            Assert.True(held.Holds(source));
+            Assert.Empty(freed);
+
+            // The time for the second is up: that is when the source is told, once.
+            Assert.Equal(1, held.Prune(TimeSpan.FromSeconds(6), freed));
+            Assert.Equal(new[] { source }, freed);
+            Assert.False(held.Holds(source));
+            Assert.Equal(0, held.SettlingCount);
+        }
+
+        [Fact]
+        public void ASourceWhoseTimeIsUp_IsToldOnce_WhetherItWasHeldOrSettling()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var source = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), source, TimeSpan.FromSeconds(1));
+            held.Remove(new ItemKey(scene, 1));
+            held.Add(new ItemKey(scene, 2), source, TimeSpan.FromSeconds(2));
+
+            // The first scene item settles the source, the second holds it, and both are old: the source is told once.
+            var freed = new List<Guid>();
+            Assert.Equal(2, held.Prune(TimeSpan.FromSeconds(5), freed));
+
+            Assert.Equal(new[] { source }, freed);
+            Assert.False(held.Settling(source));
+            Assert.False(held.Holds(source));
+        }
+
+        [Fact]
+        public void TheSourcesOfTheSceneItemsOfAScene_SettleWhenAnEventRemovesTheScene()
         {
             var held = new ReadReleasedItems();
             var scene = Guid.NewGuid();
             var other = Guid.NewGuid();
             var gone = Guid.NewGuid();
-            var goneTwice = Guid.NewGuid();
             var shared = Guid.NewGuid();
-            held.Add(new ItemKey(scene, 1), gone, Zero);
-            held.Add(new ItemKey(scene, 2), goneTwice, Zero);
-            held.Add(new ItemKey(scene, 3), goneTwice, Zero);
-            held.Add(new ItemKey(scene, 4), shared, Zero);
-            held.Add(new ItemKey(other, 1), shared, Zero);
+            held.Add(new ItemKey(scene, 1), gone, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(scene, 2), shared, TimeSpan.FromSeconds(1));
+            held.Add(new ItemKey(other, 1), shared, TimeSpan.FromSeconds(1));
+
+            held.RemoveScene(scene);
+
+            // The source that a scene item of another scene that is held still used is held, and settles when that one goes.
+            Assert.True(held.Settling(gone));
+            Assert.False(held.Settling(shared));
+            Assert.True(held.Holds(shared));
+        }
+
+        [Fact]
+        public void ASourceThatIsDestroyed_IsNeitherHeldNorSettling()
+        {
+            var held = new ReadReleasedItems();
+            var scene = Guid.NewGuid();
+            var held1 = Guid.NewGuid();
+            var settling = Guid.NewGuid();
+            held.Add(new ItemKey(scene, 1), held1, Zero);
+            held.Add(new ItemKey(scene, 2), settling, Zero);
+            held.Remove(new ItemKey(scene, 2));
+            Assert.True(held.Settling(settling));
+
+            held.RemoveSource(held1);
+            held.RemoveSource(settling);
+
+            Assert.False(held.Holds(held1));
+            Assert.False(held.Settling(settling));
+            Assert.Equal(0, held.Count);
+            Assert.Equal(0, held.SettlingCount);
+        }
+
+        [Fact]
+        public void Prune_LeavesNothingSettling_ThatDidNotSettleByAnEvent()
+        {
+            var held = new ReadReleasedItems();
+            var source = Guid.NewGuid();
+            held.Add(new ItemKey(Guid.NewGuid(), 1), source, Zero);
 
             var freed = new List<Guid>();
-            held.RemoveScene(scene, freed);
+            held.Prune(TimeSpan.FromSeconds(1), freed);
 
-            // The source that a scene item of another scene that is held still used is not freed, and a source is told once however many scene items went.
-            Assert.Equal(new[] { gone, goneTwice }.OrderBy(uuid => uuid), freed.OrderBy(uuid => uuid));
-            Assert.True(held.Holds(shared));
+            Assert.Equal(new[] { source }, freed);
+            Assert.Equal(0, held.SettlingCount);
         }
 
         [Fact]
