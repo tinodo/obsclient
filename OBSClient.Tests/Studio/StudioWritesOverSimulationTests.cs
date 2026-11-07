@@ -156,8 +156,11 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task ASwitchThroughATransitionThatTakesLongerThanTheWait_IsShownByAReadOfTheProgramScene()
         {
-            // OBS Studio announces the new program scene when the transition has ended, two seconds from now, and answers a question about it at once.
-            await using var rig = await StartAsync(StudioSimRig.DefaultQuirks with { TransitionDuration = TimeSpan.FromSeconds(2) });
+            // OBS Studio announces the new program scene when the transition has ended, ten seconds from now, and answers a question about it at once. The studio waits 300
+            // milliseconds for the events, and then reads the program scene. The margin is wide on purpose: on a computer that is busy the read can be slow (a margin of one
+            // second failed now and then), and a call that waited for the event would still take the ten seconds. The test does not wait for the end of the transition: it ends
+            // when the model shows what the simulation holds.
+            await using var rig = await StartAsync(StudioSimRig.DefaultQuirks with { TransitionDuration = TimeSpan.FromSeconds(10) }, new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300) });
             var chatting = rig.Studio.Scenes["Chatting"];
             var watch = Stopwatch.StartNew();
 
@@ -165,7 +168,7 @@ namespace OBSStudioClient.Tests.Studio
 
             watch.Stop();
             Assert.True(chatting.IsProgram);
-            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1.9), $"The call waited for the end of the transition: {watch.Elapsed.TotalSeconds:N1} seconds.");
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"The call waited for the end of the transition: {watch.Elapsed.TotalSeconds:N1} seconds.");
             await rig.ConvergedAsync("the program scene after the transition", Patience);
         }
 
