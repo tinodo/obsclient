@@ -661,7 +661,7 @@ namespace OBSStudioClient.Tests.Simulation
                 var members = new List<(string Name, JsonNode? Value)>
                 {
                     ("requestStatus", Status(SimResult.Fail(SimStatus.NotReady, NotReadyComment))),
-                    ("requestType", item["requestType"]?.DeepClone()),
+                    ("requestType", Sorted(item["requestType"])),
                 };
                 if (item["requestId"] is { } id)
                 {

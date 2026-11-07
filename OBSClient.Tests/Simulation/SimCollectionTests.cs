@@ -249,7 +249,7 @@ namespace OBSStudioClient.Tests.Simulation
             h.Send("SetCurrentSceneCollection", new { sceneCollectionName = "Untitled" });
             h.Run(100);
 
-            var response = h.CallBatch([new { requestType = 5 }, new { requestType = (string?)null, requestId = (string?)null }, new { requestId = "x" }, new { requestType = new[] { 1 }, requestId = 7 }]);
+            var response = h.CallBatch([new { requestType = 5 }, new { requestType = (string?)null, requestId = (string?)null }, new { requestId = "x" }, new { requestType = new[] { 1 }, requestId = 7 }, new { requestType = new { z = 1, a = new[] { new { y = 1, b = 2 } } } }]);
 
             var results = response.Data.EnumerateArray().ToArray();
             Assert.Equal(JsonValueKind.Number, results[0].GetProperty("requestType").ValueKind);
@@ -260,6 +260,9 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Equal("x", results[2].GetProperty("requestId").GetString());
             Assert.Equal(JsonValueKind.Array, results[3].GetProperty("requestType").ValueKind);
             Assert.Equal(7, results[3].GetProperty("requestId").GetInt32());
+
+            // obs-websocket writes every object with its members in alphabetical order, whatever order they came in.
+            Assert.Equal("""{"a":[{"b":2,"y":1}],"z":1}""", results[4].GetProperty("requestType").GetRawText());
             Assert.All(results, result => Assert.Equal(SimStatus.NotReady, result.GetProperty("requestStatus").GetProperty("code").GetInt32()));
         }
 
