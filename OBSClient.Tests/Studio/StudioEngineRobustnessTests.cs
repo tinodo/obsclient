@@ -1444,6 +1444,54 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(h.Engine.IsSettled);
         }
 
+        // OBS removed an input that the model did not know yet, and its list (answered late) still has it. A scene item that used it was taken away by a read, and the event
+        // of that scene item came before the list: the input is settling when the list finds it, and its audio state has not been read. A list that has the input leaves it
+        // to the time, so it is kept, and read and announced as any input that survives: the model must not wait for a read that nothing asks for.
+        [Fact]
+        public void AnInputThatOBSRemovedBeforeTheModelKnewIt_ThatTheListStillHas_IsRead_WhenItIsSettlingWhenTheListFindsIt()
+        {
+            var h = new EngineHarness();
+            var a = h.World.AddScene("A");
+            var mic = h.World.AddInput("Mic", "wasapi_input_capture", 2);
+            var itemOfA = h.World.AddItem(a, mic, "Mic");
+            h.Start();
+
+            // OBS does not answer the list of inputs (it is read again after a wait), and the scene items of A are read meanwhile: a scene item shows an input that the
+            // model does not know.
+            (int, object?) NotReady(ReadRequest request)
+            {
+                return request.Kind == ReadKind.Inputs ? (207, null) : h.World.Answer(request);
+            }
+
+            h.Complete(h.Take()!, NotReady);
+            h.Complete(h.Take()!);
+
+            // OBS removes the input, and keeps it alive (it is listed still). The scene item is taken away and a read of A finds it gone before its event arrives, and then
+            // the event arrives: nothing is held for the input any more, and it settles.
+            EngineEvents.InputRemoved(h, mic, "Mic");
+            h.World.Items[a].Clear();
+            h.Event("SceneItemListReindexed", new { sceneName = "A", sceneUuid = a, sceneItems = new[] { new { sceneItemId = 99, sceneItemIndex = 0 } } }, 128);
+            h.Complete(h.Take()!);
+            Assert.Equal(1, h.Engine.HeldItemCount);
+            EngineEvents.ItemRemoved(h, a, "A", itemOfA, mic, "Mic");
+            Assert.Equal(0, h.Engine.HeldItemCount);
+
+            // The list is answered at last.
+            h.SettleWithTime();
+
+            var input = Assert.Single(h.Engine.Snapshot().Inputs);
+            Assert.Equal((mic, SourceState.Detached), (input.Uuid, input.State));
+            Assert.Equal(StudioEngineState.Synchronized, h.Engine.State);
+            Assert.True(h.Engine.IsSettled);
+
+            // The time that it settles ends, and nothing that the model knows uses it: it is destroyed, and the list that still has it does not bring it back.
+            h.Advance(TimeSpan.FromMinutes(6));
+            h.SettleWithTime();
+
+            Assert.Empty(h.Engine.Snapshot().Inputs);
+            Assert.True(h.Engine.IsSettled);
+        }
+
         // The same for a scene.
         [Fact]
         public void ASceneThatOBSRemovedWhileNotAllSceneItemsWereKnown_IsNotDestroyedByCounting_WhenTheEventThatLetGoOfTheLastHeldSceneItemCameBeforeTheDiscoveryWasComplete()
