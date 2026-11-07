@@ -630,7 +630,7 @@
         }
 
         // The batch of SendRequestBatchAsync, with the whole response message.
-        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default)
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
         {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
@@ -640,7 +640,7 @@
             var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken, cancelUntilWritten).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken, cancelUntilWritten, beforeWriting).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
                 return requestBatchResponseData;
@@ -1259,7 +1259,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null, Action? beforeWriting = null)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -1290,6 +1290,9 @@
                 // The semaphore processes the end of a wait after the fact: a turn that is given up while another message is done can be handed over all the same. Whoever gave
                 // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // What has to be true when the message is written, and may have changed while it waited for its turn. When it fails nothing is written, and the turn is given back.
+                beforeWriting?.Invoke();
 
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
                 if (_logger.IsEnabled(LogLevel.Debug))
@@ -1548,7 +1551,7 @@
             this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             cancelUntilWritten.ThrowIfCancellationRequested();
@@ -1587,7 +1590,7 @@
                 using var turnCts = cancelUntilWritten.CanBeCanceled
                     ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token, cancelUntilWritten)
                     : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-                var write = this.SendAsync(session, request, turnCts.Token);
+                var write = this.SendAsync(session, request, turnCts.Token, beforeWriting: beforeWriting);
                 if (await Task.WhenAny(write, tcs.Task).ConfigureAwait(false) == write)
                 {
                     await write.ConfigureAwait(false);

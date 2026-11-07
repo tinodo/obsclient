@@ -820,6 +820,168 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AChangeWhoseBatchWaitsForItsTurnToBeWritten_IsNotWritten_WhenOBSStudioChangesItsSceneCollectionMeanwhile()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+
+            // Another message holds the turn to write on the connection, and the batch of the change waits for it. What was true at the turn of the change is not true when the
+            // batch would be written: OBS Studio begins to change its scene collection, and the model knows.
+            var turn = await test.Rig.Studio.Client.TakeTheTurnToWriteAsync();
+            var change = test.Camera.SetEnabledAsync(false);
+            await Task.Delay(300);
+            Assert.False(change.IsCompleted);
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.Gate.Switching, "the host to know that OBS Studio is switching");
+
+            turn.Dispose();
+
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => change.WithTimeoutAsync(Timeout));
+            Assert.Contains("changed its scene collection before", exception.Message);
+            await Task.Delay(200);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeWhoseBatchWaitsForItsTurnToBeWritten_IsNotWritten_WhenItsObjectIsRemovedMeanwhile()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+            var turn = await test.Rig.Studio.Client.TakeTheTurnToWriteAsync();
+            var change = test.Camera.SetEnabledAsync(false);
+            await Task.Delay(300);
+            Assert.False(change.IsCompleted);
+            await test.Rig.Responder.SendEventAsync("SceneItemRemoved", new { sceneName = "Gaming", sceneUuid = test.Gaming, sourceName = "Camera", sourceUuid = Guid.NewGuid(), sceneItemId = 1 }, SceneItemEvents);
+            await StudioRig.EventuallyAsync(() => test.Camera.IsRemoved, "the scene item to be removed");
+
+            turn.Dispose();
+
+            var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => change.WithTimeoutAsync(Timeout));
+            Assert.Equal(ObsObjectState.Gone, exception.State);
+            await Task.Delay(200);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeWhoseCallerGivesUpWhileItIsBeingPutInTheLine_IsNeverWritten()
+        {
+            await using var test = await Fixture.StartAsync();
+
+            // The caller gives up while its change is being checked, before the change is in the line: it is given up, and the line must not write it. (The registration of
+            // the token comes before the change is put in the line; the other way round, the line could take the change before the caller was told to give up.)
+            for (var round = 0; round < 200; round++)
+            {
+                using var cancellation = new CancellationTokenSource();
+                var call = test.Rig.Studio.Writer.ExecuteAsync<object?>(
+                    new WriteJob
+                    {
+                        Description = "hiding the camera",
+                        Check = () => cancellation.Cancel(),
+                        BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = test.Gaming, sceneItemId = 1, sceneItemEnabled = false })],
+                    },
+                    cancellation.Token);
+
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call.WithTimeoutAsync(Timeout));
+            }
+
+            await Task.Delay(300);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AChangeWhoseCallerGivesUpRightAfterItWasPutInTheLine_IsNeverWritten()
+        {
+            await using var test = await Fixture.StartAsync();
+            using var cancellation = new CancellationTokenSource();
+            test.Rig.Studio.Writer.AfterPutInTheLine = () =>
+            {
+                // The line can take the change now. The caller gives up, and waits long enough to see whether the line sends it all the same.
+                cancellation.Cancel();
+                Thread.Sleep(300);
+            };
+
+            var call = test.Camera.SetEnabledAsync(false, cancellation.Token);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call.WithTimeoutAsync(Timeout));
+            await Task.Delay(300);
+            Assert.True(test.Count("SetSceneItemEnabled") == 0, "The change was written although its caller had given up before the line took it.");
+        }
+
+        [Fact]
+        public async Task TheLongestTimesThatTheOptionsAllow_DoNotMakeAChangeFail()
+        {
+            // The wait for the model adds up the time for the events and twice the time for a read: three times 24 days is more than a timer can be given.
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromDays(24), ReadTimeout = TimeSpan.FromDays(24), WriteTimeout = TimeSpan.FromSeconds(30) });
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabledInWorld(false);
+                _ = test.SendEnabledEventAsync(false);
+                return (100, null);
+            };
+
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
+
+            Assert.False(test.Camera.IsEnabled);
+        }
+
+        [Fact]
+        public async Task AReadThatWasAskedForAfterTheTimeForTheEvents_IsNotWaitedForAnyMore_WhenALateEventShowsTheChange()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(200), ReadTimeout = TimeSpan.FromSeconds(30), WriteTimeout = TimeSpan.FromSeconds(30) });
+            var silent = false;
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "SetSceneItemEnabled")
+                {
+                    // OBS Studio makes the change, and does not answer the reads of the model from now on.
+                    test.SetEnabledInWorld(false);
+                    Volatile.Write(ref silent, true);
+                    return (100, null);
+                }
+
+                return Volatile.Read(ref silent) && type == "GetSceneItemList" ? (0, null) : null;
+            };
+            var waiting = test.Rig.Studio.Host.SettleWaiterCount;
+
+            var call = test.Camera.SetEnabledAsync(false);
+
+            // The time for the events ends, and the model is asked to read the scene items, which nobody answers: the wait for that read is in the loop of the model.
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.SettleWaiterCount > waiting, "the read to be asked for");
+
+            // The event comes late: the change is shown and the call ends. The wait for the read is of no use any more, and it must not stay in the loop for as long as OBS
+            // Studio fails the reads (the model goes on with them).
+            await test.SendEnabledEventAsync(false);
+            await call.WithTimeoutAsync(Timeout);
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.SettleWaiterCount == waiting, "the wait for the read to be let go of");
+        }
+
+        [Fact]
+        public async Task AVolumeNearSilence_IsNotTakenForAnotherOneThatIsFewDecibelsAway()
+        {
+            // The volume of the microphone is 0.0001, and 0.00019 is 5.6 dB louder. OBS Studio makes no change and says nothing: the model shows 0.0001 all the time, which is not
+            // what the call asks for, so the call has to wait for the events (and then for a read) and must not return at once.
+            await using var rig = await StudioRig.ConnectedAsync(
+                world =>
+                {
+                    world.AddScene("Gaming");
+                    world.AddInput("Mic", "wasapi_input_capture", 2, false, 0.0001);
+                },
+                new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(400), WriteTimeout = TimeSpan.FromSeconds(5) });
+            rig.Responder.OnRequest = (type, data) => type == "SetInputVolume" ? (100, null) : null;
+            var mic = rig.Studio.Inputs["Mic"];
+            Assert.InRange(mic.VolumeMul, 0.00009f, 0.00011f);
+
+            var started = Stopwatch.GetTimestamp();
+            await mic.SetVolumeMulAsync(0.00019).WithTimeoutAsync(Timeout);
+            var took = Stopwatch.GetElapsedTime(started);
+
+            Assert.True(took >= TimeSpan.FromMilliseconds(300), $"The call returned after {took.TotalMilliseconds:F0} ms, against a volume that is 5.6 dB away from the one that it asked for.");
+        }
+
+        [Fact]
         public void ARequestThatWasRefusedBeforeItWasWritten_IsNotSent_AndAnyOtherFailureIsNot()
         {
             Assert.True(StudioWriter.IsNotSent(new ObsNotConnectedException()));

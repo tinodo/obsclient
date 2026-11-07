@@ -167,6 +167,10 @@ namespace OBSStudioClient.Studio
     {
         private const string NotConnectedMessage = "Not connected.";
 
+        // The longest time that a timer can be given (the 4,294,967,294 milliseconds of a timer of the system): the options allow 24 days each for the time for the events
+        // and for the reads, and the wait for the model adds them up.
+        private static readonly TimeSpan LongestTimer = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+
         private readonly ObsClient _client;
         private readonly StudioHost _host;
         private readonly ILogger _logger;
@@ -177,6 +181,9 @@ namespace OBSStudioClient.Studio
         private readonly Channel<WriteJob> _queue = Channel.CreateUnbounded<WriteJob>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
+
+        // Called by ExecuteAsync when the job has been put in the line, before it returns. For the tests: what the caller can do (give up) while the line can already take the job.
+        internal Action? AfterPutInTheLine { get; set; }
 
         public StudioWriter(ObsClient client, StudioHost host, ObsStudioOptions options, ILogger logger)
         {
@@ -241,21 +248,23 @@ namespace OBSStudioClient.Studio
             job.Cancellation = cancellationToken;
             if (cancellationToken.CanBeCanceled)
             {
+                // The call ends with the token. A change that has not been sent yet is then skipped when its turn comes; one that was sent keeps its turn until it is
+                // answered, and the model follows it all the same (see SendAsync and ConfirmAsync). A batch that waits for its turn to be written on the connection is given
+                // up before the call ends. It is registered before the job is put in the line: the line can take the job at once, and a caller that gives up in between must have
+                // its change given up, not sent (when the token has ended by now, the callback runs here, and the line skips the job).
                 job.PrepareToGiveUp();
+                var registration = cancellationToken.Register(static state => ((WriteJob)state!).GiveUp(), job);
+                _ = job.Task.ContinueWith(_ => registration.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
 
             if (!this._queue.Writer.TryWrite(job))
             {
-                return Task.FromException<T>(new ObjectDisposedException(nameof(ObsStudio)));
+                // The line has ended: the job ends too, which also lets go of the registration.
+                job.Fail(new ObjectDisposedException(nameof(ObsStudio)));
             }
-
-            if (cancellationToken.CanBeCanceled)
+            else
             {
-                // The call ends with the token. A change that has not been sent yet is then skipped when its turn comes; one that was sent keeps its turn until it is
-                // answered, and the model follows it all the same (see SendAsync and ConfirmAsync). A batch that waits for its turn to be written on the connection is given
-                // up before the call ends.
-                var registration = cancellationToken.Register(static state => ((WriteJob)state!).GiveUp(), job);
-                _ = job.Task.ContinueWith(_ => registration.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                this.AfterPutInTheLine?.Invoke();
             }
 
             return Typed<T>(job.Task);
@@ -302,6 +311,25 @@ namespace OBSStudioClient.Studio
 
             job.Check();
         }
+
+        // The same, when the batch of the change has its turn to be written on the connection: that can be much later than the turn of the change, when another message holds the
+        // turn of the connection (a large request that OBS Studio does not read), and OBS Studio can have begun to change its scene collection, or the object can have been
+        // removed, meanwhile. A change that is written then would be made in a collection that the application did not mean (or on an object that is not the one that it meant).
+        // Called by the client before one byte of the batch is written; what it throws is wrapped, so that it is not taken for a failure of the connection.
+        private void CheckBeforeWriting(WriteJob job)
+        {
+            try
+            {
+                this.EnsureItCanBeSent(job);
+            }
+            catch (Exception ex)
+            {
+                throw new NotWrittenException(ex);
+            }
+        }
+
+        // What stopped the batch of a change from being written (see CheckBeforeWriting): the exception that says so is the inner exception.
+        private sealed class NotWrittenException(Exception reason) : Exception("The batch of a change was not written.", reason);
 
         // A question that a change asks of OBS Studio in its turn. It changes nothing, so whatever goes wrong with it is certain: nothing was changed. The caller can give up
         // while it is asked, which is no loss: unlike a change, a question that is still on its way does no harm.
@@ -436,8 +464,16 @@ namespace OBSStudioClient.Studio
             {
                 // Only the end of the studio ends the wait for the answer, not the token of the caller: the batch is on its way, OBS Studio may still make the change, and the next
                 // change is not sent before this one is answered. The caller stops waiting by itself (see ExecuteAsync). The caller giving up does end the wait for the turn to
-                // write the batch on the connection (when another message is being written): the batch was not written then, and there is nothing to wait for.
-                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten).ConfigureAwait(false);
+                // write the batch on the connection (when another message is being written): the batch was not written then, and there is nothing to wait for. And what was true
+                // at the turn of the change has to be true when the batch is written, which can be much later (see CheckBeforeWriting).
+                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten, () => this.CheckBeforeWriting(job)).ConfigureAwait(false);
+            }
+            catch (NotWrittenException ex)
+            {
+                // The batch had its turn to be written, and what was true when the change was asked for, or when its own turn came, was not true any more: nothing was written, and
+                // nothing was changed.
+                job.Fail(ex.InnerException!);
+                return;
             }
             catch (OperationCanceledException) when (job.Cancellation.IsCancellationRequested && !this._stopping.IsCancellationRequested)
             {
@@ -551,7 +587,7 @@ namespace OBSStudioClient.Studio
             bool Done() => job.IsConfirmed(result) || this.Left(job) || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
 
             using var events = new CancellationTokenSource(this._confirmationTimeout, this._time);
-            using var limit = new CancellationTokenSource(this._confirmationTimeout + this._readTimeout + this._readTimeout, this._time);
+            using var limit = new CancellationTokenSource(Shortest(this._confirmationTimeout + this._readTimeout + this._readTimeout, LongestTimer), this._time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
             using var eventsTimedOut = events.Token.Register(() => Volatile.Write(ref read, this._host.RefreshAsync(job.Refresh, linked.Token)));
             try
@@ -579,12 +615,20 @@ namespace OBSStudioClient.Studio
             }
             finally
             {
+                // The wait is over, whatever ended it: what it still holds in the loop of the model (the wait for the read that was asked for) is let go of. The read goes on in the
+                // model; only this wait for it ends, and it would otherwise stay until the model settles, which it does not while OBS Studio keeps failing the reads.
+                linked.Cancel();
                 if (Volatile.Read(ref read) is { } asked)
                 {
                     // Whatever became of the read is of no interest any more: it was asked for to end this wait.
                     _ = this.ObserveAsync(asked);
                 }
             }
+        }
+
+        private static TimeSpan Shortest(TimeSpan first, TimeSpan second)
+        {
+            return first < second ? first : second;
         }
 
         // Whether the model has left the connection and the scene collection that the change was asked for in.

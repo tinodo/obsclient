@@ -8,9 +8,11 @@ namespace OBSStudioClient.Studio
     public sealed partial class ObsInput
     {
         // The volume that OBS Studio keeps is a multiplier, and the decibels that it reports are made from it: a volume that was set in decibels comes back a hair
-        // different, and the confirmation compares within this.
+        // different, and the confirmation compares within this. For a multiplier the tolerance is relative (a volume near silence must not be taken for another one that is
+        // a few decibels away), and for zero (silence, which OBS Studio reports as exactly 0) it is the floor.
         private const float VolumeDbTolerance = 0.01f;
-        private const double VolumeMulTolerance = 0.0001;
+        private const double VolumeMulRelativeTolerance = 0.0001;
+        private const double VolumeMulFloor = 1e-9;
 
         /// <summary>
         /// Mutes or unmutes the input, and returns when the model shows it.
@@ -131,7 +133,7 @@ namespace OBSStudioClient.Studio
                     Subject = $"input '{this.Name}'",
                     Check = this.CheckWritableAudio,
                     BuildRequests = () => [new WriteRequest(RequestType.SetInputVolume, new { inputUuid = this.Uuid, inputVolumeMul = multiplier })],
-                    IsConfirmed = _ => this.IsRemoved || Math.Abs(this.VolumeMul - multiplier) <= VolumeMulTolerance * Math.Max(1d, multiplier),
+                    IsConfirmed = _ => this.IsRemoved || Math.Abs(this.VolumeMul - multiplier) <= Math.Max(VolumeMulRelativeTolerance * multiplier, VolumeMulFloor),
                     Refresh = [new RefreshTarget(ReadKind.AudioMute, this.Uuid)],
                 },
                 cancellationToken);

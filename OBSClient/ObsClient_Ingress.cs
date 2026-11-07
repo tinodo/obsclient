@@ -64,9 +64,14 @@ namespace OBSStudioClient
         /// and the call throws an <see cref="OperationCanceledException"/>. From the moment that the message is being written it has no effect: the wait for the responses
         /// ends with <paramref name="cancellationToken"/> and the time limit only.
         /// </param>
-        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default)
+        /// <param name="beforeWriting">
+        /// Called when the message has its turn to be written, before one byte of it is written, by whoever has the turn (so it must be quick: nothing else is written
+        /// meanwhile). When it throws, the message is not written, and the call throws what it threw. For what has to be true when the message is written, and may have changed
+        /// while it waited for its turn.
+        /// </param>
+        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
         {
-            return this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken, cancelUntilWritten);
+            return this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken, cancelUntilWritten, beforeWriting);
         }
 
         /// <summary>

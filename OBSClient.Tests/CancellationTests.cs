@@ -457,6 +457,36 @@ namespace OBSStudioClient.Tests
         }
 
         [Fact]
+        public async Task ABatchWhoseCheckBeforeWritingFails_IsNotWritten_TheCallThrowsWhatTheCheckThrew_AndTheTurnIsGivenBack()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var writtenBefore = client.TotalMessagesSent;
+
+            // The batch waits for its turn, and what has to be true when it is written is not true any more when the turn comes.
+            var turn = await client.TakeTheTurnToWriteAsync();
+            var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+            batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+            var sent = client.SendRawBatchAsync(batch, 30_000, default, default, () => throw new InvalidOperationException("The check failed."));
+            await Task.Delay(200);
+            Assert.False(sent.IsCompleted);
+
+            turn.Dispose();
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => sent.WithTimeoutAsync(Timeout));
+            Assert.Equal("The check failed.", exception.Message);
+            Assert.Equal(writtenBefore, client.TotalMessagesSent);
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // The turn was given back: the next request is written, and it is the first message that the server receives.
+            var next = client.GetStudioModeEnabled();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("GetStudioModeEnabled", requestType);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { studioModeEnabled = true });
+            Assert.True(await next.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
         public async Task ABatchThatIsBeingWritten_IsNotCancelled_ByTheTokenThatEndsTheWaitForTheTurn()
         {
             await using var server = new FakeObsWebSocketServer();
