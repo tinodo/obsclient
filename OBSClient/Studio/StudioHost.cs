@@ -39,13 +39,16 @@ namespace OBSStudioClient.Studio
         // When the engine wants a read that it does not hand out (it should not happen), it is asked again after this long, not at once.
         private static readonly TimeSpan SpinGuard = TimeSpan.FromMilliseconds(250);
 
+        // The least time that the engine remembers what OBS Studio removed (see RetentionFor).
+        private static readonly TimeSpan MinimumRetention = TimeSpan.FromMinutes(5);
+
         private readonly ObsStudio _studio;
         private readonly ObsClient _client;
         private readonly ILogger _logger;
         private readonly TimeProvider _time;
         private readonly long _start;
         private readonly TimeSpan _readTimeout;
-        private readonly StudioEngine _engine = new();
+        private readonly StudioEngine _engine;
         private readonly StudioPublisher _publisher;
         private readonly StudioNotifier _notifier;
         private readonly StudioNoticeHold _held;
@@ -68,6 +71,7 @@ namespace OBSStudioClient.Studio
         private TimeSpan? _versionRetryAt;
         private ReadTicket? _read;
         private int _readFailures;
+        private TimeSpan _lastTime;
 
         public StudioHost(ObsStudio studio, ObsClient client, ObsStudioOptions options, ILogger logger, StudioNotifier notifier)
         {
@@ -78,6 +82,7 @@ namespace OBSStudioClient.Studio
             this._time = options.TimeProvider ?? TimeProvider.System;
             this._start = this._time.GetTimestamp();
             this._readTimeout = options.ReadTimeout;
+            this._engine = new StudioEngine(new StudioEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout) });
             this._held = new StudioNoticeHold(options.MaxPendingNotifications);
             this._publisher = new StudioPublisher(studio, options.IgnoreCase);
         }
@@ -99,8 +104,29 @@ namespace OBSStudioClient.Studio
         /// <summary>Gets what is published now.</summary>
         public StudioView View => this._publisher.View;
 
+        /// <summary>
+        /// Returns how long the engine remembers what OBS Studio removed before it lets go of it: the messages that it guards against (a read that was sent before the
+        /// removal, the second copy of an event, an event that is late) arrive within the time that a read can take, so it is the larger of five minutes and four times
+        /// the time that a read is given.
+        /// </summary>
+        /// <param name="readTimeout">The time that a read is given.</param>
+        /// <returns>The retention.</returns>
+        internal static TimeSpan RetentionFor(TimeSpan readTimeout)
+        {
+            var wanted = TimeSpan.FromTicks(readTimeout.Ticks * 4);
+            return wanted > MinimumRetention ? wanted : MinimumRetention;
+        }
+
         /// <summary>Gets a task that completes when the loop has ended.</summary>
         public Task Completion => this._loop;
+
+        /// <summary>
+        /// Gets or sets what is called with the time that the loop gives each item (see <see cref="TimeOf"/>), before it handles it. It is for tests.
+        /// </summary>
+        internal Action<TimeSpan>? BeforeItemHandled { get; set; }
+
+        /// <summary>Gets the engine. It is for tests.</summary>
+        internal StudioEngine Engine => this._engine;
 
         /// <summary>
         /// Gets or sets what is called with each item that comes from the client before the loop handles it. It is for tests: one can hold the loop there, to
@@ -260,12 +286,29 @@ namespace OBSStudioClient.Studio
 
         private bool Post(in HostItem item)
         {
-            return this._inbox.Writer.TryWrite(item);
+            return this._inbox.Writer.TryWrite(item with { Stamp = this._time.GetTimestamp() });
         }
 
+        // The time since the host was made.
         private TimeSpan Now()
         {
             return this._time.GetElapsedTime(this._start);
+        }
+
+        // The time that the loop gives an item (and so the engine) is the time at which the item was put in the inbox, not the time at which the loop gets to it. When the
+        // loop is late (it was held, or the computer slept with the connection open), the time that passes while an item waits must not count: the engine lets go of what
+        // it remembers about removals after a time, and the events that it remembers them for can be queued behind. The items are put in the inbox by several threads,
+        // so the time is not allowed to go back.
+        private TimeSpan TimeOf(in HostItem item)
+        {
+            var time = this._time.GetElapsedTime(this._start, item.Stamp);
+            if (time < this._lastTime)
+            {
+                time = this._lastTime;
+            }
+
+            this._lastTime = time;
+            return time;
         }
 
         private async Task RunAsync()
@@ -304,7 +347,8 @@ namespace OBSStudioClient.Studio
 
         private void Handle(in HostItem item)
         {
-            var now = this.Now();
+            var now = this.TimeOf(item);
+            this.BeforeItemHandled?.Invoke(now);
             var before = this._engine.State;
             switch (item.Kind)
             {
@@ -388,7 +432,7 @@ namespace OBSStudioClient.Studio
             this.PumpReads(now);
             this.PublishStep(before);
             this.ReleaseWaiters();
-            this.ArmTimer(now);
+            this.ArmTimer(this.Now());
             this.PublishWaiterCounts();
         }
 
@@ -786,7 +830,7 @@ namespace OBSStudioClient.Studio
             try
             {
                 this._read = null;
-                this._engine.OnSessionStarted(this._session, this._client.LastIngress, this.Now());
+                this._engine.OnSessionStarted(this._session, this._client.LastIngress, this._lastTime);
                 this._studio.SetState(ObsStudioState.Synchronizing);
 
                 // The item that failed did not get to the part of the loop that sends the reads that the engine wants and arms the timer: nothing else is
@@ -836,6 +880,9 @@ namespace OBSStudioClient.Studio
             public Exception? Error { get; init; }
 
             public TaskCompletionSource? Waiter { get; init; }
+
+            // The time at which the item was put in the inbox (a timestamp of the time provider), which is the time that the loop gives it.
+            public long Stamp { get; init; }
         }
 
         /// <summary>

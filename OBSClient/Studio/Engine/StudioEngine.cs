@@ -115,7 +115,10 @@ namespace OBSStudioClient.Studio.Engine
         /// A source is remembered until a list of its kind shows that OBS is done with it (OBS goes on listing an input that it keeps alive for something that
         /// nothing shows), and then for this time; one that no list confirmed in this time is asked about with a read of the list. A removed input that nothing
         /// that the model knows uses is destroyed when the time for the scene items that a read found gone, and that it was used by, is up (counted from the
-        /// read, also when an event told about them first: the events that were on their way when the read was taken can still follow).
+        /// read, also when an event told about them first: the events that were on their way when the read was taken can still follow). The time that the engine is
+        /// given with a message must be the time at which the message arrived, not the time at which it is handled: when a host is late with the messages that wait
+        /// (it was held, or the computer slept with the connection open), the time that passes while they wait must not count, or what the engine remembers could be
+        /// let go of before the events that it remembers it for are handled.
         /// </summary>
         public TimeSpan TombstoneRetention { get; set; } = TimeSpan.FromMinutes(5);
 
@@ -189,6 +192,9 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets the state of the connection of the engine.</summary>
         public StudioEngineState State => this._state;
+
+        /// <summary>Gets the settings that the engine was made with. It is for tests.</summary>
+        internal StudioEngineOptions Options => this._options;
 
         /// <summary>Gets the number of things that the engine remembers because of what it was told was removed (see <see cref="StudioEngineOptions.TombstoneRetention"/>). It is for tests.</summary>
         public int RememberedCount => this._gone.Count + this._goneItems.Count + this._removedUnknown.Count + this._readReleased.Count + this._readReleased.SettlingCount;
