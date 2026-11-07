@@ -240,6 +240,30 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void ABatchThatIsSentWhileTheServerIsNotReady_GetsTheRequestTypeBackAsItCame()
+        {
+            // obs-websocket writes the request type of a result back as the JSON that came: the empty string that stands for a type that is not a string is made only
+            // when the server is ready.
+            var h = new SimHarness(Slow);
+            h.Ok("CreateSceneCollection", new { sceneCollectionName = "Second" });
+            h.Send("SetCurrentSceneCollection", new { sceneCollectionName = "Untitled" });
+            h.Run(100);
+
+            var response = h.CallBatch([new { requestType = 5 }, new { requestType = (string?)null, requestId = (string?)null }, new { requestId = "x" }, new { requestType = new[] { 1 }, requestId = 7 }]);
+
+            var results = response.Data.EnumerateArray().ToArray();
+            Assert.Equal(JsonValueKind.Number, results[0].GetProperty("requestType").ValueKind);
+            Assert.Equal(5, results[0].GetProperty("requestType").GetInt32());
+            Assert.Equal(JsonValueKind.Null, results[1].GetProperty("requestType").ValueKind);
+            Assert.False(results[1].TryGetProperty("requestId", out _));
+            Assert.Equal(JsonValueKind.Null, results[2].GetProperty("requestType").ValueKind);
+            Assert.Equal("x", results[2].GetProperty("requestId").GetString());
+            Assert.Equal(JsonValueKind.Array, results[3].GetProperty("requestType").ValueKind);
+            Assert.Equal(7, results[3].GetProperty("requestId").GetInt32());
+            Assert.All(results, result => Assert.Equal(SimStatus.NotReady, result.GetProperty("requestStatus").GetProperty("code").GetInt32()));
+        }
+
+        [Fact]
         public void ARequestThatWasSentBeforeTheSwitch_ButRunsInTheMiddleOfIt_Gets207()
         {
             // A client that has requests in flight when the collection begins to change: they find the server not ready, as the ones that come later.

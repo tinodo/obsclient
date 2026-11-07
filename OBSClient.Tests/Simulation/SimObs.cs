@@ -648,19 +648,30 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         // obs-websocket answers a batch that it gets while it is not ready with 207 for every request of it, or for the first one only when it halts on
-        // failure (WebSocketServer::ProcessMessage). Nothing of the batch runs.
+        // failure (WebSocketServer::ProcessMessage). Nothing of the batch runs, so the request type is not looked at: ConstructRequestResult writes it back as it
+        // came, whatever JSON it is (the empty string that stands for one that is not a string is made only when the server is ready).
+        // ASSUMPTION: a request without a requestType is written back with a null one (obs-websocket reads a member that is not there, which nlohmann::json does
+        // not define for a constant object).
         private static string NotReadyBatchResponse(JsonNode? requestId, JsonArray requests, bool haltOnFailure)
         {
-            var labels = new List<(string Type, JsonNode? Id)>();
-            var results = new List<SimResult>();
+            var list = new JsonArray();
             foreach (var node in haltOnFailure ? requests.Take(1) : requests)
             {
                 var item = node as JsonObject ?? new JsonObject();
-                labels.Add((TypeOf(item), item["requestId"]));
-                results.Add(SimResult.Fail(SimStatus.NotReady, NotReadyComment));
+                var members = new List<(string Name, JsonNode? Value)>
+                {
+                    ("requestStatus", Status(SimResult.Fail(SimStatus.NotReady, NotReadyComment))),
+                    ("requestType", item["requestType"]?.DeepClone()),
+                };
+                if (item["requestId"] is { } id)
+                {
+                    members.Add(("requestId", Sorted(id)));
+                }
+
+                list.Add(Obj(members.ToArray()));
             }
 
-            return BatchResponse(requestId, labels, results);
+            return BatchEnvelope(requestId, list);
         }
 
         // obs-websocket replaces a requestType that is not a string by an empty one, which it then answers with 203.
@@ -677,10 +688,15 @@ namespace OBSStudioClient.Tests.Simulation
                 list.Add(ResponseData(labels[index].Type, labels[index].Id, results[index], includeNullId: false));
             }
 
-            // The ID is whatever JSON the client sent (obs-websocket keeps it as a JSON value), written back as obs-websocket writes any JSON: the members
-            // of every object in alphabetical order.
+            return BatchEnvelope(requestId, list);
+        }
+
+        // The ID is whatever JSON the client sent (obs-websocket keeps it as a JSON value), written back as obs-websocket writes any JSON: the members
+        // of every object in alphabetical order.
+        private static string BatchEnvelope(JsonNode? requestId, JsonArray results)
+        {
             return Serialize(Obj(
-                ("d", Obj(("requestId", Sorted(requestId)), ("results", list))),
+                ("d", Obj(("requestId", Sorted(requestId)), ("results", results))),
                 ("op", SimOp.RequestBatchResponse)));
         }
 
