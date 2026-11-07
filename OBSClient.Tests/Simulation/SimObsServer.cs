@@ -306,7 +306,18 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 while (!token.IsCancellationRequested)
                 {
-                    var client = await _listener.AcceptTcpClientAsync(token).ConfigureAwait(false);
+                    TcpClient client;
+                    try
+                    {
+                        client = await _listener.AcceptTcpClientAsync(token).ConfigureAwait(false);
+                    }
+                    catch (SocketException exception) when (exception.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+                    {
+                        // A client that was ended while it connected can reset its connection before it is accepted, and the accept reports that: the connection is gone, and
+                        // the next one is accepted all the same (the loop used to end here, and every later client waited in the backlog for good).
+                        continue;
+                    }
+
                     lock (_tasks)
                     {
                         _tasks.Add(Task.Run(() => ServeAsync(client, token)));
