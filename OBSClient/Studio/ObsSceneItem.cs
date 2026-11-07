@@ -15,7 +15,7 @@ namespace OBSStudioClient.Studio
     /// A reference to a scene item that was removed stays valid: <see cref="IsRemoved"/> is true.
     /// </para>
     /// </remarks>
-    public sealed class ObsSceneItem : INotifyPropertyChanged
+    public sealed partial class ObsSceneItem : INotifyPropertyChanged
     {
         private int _index;
         private bool _enabled;

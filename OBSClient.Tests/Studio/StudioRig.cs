@@ -16,6 +16,7 @@ namespace OBSStudioClient.Tests.Studio
         private readonly FakeObsWebSocketServer _server = new();
         private readonly SemaphoreSlim _write = new(1, 1);
         private readonly object _worldLock = new();
+        private readonly List<string> _requestLog = [];
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
         private int _batches;
@@ -29,6 +30,25 @@ namespace OBSStudioClient.Tests.Studio
 
         /// <summary>Gets or sets whether the batches of reads are answered.</summary>
         public bool AnswerBatches { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets what answers a request before the world does (the changes of the application are not in the world): null leaves the request to the world, a code of
+        /// 0 means that the batch is not answered at all, and anything else is the code and the data of the answer. It runs on the thread that answers, so it can hold the
+        /// answers back by blocking.
+        /// </summary>
+        public Func<string, JsonElement?, (int Code, object? Data)?>? OnRequest { get; set; }
+
+        /// <summary>Gets the types of the requests that were received, in the order in which they were read.</summary>
+        public string[] RequestLog
+        {
+            get
+            {
+                lock (this._worldLock)
+                {
+                    return this._requestLog.ToArray();
+                }
+            }
+        }
 
         /// <summary>Gets the number of batches that were received.</summary>
         public int Batches => Volatile.Read(ref this._batches);
@@ -160,13 +180,26 @@ namespace OBSStudioClient.Tests.Studio
             foreach (var request in d.GetProperty("requests").EnumerateArray())
             {
                 var type = request.GetProperty("requestType").GetString()!;
-                var (code, data) = this.Answer(type, request.TryGetProperty("requestData", out var requestData) ? requestData : null);
+                JsonElement? data = request.TryGetProperty("requestData", out var requestData) ? requestData : null;
+                lock (this._worldLock)
+                {
+                    this._requestLog.Add(type);
+                }
+
+                var custom = this.OnRequest?.Invoke(type, data);
+                if (custom is { Code: 0 })
+                {
+                    // Nobody answers this batch.
+                    return;
+                }
+
+                var (code, answer) = custom ?? this.Answer(type, data);
                 results.Add(new
                 {
                     requestType = type,
                     requestId = request.GetProperty("requestId").GetString(),
                     requestStatus = new { result = code == 100, code },
-                    responseData = data,
+                    responseData = answer,
                 });
             }
 

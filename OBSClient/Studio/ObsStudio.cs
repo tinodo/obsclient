@@ -32,6 +32,14 @@ namespace OBSStudioClient.Studio
     /// you see changes between two reads. The notifications (<see cref="Changed"/> and the PropertyChanged events) are raised one at a time, in order,
     /// outside that thread (see <see cref="ObsStudioOptions.NotificationContext"/>).
     /// </para>
+    /// <para>
+    /// Changes are methods on the objects, for example <see cref="ObsSceneItem.SetEnabledAsync"/>, <see cref="ObsInput.SetMutedAsync"/> and
+    /// <see cref="ObsScene.SwitchToAsync"/>. They are made one at a time, in the order in which you ask for them (OBS Studio can answer requests that arrive together in any
+    /// order), and each returns when the model shows the change, so that what you read next is what you changed. A change is never made twice: when OBS Studio does not
+    /// answer, or the connection ends, the call ends with an <see cref="ObsUnknownOutcomeException"/>, and the model reads again what the change was about. A change is not
+    /// sent when there is no connection (<see cref="ObsNotConnectedException"/>), while OBS Studio changes its scene collection (<see cref="ObsNotReadyException"/>), or to
+    /// something that OBS Studio removed (<see cref="ObsRemovedException"/>).
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -57,6 +65,7 @@ namespace OBSStudioClient.Studio
         private readonly ILogger _logger;
         private readonly StudioNotifier _notifier;
         private readonly StudioHost _host;
+        private readonly StudioWriter _writer;
         private readonly object _stateLock = new();
         private volatile StudioView _view;
         private volatile ObsStudioState _state;
@@ -108,13 +117,16 @@ namespace OBSStudioClient.Studio
             this._logger = logger ?? NullLogger.Instance;
             this._notifier = new StudioNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new StudioHost(this, client, this._options, this._logger, this._notifier);
+            this._writer = new StudioWriter(client, this._host, this._options, this._logger);
             this._view = this._host.View;
             try
             {
                 this._host.Start();
+                this._writer.Start();
             }
             catch
             {
+                this._writer.Stop();
                 if (ownsClient)
                 {
                     client.Dispose();
@@ -230,6 +242,9 @@ namespace OBSStudioClient.Studio
         // The host, for the tests that bring about an order in which things reach it, or make it fail.
         internal StudioHost Host => this._host;
 
+        // The line that the changes of the application go through (ObsSceneItem.SetEnabledAsync, and so on).
+        internal StudioWriter Writer => this._writer;
+
         // How long a disconnect and a stop wait for the model and the client. For the tests.
         internal TimeSpan DisconnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
@@ -258,6 +273,8 @@ namespace OBSStudioClient.Studio
         {
             ValidateTimeout(options.ReadTimeout, nameof(options.ReadTimeout));
             ValidateTimeout(options.SynchronizationTimeout, nameof(options.SynchronizationTimeout));
+            ValidateTimeout(options.ConfirmationTimeout, nameof(options.ConfirmationTimeout));
+            ValidateTimeout(options.WriteTimeout, nameof(options.WriteTimeout));
             ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxPendingNotifications, 1, nameof(options.MaxPendingNotifications));
         }
 
@@ -771,6 +788,9 @@ namespace OBSStudioClient.Studio
 
         private void StopEverything()
         {
+            // The changes that wait are not sent, and the ones that are under way are given up, before the connection ends: otherwise a change that waits could be sent to a
+            // connection that is closing, and say that it is not connected, when what happened is that the studio was disposed of.
+            this._writer.Stop();
             this.CancelConnecting();
             try
             {

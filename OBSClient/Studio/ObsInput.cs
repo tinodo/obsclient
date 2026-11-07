@@ -3,7 +3,7 @@ namespace OBSStudioClient.Studio
     /// <summary>
     /// An input of OBS Studio: a source of video, audio or both (a camera, a microphone, an image, a browser source, and so on).
     /// </summary>
-    public sealed class ObsInput : ObsSource
+    public sealed partial class ObsInput : ObsSource
     {
         private bool _muted;
         private float _volumeMul = 1f;

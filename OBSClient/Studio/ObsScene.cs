@@ -7,7 +7,7 @@ namespace OBSStudioClient.Studio
     /// A group of OBS Studio is a scene too (<see cref="IsGroup"/>): it is not in <see cref="ObsStudio.Scenes"/>, but it is the
     /// <see cref="ObsSceneItem.Source"/> of the scene item that shows it.
     /// </remarks>
-    public sealed class ObsScene : ObsSource
+    public sealed partial class ObsScene : ObsSource
     {
         private ObsSceneItems _items;
         private int _index = -1;

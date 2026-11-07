@@ -90,6 +90,28 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
+        // A part of the model is read again as soon as it can be, because the application asked for it: a change that it made was not shown by the events in
+        // time (or they were lost), or the answer to it was not known. Nothing is read while OBS Studio changes its scene collection, or without a connection.
+        public void RequestRefresh(ReadKind kind, Guid target, TimeSpan now)
+        {
+            this._now = now;
+            if (this._state == StudioEngineState.Disconnected || this._switching)
+            {
+                return;
+            }
+
+            ScopeState? scope = kind switch
+            {
+                ReadKind.Scenes => this._scenesScope,
+                ReadKind.Inputs => this._inputsScope,
+                ReadKind.Program => this._programScope,
+                ReadKind.StudioMode => this._studioScope,
+                ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
+                _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
+            };
+            scope?.MarkDirtyNotBefore(this._now);
+        }
+
         // The part is read again, after a wait that gets longer every time.
         private void Retry(ScopeState scope)
         {

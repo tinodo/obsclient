@@ -55,8 +55,11 @@ namespace OBSStudioClient.Studio
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
         private readonly List<TaskCompletionSource> _settleWaiters = new();
+        private readonly List<ConfirmWaiter> _confirmWaiters = new();
         private readonly List<TaskCompletionSource> _disconnectWaiters = new();
+        private volatile WriteGate _gate = new(0, false, 0);
         private int _settleWaiterCount;
+        private int _confirmWaiterCount;
         private int _disconnectWaiterCount;
         private Task _loop = Task.CompletedTask;
         private ITimer? _timer;
@@ -96,10 +99,23 @@ namespace OBSStudioClient.Studio
             ReadFailed,
             Wake,
             Settle,
+            Confirm,
+            Refresh,
             Disconnect,
             ReconnectChanged,
             Prune,
         }
+
+        /// <summary>
+        /// What a change that the application makes needs to know about the connection and the scene collection, from any thread: the loop publishes it after every item.
+        /// </summary>
+        /// <param name="Session">The connection that the model follows, or 0 when there is none.</param>
+        /// <param name="Switching">Whether OBS Studio is changing its scene collection: it takes no change meanwhile.</param>
+        /// <param name="Epoch">The number of the scene collection that the model is of; it goes up each time that OBS Studio has changed it.</param>
+        internal sealed record WriteGate(int Session, bool Switching, int Epoch);
+
+        /// <summary>Gets what a change that the application makes needs to know about the connection and the scene collection.</summary>
+        public WriteGate Gate => this._gate;
 
         /// <summary>Gets what is published now.</summary>
         public StudioView View => this._publisher.View;
@@ -148,6 +164,9 @@ namespace OBSStudioClient.Studio
 
         /// <summary>Gets the number of waits for the model to settle that the loop holds. It is for tests.</summary>
         internal int SettleWaiterCount => Volatile.Read(ref this._settleWaiterCount);
+
+        /// <summary>Gets the number of waits for the model to show something that the loop holds. It is for tests.</summary>
+        internal int ConfirmWaiterCount => Volatile.Read(ref this._confirmWaiterCount);
 
         /// <summary>Gets the number of waits for the end of the connection that the loop holds. It is for tests.</summary>
         internal int DisconnectWaiterCount => Volatile.Read(ref this._disconnectWaiterCount);
@@ -213,6 +232,30 @@ namespace OBSStudioClient.Studio
         }
 
         /// <summary>
+        /// Returns a task that completes when <paramref name="predicate"/> is true: it is looked at once, and after every step of the loop that publishes what the model
+        /// holds. The predicate runs on the loop, so it must only read the objects of the studio, and be quick. When the token ends first, the task is cancelled and the loop
+        /// forgets the wait; when the connection ends or the loop stops, the task fails.
+        /// </summary>
+        /// <param name="predicate">What is waited for.</param>
+        /// <param name="cancellationToken">A token that ends the wait.</param>
+        /// <returns>A task that completes when the predicate is true.</returns>
+        public Task ConfirmAsync(Func<bool> predicate, CancellationToken cancellationToken)
+        {
+            return this.AddWaiter(HostItemKind.Confirm, cancellationToken, predicate);
+        }
+
+        /// <summary>
+        /// Asks the model to read the given parts again, and returns a task that completes when it has applied the answers and has nothing left to read.
+        /// </summary>
+        /// <param name="targets">The parts.</param>
+        /// <param name="cancellationToken">A token that ends the wait (the parts are read all the same).</param>
+        /// <returns>A task that completes when the model is up to date.</returns>
+        public Task RefreshAsync(IReadOnlyList<RefreshTarget> targets, CancellationToken cancellationToken)
+        {
+            return this.AddWaiter(HostItemKind.Refresh, cancellationToken, targets: targets);
+        }
+
+        /// <summary>
         /// Returns a task that completes when the connection that the client had is over, and the model knows. It is for the end of the connection that the
         /// application just asked for; when the model has not been told within the time, it is a <see cref="TimeoutException"/>, and the loop forgets the wait.
         /// </summary>
@@ -231,10 +274,10 @@ namespace OBSStudioClient.Studio
 
         // Asks the loop to keep a wait, and to forget it when the token ends: a wait that ended without being forgotten would stay in the loop for as long as the
         // model does not settle, or the connection does not end.
-        private Task AddWaiter(HostItemKind kind, CancellationToken cancellationToken)
+        private Task AddWaiter(HostItemKind kind, CancellationToken cancellationToken, Func<bool>? predicate = null, IReadOnlyList<RefreshTarget>? targets = null)
         {
             var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!this.Post(new HostItem { Kind = kind, Waiter = waiter }))
+            if (!this.Post(new HostItem { Kind = kind, Waiter = waiter, Predicate = predicate, Targets = targets }))
             {
                 // The loop has ended: nothing will end a connection or settle the model any more.
                 if (kind == HostItemKind.Disconnect)
@@ -408,6 +451,34 @@ namespace OBSStudioClient.Studio
                     }
 
                     break;
+                case HostItemKind.Confirm:
+                    if (this._engine.State == StudioEngineState.Disconnected)
+                    {
+                        item.Waiter!.TrySetException(new ObsNotConnectedException());
+                    }
+                    else
+                    {
+                        this._confirmWaiters.Add(new ConfirmWaiter(item.Predicate!, item.Waiter!));
+                    }
+
+                    break;
+                case HostItemKind.Refresh:
+                    if (this._engine.State == StudioEngineState.Disconnected)
+                    {
+                        item.Waiter!.TrySetException(new ObsNotConnectedException());
+                    }
+                    else
+                    {
+                        foreach (var target in item.Targets!)
+                        {
+                            this._engine.RequestRefresh(target.Kind, target.Target, now);
+                        }
+
+                        // The wait is for the model to settle, and the parts were marked in this same step: it can not settle before they are read.
+                        this._settleWaiters.Add(item.Waiter!);
+                    }
+
+                    break;
                 case HostItemKind.Disconnect:
                     if (this._session == 0)
                     {
@@ -425,13 +496,16 @@ namespace OBSStudioClient.Studio
                     break;
                 case HostItemKind.Prune:
                     this._settleWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    this._confirmWaiters.RemoveAll(static waiter => waiter.Done.Task.IsCompleted);
                     this._disconnectWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
                     break;
             }
 
             this.PumpReads(now);
             this.PublishStep(before);
+            this.PublishGate();
             this.ReleaseWaiters();
+            this.ReleaseConfirmations();
             this.ArmTimer(this.Now());
             this.PublishWaiterCounts();
         }
@@ -750,6 +824,55 @@ namespace OBSStudioClient.Studio
             }
 
             this._settleWaiters.Clear();
+            foreach (var waiter in this._confirmWaiters)
+            {
+                waiter.Done.TrySetException(exception);
+            }
+
+            this._confirmWaiters.Clear();
+        }
+
+        // Whoever waits for the model to show something has what it waited for, or is told when the predicate fails. The predicates read the objects that were just
+        // published, so this comes after PublishStep.
+        private void ReleaseConfirmations()
+        {
+            for (var i = this._confirmWaiters.Count - 1; i >= 0; i--)
+            {
+                var waiter = this._confirmWaiters[i];
+                if (waiter.Done.Task.IsCompleted)
+                {
+                    this._confirmWaiters.RemoveAt(i);
+                    continue;
+                }
+
+                try
+                {
+                    if (!waiter.Predicate())
+                    {
+                        continue;
+                    }
+
+                    waiter.Done.TrySetResult();
+                }
+                catch (Exception ex)
+                {
+                    waiter.Done.TrySetException(ex);
+                }
+
+                this._confirmWaiters.RemoveAt(i);
+            }
+        }
+
+        // What a change that the application makes needs to know: published after every item, and only made new when it differs.
+        private void PublishGate()
+        {
+            var gate = this._gate;
+            var switching = this._engine.IsSwitching;
+            var epoch = this._engine.Epoch;
+            if (gate.Session != this._session || gate.Switching != switching || gate.Epoch != epoch)
+            {
+                this._gate = new WriteGate(this._session, switching, epoch);
+            }
         }
 
         // The connection is over, or the loop has ended: whoever waits for the end of the connection has what it waited for.
@@ -766,6 +889,7 @@ namespace OBSStudioClient.Studio
         private void PublishWaiterCounts()
         {
             Volatile.Write(ref this._settleWaiterCount, this._settleWaiters.Count);
+            Volatile.Write(ref this._confirmWaiterCount, this._confirmWaiters.Count);
             Volatile.Write(ref this._disconnectWaiterCount, this._disconnectWaiters.Count);
         }
 
@@ -877,6 +1001,9 @@ namespace OBSStudioClient.Studio
             return true;
         }
 
+        // A wait for the model to show something: the predicate is looked at after every step that publishes (ReleaseConfirmations).
+        private sealed record ConfirmWaiter(Func<bool> Predicate, TaskCompletionSource Done);
+
         private readonly struct HostItem
         {
             public HostItemKind Kind { get; init; }
@@ -894,6 +1021,10 @@ namespace OBSStudioClient.Studio
             public Exception? Error { get; init; }
 
             public TaskCompletionSource? Waiter { get; init; }
+
+            public Func<bool>? Predicate { get; init; }
+
+            public IReadOnlyList<RefreshTarget>? Targets { get; init; }
 
             // The time at which the item was put in the inbox (a timestamp of the time provider), which is the time that the loop gives it.
             public long Stamp { get; init; }
