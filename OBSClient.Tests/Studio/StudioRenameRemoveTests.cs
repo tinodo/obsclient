@@ -813,6 +813,131 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AScene_RemovedRightAfterAQueuedSwitchToIt_ReturnsWhenTheModelHasReadTheProgramSceneThatOBSStudioHas()
+        {
+            // The switch is answered, and the model has not seen it (no event, and its reads are held back) when the removal has its turn: the model does not show the scene as the program
+            // scene then, so a removal that waited for the program scene only when the model showed the scene as one would return with the program scene from before the switch.
+            await using var test = await ByNameFixture.StartAsync();
+            var spare = test.Studio.Scenes["Spare"];
+            var before = test.Studio.ProgramScene!;
+            var hold = 1;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetCurrentProgramScene":
+                        test.Responder.Change(world => world.Program = Uuid(data, "sceneUuid"));
+                        return (100, null);
+                    case "RemoveScene":
+                        test.RemoveScene(Uuid(data, "sceneUuid"));
+                        test.Responder.Change(world => world.Program = world.Scenes[0].Uuid);
+                        return (100, null);
+                    case "GetCurrentProgramScene":
+                        return Volatile.Read(ref hold) == 1 ? (-1, null) : null;
+                    default:
+                        return null;
+                }
+            });
+            Assert.Equal("Scene", before.Name);
+
+            var switched = spare.SwitchToAsync();
+            var remove = spare.RemoveAsync();
+            await StudioRig.EventuallyAsync(() => spare.IsRemoved, "the scene to be removed in the model");
+            await Task.Delay(300);
+
+            // The model shows the scene removed, and the program scene that it had before the switch: OBS Studio has another one. The call has not returned: the model reads the program scene
+            // after the removal, and that read is held back.
+            Assert.False(remove.IsCompleted);
+            Assert.True(before.IsProgram);
+            Assert.True(test.Responder.HeldCount >= 1);
+            Volatile.Write(ref hold, 0);
+            await test.Responder.AnswerHeldAsync(type => type == "GetCurrentProgramScene" ? (100, new { sceneName = "Chatting", sceneUuid = test.Chatting }) : (100, null));
+            await remove.WithTimeoutAsync(Timeout);
+            await switched.WithTimeoutAsync(Timeout);
+
+            Assert.False(before.IsProgram);
+            Assert.Same(test.Studio.Scenes["Chatting"], test.Studio.ProgramScene);
+        }
+
+        [Fact]
+        public async Task AProgramScene_WhoseSceneItemOBSStudioRefuses_EndsTheCallWhenTheModelHasReadTheProgramSceneThatOBSStudioHas()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            test.Responder.Change(world => world.Program = test.Chatting);
+            await test.Responder.SendEventAsync("CurrentProgramSceneChanged", new { sceneName = "Chatting", sceneUuid = test.Chatting }, 4);
+            await StudioRig.EventuallyAsync(() => chatting.IsProgram, "the model to show the scene as the program scene");
+            var hold = 1;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                switch (type)
+                {
+                    case "RemoveScene":
+                        test.RemoveScene(Uuid(data, "sceneUuid"));
+                        test.Responder.Change(world => world.Program = world.Scenes[0].Uuid);
+                        return (100, null);
+                    case "RemoveSceneItem":
+                        return (600, null);
+                    case "GetCurrentProgramScene":
+                        return Volatile.Read(ref hold) == 1 ? (-1, null) : null;
+                    default:
+                        return null;
+                }
+            });
+
+            var remove = chatting.RemoveAsync();
+            await StudioRig.EventuallyAsync(() => chatting.IsRemoved, "the scene to be removed in the model");
+            await StudioRig.EventuallyAsync(() => test.Responder.HeldCount >= 1, "the read of the program scene to be held");
+            await Task.Delay(300);
+
+            // The scene is removed, the scene item that shows it is refused, and the model still shows the scene as the program scene: the call has not ended with the refusal.
+            Assert.True(chatting.IsProgram);
+            Assert.False(remove.IsCompleted);
+            Volatile.Write(ref hold, 0);
+            await test.Responder.AnswerHeldAsync(type => type == "GetCurrentProgramScene" ? (100, new { sceneName = "Spare", sceneUuid = test.Spare }) : (100, null));
+            var refused = await Assert.ThrowsAsync<ObsResponseException>(() => remove.WithTimeoutAsync(Timeout));
+
+            Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
+            Assert.False(chatting.IsProgram);
+            Assert.Same(test.Studio.Scenes["Spare"], test.Studio.ProgramScene);
+        }
+
+        [Fact]
+        public async Task ARefusalBecauseOBSStudioIsNotReady_OfTheFirstRequestOfTheRemovalOfADetachedObject_SaysThatNothingWasChanged()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            test.RemoveScene(test.Chatting);
+            await StudioRig.EventuallyAsync(() => chatting.State == ObsObjectState.Detached, "the scene to be detached");
+            await test.DetachAsync("Overlay", test.Overlay);
+            var overlay = test.FindDetached(test.Overlay);
+            test.Responder.OnRequest = (type, data) => type == "RemoveSceneItem" ? (207, null) : null;
+
+            // The first request of the batch is a scene item of a source that is removed already: nothing was changed, and the exception is the one that says so.
+            var scene = await Assert.ThrowsAsync<ObsNotReadyException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
+            var input = await Assert.ThrowsAsync<ObsNotReadyException>(() => overlay.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Contains("removing scene 'Chatting': it is changing its scene collection. Nothing was changed.", scene.Message);
+            Assert.Contains("removing input 'Overlay': it is changing its scene collection. Nothing was changed.", input.Message);
+            Assert.Equal(ObsObjectState.Detached, chatting.State);
+        }
+
+        [Fact]
+        public async Task ARefusalOfTheFirstSceneItemOfADetachedObject_SaysThatNoRequestWasMadeBeforeIt()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            await test.DetachAsync("Overlay", test.Overlay);
+            var overlay = test.FindDetached(test.Overlay);
+            test.Responder.OnRequest = (type, data) => type == "RemoveSceneItem" ? (600, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsResponseException>(() => overlay.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Equal(RequestStatusCode.ResourceNotFound, exception.ErrorCode);
+            Assert.Contains("None of the requests of this call were made before it: the source was removed already", exception.Message);
+            Assert.DoesNotContain("The requests before it were made", exception.Message);
+        }
+
+        [Fact]
         public async Task AnInput_ThatWasRemoved_IsNotShownOrHidden()
         {
             await using var test = await ByNameFixture.StartAsync();

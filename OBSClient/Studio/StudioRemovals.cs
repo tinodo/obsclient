@@ -88,10 +88,18 @@ namespace OBSStudioClient.Studio
 
             var item = showing[position];
             var status = response.RequestStatus;
+            if (index == 0 && status.Code == RequestStatusCode.NotReady)
+            {
+                // Nothing was sent before it: the default says that nothing was changed (ObsNotReadyException).
+                return null;
+            }
+
+            var before = index == 0
+                ? "None of the requests of this call were made before it: the source was removed already, and OBS Studio keeps it alive for the scene items that are left."
+                : "The requests before it were made, and the ones after it were not: the source is removed, and OBS Studio keeps it alive for the scene items that are left.";
             return new ObsResponseException(
                 status.Code,
-                $"OBS Studio refused to remove scene item {item.Id} of scene '{item.Scene.Name}' while {description}: {(status.Comment ?? status.Code.ToString()).TrimEnd('.')}. "
-                + "The requests before it were made, and the ones after it were not: the source is removed, and OBS Studio keeps it alive for the scene items that are left. Call RemoveAsync again to remove them.");
+                $"OBS Studio refused to remove scene item {item.Id} of scene '{item.Scene.Name}' while {description}: {(status.Comment ?? status.Code.ToString()).TrimEnd('.')}. {before} Call RemoveAsync again to remove them.");
         }
     }
 }

@@ -247,7 +247,9 @@ namespace OBSStudioClient.Studio
         /// </para>
         /// <para>
         /// What the scene shows is destroyed with it: the inputs that only this scene showed are destroyed by OBS Studio a moment after the scene, and the model learns of that from its
-        /// events. If the scene is the program scene, OBS Studio makes the first scene of the list the program scene. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of
+        /// events. If the scene is the program scene, OBS Studio makes the first scene of the list the program scene: the call returns when the model has read the program scene again after the removal (whatever
+        /// the events said, and also when a switch to this scene was asked for just before and the model did not show it yet), so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now.
+        /// See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of
         /// changes and the wait.
         /// </para>
         /// </remarks>
@@ -256,7 +258,6 @@ namespace OBSStudioClient.Studio
             var description = $"removing scene '{this.Name}'";
             ObsSceneItem[] showing = [];
             var includesRemoval = false;
-            var wasProgram = false;
             return this.Studio.Writer.ExecuteAsync<object?>(
                 new WriteJob
                 {
@@ -267,21 +268,19 @@ namespace OBSStudioClient.Studio
                     {
                         showing = this.GetSceneItems().Where(item => !item.IsRemoved).ToArray();
                         includesRemoval = this.State == ObsObjectState.Live;
-                        wasProgram = this.IsProgram;
                         return StudioRemovals.Requests(includesRemoval ? new WriteRequest(RequestType.RemoveScene, new { sceneUuid = this.Uuid }) : null, showing);
                     },
                     ReadResponses = _ => showing,
-
-                    // When the scene was the program scene, OBS Studio makes another one the program scene, and the call returns when the model shows that too.
-                    IsConfirmed = result => this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved) && (!wasProgram || !this.IsProgram),
+                    IsConfirmed = result => this.IsRemoved && ((ObsSceneItem[])result!).All(item => item.IsRemoved),
                     Finish = static _ => null,
                     Refresh = [new RefreshTarget(ReadKind.Scenes)],
                     RefreshAtTurn = () =>
                     [
                         new RefreshTarget(ReadKind.Scenes),
-                        .. wasProgram ? [new RefreshTarget(ReadKind.Program)] : Array.Empty<RefreshTarget>(),
+                        new RefreshTarget(ReadKind.Program),
                         .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct(),
                     ],
+                    ObserveAtTurn = () => includesRemoval ? [new RefreshTarget(ReadKind.Program)] : [],
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
                     Reconcile = index => StudioRemovals.Reconciled(this, includesRemoval, showing, index),
                 },

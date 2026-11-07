@@ -100,6 +100,18 @@ namespace OBSStudioClient.Studio
         public Func<int, Func<bool>?>? Reconcile { get; init; }
 
         /// <summary>
+        /// Gets what makes <see cref="Observe"/> when the change has its turn, right after <see cref="BuildRequests"/>.
+        /// </summary>
+        public Func<IReadOnlyList<RefreshTarget>>? ObserveAtTurn { get; init; }
+
+        /// <summary>
+        /// Gets the parts of the model that are read once more after the answer to the change, whatever the events said, before the call ends: a side effect of the change that OBS Studio
+        /// announces late or not at all, and that the model can not tell from what it shows (a scene that is removed while a queued switch makes it the program scene: the model does not
+        /// show yet that it is). The call ends when the parts have been read (a read that does not come in time is not an error: the change itself is shown).
+        /// </summary>
+        public IReadOnlyList<RefreshTarget> Observe { get; internal set; } = [];
+
+        /// <summary>
         /// Gets the parts of the model that a read has to cover as well once the result of the change is known: what the change made has parts of its own that the model reads
         /// before it shows the object (the audio of an input, which the list of inputs does not say), and that no read of <see cref="Refresh"/> covers, because the object is not
         /// in the model before the list that shows it has been read. A part that the model does not have has nothing to read.
@@ -515,6 +527,11 @@ namespace OBSStudioClient.Studio
                 {
                     job.Refresh = atTurn();
                 }
+
+                if (job.ObserveAtTurn is { } observeAtTurn)
+                {
+                    job.Observe = observeAtTurn();
+                }
             }
             catch (OperationCanceledException) when (job.Cancellation.IsCancellationRequested)
             {
@@ -663,6 +680,7 @@ namespace OBSStudioClient.Studio
             {
                 await this.WaitForModelAsync(job, null, reconciled).ConfigureAwait(false);
                 this.RefreshDetached(job);
+                await this.ObserveAfterAsync(job).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -683,6 +701,7 @@ namespace OBSStudioClient.Studio
             {
                 await this.WaitForModelAsync(job, result).ConfigureAwait(false);
                 this.RefreshDetached(job);
+                await this.ObserveAfterAsync(job).ConfigureAwait(false);
                 if (!job.IsCompleted)
                 {
                     job.Complete(job.Finish(result));
@@ -725,6 +744,28 @@ namespace OBSStudioClient.Studio
             }
 
             return false;
+        }
+
+        // The parts that the change names for it (WriteJob.Observe) are read once more after the answer, and the call ends when they have been read: the model shows the change by the
+        // events, and what the change did to the parts that these name (the program scene that OBS Studio replaces when it is removed) is only known by a read. A read that does not
+        // come in time is no error: the change itself is shown, and the model goes on reading the part by itself.
+        private async Task ObserveAfterAsync(WriteJob job)
+        {
+            if (job.Observe.Count == 0 || this.Left(job))
+            {
+                return;
+            }
+
+            using var limit = new CancellationTokenSource(Shortest(this._readTimeout + this._readTimeout, LongestTimer), this._time);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
+            try
+            {
+                await this._host.RefreshAsync(job.Observe, linked.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogDebug(ex, "The model was not read again in time after {Description}.", job.Description);
+            }
         }
 
         private bool IsShown(WriteJob job, object? result, Func<bool>? shown = null)
