@@ -401,8 +401,11 @@ namespace OBSStudioClient.Studio
                     if (!this.Wants(ingress))
                     {
                         // A connection that nobody asked for: the call of ConnectAsync that made it was ended (a token, DisconnectAsync, a disposal), and has unwound,
-                        // and its start reached the loop late. Its end is on its way, and finds nothing to end here (this is not the connection of the loop). Following
-                        // it would publish Synchronizing for a connection that is on its way out, and refuse the application that connects again in that moment.
+                        // and its start reached the loop late; or the client made it by itself (a reconnect that was queued when DisconnectAsync ended the one
+                        // before). It is not followed: that would publish Synchronizing for a connection that is on its way out, and refuse the application that
+                        // connects again in that moment. And it is not left connected and untracked either: the connection of that session is ended (a connection
+                        // that is ending already stays as it is, and so does one that was made in its place).
+                        this.EndSessionOffLoop(ingress.SessionId);
                         break;
                     }
 

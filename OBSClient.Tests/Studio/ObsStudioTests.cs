@@ -324,6 +324,25 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AConnectionThatNobodyAskedFor_IsEndedAndNotFollowed()
+        {
+            await using var rig = StudioRig.Create();
+
+            // The client is connected by somebody else: the application, which must not, or a reconnect that was queued when DisconnectAsync ended the connection
+            // before it. The model does not follow it, and does not leave it connected and untracked either.
+            var connected = await rig.Studio.Client.ConnectAsync(hostname: "127.0.0.1", port: rig.Responder.Port).WithTimeoutAsync(Timeout);
+            Assert.True(connected);
+
+            await StudioRig.EventuallyAsync(() => rig.Studio.Client.ConnectionState == ConnectionState.Disconnected, "the connection that nobody asked for to be ended");
+            Assert.Equal(ObsStudioState.Disconnected, rig.Studio.State);
+            Assert.False(rig.Studio.Client.AutoReconnect);
+
+            // The application can connect the studio as usual afterwards.
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsStudioState.Synchronized, rig.Studio.State);
+        }
+
+        [Fact]
         public async Task ARetryWhileTheStartOfTheFirstConnectionIsStillQueued_IsNotBoundToThatConnection()
         {
             await using var rig = StudioRig.Create(options: new ObsStudioOptions { SynchronizationTimeout = TimeSpan.FromMilliseconds(1500) });
@@ -885,11 +904,9 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task TheWaitForTheClientToBeClosed_EndsWhenItIsClosed_WhenTheTimeIsUp_AndWhenItIsCancelled()
         {
-            await using var responder = new WorldResponder();
-            responder.Start();
-            using var client = new ObsClient();
-            using var obs = new ObsStudio(client);
-            Assert.True(await client.ConnectAsync(hostname: "127.0.0.1", port: responder.Port).WithTimeoutAsync(Timeout));
+            await using var rig = await StudioRig.ConnectedAsync();
+            var obs = rig.Studio;
+            var client = obs.Client;
 
             // The time is up: the caller looks at the state.
             await obs.WaitForClientDisconnectedAsync(TimeSpan.FromMilliseconds(100)).WithTimeoutAsync(Timeout);
