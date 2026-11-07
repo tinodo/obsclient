@@ -52,6 +52,7 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             this.UpdateState();
+            this.CleanUp();
         }
 
         private static Action<StudioEngine, EventMessage> On<TData>(Action<StudioEngine, TData> handle)
@@ -132,7 +133,7 @@ namespace OBSStudioClient.Studio.Engine
             {
                 // Not known (yet): a copy of its creation that arrives later must not bring it back. A list that has it still decides whether
                 // OBS keeps it alive for a scene item.
-                this._removedUnknown.Add(e.SceneUuid);
+                this._removedUnknown.Add(e.SceneUuid, SourceKind.Scene, this._seq, this._now);
                 return;
             }
 
@@ -218,7 +219,7 @@ namespace OBSStudioClient.Studio.Engine
             if (!this._inputs.TryGetValue(e.InputUuid, out var input))
             {
                 // Not known (yet): see OnSceneRemoved.
-                this._removedUnknown.Add(e.InputUuid);
+                this._removedUnknown.Add(e.InputUuid, SourceKind.Input, this._seq, this._now);
                 return;
             }
 
@@ -327,12 +328,13 @@ namespace OBSStudioClient.Studio.Engine
         {
             var key = new ItemKey(e.SceneUuid, e.SceneItemId);
 
-            // A read was ahead of this event (see HeldByRead): as far as the events go the scene item is gone now too.
+            // A read was ahead of this event (see HeldByRead): as far as the events go the scene item is gone now too. When it was the last that was held for its
+            // source, the source settles (see ReadReleasedItems).
             this._readReleased.Remove(key);
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene) || !scene.Items.TryGetValue(e.SceneItemId, out var item))
             {
                 // Not known (yet): a read that was sent before the removal must not bring the item back.
-                this._goneItems.Add(key);
+                this._goneItems.Add(key, this._now);
                 return;
             }
 

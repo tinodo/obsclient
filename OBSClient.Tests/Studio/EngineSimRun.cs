@@ -15,7 +15,8 @@ namespace OBSStudioClient.Tests.Studio
     /// <param name="Reconnects">The number of times that the connection ended and another began.</param>
     /// <param name="Messages">The number of messages of OBS Studio that arrived.</param>
     /// <param name="Digest">A digest of everything that happened: every operation, every message that arrived with its payload, every read that was sent, and the states that were compared.</param>
-    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages, string Digest);
+    /// <param name="LetGo">The number of things that the engine let go of because it had remembered them for long enough.</param>
+    internal sealed record EngineSimResult(string? Problem, int Reads, int LateResults, int Timeouts, int Reconnects, int Messages, string Digest, long LetGo);
 
     /// <summary>
     /// Runs a <see cref="StudioEngine"/> against a <see cref="SimObs"/> for a random walk: someone else changes OBS Studio at random moments, and the
@@ -122,7 +123,7 @@ namespace OBSStudioClient.Tests.Studio
                 problem = run.Describe("An exception: " + exception);
             }
 
-            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages, run._digest.ToString("x16", CultureInfo.InvariantCulture));
+            return new EngineSimResult(problem, run._reads, run._lateResults, run._timeouts, run._reconnects, run._messages, run._digest.ToString("x16", CultureInfo.InvariantCulture), run._engine.LetGoCount);
         }
 
         public void Connect()

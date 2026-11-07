@@ -34,10 +34,10 @@ namespace OBSStudioClient.Studio.Engine
         private void ReleaseItem(ItemNode item, bool fromRead = false, bool doubtful = false)
         {
             item.Scene.Items.Remove(item.Id);
-            this._goneItems.Add(item.Key);
+            this._goneItems.Add(item.Key, this._now);
             if (fromRead || doubtful)
             {
-                this._readReleased.Add(item.Key, item.SourceUuid);
+                this._readReleased.Add(item.Key, item.SourceUuid, this._now);
             }
 
             if (this._refs.TryGetValue(item.SourceUuid, out var set))
@@ -66,7 +66,8 @@ namespace OBSStudioClient.Studio.Engine
             return this._readReleased.Holds(sourceUuid);
         }
 
-        // The scene items of a scene that an event removed went with it: no event tells about them.
+        // The scene items of a scene that an event removed went with it: no event tells about them. The sources that they were the last held for settle (see
+        // ReadReleasedItems).
         private void ForgetReadReleased(Guid sceneUuid)
         {
             this._readReleased.RemoveScene(sceneUuid);
@@ -120,6 +121,45 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     this.DestroyScene(scene);
                 }
+            }
+        }
+
+        // What was held for a source ended (its time was up). A removed input that no scene item uses is judged as when its last scene item goes (JudgeUnusedInput),
+        // and a scene as OnReferencesChanged says.
+        private void JudgeAgain(Guid sourceUuid)
+        {
+            if (this._inputs.TryGetValue(sourceUuid, out var input))
+            {
+                this.JudgeUnusedInput(input);
+            }
+            else if (this._scenes.TryGetValue(sourceUuid, out var scene) && scene.State == SourceState.Detached)
+            {
+                this.OnReferencesChanged(sourceUuid);
+            }
+        }
+
+        // A removed input that nothing that the model knows uses, and that nothing is held for: OBS destroyed it, or keeps it alive for something that nothing shows
+        // (a global audio input that is assigned to a channel), and in neither case can the application reach it. It is destroyed, as when its last scene item goes.
+        // Not while a check of the list of inputs is pending (its result judges the input again), nor while something is held for it (the end of that judges it again),
+        // nor while it is settling: an event let go of the last scene item that was held for it, and the events that were on their way when the read was taken can
+        // still follow, among them the scene item that OBS made for the input meanwhile (a list says that OBS has the input, not who uses it). The time ends that
+        // (JudgeAgain).
+        private void JudgeUnusedInput(InputNode input)
+        {
+            if (input.State != SourceState.Detached || input.CheckAfter != 0 || this.RefCount(input.Uuid) > 0 || this.HeldByRead(input.Uuid) || this._readReleased.Settling(input.Uuid))
+            {
+                return;
+            }
+
+            if (this.ReferencesComplete())
+            {
+                this.DestroyInput(input);
+            }
+            else if (!input.RemovalUnresolved)
+            {
+                // The count says nothing until the scene items of every scene are known: ResolveRemovals decides then.
+                input.RemovalUnresolved = true;
+                this._unresolved.Add(input.Uuid);
             }
         }
 
@@ -179,9 +219,11 @@ namespace OBSStudioClient.Studio.Engine
                         continue;
                     }
 
-                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    if (this.RefCount(uuid) == 0 && (this.HeldByRead(uuid) || this._readReleased.Settling(uuid)))
                     {
-                        // See HeldByRead: the count is behind OBS, so a read of the list of inputs says.
+                        // See HeldByRead: the count is behind OBS (for an input that is settling, the events that were on their way when the read was taken can still
+                        // follow), so a read of the list of inputs says. A list that lacks the input proves that OBS destroyed it; one that has it leaves the verdict to
+                        // JudgeUnusedInput, which does not judge an input that is settling.
                         this.RequireCheck(input);
                         this._inputsScope.MarkDirty();
                         continue;
@@ -191,11 +233,13 @@ namespace OBSStudioClient.Studio.Engine
                     this._unresolved.Remove(uuid);
                     if (this.RefCount(uuid) == 0)
                     {
-                        this.DestroyInput(input);
+                        this.JudgeUnusedInput(input);
                     }
-                    else
+
+                    if (input.State != SourceState.Gone && !input.RemovalUnresolved)
                     {
-                        // Kept alive, so it exists: its audio state is read, and it is announced when that is known.
+                        // It survived: a scene item uses it, or the judgment leaves the verdict to something else (the time that it settles). It exists, so its audio state
+                        // is read, and it is announced when that is known. Nothing else asks for that: the removal was unresolved, so the list of inputs did not.
                         if (input.HasAudio && !input.AudioKnown)
                         {
                             input.AudioScope.MarkDirty();
@@ -212,9 +256,10 @@ namespace OBSStudioClient.Studio.Engine
                         continue;
                     }
 
-                    if (this.RefCount(uuid) == 0 && this.HeldByRead(uuid))
+                    if (this.RefCount(uuid) == 0 && (this.HeldByRead(uuid) || this._readReleased.Settling(uuid)))
                     {
-                        // See HeldByRead: the count is behind OBS, so a read of the scene items of the scene says.
+                        // See HeldByRead: the count is behind OBS (for a scene that is settling, the events that were on their way when the read was taken can still
+                        // follow), so a read of the scene items of the scene says: OBS has the scene, and it is kept, or it does not, and it is destroyed.
                         this.RequireCheck(scene);
                         scene.ItemsScope.MarkDirty();
                         continue;
@@ -278,7 +323,7 @@ namespace OBSStudioClient.Studio.Engine
             this._unresolved.Remove(input.Uuid);
             this._removedUnknown.Remove(input.Uuid);
             this._inputs.Remove(input.Uuid);
-            this._gone.Add(input.Uuid);
+            this._gone.Add(input.Uuid, SourceKind.Input, this._seq, this._now);
             this._readReleased.RemoveSource(input.Uuid);
             if (input.Announced)
             {
@@ -302,7 +347,7 @@ namespace OBSStudioClient.Studio.Engine
             this._unresolved.Remove(scene.Uuid);
             this._removedUnknown.Remove(scene.Uuid);
             this._scenes.Remove(scene.Uuid);
-            this._gone.Add(scene.Uuid);
+            this._gone.Add(scene.Uuid, SourceKind.Scene, this._seq, this._now);
             this._readReleased.RemoveSource(scene.Uuid);
             if (wasLive && !scene.IsGroup)
             {
