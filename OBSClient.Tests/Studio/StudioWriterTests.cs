@@ -862,6 +862,53 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AnEventThatBeginsASwitch_IsKnownToTheStudioBeforeTheLoggerHasTheMessage_SoNoChangeIsWrittenWhileTheLoggerIsBusy()
+        {
+            // The logger is code of the application, and the receive loop of the client waits for it: what the studio needs to know of the message must not.
+            using var logger = new HoldingLoggerFactory("CurrentSceneCollectionChanging", prefix: "Received: ");
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) }, logger);
+            var before = test.Rig.Studio.Host.CollectionEventsRead;
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            await logger.WaitUntilHoldingAsync();
+
+            // The receive loop has read the event and is in the logger with it. The studio has been told, and a change is refused before it is asked for.
+            Assert.Equal(before + 1, test.Rig.Studio.Host.CollectionEventsRead);
+            var exception = await Assert.ThrowsAsync<ObsNotReadyException>(() => test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout));
+            logger.Release();
+
+            Assert.Contains("scene collection", exception.Message);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task TheWaitsForTheReadsThatFollowAnUnknownOutcome_EndWhenTheTimeForAReadIsUp_WhileOBSStudioKeepsFailingTheReads()
+        {
+            var options = new ObsStudioOptions
+            {
+                ConfirmationTimeout = TimeSpan.FromMilliseconds(300),
+                WriteTimeout = TimeSpan.FromMilliseconds(300),
+                ReadTimeout = TimeSpan.FromMilliseconds(300),
+            };
+            await using var test = await Fixture.StartAsync(options);
+
+            // OBS Studio never answers the changes, and fails every read of the scene items that follows them: the waits for those reads would stay in the loop of the model.
+            test.Rig.Responder.OnRequest = (type, data) => type switch
+            {
+                "SetSceneItemEnabled" => (0, null),
+                "GetSceneItemList" => (205, null),
+                _ => null,
+            };
+
+            for (var i = 0; i < 3; i++)
+            {
+                await Assert.ThrowsAsync<ObsUnknownOutcomeException>(() => test.Camera.SetEnabledAsync(i % 2 == 0).WithTimeoutAsync(Timeout));
+            }
+
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.SettleWaiterCount == 0, "the waits for the reads to end");
+            Assert.Equal(3, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
         public async Task AChangeWhoseMessageIsBeingLogged_IsNotWritten_WhenOBSStudioBeginsToChangeItsSceneCollectionWhileTheLoggerIsBusy()
         {
             // The logger is code of the application, and it takes as long as it takes: the look at whether the batch can still be written has to come after the log.
@@ -1289,17 +1336,19 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { WriteTimeout = TimeSpan.FromDays(25) }));
         }
 
-        // A logger factory whose loggers hold the thread that logs the message about a batch that is about to be written ("Sending: …") when it contains a text, until the test lets
-        // it go: the application's own logger that takes its time.
+        // A logger factory whose loggers hold the thread that logs a message that starts with a prefix ("Sending: …" for the batch that is about to be written, "Received: …" for a message that
+        // was read) and contains a text, until the test lets it go: the application's own logger that takes its time.
         private sealed class HoldingLoggerFactory : ILoggerFactory
         {
             private readonly string _text;
+            private readonly string _prefix;
             private readonly ManualResetEventSlim _holding = new();
             private readonly ManualResetEventSlim _released = new();
 
-            public HoldingLoggerFactory(string text)
+            public HoldingLoggerFactory(string text, string prefix = "Sending: ")
             {
                 this._text = text;
+                this._prefix = prefix;
             }
 
             public Task WaitUntilHoldingAsync()
@@ -1342,7 +1391,7 @@ namespace OBSStudioClient.Tests.Studio
                 public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
                 {
                     var message = formatter(state, exception);
-                    if (message.StartsWith("Sending: ", StringComparison.Ordinal) && message.Contains(owner._text, StringComparison.Ordinal))
+                    if (message.StartsWith(owner._prefix, StringComparison.Ordinal) && message.Contains(owner._text, StringComparison.Ordinal))
                     {
                         owner._holding.Set();
                         owner._released.Wait(Timeout);

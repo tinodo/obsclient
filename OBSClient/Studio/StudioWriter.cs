@@ -690,10 +690,14 @@ namespace OBSStudioClient.Studio
                 return;
             }
 
-            _ = this.ObserveAsync(this._host.RefreshAsync(targets, this._stopping.Token));
+            // Only the read matters, and the model goes on with it by itself: the wait for it ends after the time that a read is given, so that the waits do not pile up in the loop of the
+            // model while OBS Studio keeps failing the reads (they would stay until the studio is disposed of).
+            var limit = new CancellationTokenSource(Shortest(this._readTimeout + this._readTimeout, LongestTimer), this._time);
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
+            _ = this.ObserveAsync(this._host.RefreshAsync(targets, linked.Token), limit, linked);
         }
 
-        private async Task ObserveAsync(Task task)
+        private async Task ObserveAsync(Task task, params IDisposable[] owned)
         {
             try
             {
@@ -702,6 +706,13 @@ namespace OBSStudioClient.Studio
             catch (Exception ex)
             {
                 this._logger.LogDebug(ex, "The model could not be read again after a change whose outcome is not known.");
+            }
+            finally
+            {
+                foreach (var disposable in owned)
+                {
+                    disposable.Dispose();
+                }
             }
         }
     }

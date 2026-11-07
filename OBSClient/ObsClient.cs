@@ -1118,16 +1118,35 @@
             }
 
             var response = responseBuilder.ToString();
-            _logger.LogDebug("Received: {Response}", response);
 
-            ObsMessage? message;
+            ObsMessage? message = null;
+            Exception? unreadable = null;
             try
             {
                 message = JsonSerializer.Deserialize<ObsMessage>(response);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.HandleUnreadableMessage(session, response, ex);
+                unreadable = ex;
+            }
+
+            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs). An event is handed to the studio layer before anything of the application runs: the logger takes
+            // as long as it takes (one that writes to a console that nobody reads can take seconds), and until the studio knows of an event that begins a change of the scene collection
+            // it lets a change through that OBS Studio would make in the collection that it has left.
+            long sequence = 0;
+            var tapped = false;
+            if (message is { Op: OpCode.Event, Data: EventMessage eventMessage })
+            {
+                sequence = this.NextIngress();
+                this.Tap(IngressKind.Event, sequence, session, eventMessage);
+                tapped = true;
+            }
+
+            _logger.LogDebug("Received: {Response}", response);
+
+            if (unreadable is not null)
+            {
+                this.HandleUnreadableMessage(session, response, unreadable);
                 return;
             }
 
@@ -1137,8 +1156,10 @@
                 return;
             }
 
-            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs).
-            var sequence = this.NextIngress();
+            if (!tapped)
+            {
+                sequence = this.NextIngress();
+            }
 
             switch (message.Op)
             {
@@ -1152,12 +1173,6 @@
                     this.ProcessRequestResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Event:
-                    // Before the event is queued for the handlers, and for every event: the studio layer does not depend on who listens.
-                    if (message.Data is EventMessage eventMessage)
-                    {
-                        this.Tap(IngressKind.Event, sequence, session, eventMessage);
-                    }
-
                     try
                     {
                         this.ProcessEventMessage(message);
