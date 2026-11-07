@@ -91,8 +91,9 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         // What the studio shows: the scenes and inputs of its collections, and what a scene item reaches that the collections do not have any more (a scene or an input
-        // that OBS Studio removed, and keeps alive for the scene items that use it). What is live is what the collections list; the State of the object has to say the
-        // same. It can disagree for a moment: a step of the model changes its objects in place, and swaps in the collections after that, and a reader that is between
+        // that OBS Studio removed, and keeps alive for the scene items that use it). What is live is what the collections list, and the State of the object has to say
+        // the same: Live for what is listed, and Detached (not Gone, which says that nothing shows it any more) for what a scene item reaches and the collections do not
+        // list. It can disagree for a moment: a step of the model changes its objects in place, and swaps in the collections after that, and a reader that is between
         // the two sees an object that says Detached and a collection that still lists it. That is reported as a difference, so that a studio is only called the same
         // as OBS Studio when the collections and the objects agree.
         private static List<string> Project(ObsStudio studio, out Dictionary<Guid, ObsInput> inputs, out List<string> disagreements)
@@ -114,9 +115,9 @@ namespace OBSStudioClient.Tests.Studio
                     {
                         if (detachedScenes.TryAdd(child.Uuid, child))
                         {
-                            if (child.State == ObsObjectState.Live)
+                            if (child.State != ObsObjectState.Detached)
                             {
-                                found.Add($"The scene \"{child.Name}\" is reached by a scene item and is not in Scenes, but says that it is {child.State}.");
+                                found.Add($"The scene \"{child.Name}\" is reached by a scene item and is not in Scenes, but says that it is {child.State}, and not Detached.");
                             }
 
                             Collect(child);
@@ -124,9 +125,9 @@ namespace OBSStudioClient.Tests.Studio
                     }
                     else if (item.Source is ObsInput input && !liveInputUuids.Contains(input.Uuid))
                     {
-                        if (detachedInputs.TryAdd(input.Uuid, input) && input.State == ObsObjectState.Live)
+                        if (detachedInputs.TryAdd(input.Uuid, input) && input.State != ObsObjectState.Detached)
                         {
-                            found.Add($"The input \"{input.Name}\" is reached by a scene item and is not in Inputs, but says that it is {input.State}.");
+                            found.Add($"The input \"{input.Name}\" is reached by a scene item and is not in Inputs, but says that it is {input.State}, and not Detached.");
                         }
                     }
                 }

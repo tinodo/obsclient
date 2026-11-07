@@ -818,18 +818,24 @@ namespace OBSStudioClient.Tests.Studio
             await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
             await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
             var micInput = rig.Studio.Inputs["Mic"];
+            var raised = new ConcurrentQueue<string>();
+            micInput.PropertyChanged += (_, e) => raised.Enqueue(e.PropertyName!);
 
             // OBS removes the input and keeps it alive for the scene items that show it: it is not among the inputs any more, and the application can still hold it.
             await rig.Responder.SendEventAsync("InputRemoved", new { inputName = "Mic", inputUuid = mic }, 8);
             await StudioRig.EventuallyAsync(() => micInput.IsRemoved && !rig.Studio.Inputs.Contains("Mic"), "the input to be removed and to leave the inputs");
             Assert.Same(micInput, rig.Studio.Scenes["Gaming"].Items[0].Source);
-            var raised = new ConcurrentQueue<string>();
-            micInput.PropertyChanged += (_, e) => raised.Enqueue(e.PropertyName!);
+
+            // The model changes first and the notifier raises what changed after it, on its own thread: wait for that, so that the notification that comes next
+            // cannot be raised ahead of it (the next one is queued from this thread, the others by the model).
+            await StudioRig.EventuallyAsync(() => raised.Contains("State") && raised.Contains("IsRemoved"), "the notifications of the removal");
 
             rig.Studio.QueueEverything(onlyStudio: false);
 
             await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized after everything may have changed");
-            Assert.Equal(new[] { string.Empty }, raised.ToArray());
+
+            // What the removal changed, and then once that everything may have changed, however many scene items show the input.
+            Assert.Equal(new[] { "State", "IsRemoved", string.Empty }, raised.ToArray());
         }
 
         [Fact]

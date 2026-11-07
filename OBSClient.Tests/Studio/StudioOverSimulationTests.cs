@@ -127,7 +127,10 @@ namespace OBSStudioClient.Tests.Studio
             await StepAsync("the first of the scene items that kept it alive was removed", world => world.RemoveItem(gaming, micItem));
             Assert.Equal(ObsObjectState.Detached, micObject.State);
             await StepAsync("the last scene item that kept it alive was removed", world => world.RemoveItem(original, shared));
-            Assert.Equal(ObsObjectState.Gone, micObject.State);
+
+            // Nothing reaches the input any more, so the comparison cannot see it: it is waited for by itself. The model takes the scene item away a moment before it
+            // marks the input as gone, and a read of the studio in between sees the one without the other.
+            await StudioRig.EventuallyAsync(() => micObject.State == ObsObjectState.Gone, "the input to be gone, now that no scene item shows it");
 
             await StepAsync("a scene that was removed", world => world.RemoveScene(gaming));
             Assert.False(rig.Studio.Scenes.Contains("Streaming"));
