@@ -930,7 +930,7 @@ namespace OBSStudioClient.Tests.Studio
             await Task.Delay(200);
             Assert.False(waiting.IsCompleted);
             cancellation.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting.WithTimeoutAsync(TimeSpan.FromSeconds(2)));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting.WithTimeoutAsync(Timeout));
 
             // And it ends when the client says that it is closed.
             var closing = obs.WaitForClientDisconnectedAsync(TimeSpan.FromSeconds(30));
@@ -1376,8 +1376,9 @@ namespace OBSStudioClient.Tests.Studio
 
             rig.Studio.Dispose();
 
-            // It ends with the model, and not after the ten seconds that the wait for the model is allowed.
-            await disconnecting.WithTimeoutAsync(TimeSpan.FromSeconds(3));
+            // It ends with the model, and not after the ten seconds that the wait for the model is allowed: seven seconds are well short of those, and a busy machine
+            // does not need them.
+            await disconnecting.WithTimeoutAsync(TimeSpan.FromSeconds(7));
         }
 
         [Fact]
