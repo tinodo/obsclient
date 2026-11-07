@@ -301,6 +301,12 @@ namespace OBSStudioClient.Studio
             return exception is ObsNotConnectedException || (exception is ObsClientException { InnerException: null } && exception.Message == NotConnectedMessage);
         }
 
+        // The client does not check the entries of the results of a batch (see ObsClient.ProcessRequestBatchResponseMessage): one can be null, or have no status.
+        private static bool IsReadable(RequestResponseMessage? result)
+        {
+            return result?.RequestStatus is not null;
+        }
+
         // What has to be true when the turn of a change has come, and again when it is about to be sent: the connection and the scene collection are the ones that the change
         // was asked for in, OBS Studio is not changing its scene collection, and the object can be changed. The gate is what the loop of the model has published, and the loop can
         // be behind the client (the client has made another connection, and the model does not know yet): when the batch is about to be written, the client says on which
@@ -367,9 +373,9 @@ namespace OBSStudioClient.Studio
                 throw new ObsNotConnectedException($"The connection to OBS Studio ended while {job.Description} asked it what it holds. Nothing was changed.", ex);
             }
 
-            if (response.Results.Length != 1)
+            if (response.Results.Length != 1 || !IsReadable(response.Results[0]))
             {
-                throw new ObsClientException($"OBS Studio answered {response.Results.Length} results to the 1 question that {job.Description} asked. Nothing was changed.");
+                throw new ObsClientException($"OBS Studio answered the 1 question that {job.Description} asked with {response.Results.Length} results, or with one that can not be read. Nothing was changed.");
             }
 
             var result = response.Results[0];
@@ -512,6 +518,15 @@ namespace OBSStudioClient.Studio
             }
 
             var results = response.Results;
+            if (!results.All(IsReadable))
+            {
+                // The client hands a malformed answer on as it came (an entry that is null, or has no status), and what it says about the requests is nothing: OBS Studio ran the batch,
+                // and may have made the change. It is not certain, like an answer that did not come, and the model reads again what the change was about.
+                job.Fail(new ObsUnknownOutcomeException(job.Description, new ObsClientException($"OBS Studio answered the {requests.Count} requests of the change with a result that can not be read.")));
+                this.RefreshQuietly(job.Refresh);
+                return;
+            }
+
             for (var i = 0; i < results.Length; i++)
             {
                 if (!results[i].RequestStatus.Result)

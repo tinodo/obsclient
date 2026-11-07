@@ -36,8 +36,9 @@ namespace OBSStudioClient.Tests.Studio
         /// <summary>
         /// Gets or sets what answers a request before the world does (the changes of the application are not in the world): null leaves the request to the world, a code of
         /// 0 means that the batch is not answered at all, a code of -1 holds the batch until <see cref="AnswerHeldAsync"/> answers it (as a success without data, which is what
-        /// a change gets; the loop goes on reading meanwhile, so what the studio sends next shows in <see cref="RequestLog"/>), and anything else is the code and the data of
-        /// the answer. It runs on the thread that answers, so it can hold the answers back by blocking.
+        /// a change gets; the loop goes on reading meanwhile, so what the studio sends next shows in <see cref="RequestLog"/>), a code of -2 answers the request with an entry
+        /// that is null (a malformed answer), and anything else is the code and the data of the answer. It runs on the thread that answers, so it can hold the answers back by
+        /// blocking.
         /// </summary>
         public Func<string, JsonElement?, (int Code, object? Data)?>? OnRequest { get; set; }
 
@@ -262,6 +263,13 @@ namespace OBSStudioClient.Tests.Studio
                     }
 
                     return;
+                }
+
+                if (custom is { Code: -2 })
+                {
+                    // A malformed answer: the entry of this request is null (the client hands such an answer on as it came).
+                    results.Add(null!);
+                    continue;
                 }
 
                 var (code, answer) = custom ?? this.Answer(type, data);

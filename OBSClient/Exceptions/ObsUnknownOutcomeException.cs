@@ -1,8 +1,8 @@
 namespace OBSStudioClient.Exceptions
 {
     /// <summary>
-    /// Represents an exception that is thrown when a change was sent to OBS Studio, and the model does not know whether OBS Studio made it: no answer came in time, or the
-    /// connection ended before the answer.
+    /// Represents an exception that is thrown when a change was sent to OBS Studio, and the model does not know whether OBS Studio made it: no answer came in time, the
+    /// connection ended before the answer, or the answer can not be read.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -20,9 +20,9 @@ namespace OBSStudioClient.Exceptions
         /// Initializes a new instance of the <see cref="ObsUnknownOutcomeException"/> class.
         /// </summary>
         /// <param name="operation">What was being done, for example "enable scene item 3 of scene 'Gaming'".</param>
-        /// <param name="innerException">What went wrong: a timeout, or the end of the connection.</param>
+        /// <param name="innerException">What went wrong: a timeout, the end of the connection, or an answer that can not be read.</param>
         public ObsUnknownOutcomeException(string operation, Exception innerException)
-            : base($"It is not known whether OBS Studio made this change: {operation}. The request was sent, and no answer came: {innerException.Message.TrimEnd('.')}. The model reads again what the change was about; look at it before you send the change again.", innerException)
+            : base($"It is not known whether OBS Studio made this change: {operation}. The request was sent, and no answer that can be used came: {innerException.Message.TrimEnd('.')}. The model reads again what the change was about; look at it before you send the change again.", innerException)
         {
             this.Operation = operation;
         }

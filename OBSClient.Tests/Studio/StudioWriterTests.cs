@@ -979,6 +979,48 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AnAnswerWithAnEntryThatIsNull_IsAnUnknownOutcome_AndTheModelReadsAgain()
+        {
+            await using var test = await Fixture.StartAsync();
+
+            // OBS Studio ran the batch, and the entry of its request says nothing: it may have made the change (here it did), and no event tells the model.
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabledInWorld(false);
+                return (-2, null);
+            };
+            var reads = test.Count("GetSceneItemList");
+
+            var exception = await Assert.ThrowsAsync<ObsUnknownOutcomeException>(() => test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout));
+
+            Assert.Contains("can not be read", exception.InnerException!.Message);
+            await StudioRig.EventuallyAsync(() => test.Count("GetSceneItemList") > reads && !test.Camera.IsEnabled, "the model to read the scene items again, and to show what OBS Studio made");
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AnAnswerToTheQuestionOfAToggle_WithAnEntryThatIsNull_ChangesNothing_AndSaysSo()
+        {
+            await using var test = await Fixture.StartAsync();
+            test.Rig.Responder.OnRequest = (type, data) => type == "GetSceneItemEnabled" ? (-2, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsClientException>(() => test.Camera.ToggleEnabledAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Contains("Nothing was changed", exception.Message);
+            Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+
+            // The line goes on.
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemLocked" ? (100, null) : null;
+            await test.Camera.SetLockedAsync(true).WithTimeoutAsync(Timeout);
+            Assert.Equal(1, test.Count("SetSceneItemLocked"));
+        }
+
+        [Fact]
         public async Task AChangeThatOBSStudioDidNotMake_EndsWithTheReadOfItsPart_WhileAnotherPartOfTheModelKeepsFailing()
         {
             await using var rig = await StudioRig.ConnectedAsync(

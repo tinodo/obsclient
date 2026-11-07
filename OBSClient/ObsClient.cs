@@ -1301,6 +1301,10 @@
                     _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
                 }
 
+                // The last look: what ran since the first (the check of whoever asked for the message, the log) took time, and whoever gave up meanwhile is not waiting any more. What is
+                // left is the moment between this look and the write, which can not be told from a token that ends a moment after the write.
+                cancellationToken.ThrowIfCancellationRequested();
+
                 await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
 
                 // Still holding the turn: whatever depends on the message having been written is done in the order of the messages.

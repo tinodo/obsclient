@@ -36,7 +36,7 @@ namespace OBSStudioClient.Studio
     /// Changes are methods on the objects, for example <see cref="ObsSceneItem.SetEnabledAsync"/>, <see cref="ObsInput.SetMutedAsync"/> and
     /// <see cref="ObsScene.SwitchToAsync"/>. They are made one at a time, in the order in which you ask for them (OBS Studio can answer requests that arrive together in any
     /// order), and each returns when the model shows the change, so that what you read next is what you changed. A change is never made twice: when OBS Studio does not
-    /// answer, or the connection ends, the call ends with an <see cref="ObsUnknownOutcomeException"/>, and the model reads again what the change was about. A change is not
+    /// answer, or the connection ends, or the answer can not be read, the call ends with an <see cref="ObsUnknownOutcomeException"/>, and the model reads again what the change was about. A change is not
     /// sent when there is no connection, or when the connection that it was asked for on has ended and another was made (<see cref="ObsNotConnectedException"/>), while OBS
     /// Studio changes its scene collection (<see cref="ObsNotReadyException"/>), or to something that OBS Studio removed (<see cref="ObsRemovedException"/>). The model learns of
     /// such a thing a moment after OBS Studio does, so a change can be sent in that moment: OBS Studio refuses it while it changes its scene collection (it answers that it is

@@ -487,6 +487,32 @@ namespace OBSStudioClient.Tests
         }
 
         [Fact]
+        public async Task ABatchWhoseCallerGivesUpInTheCheckBeforeWriting_IsNotWritten_AndTheTurnIsGivenBack()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var writtenBefore = client.TotalMessagesSent;
+            using var cancelUntilWritten = new CancellationTokenSource();
+
+            // The check of whoever asked for the batch (and the log) ran after the first look at the token, and the caller gave up meanwhile: the last look, right before the write,
+            // sees it.
+            var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+            batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+            var sent = client.SendRawBatchAsync(batch, 30_000, default, cancelUntilWritten.Token, _ => cancelUntilWritten.Cancel());
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sent.WithTimeoutAsync(Timeout));
+            Assert.Equal(writtenBefore, client.TotalMessagesSent);
+            Assert.Equal(ConnectionState.Connected, client.ConnectionState);
+
+            // The turn was given back: the next request is the first message that the server receives.
+            var next = client.GetStudioModeEnabled();
+            var (requestType, requestId, _) = await server.ReceiveRequestAsync(Timeout);
+            Assert.Equal("GetStudioModeEnabled", requestType);
+            await server.SendRequestSuccessAsync(requestType, requestId, new { studioModeEnabled = true });
+            Assert.True(await next.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
         public async Task TheCheckBeforeWriting_IsToldTheNumberOfTheConnectionThatTheBatchIsWrittenOn()
         {
             await using var server = new FakeObsWebSocketServer();
