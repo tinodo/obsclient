@@ -12,6 +12,12 @@ namespace OBSStudioClient.Exceptions
     /// <para>
     /// Unlike <see cref="ObsNotReadyException"/> and <see cref="ObsNotConnectedException"/> this is not certain: those say that OBS Studio did not make the change.
     /// </para>
+    /// <para>
+    /// One case is called uncertain that was in fact never sent: a change waits for its turn to be written on the connection while another message is being written, and when
+    /// OBS Studio does not read that message (a stalled connection) the change gives up after <see cref="Studio.ObsStudioOptions.WriteTimeout"/>, or ends with the connection,
+    /// before one byte of it was written. The client does not tell that from a change that was written and not answered, so the call ends with this exception all the same, and
+    /// the message says that the request was sent. Looking at what the model shows (it reads again) is right in both cases.
+    /// </para>
     /// </remarks>
     [Serializable]
     public class ObsUnknownOutcomeException : ObsClientException

@@ -131,7 +131,7 @@ namespace OBSStudioClient.Studio
         /// <param name="index">The new position: 0 is the bottom, and the number of scene items of the scene minus one is the top.</param>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when <see cref="Index"/> is <paramref name="index"/>.</returns>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is not a position in the scene.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is negative (thrown at once), or is not a position in the scene (the call ends with it, after the scene item is known to be there: a scene item that was removed is an <see cref="ObsRemovedException"/>, whatever the position).</exception>
         /// <exception cref="ObsRemovedException">The scene item, or its scene, was removed.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
@@ -145,13 +145,23 @@ namespace OBSStudioClient.Studio
         public Task SetIndexAsync(int index, CancellationToken cancellationToken = default)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
-            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Math.Max(this.Scene.Items.Count, 1));
             return this.Scene.Studio.Writer.ExecuteAsync<object?>(
                 new WriteJob
                 {
                     Description = $"moving {this.Subject()} to position {index}",
                     Subject = this.Subject(),
-                    Check = this.CheckWritable,
+                    Check = () =>
+                    {
+                        this.CheckWritable();
+
+                        // Whether it is a position in the scene is asked after the scene item is known to be there: what the model shows of a scene item that was removed (or of a scene
+                        // that was destroyed) is a scene with fewer scene items, and that is no reason to blame the argument.
+                        var count = this.Scene.Items.Count;
+                        if (index >= Math.Max(count, 1))
+                        {
+                            throw new ArgumentOutOfRangeException(nameof(index), index, $"The scene '{this.Scene.Name}' has {count} scene items: a position is from 0 to {Math.Max(count, 1) - 1}.");
+                        }
+                    },
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemIndex, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemIndex = index })],
                     IsConfirmed = _ => this.IsRemoved || this.Index == index,
                     Refresh = [new RefreshTarget(ReadKind.Items, this.Scene.Uuid)],

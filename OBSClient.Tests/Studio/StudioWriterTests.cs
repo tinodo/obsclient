@@ -1310,13 +1310,66 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
-        public async Task AnArgumentThatIsNotAPosition_IsRefusedAtOnce()
+        public async Task AnArgumentThatIsNotAPosition_IsRefused_AndNothingIsSent()
         {
             await using var test = await Fixture.StartAsync();
 
+            // A negative position is refused at once, and a position that the scene does not have through the call (after the scene item is known to be there).
             Assert.Throws<ArgumentOutOfRangeException>(() => { _ = test.Camera.SetIndexAsync(-1); });
-            Assert.Throws<ArgumentOutOfRangeException>(() => { _ = test.Camera.SetIndexAsync(1); });
+            var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => test.Camera.SetIndexAsync(1).WithTimeoutAsync(Timeout));
+
+            Assert.Equal("index", exception.ParamName);
+            Assert.Contains("The scene 'Gaming' has 1 scene items", exception.Message);
             Assert.Equal(0, test.Count("SetSceneItemIndex"));
+        }
+
+        [Fact]
+        public async Task ASceneItemThatWasRemoved_IsARemovedException_WhateverPositionIsAskedFor()
+        {
+            await using var test = await Fixture.StartAsync();
+            await test.Rig.Responder.SendEventAsync("SceneItemRemoved", new { sceneName = "Gaming", sceneUuid = test.Gaming, sourceName = "Camera", sourceUuid = Guid.NewGuid(), sceneItemId = 1 }, SceneItemEvents);
+            await StudioRig.EventuallyAsync(() => test.Camera.IsRemoved, "the scene item to be removed");
+
+            // The scene has no scene items now, and no position is a position in it: the removal is what the application has to hear, not that the argument was wrong.
+            var exception = await Assert.ThrowsAsync<ObsRemovedException>(() => test.Camera.SetIndexAsync(5).WithTimeoutAsync(Timeout));
+
+            Assert.Equal("scene item 1 of scene 'Gaming'", exception.Description);
+            Assert.Equal(0, test.Count("SetSceneItemIndex"));
+        }
+
+        [Fact]
+        public async Task AnEventOfASwitchThatTheModelFailedToApply_DoesNotKeepEveryChangeFromBeingMade_ForEver()
+        {
+            await using var test = await Fixture.StartAsync();
+            var failed = 0;
+            test.Rig.Studio.Host.BeforeIngress = ingress =>
+            {
+                if (ingress.Kind == IngressKind.Event && ingress.Event!.EventType == EventType.CurrentSceneCollectionChanging && Interlocked.Exchange(ref failed, 1) == 0)
+                {
+                    throw new InvalidOperationException("The model fails on this event.");
+                }
+            };
+            var before = test.Rig.Studio.Host.CollectionEventsRead;
+
+            // The model fails while it applies the event that begins a switch, and reads everything again (it can not know what it missed). The client counted the event when it read it.
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2);
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.Host.Gate.CollectionEvents == before + 1, "the loop of the model to be done with the event");
+            await StudioRig.EventuallyAsync(() => test.Rig.Studio.State == ObsStudioState.Synchronized, "the model to have read everything again");
+            test.Rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabledInWorld(false);
+                return (100, null);
+            };
+
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(Timeout);
+
+            Assert.False(test.Camera.IsEnabled);
+            Assert.Equal(1, test.Count("SetSceneItemEnabled"));
         }
 
         [Fact]

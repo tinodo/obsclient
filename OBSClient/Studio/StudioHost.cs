@@ -557,7 +557,25 @@ namespace OBSStudioClient.Studio
             this.PublishWaiterCounts();
         }
 
+        // An event that begins or ends a change of the scene collection is counted when the loop is done with it, whether the model applied it or failed to (it reads everything
+        // again then, see RecoverFrom): the client counted it when it read it, and a count that fell behind for good would keep every change from being made.
         private void HandleIngress(IngressItem ingress, TimeSpan now)
+        {
+            try
+            {
+                this.ApplyIngress(ingress, now);
+            }
+            finally
+            {
+                if (ingress.Kind == IngressKind.Event && IsCollectionEvent(ingress.Event!.EventType))
+                {
+                    // Whatever connection it came on: the gate is published after this step.
+                    this._collectionEventsHandled++;
+                }
+            }
+        }
+
+        private void ApplyIngress(IngressItem ingress, TimeSpan now)
         {
             this.BeforeIngress?.Invoke(ingress);
             switch (ingress.Kind)
@@ -628,12 +646,6 @@ namespace OBSStudioClient.Studio
                     if (ingress.SessionId == this._session)
                     {
                         this._engine.OnEvent(ingress.Event!, ingress.Sequence, now);
-                    }
-
-                    if (IsCollectionEvent(ingress.Event!.EventType))
-                    {
-                        // Counted when it has been applied, whatever connection it came on: the client counted it when it read it, and the gate is published after this step.
-                        this._collectionEventsHandled++;
                     }
 
                     break;
