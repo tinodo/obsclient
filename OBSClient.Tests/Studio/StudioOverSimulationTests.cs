@@ -177,6 +177,10 @@ namespace OBSStudioClient.Tests.Studio
 
             rig.World(world => world.CreateScene("Twice"));
             await rig.ConvergedAsync("the scene");
+
+            // The notifications come from the notifier, which is not in step with the model: the one that tells of the scene is waited for, and then a moment for a
+            // second one, which there must not be.
+            await StudioRig.EventuallyAsync(() => rig.Changes.Any(change => change.Kind == ObsChangeKind.Added && change.Entity is ObsScene { Name: "Twice" }), "the notification of the new scene");
             await Task.Delay(200);
 
             Assert.Equal(1, rig.Changes.Count(change => change.Kind == ObsChangeKind.Added && change.Entity is ObsScene { Name: "Twice" }));
@@ -189,10 +193,13 @@ namespace OBSStudioClient.Tests.Studio
         {
             await using var rig = new StudioSimRig();
             var original = rig.Server.Run(sim => sim.Snapshot().Scenes[0].Uuid);
-            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
-            await rig.ConvergedAsync("the first read");
+
+            // Resynchronized is raised after the first read too, by the notifier, which is not in step with the call: it is counted from the start.
             var resynchronized = 0;
             rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+            await rig.ConvergedAsync("the first read");
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first read");
 
             rig.Server.AbortConnection();
             await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Reconnecting, "the state to follow the connection");
@@ -207,7 +214,7 @@ namespace OBSStudioClient.Tests.Studio
             });
 
             // The client connects again by itself, and the studio reads everything again.
-            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Synchronized && Volatile.Read(ref resynchronized) == 1, "the studio to be synchronized again", TimeSpan.FromSeconds(30));
+            await StudioRig.EventuallyAsync(() => rig.Studio.State == ObsStudioState.Synchronized && Volatile.Read(ref resynchronized) == 2, "the studio to be synchronized again", TimeSpan.FromSeconds(30));
             await rig.ConvergedAsync("what changed while the connection was lost");
             Assert.False(rig.Studio.IsStale);
             Assert.True(rig.Studio.Scenes.Contains("Main"));
