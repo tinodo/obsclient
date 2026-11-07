@@ -104,6 +104,7 @@ namespace OBSStudioClient.Studio
             Disconnect,
             ReconnectChanged,
             Prune,
+            Recheck,
         }
 
         /// <summary>
@@ -259,6 +260,16 @@ namespace OBSStudioClient.Studio
         public Task RefreshAsync(IReadOnlyList<RefreshTarget> targets, CancellationToken cancellationToken)
         {
             return this.AddWaiter(HostItemKind.Refresh, cancellationToken, targets: targets);
+        }
+
+        /// <summary>
+        /// Asks the loop to look at the waits for the model to show something again (<see cref="ConfirmAsync"/>), as it does after every item that it handles. For whoever
+        /// changed what a predicate reads after the loop had looked at it, so that the loop would not look at it again before the next item (which can be long in coming): the end
+        /// of a read that a wait asked for, which the loop can have handled before the wait had written the read down.
+        /// </summary>
+        public void Recheck()
+        {
+            _ = this.Post(new HostItem { Kind = HostItemKind.Recheck });
         }
 
         /// <summary>
@@ -504,6 +515,9 @@ namespace OBSStudioClient.Studio
                     this._settleWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
                     this._confirmWaiters.RemoveAll(static waiter => waiter.Done.Task.IsCompleted);
                     this._disconnectWaiters.RemoveAll(static waiter => waiter.Task.IsCompleted);
+                    break;
+                case HostItemKind.Recheck:
+                    // Nothing to do here: what comes after every item looks at the waits again (see Recheck).
                     break;
             }
 

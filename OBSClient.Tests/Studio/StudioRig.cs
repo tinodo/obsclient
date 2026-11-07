@@ -21,6 +21,7 @@ namespace OBSStudioClient.Tests.Studio
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
         private int _batches;
+        private int _handshakes;
 
         public FakeWorld World { get; } = new();
 
@@ -66,6 +67,9 @@ namespace OBSStudioClient.Tests.Studio
 
         /// <summary>Gets the number of batches that were received.</summary>
         public int Batches => Volatile.Read(ref this._batches);
+
+        /// <summary>Gets the number of connections that the server has taken (the handshake is done): the studio that reconnects makes another.</summary>
+        public int Handshakes => Volatile.Read(ref this._handshakes);
 
         public void Start()
         {
@@ -176,6 +180,7 @@ namespace OBSStudioClient.Tests.Studio
                 try
                 {
                     await this._server.HandshakeAsync(timeout: Timeout);
+                    Interlocked.Increment(ref this._handshakes);
                     while (!this._stopping.IsCancellationRequested)
                     {
                         using var message = await this._server.ReceiveJsonAsync(TimeSpan.FromMinutes(1));

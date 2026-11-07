@@ -630,7 +630,7 @@
         }
 
         // The batch of SendRequestBatchAsync, with the whole response message.
-        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
@@ -1259,7 +1259,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null, Action? beforeWriting = null)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null, Action<int>? beforeWriting = null)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -1291,8 +1291,9 @@
                 // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // What has to be true when the message is written, and may have changed while it waited for its turn. When it fails nothing is written, and the turn is given back.
-                beforeWriting?.Invoke();
+                // What has to be true when the message is written, and may have changed while it waited for its turn (it is told which connection that is: the connection can have
+                // been replaced by another since the message was asked for). When it fails nothing is written, and the turn is given back.
+                beforeWriting?.Invoke(session.Id);
 
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
                 if (_logger.IsEnabled(LogLevel.Debug))
@@ -1551,7 +1552,7 @@
             this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             cancelUntilWritten.ThrowIfCancellationRequested();

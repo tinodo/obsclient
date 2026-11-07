@@ -918,6 +918,67 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AChangeThatWasAskedForOnAConnectionThatWasReplaced_IsNotWrittenOnTheNewOne_WhenTheModelDoesNotKnowYet()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });
+            using var held = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+
+            // The loop of the model is held before it learns that the connection ended: the model still shows that connection (and so does what a change checks first) while the
+            // client has made another. A loop that is busy with a large read is behind the client in the same way.
+            test.Rig.Studio.Host.BeforeIngress = item =>
+            {
+                if (item.Kind == IngressKind.SessionEnded)
+                {
+                    held.Set();
+                    release.Wait(Timeout);
+                }
+            };
+
+            try
+            {
+                test.Rig.Responder.AbortConnection();
+                Assert.True(held.Wait(Timeout), "The loop of the model was not told that the connection ended.");
+                await StudioRig.EventuallyAsync(() => test.Rig.Responder.Handshakes == 2 && test.Rig.Studio.Client.ConnectionState == ConnectionState.Connected, "the client to be connected again");
+
+                // Asked for on the connection that ended, as far as the model knows. The client would write it on the new one: it must not.
+                var change = test.Camera.SetEnabledAsync(false);
+
+                await Assert.ThrowsAsync<ObsNotConnectedException>(() => change.WithTimeoutAsync(TimeSpan.FromSeconds(3)));
+                Assert.Equal(0, test.Count("SetSceneItemEnabled"));
+            }
+            finally
+            {
+                release.Set();
+            }
+        }
+
+        [Fact]
+        public async Task AReadThatEndedBeforeTheWaitForItHadWrittenItDown_StillEndsTheWait()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(200), ReadTimeout = TimeSpan.FromSeconds(10), WriteTimeout = TimeSpan.FromSeconds(30) });
+
+            // OBS Studio answers that it made the change, and made none, and sends no event: only the end of a read ends the wait (what a read says is what OBS Studio holds).
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemEnabled" ? (100, null) : null;
+            var waiting = test.Rig.Studio.Host.SettleWaiterCount;
+            test.Rig.Studio.Writer.AfterTheReadWasAskedFor = read =>
+            {
+                // The thread that asked for the read is held until the loop of the model has had the answer and looked at the wait of the change (the loop publishes the number of
+                // waits that it holds at the end of each step): it finds no read written down yet.
+                var ended = new ManualResetEventSlim();
+                _ = read.ContinueWith(_ => ended.Set(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                ended.Wait(Timeout);
+                SpinWait.SpinUntil(() => test.Rig.Studio.Host.SettleWaiterCount == waiting, Timeout);
+            };
+
+            // Nothing but the next item of the loop makes it look at the wait again, and none is coming: without the look after the read was written down, the call would end
+            // with the time that the wait was given (more than twenty seconds), not with the read.
+            await test.Camera.SetEnabledAsync(false).WithTimeoutAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(test.Camera.IsEnabled);
+        }
+
+        [Fact]
         public async Task TheLongestTimesThatTheOptionsAllow_DoNotMakeAChangeFail()
         {
             // The wait for the model adds up the time for the events and twice the time for a read: three times 24 days is more than a timer can be given.

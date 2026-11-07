@@ -20,6 +20,12 @@ namespace OBSStudioClient
         internal long LastIngress => Volatile.Read(ref this._ingressCounter);
 
         /// <summary>
+        /// Gets the number of the current connection (the number of <see cref="IngressItem.SessionId"/>), or 0 when there is none. Every connection has a number of its own, also
+        /// the one that replaces a connection that was lost.
+        /// </summary>
+        internal int SessionId => this._session?.Id ?? 0;
+
+        /// <summary>
         /// Sets the one observer of the receive loop, or removes it with <see langword="null"/>.
         /// </summary>
         /// <param name="tap">
@@ -66,10 +72,11 @@ namespace OBSStudioClient
         /// </param>
         /// <param name="beforeWriting">
         /// Called when the message has its turn to be written, before one byte of it is written, by whoever has the turn (so it must be quick: nothing else is written
-        /// meanwhile). When it throws, the message is not written, and the call throws what it threw. For what has to be true when the message is written, and may have changed
-        /// while it waited for its turn.
+        /// meanwhile), with the number of the connection that the message is about to be written on (the number of <see cref="IngressItem.SessionId"/>): the connection can have
+        /// been replaced by another since the message was asked for, and a message that was asked for on one connection must not be written on the next. When it throws, the
+        /// message is not written, and the call throws what it threw. For what has to be true when the message is written, and may have changed while it waited for its turn.
         /// </param>
-        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action? beforeWriting = null)
+        internal Task<RequestBatchResponseMessage> SendRawBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             return this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken, cancelUntilWritten, beforeWriting);
         }

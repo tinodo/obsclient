@@ -158,8 +158,9 @@ namespace OBSStudioClient.Studio
     /// answer includes every change that was asked for before it, whatever the model shows at that moment.
     /// </para>
     /// <para>
-    /// A change is not sent when there is no connection, when OBS Studio is changing its scene collection, or when the collection is not the one that it was asked
-    /// for in; each of those is certain: nothing was changed. A change that was sent and not answered in time, or whose connection ended, is not certain
+    /// A change is not sent when there is no connection, when the connection is not the one that it was asked for on (that one was lost, and the client made another), when OBS
+    /// Studio is changing its scene collection, or when the collection is not the one that it was asked for in; each of those is certain: nothing was changed. A change that was
+    /// sent and not answered in time, or whose connection ended, is not certain
     /// (<see cref="ObsUnknownOutcomeException"/>): it is never sent again, the model reads again what it was about.
     /// </para>
     /// </remarks>
@@ -184,6 +185,10 @@ namespace OBSStudioClient.Studio
 
         // Called by ExecuteAsync when the job has been put in the line, before it returns. For the tests: what the caller can do (give up) while the line can already take the job.
         internal Action? AfterPutInTheLine { get; set; }
+
+        // Called by the wait for the model when the time for the events has passed and the read has been asked for, before the wait has written the read down. For the tests: what
+        // the loop of the model can do meanwhile (end the read).
+        internal Action<Task>? AfterTheReadWasAskedFor { get; set; }
 
         public StudioWriter(ObsClient client, StudioHost host, ObsStudioOptions options, ILogger logger)
         {
@@ -295,11 +300,13 @@ namespace OBSStudioClient.Studio
         }
 
         // What has to be true when the turn of a change has come, and again when it is about to be sent: the connection and the scene collection are the ones that the change
-        // was asked for in, OBS Studio is not changing its scene collection, and the object can be changed.
-        private void EnsureItCanBeSent(WriteJob job)
+        // was asked for in, OBS Studio is not changing its scene collection, and the object can be changed. The gate is what the loop of the model has published, and the loop can
+        // be behind the client (the client has made another connection, and the model does not know yet): when the batch is about to be written, the client says on which
+        // connection (writtenOn), and that is the one that counts.
+        private void EnsureItCanBeSent(WriteJob job, int? writtenOn = null)
         {
             var gate = this._host.Gate;
-            if (gate.Session == 0 || gate.Session != job.Session)
+            if (gate.Session == 0 || gate.Session != job.Session || (writtenOn is { } connection && connection != job.Session))
             {
                 throw new ObsNotConnectedException($"The connection to OBS Studio ended before {job.Description} was sent. Nothing was changed.");
             }
@@ -315,12 +322,14 @@ namespace OBSStudioClient.Studio
         // The same, when the batch of the change has its turn to be written on the connection: that can be much later than the turn of the change, when another message holds the
         // turn of the connection (a large request that OBS Studio does not read), and OBS Studio can have begun to change its scene collection, or the object can have been
         // removed, meanwhile. A change that is written then would be made in a collection that the application did not mean (or on an object that is not the one that it meant).
+        // The connection can have been replaced too, while the loop of the model is behind the client and its gate still shows the old one: the client says which connection the batch
+        // is written on, and a change that was asked for on another is not written on it.
         // Called by the client before one byte of the batch is written; what it throws is wrapped, so that it is not taken for a failure of the connection.
-        private void CheckBeforeWriting(WriteJob job)
+        private void CheckBeforeWriting(WriteJob job, int writtenOn)
         {
             try
             {
-                this.EnsureItCanBeSent(job);
+                this.EnsureItCanBeSent(job, writtenOn);
             }
             catch (Exception ex)
             {
@@ -466,7 +475,7 @@ namespace OBSStudioClient.Studio
                 // change is not sent before this one is answered. The caller stops waiting by itself (see ExecuteAsync). The caller giving up does end the wait for the turn to
                 // write the batch on the connection (when another message is being written): the batch was not written then, and there is nothing to wait for. And what was true
                 // at the turn of the change has to be true when the batch is written, which can be much later (see CheckBeforeWriting).
-                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten, () => this.CheckBeforeWriting(job)).ConfigureAwait(false);
+                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten, writtenOn => this.CheckBeforeWriting(job, writtenOn)).ConfigureAwait(false);
             }
             catch (NotWrittenException ex)
             {
@@ -589,7 +598,16 @@ namespace OBSStudioClient.Studio
             using var events = new CancellationTokenSource(this._confirmationTimeout, this._time);
             using var limit = new CancellationTokenSource(Shortest(this._confirmationTimeout + this._readTimeout + this._readTimeout, LongestTimer), this._time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
-            using var eventsTimedOut = events.Token.Register(() => Volatile.Write(ref read, this._host.RefreshAsync(job.Refresh, linked.Token)));
+            using var eventsTimedOut = events.Token.Register(() =>
+            {
+                var asked = this._host.RefreshAsync(job.Refresh, linked.Token);
+                this.AfterTheReadWasAskedFor?.Invoke(asked);
+                Volatile.Write(ref read, asked);
+
+                // The loop of the model can have had the answer to the read, and looked at this wait, before the read was written down above: it found no read then, and it would not
+                // look at the wait again before the next item, which can be long in coming. It looks again now that the read is written down.
+                this._host.Recheck();
+            });
             try
             {
                 await this._host.ConfirmAsync(Done, linked.Token, job.Refresh).ConfigureAwait(false);

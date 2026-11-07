@@ -467,7 +467,7 @@ namespace OBSStudioClient.Tests
             var turn = await client.TakeTheTurnToWriteAsync();
             var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
             batch.AddRaw(RequestType.GetStudioModeEnabled, null);
-            var sent = client.SendRawBatchAsync(batch, 30_000, default, default, () => throw new InvalidOperationException("The check failed."));
+            var sent = client.SendRawBatchAsync(batch, 30_000, default, default, _ => throw new InvalidOperationException("The check failed."));
             await Task.Delay(200);
             Assert.False(sent.IsCompleted);
 
@@ -484,6 +484,31 @@ namespace OBSStudioClient.Tests
             Assert.Equal("GetStudioModeEnabled", requestType);
             await server.SendRequestSuccessAsync(requestType, requestId, new { studioModeEnabled = true });
             Assert.True(await next.WithTimeoutAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task TheCheckBeforeWriting_IsToldTheNumberOfTheConnectionThatTheBatchIsWrittenOn()
+        {
+            await using var server = new FakeObsWebSocketServer();
+            using var client = await ConnectAsync(server);
+            var connection = client.SessionId;
+            Assert.NotEqual(0, connection);
+            var writtenBefore = client.TotalMessagesSent;
+
+            // Whoever asked for the batch knows on which connection it was asked for: the connection can have been replaced by another meanwhile, and the batch must not be
+            // written on that one. The check refuses, and nothing is written.
+            int? told = null;
+            var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
+            batch.AddRaw(RequestType.GetStudioModeEnabled, null);
+            var refused = client.SendRawBatchAsync(batch, 30_000, default, default, writtenOn =>
+            {
+                told = writtenOn;
+                throw new InvalidOperationException("Another connection.");
+            });
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => refused.WithTimeoutAsync(Timeout));
+            Assert.Equal(connection, told);
+            Assert.Equal(writtenBefore, client.TotalMessagesSent);
         }
 
         [Fact]
