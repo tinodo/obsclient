@@ -856,6 +856,41 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task AFilterThatIsMadeWithTheNameOfOneThatTheModelStillShowsAndOBSStudioRemoved_IsTheNewOne_NotTheOldObject()
+        {
+            await using var rig = await StartAsync();
+            var mic = rig.Model.Inputs["Mic"];
+            var old = mic.Filters["Gate"];
+
+            // OBS Studio removed the filter, and the model has not been told yet: it still shows it. The name is free, so OBS Studio makes the new filter.
+            rig.Responder.Change(world => world.RemoveFilter(mic.Uuid, "Gate"));
+            rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateSourceFilter")
+                {
+                    return null;
+                }
+
+                rig.Responder.Change(world => world.AddFilter(mic.Uuid, "Gate", "compressor_filter"));
+                Later(async () =>
+                {
+                    await RemovedAsync(rig, "Mic", "Gate");
+                    await CreatedAsync(rig, "Mic", "Gate", 2);
+                });
+                return (100, null);
+            };
+
+            var made = await mic.CreateFilterAsync("Gate", "compressor_filter").WithTimeoutAsync(Timeout);
+
+            // The call does not end with the object that the model showed when it was made: that one is gone, and the filter that it returns is the one that OBS Studio made.
+            Assert.NotSame(old, made);
+            Assert.True(old.IsRemoved);
+            Assert.False(made.IsRemoved);
+            Assert.Same(made, mic.Filters["Gate"]);
+            Assert.Equal("compressor_filter", made.Kind);
+        }
+
+        [Fact]
         public async Task AFilterWithANameThatIsTaken_IsANameInUseException_AndNothingIsChanged()
         {
             await using var rig = await StartAsync();

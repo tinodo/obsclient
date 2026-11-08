@@ -9,8 +9,8 @@ namespace OBSStudioClient.Exceptions
     /// <remarks>
     /// <para>
     /// A reference to an object that was removed stays valid, and says so (<see cref="ObsSource.State"/>, <see cref="ObsSceneItem.IsRemoved"/>), but it can not be changed
-    /// any more: the request is not sent. The one thing that is allowed on a removed scene or input that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>)
-    /// is to remove it for good, which frees its name. After OBS Studio has changed its scene collection every object that you held is <see cref="ObsObjectState.Gone"/>:
+    /// any more: the request is not sent. What is still allowed on a removed scene or input that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>) is to change its
+    /// filters, and to remove it for good, which frees its name. After OBS Studio has changed its scene collection every object that you held is <see cref="ObsObjectState.Gone"/>:
     /// look the object up again.
     /// </para>
     /// </remarks>
@@ -42,7 +42,7 @@ namespace OBSStudioClient.Exceptions
         private static string BuildMessage(string description, ObsObjectState state)
         {
             return state == ObsObjectState.Detached
-                ? $"The {description} was removed, and OBS Studio keeps it alive for the scene items that still use it. It can not be changed; only removing it for good is possible."
+                ? $"The {description} was removed, and OBS Studio keeps it alive for the scene items that still use it. It can not be changed any more; its filters can be changed, and it can be removed for good."
                 : $"The {description} does not exist any more in OBS Studio (it was removed, or OBS Studio changed its scene collection). Look it up again.";
         }
     }

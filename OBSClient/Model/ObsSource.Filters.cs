@@ -40,6 +40,16 @@ namespace OBSStudioClient.Model
             }
 
             var description = $"creating filter '{name}' on {this.Label}";
+
+            // A filter with that name that the model still shows when the change has its turn is not the one that this change makes: when OBS Studio made it, the model is behind (it has not been
+            // told yet that the one that it shows is gone), and the filter to return is the new one, which is another object.
+            ObsFilter? before = null;
+            ObsFilter? MadeAfterTheChange()
+            {
+                var found = this.Filters.FindExact(name);
+                return found is not null && !ReferenceEquals(found, before) ? found : null;
+            }
+
             return this.Model.Writer.ExecuteAsync<ObsFilter>(
                 new WriteJob
                 {
@@ -47,9 +57,13 @@ namespace OBSStudioClient.Model
                     Subject = this.Label,
                     SubjectGone = () => this.State == ObsObjectState.Gone,
                     Check = this.CheckCanHoldFilters,
-                    BuildRequests = () => [new WriteRequest(RequestType.CreateSourceFilter, data)],
-                    IsConfirmed = _ => this.State == ObsObjectState.Gone || this.Filters.FindExact(name) is not null,
-                    Finish = _ => this.Filters.FindExact(name) ?? throw (this.State == ObsObjectState.Gone
+                    BuildRequests = () =>
+                    {
+                        before = this.Filters.FindExact(name);
+                        return [new WriteRequest(RequestType.CreateSourceFilter, data)];
+                    },
+                    IsConfirmed = _ => this.State == ObsObjectState.Gone || MadeAfterTheChange() is not null,
+                    Finish = _ => MadeAfterTheChange() ?? throw (this.State == ObsObjectState.Gone
                         ? new ObsRemovedException(this.Label, this.State)
                         : new ObsNotConfirmedException(description, "the filter is not in the model: it was removed again, OBS Studio changed its scene collection, or the model was not told of it in time")),
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Uuid)],
