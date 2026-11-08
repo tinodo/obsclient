@@ -74,6 +74,22 @@ await client.SetSceneItemEnabled(SceneRef.FromName("Gaming Scene"), item.SceneIt
 Optional arguments are optional (`await client.GetSceneItemList("Scene", canvasUuid: canvas.CanvasUuid)`), and an argument that
 is missing or wrong is refused with an `ArgumentException` before anything is sent.
 
+### By name: `ObsStudio` (new in 5.0, provisional)
+
+`ObsStudio` keeps a copy of your scenes, inputs and scene items in memory, follows the events of OBS Studio, and lets you work by name. It is built on the
+`ObsClient` above, which stays available as `obs.Client`. Needs OBS Studio 30.1 or newer. See
+[Controlling OBS Studio by name](https://tinodo.github.io/obsclient/articles/studio.html).
+
+```
+await using var obs = new ObsStudio();
+await obs.ConnectAsync("localhost", 4455, "password");
+
+await obs.Scenes["Gaming Scene"].SwitchToAsync();
+await obs.Inputs["Microphone"].SetMutedAsync(true);
+await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
+obs.Changed += (_, e) => Console.WriteLine(e);   // also what the user does in OBS Studio
+```
+
 ### Canvases (obs-websocket 5.7.0+)
 
 ```

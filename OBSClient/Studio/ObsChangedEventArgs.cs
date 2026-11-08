@@ -52,7 +52,19 @@ namespace OBSStudioClient.Studio
                 ObsSource source => $"{(source is ObsScene ? "scene" : "input")} '{source.Name}'",
                 _ => "the studio",
             };
-            return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {this.OldValue} -> {this.NewValue}" : $"{this.Kind}: {what}";
+            return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";
+        }
+
+        // A list is shown by what is in it: the name of its type tells nothing.
+        private static string Show(object? value)
+        {
+            return value switch
+            {
+                null => "(nothing)",
+                IEnumerable<ObsSource> sources => $"[{string.Join(", ", sources.Select(source => source.Name))}]",
+                IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
+                _ => value.ToString() ?? string.Empty,
+            };
         }
     }
 }

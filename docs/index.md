@@ -127,6 +127,19 @@ client.StreamStateChanged += (_, e) =>
     Console.WriteLine($"Streaming: {e.OutputActive}");
 ```
 
+#### [By name (new)](#tab/studio)
+
+```csharp
+using OBSStudioClient.Studio;
+
+await using var obs = new ObsStudio();
+await obs.ConnectAsync("localhost", 4455, "secret");       // reads your scenes and inputs, then follows OBS Studio
+
+await obs.Scenes["Gaming Scene"].SwitchToAsync();          // no UUIDs, no ids, no indexes
+await obs.Inputs["Microphone"].SetMutedAsync(true);
+await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
+```
+
 #### [Send a batch](#tab/batch)
 
 ```csharp
