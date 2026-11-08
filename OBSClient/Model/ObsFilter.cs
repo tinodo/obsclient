@@ -12,7 +12,8 @@ namespace OBSStudioClient.Model
     /// </para>
     /// <para>
     /// The properties can be read from any thread, and <see cref="INotifyPropertyChanged"/> tells when a value changed (see <see cref="ObsSource"/>). A reference to a filter that was removed stays
-    /// valid: <see cref="IsRemoved"/> is true.
+    /// valid: <see cref="IsRemoved"/> is true. The filters of a source that OBS Studio removed and keeps alive (<see cref="ObsObjectState.Detached"/>) stay in the model and can still be changed; those of a source that
+    /// was destroyed (<see cref="ObsObjectState.Gone"/>) are removed with it.
     /// </para>
     /// <para>
     /// The settings of a filter are not a property: OBS Studio does not announce every change of them (it sends no event for most), so the model could show old values for ever.

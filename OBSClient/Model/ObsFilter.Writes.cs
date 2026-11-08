@@ -13,7 +13,7 @@ namespace OBSStudioClient.Model
         /// <param name="value">True to enable the filter, false to disable it.</param>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when <see cref="IsEnabled"/> is <paramref name="value"/>, or when the model has been read again after the events did not show it.</returns>
-        /// <exception cref="ObsRemovedException">The filter, or its source, was removed.</exception>
+        /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be changed).</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio, or the connection that the change was asked for on has ended and another was made. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
@@ -45,7 +45,7 @@ namespace OBSStudioClient.Model
         /// </summary>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes with the value that <see cref="IsEnabled"/> was set to.</returns>
-        /// <exception cref="ObsRemovedException">The filter, or its source, was removed.</exception>
+        /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be changed).</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call, or did not say in time whether the filter is enabled. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
@@ -87,7 +87,7 @@ namespace OBSStudioClient.Model
         /// <returns>A task that completes when <see cref="Name"/> is <paramref name="name"/>.</returns>
         /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
         /// <exception cref="ObsNameInUseException">The source has a filter with that name already, also when it is this one. Nothing was changed.</exception>
-        /// <exception cref="ObsRemovedException">The filter, or its source, was removed.</exception>
+        /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be changed).</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
@@ -123,7 +123,7 @@ namespace OBSStudioClient.Model
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when <see cref="Index"/> is <paramref name="index"/>.</returns>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is negative (thrown at once), or is not a position among the filters of the source (the call ends with it, after the filter is known to be there).</exception>
-        /// <exception cref="ObsRemovedException">The filter, or its source, was removed.</exception>
+                /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be changed).</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
@@ -165,7 +165,7 @@ namespace OBSStudioClient.Model
         /// </summary>
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when <see cref="IsRemoved"/> is true.</returns>
-        /// <exception cref="ObsRemovedException">The filter, or its source, was removed already.</exception>
+        /// <exception cref="ObsRemovedException">The filter was removed already, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be removed).</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>

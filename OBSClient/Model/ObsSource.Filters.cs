@@ -23,7 +23,7 @@ namespace OBSStudioClient.Model
         /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
         /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show the filter. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change (it does not know the kind, for example).</exception>
-        /// <remarks>See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.</remarks>
+        /// <remarks>See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait. A source that OBS Studio removed and keeps alive (<see cref="ObsObjectState.Detached"/>) can still be given a filter; one that was destroyed can not.</remarks>
         public Task<ObsFilter> CreateFilterAsync(string name, string kind, object? settings = null, CancellationToken cancellationToken = default)
         {
             ArgumentException.ThrowIfNullOrEmpty(name);

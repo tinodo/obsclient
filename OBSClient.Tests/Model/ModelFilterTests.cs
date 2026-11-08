@@ -144,6 +144,25 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task TwoFiltersThatDifferOnlyByCase_AreAmbiguousWhenCaseIsIgnored_AndTheMessageSaysToUseTheExactName()
+        {
+            await using var rig = await StartAsync(Options(ignoreCase: true));
+            var mic = rig.Model.Inputs["mic"];
+            rig.Responder.Change(world => world.AddFilter(mic.Uuid, "GAIN", "gain_filter"));
+            await CreatedAsync(rig, "Mic", "GAIN", 3);
+            await ModelRig.EventuallyAsync(() => mic.Filters.Count == 4, "the second filter to be added");
+
+            var exception = Assert.Throws<ObsAmbiguousNameException>(() => mic.Filters["gain"]);
+
+            // Filters have no id and no FindAll: the way out is the exact name, which always wins.
+            Assert.Equal("filter", exception.Kind);
+            Assert.Equal(2, exception.Candidates.Count);
+            Assert.Contains("exactly as it is written", exception.Message);
+            Assert.DoesNotContain("FindAll", exception.Message);
+            Assert.Same(mic.Filters[0], mic.Filters["Gain"]);
+        }
+
+        [Fact]
         public async Task AFilterThatIsEnabledInOBSStudio_IsShown_AndTold()
         {
             await using var rig = await StartAsync();
