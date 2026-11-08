@@ -16,6 +16,13 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets whether studio mode is on.</summary>
         public bool StudioModeEnabled => this._studioMode.Value;
 
+        /// <summary>Gets what the model holds about an output. Only for the thread that runs the engine.</summary>
+        /// <param name="kind">The output.</param>
+        public OutputNode Output(ObsOutputKind kind)
+        {
+            return this._outputs[(int)kind];
+        }
+
         /// <summary>
         /// Gets whether the model needs an event of this type. The events that it does not need are not even passed to it.
         /// </summary>

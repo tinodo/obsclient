@@ -83,6 +83,11 @@ namespace OBSStudioClient.Studio.Engine
                     return this._programScope;
                 case ReadKind.StudioMode:
                     return this._studioScope;
+                case ReadKind.Stream:
+                case ReadKind.Record:
+                case ReadKind.VirtualCamera:
+                case ReadKind.ReplayBuffer:
+                    return this._outputs[(int)OutputNode.KindOf(request.Kind)].Scope;
                 case ReadKind.Items:
                     return this._scenes.TryGetValue(request.Target, out var scene) ? scene.ItemsScope : null;
                 default:
@@ -128,6 +133,7 @@ namespace OBSStudioClient.Studio.Engine
                 ReadKind.Inputs => this._inputsScope,
                 ReadKind.Program => this._programScope,
                 ReadKind.StudioMode => this._studioScope,
+                ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
@@ -214,12 +220,68 @@ namespace OBSStudioClient.Studio.Engine
                     }
 
                     break;
+                case ReadKind.Stream:
+                case ReadKind.Record:
+                case ReadKind.VirtualCamera:
+                case ReadKind.ReplayBuffer:
+                    this.ApplyOutputResponse(ticket, request, response, ok);
+                    break;
                 case ReadKind.Items:
                     this.ApplyItemsResponse(ticket, request, response, ok, notFound);
                     break;
                 case ReadKind.AudioMute:
                     this.ApplyAudioResponse(ticket, request, response, volumeResponse, notFound);
                     break;
+            }
+        }
+
+        // The status of an output. A read can only say whether it is running (and whether the stream is reconnecting, or the recording is paused), so the step that the events gave is
+        // kept (see OutputNode.FromRead). An OBS Studio that refuses the read for good (the simulations of the tests do not know the request) has no such output to read: that ends the wait for
+        // it, as an answer would, and the status stays what the events say. Only a refusal that can pass (not ready) and an answer that did not come or is not what it should be are read again.
+        private void ApplyOutputResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok)
+        {
+            var output = this._outputs[(int)OutputNode.KindOf(request.Kind)];
+            if (ok && TryReadOutput(response!.ResponseData, out var active, out var flagged))
+            {
+                output.Scope.Attempts = 0;
+                output.Read = true;
+                var old = output.Status.Value;
+                if (output.Status.ApplyRead(OutputNode.FromRead(output.Kind, old, output.StepSession == this._sessionId, active, flagged), ticket.SentSeq))
+                {
+                    this.Emit(StudioChangeKind.OutputChanged, Guid.Empty, 0, output.Kind.ToString(), old, output.Status.Value);
+                }
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                output.Scope.Attempts = 0;
+                output.Read = true;
+            }
+            else
+            {
+                this.Retry(output.Scope);
+            }
+        }
+
+        private static bool TryReadOutput(object? data, out bool active, out bool flagged)
+        {
+            switch (data)
+            {
+                case OutputStatusResponse stream:
+                    active = stream.OutputActive;
+                    flagged = stream.OutputReconnecting;
+                    return true;
+                case RecordStatusResponse record:
+                    active = record.OutputActive;
+                    flagged = record.OutputPaused;
+                    return true;
+                case OutputActiveResponse other:
+                    active = other.OutputActive;
+                    flagged = false;
+                    return true;
+                default:
+                    active = false;
+                    flagged = false;
+                    return false;
             }
         }
 

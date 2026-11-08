@@ -95,6 +95,7 @@ namespace OBSStudioClient.Studio
             this.PublishItems(engine, pass);
             this.RemoveVanished(pass);
             var view = this.PublishView(engine, pass);
+            this.PublishOutputs(engine);
 
             this._notices.AddRange(this._repaired);
             this._notices.AddRange(this._removed);
@@ -500,6 +501,31 @@ namespace OBSStudioClient.Studio
 
             this._view = new StudioView(scenes, inputs, allScenes, program, studioMode);
             return this._view;
+        }
+
+        // The outputs are objects of the studio that stay the same, so they are brought in line here and not through the view: a change of the status is the PropertyChanged event of the output
+        // (and of IsActive, and of IsPaused for the recording), and a record for ObsStudio.Changed.
+        private void PublishOutputs(StudioEngine engine)
+        {
+            foreach (var output in this._studio.Outputs)
+            {
+                var node = engine.Output(output.Kind);
+                var wasActive = output.IsActive;
+                if (output.Publish(node.Status.Value, node.StartsSeen, node.StopsSeen, out var previous))
+                {
+                    var status = output.Status;
+                    this.AddProperty(output, nameof(ObsOutput.Status), previous, status, true);
+                    if (output.IsActive != wasActive)
+                    {
+                        this.AddProperty(output, nameof(ObsOutput.IsActive), wasActive, output.IsActive, false);
+                    }
+
+                    if (output is ObsRecordOutput && (previous == ObsOutputStatus.Paused) != (status == ObsOutputStatus.Paused))
+                    {
+                        this.AddProperty(output, nameof(ObsRecordOutput.IsPaused), previous == ObsOutputStatus.Paused, status == ObsOutputStatus.Paused, false);
+                    }
+                }
+            }
         }
 
         // A change of a property: the PropertyChanged event of the object, and when the change is one that the application is told about in

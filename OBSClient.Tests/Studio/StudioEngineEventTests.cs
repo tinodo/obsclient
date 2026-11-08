@@ -313,6 +313,7 @@ namespace OBSStudioClient.Tests.Studio
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
+                EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
             ];
 
@@ -347,6 +348,10 @@ namespace OBSStudioClient.Tests.Studio
                 (EventType.SceneItemEnableStateChanged, h => h.Event("SceneItemEnableStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemEnabled = false }, 128)),
                 (EventType.SceneItemLockStateChanged, h => h.Event("SceneItemLockStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemLocked = true }, 128)),
                 (EventType.StudioModeStateChanged, h => h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024)),
+                (EventType.StreamStateChanged, h => h.Event("StreamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
+                (EventType.RecordStateChanged, h => h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:\\Videos\\a.mkv" }, 64)),
+                (EventType.VirtualcamStateChanged, h => h.Event("VirtualcamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
+                (EventType.ReplayBufferStateChanged, h => h.Event("ReplayBufferStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
                 (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
                 (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
             };

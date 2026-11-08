@@ -2,6 +2,7 @@ namespace OBSStudioClient.Tests.Studio
 {
     using System.Text.Json;
     using OBSStudioClient.Messages;
+    using OBSStudioClient.Studio;
     using OBSStudioClient.Studio.Engine;
 
     /// <summary>
@@ -136,6 +137,9 @@ namespace OBSStudioClient.Tests.Studio
 
         public bool StudioMode { get; set; }
 
+        /// <summary>Gets what the outputs of OBS Studio are doing; an output that is not in it is stopped.</summary>
+        public Dictionary<ObsOutputKind, ObsOutputStatus> Outputs { get; } = new();
+
         /// <summary>Gets the groups: scenes that a scene item shows, and that the list of scenes does not have (a group says <c>isGroup</c> in the scene items that show it).</summary>
         public HashSet<Guid> Groups { get; } = [];
 
@@ -224,6 +228,16 @@ namespace OBSStudioClient.Tests.Studio
                     return (100, new { sceneName = program.Name, sceneUuid = program.Uuid });
                 case ReadKind.StudioMode:
                     return (100, new { studioModeEnabled = this.StudioMode });
+                case ReadKind.Stream:
+                    var streamStatus = this.OutputStatus(ObsOutputKind.Stream);
+                    return (100, new { outputActive = IsRunning(streamStatus), outputReconnecting = streamStatus == ObsOutputStatus.Reconnecting, outputTimecode = "00:00:00.000", outputDuration = 0L, outputCongestion = 0.0, outputBytes = 0L, outputSkippedFrames = 0L, outputTotalFrames = 0L });
+                case ReadKind.Record:
+                    var recordStatus = this.OutputStatus(ObsOutputKind.Record);
+                    return (100, new { outputActive = IsRunning(recordStatus), outputPaused = recordStatus == ObsOutputStatus.Paused, outputTimecode = "00:00:00.000", outputDuration = 0L, outputBytes = 0L });
+                case ReadKind.VirtualCamera:
+                    return (100, new { outputActive = IsRunning(this.OutputStatus(ObsOutputKind.VirtualCamera)) });
+                case ReadKind.ReplayBuffer:
+                    return (100, new { outputActive = IsRunning(this.OutputStatus(ObsOutputKind.ReplayBuffer)) });
                 case ReadKind.Items:
                     return this.Items.TryGetValue(request.Target, out var items)
                         ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(this.Item).ToArray() })
@@ -233,6 +247,17 @@ namespace OBSStudioClient.Tests.Studio
                 default:
                     return this.AudioAnswer(request.Target, input => new { inputVolumeMul = input.VolumeMul, inputVolumeDb = 0.0 });
             }
+        }
+
+        private ObsOutputStatus OutputStatus(ObsOutputKind kind)
+        {
+            return this.Outputs.TryGetValue(kind, out var status) ? status : ObsOutputStatus.Stopped;
+        }
+
+        // OBS says that an output is active while it runs, and also while it is stopping (it is not done until it has stopped); an output that is starting is not active yet.
+        private static bool IsRunning(ObsOutputStatus status)
+        {
+            return status is ObsOutputStatus.Started or ObsOutputStatus.Stopping or ObsOutputStatus.Reconnecting or ObsOutputStatus.Paused;
         }
 
         // OBS reads the audio state of an input that has audio. For one that has none it refuses (604, InvalidResourceState), and for one that does not exist it says so (600).

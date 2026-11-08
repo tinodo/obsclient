@@ -29,6 +29,18 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>GetInputVolume (always right after GetInputMute of the same input).</summary>
         AudioVolume,
+
+        /// <summary>GetStreamStatus.</summary>
+        Stream,
+
+        /// <summary>GetRecordStatus.</summary>
+        Record,
+
+        /// <summary>GetVirtualCamStatus.</summary>
+        VirtualCamera,
+
+        /// <summary>GetReplayBufferStatus.</summary>
+        ReplayBuffer,
     }
 
     /// <summary>
@@ -188,6 +200,9 @@ namespace OBSStudioClient.Studio.Engine
         private readonly ScopeState _inputsScope = new();
         private readonly ScopeState _programScope = new();
         private readonly ScopeState _studioScope = new();
+
+        // The outputs (stream, recording, virtual camera, replay buffer), in the order of ObsOutputKind. They do not belong to a scene collection.
+        private readonly OutputNode[] _outputs = [new(ObsOutputKind.Stream), new(ObsOutputKind.Record), new(ObsOutputKind.VirtualCamera), new(ObsOutputKind.ReplayBuffer)];
         private Cell<Guid?> _programUuid = new(null, 0);
         private Cell<bool> _studioMode = new(false, 0);
         private StudioEngineState _state = StudioEngineState.Disconnected;
@@ -278,6 +293,10 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
+            foreach (var output in this._outputs)
+            {
+                output.Read = false;
+            }
 
             // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has
             // it was loaded again), and what its scene items were is read again before a removal is taken to be a destruction.
@@ -431,6 +450,14 @@ namespace OBSStudioClient.Studio.Engine
                 Take(this._studioScope, new ReadRequest(ReadKind.StudioMode, RequestType.GetStudioModeEnabled, null, Guid.Empty));
             }
 
+            foreach (var output in this._outputs)
+            {
+                if (output.Scope.IsReady(now))
+                {
+                    Take(output.Scope, new ReadRequest(output.ReadKind, output.StatusRequest, null, Guid.Empty));
+                }
+            }
+
             foreach (var scene in this._scenes.Values.OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid))
             {
                 if (requests.Count >= max)
@@ -511,7 +538,21 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
-            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead ? 0 : 1);
+            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this.OutputsRead() ? 0 : 1);
+        }
+
+        // Whether every output was read on this connection (or was found to be one that OBS Studio does not have).
+        private bool OutputsRead()
+        {
+            foreach (var output in this._outputs)
+            {
+                if (!output.Read)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private IEnumerable<ScopeState> AllScopes()
@@ -520,6 +561,11 @@ namespace OBSStudioClient.Studio.Engine
             yield return this._inputsScope;
             yield return this._programScope;
             yield return this._studioScope;
+            foreach (var output in this._outputs)
+            {
+                yield return output.Scope;
+            }
+
             foreach (var scene in this._scenes.Values)
             {
                 yield return scene.ItemsScope;

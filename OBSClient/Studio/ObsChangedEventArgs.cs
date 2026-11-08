@@ -24,7 +24,7 @@ namespace OBSStudioClient.Studio
         public ObsChangeKind Kind { get; }
 
         /// <summary>
-        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/> or <see cref="ObsSceneItem"/> that changed, or null for a change of the <see cref="ObsStudio"/> itself.
+        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsStudio"/> itself.
         /// </summary>
         public object? Entity { get; }
 
@@ -50,6 +50,7 @@ namespace OBSStudioClient.Studio
             {
                 ObsSceneItem item => $"scene item {item.Id} of '{item.Scene.Name}'",
                 ObsSource source => $"{(source is ObsScene ? "scene" : "input")} '{source.Name}'",
+                ObsOutput output => $"the {output.Name}",
                 _ => "the studio",
             };
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";

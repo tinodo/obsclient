@@ -141,6 +141,7 @@ namespace OBSStudioClient.Studio
             this._client = client;
             this._ownsClient = ownsClient;
             this._logger = logger ?? NullLogger.Instance;
+            this.Outputs = new ObsOutputs(this);
             this._notifier = new StudioNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new StudioHost(this, client, this._options, this._logger, this._notifier);
             this._writer = new StudioWriter(client, this._host, this._options, this._logger);
@@ -262,6 +263,11 @@ namespace OBSStudioClient.Studio
         /// Gets whether studio mode is on.
         /// </summary>
         public bool IsStudioModeEnabled => this._view.StudioMode;
+
+        /// <summary>
+        /// Gets the outputs: the stream, the recording, the virtual camera and the replay buffer. They are the same objects for as long as the <see cref="ObsStudio"/> lives.
+        /// </summary>
+        public ObsOutputs Outputs { get; }
 
         internal bool IgnoreCase => this._options.IgnoreCase;
 
@@ -902,6 +908,9 @@ namespace OBSStudioClient.Studio
                     case ObsSceneItem item:
                         item.RaisePropertyChanged(property);
                         break;
+                    case ObsOutput output:
+                        output.RaisePropertyChanged(property);
+                        break;
                     case ObsStudio:
                         this.Raise(this.PropertyChanged, this, property);
                         break;
@@ -963,6 +972,13 @@ namespace OBSStudioClient.Studio
         private void RaiseEverything(bool onlyStudio)
         {
             this.Raise(this.PropertyChanged, this, string.Empty);
+
+            // The outputs are the same objects before and after, and the application can hold them from the start: they say it whatever the studio does.
+            foreach (var output in this.Outputs)
+            {
+                output.RaisePropertyChanged(string.Empty);
+            }
+
             if (!onlyStudio)
             {
                 var view = this._view;

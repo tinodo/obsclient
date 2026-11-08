@@ -62,6 +62,9 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Studio mode was switched on or off.</summary>
         StudioModeChanged,
 
+        /// <summary>An output (the stream, the recording, the virtual camera, the replay buffer) changed what it is doing; the text says which.</summary>
+        OutputChanged,
+
         /// <summary>The model corrected itself: it held something that a read showed not to exist.</summary>
         Repaired,
     }

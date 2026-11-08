@@ -80,6 +80,21 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void Release_HandsOverTheOutputsToo_ForTheFirstTime()
+        {
+            using var studio = new ObsStudio();
+            var scene = new object();
+            var hold = new StudioNoticeHold(100);
+            hold.Hold([Property(scene, "Name"), Property(studio.Outputs.Record, "Status"), Property(studio, "Scenes")]);
+
+            // The outputs are the same objects before and after the first synchronization, like the studio: what they held back is told then.
+            var released = Released(hold, onlyStudio: true);
+
+            Assert.Equal(new (object?, string?)[] { (studio.Outputs.Record, "Status"), (studio, "Scenes") }, released.Select(r => (r.Entity, r.Property)).ToArray());
+            Assert.Equal(0, hold.Count);
+        }
+
+        [Fact]
         public void Release_Forgets_SoThatTheSamePropertyIsHeldAgainAfterwards()
         {
             var a = new object();

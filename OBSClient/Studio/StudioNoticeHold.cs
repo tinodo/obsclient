@@ -78,7 +78,7 @@ namespace OBSStudioClient.Studio
             {
                 foreach (var (entity, property) in this._held)
                 {
-                    if (!onlyStudio || entity is ObsStudio)
+                    if (!onlyStudio || entity is ObsStudio or ObsOutput)
                     {
                         raise(new StudioNotice(null, entity, property));
                     }

@@ -32,6 +32,10 @@ namespace OBSStudioClient.Studio.Engine
             [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e) => engine.OnItemEnabledChanged(e)),
             [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e) => engine.OnItemLockedChanged(e)),
             [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
+            [EventType.StreamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Stream, e.OutputState)),
+            [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Record, e.OutputState)),
+            [EventType.VirtualcamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.VirtualCamera, e.OutputState)),
+            [EventType.ReplayBufferStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.ReplayBuffer, e.OutputState)),
         }.ToFrozenDictionary();
 
         /// <summary>
@@ -51,8 +55,8 @@ namespace OBSStudioClient.Studio.Engine
 
             // While OBS Studio changes its scene collection it has nothing to say about the collection that the model will hold: what it sends is about the one that
             // it is leaving, or (when a server does send them) about the sources that load, and the model of the new collection is read when the switch is over.
-            // Only the end of the switch counts.
-            if (this._switching && message.EventType != EventType.CurrentSceneCollectionChanged)
+            // Only the end of the switch counts. An output does not belong to a scene collection: what OBS Studio says about it then is as true as at any other time.
+            if (this._switching && message.EventType != EventType.CurrentSceneCollectionChanged && !OutputNode.IsOutputEvent(message.EventType))
             {
                 return;
             }
@@ -83,6 +87,39 @@ namespace OBSStudioClient.Studio.Engine
             if (this._studioMode.ApplyEvent(e.StudioModeEnabled, this._seq))
             {
                 this.Emit(StudioChangeKind.StudioModeChanged, Guid.Empty, 0, null, !e.StudioModeEnabled, e.StudioModeEnabled);
+            }
+        }
+
+        // The step of an output. The events count the starts and the stops: a change that starts or stops an output is done when one has been seen since it was asked for, also when the
+        // output went through the step and on to another within a single step of the model (a stream that could not connect: starting, and stopped at once).
+        private void OnOutputState(ObsOutputKind kind, ObsOutputState state)
+        {
+            var output = this._outputs[(int)kind];
+            if (!OutputNode.TryFromEvent(state, out var status))
+            {
+                // A state that the model does not know: a read says what the output is doing.
+                output.Scope.MarkDirty();
+                return;
+            }
+
+            if (state is ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING or ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                output.StartsSeen++;
+            }
+            else if (state is ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPING or ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED)
+            {
+                output.StopsSeen++;
+            }
+
+            var old = output.Status.Value;
+            if (status is ObsOutputStatus.Starting or ObsOutputStatus.Stopping)
+            {
+                output.StepSession = this._sessionId;
+            }
+
+            if (output.Status.ApplyEvent(status, this._seq))
+            {
+                this.Emit(StudioChangeKind.OutputChanged, Guid.Empty, 0, kind.ToString(), old, status);
             }
         }
 
