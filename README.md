@@ -13,10 +13,11 @@ Our intent is to create a **complete** and **easy to use** client for OBS Studio
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 4.0.0-rc.1`  
-From the command line: `dotnet add package OBSClient --version 4.0.0-rc.1`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 5.0.0-beta.1`  
+From the command line: `dotnet add package OBSClient --version 5.0.0-beta.1`  
 
-**4.0.0-rc.1 is a prerelease** (a release candidate): it is meant to be tried, and its public API is closed, so what changes before 4.0.0 is fixes for what is found. A plain
+**5.0.0-beta.1 is a prerelease** (a beta): it is meant to be tried. It has the client of 4.0.0-rc.1, whose public API is closed, and `ObsStudio` (OBS Studio by name), which is new and provisional: its names and details can still change.
+It targets `net10.0` only; an application on .NET 8 or 9 stays on 4.0.0-rc.1, which also has the `net8.0` library. A plain
 `dotnet add package OBSClient` keeps installing the latest stable release, so name the version (or add `--prerelease`) to get it.
 Please report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
 
@@ -76,7 +77,7 @@ is missing or wrong is refused with an `ArgumentException` before anything is se
 
 ### By name: `ObsStudio` (new in 5.0, provisional)
 
-`ObsStudio` keeps a copy of your scenes, inputs, scene items and outputs (stream, recording, virtual camera, replay buffer) in memory, follows the events of OBS Studio, and lets you work by name. It is built on the
+`ObsStudio` keeps a copy of your scenes, inputs, scene items, filters and outputs (stream, recording, virtual camera, replay buffer) in memory, follows the events of OBS Studio, and lets you work by name. It is built on the
 `ObsClient` above, which stays available as `obs.Client`. Needs OBS Studio 30.1 or newer. See
 [Controlling OBS Studio by name](https://tinodo.github.io/obsclient/articles/studio.html).
 
@@ -87,6 +88,7 @@ await obs.ConnectAsync("localhost", 4455, "password");
 await obs.Scenes["Gaming Scene"].SwitchToAsync();
 await obs.Inputs["Microphone"].SetMutedAsync(true);
 await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
+await obs.Inputs["Microphone"].Filters["Noise Gate"].SetEnabledAsync(true);
 await obs.Outputs.Record.StartAsync();           // returns when OBS Studio has begun to record
 obs.Changed += (_, e) => Console.WriteLine(e);   // also what the user does in OBS Studio
 ```

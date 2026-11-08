@@ -20,7 +20,7 @@
          a license file as the license of a package, so the file is only packed, and not named. -->
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2022 Tino Donderwinkel</Copyright>
-    <Version>4.0.0-rc.1</Version>
+    <Version>5.0.0-beta.1</Version>
     <PackageReleaseNotes>https://github.com/tinodo/obsclient/releases/tag/v$(Version)</PackageReleaseNotes>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <!-- The documentation of the API is part of the product: a public member without a summary, a parameter that is not described, a cref that does not

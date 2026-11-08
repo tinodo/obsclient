@@ -7,7 +7,7 @@ title: Getting started
 This page takes you from nothing to a small program that talks to your OBS Studio.
 
 > [!NOTE]
-> This site documents OBSClient **4.0**, which is a release candidate. Using 3.x? See [Moving from 3.x to 4.0](migrating-to-4.md).
+> This site documents OBSClient **5.0**, which is a beta: the client of 4.0, plus the new and provisional [`ObsStudio`](studio.md). Using 3.x? See [Moving from 3.x to 4.0](migrating-to-4.md).
 
 ## What you need
 
@@ -38,8 +38,8 @@ cd ObsHello
 dotnet add package OBSClient --prerelease
 ```
 
-`--prerelease` is needed while 4.0 is a release candidate: a plain `dotnet add package OBSClient` installs the latest stable version, which
-is 3.x. Once 4.0 is released the flag is no longer needed.
+`--prerelease` is needed while 5.0 is a beta: a plain `dotnet add package OBSClient` installs the latest stable version, which
+is 3.x. Once a newer stable version is released the flag is no longer needed.
 
 ## Connect and send your first requests
 

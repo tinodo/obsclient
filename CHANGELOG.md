@@ -5,6 +5,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [5.0.0-beta.1] - 2026-11-08
+
+The first prerelease of 5.0.0, for trying out. It has the client of 4.0.0-rc.1, whose public API is closed, and one new part: **`ObsStudio`**,
+OBS Studio by name. `ObsStudio` is **provisional**: its names and its details can still change before 5.0.0, so read what is listed
+under 5.0.0 below, try it, and report what you find in an [issue](https://github.com/tinodo/obsclient/issues). The library targets
+`net10.0` only (the `net8.0` target is gone, see *Breaking changes* below), so an application on .NET 8 or 9 stays on 4.0.0-rc.1. A prerelease
+is not installed by a plain `dotnet add package OBSClient`: use `dotnet add package OBSClient --version 5.0.0-beta.1` (or `--prerelease` for
+the newest prerelease). The GitHub release of this version has the package, the test app and the attestation of where the files come from as
+downloads.
+
+What `ObsStudio` does in this version, in short:
+
+- It reads the scenes, the inputs, the scene items, the filters and the outputs of OBS Studio into a model in memory, follows what OBS Studio
+  and the user in it do, and tells you what changed, so that you work with names: `obs.Scenes["Gaming Scene"]`, `obs.Inputs["Microphone"]`.
+- It makes, renames and removes scenes, inputs and filters by name, switches the program scene, shows, hides, locks, moves and removes scene
+  items, mutes an input and sets its volume, enables, disables, moves and renames filters, and starts, stops and toggles the stream, the
+  recording (which can be paused), the virtual camera and the replay buffer (which can be saved). A call returns when the model shows the change.
+- It extends the client and hides nothing of it: `obs.Client` is the `ObsClient`.
+
+What it does not have yet: the control of studio mode and of the preview scene, transitions, profiles, scene collections, media inputs, and the
+settings of inputs and filters. Use `obs.Client` for those. The article [Controlling OBS Studio by
+name](https://tinodo.github.io/obsclient/articles/studio.html) tells the rest, and `samples/StudioSample` is a small command prompt to try it
+against your own OBS Studio (OBS Studio 30.1 or newer).
+
 ## [5.0.0] - Unreleased
 
 ### Breaking changes
@@ -13,7 +37,7 @@ For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obscli
 
 ### Added
 
-- **`ObsStudio`: OBS Studio by name** *(new, and provisional: the names and the details can change before the release that has it)*. `ObsStudio` keeps a model of the scenes, the inputs and the scene items of OBS Studio in memory, so that you work with names and objects and not with UUIDs and ids that you have to look up first: `studio.Scenes["Gaming"]`, `studio.Inputs["Webcam"]`, `scene.Items`, `studio.ProgramScene`. It follows OBS Studio (and the user in it) with the events, reads again where the events cannot say, and tells you what changed (`Changed`, `INotifyPropertyChanged`, `Resynchronized`). You can make, rename and remove scenes and inputs by name (`CreateSceneAsync`, `CreateInputAsync`, `AddAsync`, `RenameAsync`, `RemoveAsync`), switch the program scene (`SwitchToAsync`), show, hide, lock, move and remove scene items, mute an input and set its volume, and show or hide an input in every scene. It also has the outputs by what they do: `studio.Outputs.Stream`, `.Record` (which can be paused), `.VirtualCamera` and `.ReplayBuffer` (which can be saved) show their `Status` and `IsActive`, and can be started, stopped and toggled; a start or a stop returns when OBS Studio has begun, because a stream takes seconds to connect and can fail, and OBS Studio does not always say that a start failed (an output that stays starting is read again after `ObsStudioOptions.OutputStepTimeout`). The changes are made one at a time, in the order of the calls, and a call returns when the model shows the change; what can go wrong is told by exceptions that say what to do (`ObsNameInUseException`, `ObsRemovedException`, `ObsNotConfirmedException`, `ObsUnknownOutcomeException`, `ObsNotReadyException`). It extends the client and hides nothing of it: `ObsStudio.Client` is the `ObsClient`. It is tested against a simulation of OBS Studio that lags and reorders events the way the real one does, and against a real OBS Studio. There is an article, *Controlling OBS Studio by name*, and a runnable sample, `samples/StudioSample` (a small command prompt: `scene "Gaming"`, `mute "Mic"`, `hide "Gaming" "Webcam"`). The text of a change in `Changed` (`Console.WriteLine(e)`) shows a list by the names in it.
+- **`ObsStudio`: OBS Studio by name** *(new, and provisional: the names and the details can change before the release that has it)*. `ObsStudio` keeps a model of the scenes, the inputs and the scene items of OBS Studio in memory, so that you work with names and objects and not with UUIDs and ids that you have to look up first: `studio.Scenes["Gaming"]`, `studio.Inputs["Webcam"]`, `scene.Items`, `studio.ProgramScene`. It follows OBS Studio (and the user in it) with the events, reads again where the events cannot say, and tells you what changed (`Changed`, `INotifyPropertyChanged`, `Resynchronized`). You can make, rename and remove scenes and inputs by name (`CreateSceneAsync`, `CreateInputAsync`, `AddAsync`, `RenameAsync`, `RemoveAsync`), switch the program scene (`SwitchToAsync`), show, hide, lock, move and remove scene items, mute an input and set its volume, and show or hide an input in every scene. It also has the outputs by what they do: `studio.Outputs.Stream`, `.Record` (which can be paused), `.VirtualCamera` and `.ReplayBuffer` (which can be saved) show their `Status` and `IsActive`, and can be started, stopped and toggled; a start or a stop returns when OBS Studio has begun, because a stream takes seconds to connect and can fail, and OBS Studio does not always say that a start failed (an output that stays starting is read again after `ObsStudioOptions.OutputStepTimeout`). The scenes and the inputs have their filters too (`input.Filters["Noise Gate"]`), which show their `Name`, `Index` and `IsEnabled`, can be enabled, disabled, toggled, renamed, moved, removed and made (`CreateFilterAsync`), and stay the same object when they are renamed or moved; their settings stay with the plain client, because OBS Studio announces few changes of them. The changes are made one at a time, in the order of the calls, and a call returns when the model shows the change; what can go wrong is told by exceptions that say what to do (`ObsNameInUseException`, `ObsRemovedException`, `ObsNotConfirmedException`, `ObsUnknownOutcomeException`, `ObsNotReadyException`). It extends the client and hides nothing of it: `ObsStudio.Client` is the `ObsClient`. It is tested against a simulation of OBS Studio that lags and reorders events the way the real one does, and against a real OBS Studio. There is an article, *Controlling OBS Studio by name*, and a runnable sample, `samples/StudioSample` (a small command prompt: `scene "Gaming"`, `mute "Mic"`, `hide "Gaming" "Webcam"`). The text of a change in `Changed` (`Console.WriteLine(e)`) shows a list by the names in it.
 
 ## [4.0.0-rc.1] - 2026-11-03
 

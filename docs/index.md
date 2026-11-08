@@ -49,7 +49,7 @@ if (await client.ConnectAsync(password: "secret"))
 <div class="oc-banner">
 <i class="bi bi-info-circle"></i>
 <div>
-<strong>4.0 is a release candidate.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6.
+<strong>5.0 is a beta.</strong> This site documents OBSClient 5.0: the client of 4.0, a major update that brings the client to obs-websocket 5.7.6, and <a href="articles/studio.md">ObsStudio</a>, OBS Studio by name, which is new and provisional.
 Using 3.x? <a href="articles/migrating-to-4.md">Moving from 3.x to 4.0</a> lists what changes.
 </div>
 </div>
@@ -138,6 +138,7 @@ await obs.ConnectAsync("localhost", 4455, "secret");       // reads your scenes 
 await obs.Scenes["Gaming Scene"].SwitchToAsync();          // no UUIDs, no ids, no indexes
 await obs.Inputs["Microphone"].SetMutedAsync(true);
 await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
+await obs.Inputs["Microphone"].Filters["Noise Gate"].SetEnabledAsync(true);
 ```
 
 #### [Send a batch](#tab/batch)
