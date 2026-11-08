@@ -29,7 +29,7 @@ The protocol names things the way OBS Studio keeps them inside: a scene or an in
 | **You find things by** | a name or a UUID, and ids that you look up first | their name: `obs.Scenes["Gaming Scene"]` |
 | **You read state** | with a request, each time | from a property, answered from memory, with no request |
 | **A change** | is one request; the call returns when OBS Studio has answered | is a method on the object; the call returns when the model shows the change |
-| **You hear about changes** | with one event for each kind of change, and you apply them | with one `Changed` event and `INotifyPropertyChanged`, after the model has applied them |
+| **You hear about changes** | with one event for each kind of change, and you apply them | with `Changed` and `INotifyPropertyChanged`, after the model has applied them, and `Resynchronized` when it read everything again |
 | **It covers** | the whole protocol | scenes, inputs, scene items, filters and outputs; the rest through `obs.Client` |
 | **It needs** | OBS Studio 28 or newer | OBS Studio 30.1 or newer |
 | **In 4.0** | the API is closed | new in 4.0.0-rc.2, provisional |
@@ -50,7 +50,7 @@ The protocol names things the way OBS Studio keeps them inside: a scene or an in
 - **Every request and every event.** Each request of the protocol is a method with its name, each event is a .NET event with its name, and the enumerations and the
   [request batches](batches.md) are there as well. When obs-websocket adds something, the client gets it from the protocol definition
   ([Staying in sync with obs-websocket](protocol-sync.md)).
-- **Direct, and nothing hidden.** A call sends one request and returns when OBS Studio has answered it, with what OBS Studio sent, typed. No part of the protocol is left out or wrapped away.
+- **Direct, and nothing hidden.** A call sends one request and returns when OBS Studio has answered it, with what OBS Studio sent, typed. No part of the protocol is left out.
 - **Things are identified the way OBS Studio does.** One argument takes a name or a UUID (see [Calling requests](requests.md#scenes-inputs-and-sources-names-or-uuids)); a scene item is
   a number that you ask for first.
 - **The state is yours.** The client does not keep a picture of OBS Studio. You ask when you want to know, and you listen to the events when you want to stay up to date.
@@ -74,9 +74,10 @@ listens to OBS Studio, also to what the user does in its window, and keeps the m
 
 - **Names, not plumbing.** `obs.Scenes["Gaming Scene"].Items["Webcam"]`: no UUIDs, no scene item ids, no indexes to look up first.
 - **Reads are instant.** A property is answered from memory, from any thread, and sends no request: `item.IsEnabled`, `input.IsMuted`, `scene.IsProgram`.
-- **A change returns when it is true.** Changes are methods on the objects, made one at a time in the order in which you ask for them, and each returns **when the model shows the change**, so
-  that what you read next is what you changed. When something goes wrong the exception says exactly what is known, whether the change was made, and what to do. A change is never made twice.
-- **You hear what changes.** One `Changed` event for everything, in order, and `INotifyPropertyChanged` on every object, so that a user interface can bind to them.
+- **A change returns when the model shows it.** Changes are methods on the objects, made one at a time in the order in which you ask for them, and each returns **when the model shows the change**, so
+  that what you read next is what you changed (an output returns when OBS Studio has *begun* to start or stop, because a stream takes seconds to connect). When something goes wrong the exception says exactly what is known, whether the change was made, and what to do. A change is never made twice.
+- **You hear what changes.** `Changed` says what changed, in order, and every object implements `INotifyPropertyChanged`, so that a user interface can bind to them. When the model had to read
+  everything again (a lost connection came back, OBS Studio switched its scene collection, or your handlers were too slow), `Resynchronized` says so, and you read again what you hold.
 - **It copes with OBS Studio.** It reconnects and reads everything again, follows a switch of the scene collection, and knows that OBS Studio keeps a scene or an input alive after it was
   removed. It is checked against a simulation of OBS Studio that reproduces what the real one does that surprises, and in CI against a real one.
 - **Nothing is hidden.** `obs.Client` is the `ObsClient`, for everything that the model does not offer (yet).
@@ -198,12 +199,17 @@ And one event for each other kind of change that you care about. To keep a pictu
 
 ```csharp
 obs.Changed += (_, e) => Console.WriteLine(e);
+
+// The model read everything again: a lost connection came back, or the scene collection changed.
+obs.Resynchronized += (_, _) => Console.WriteLine("Read again what you hold.");
 ```
 
 ```text
 scene item 3 of 'Gaming Scene': IsEnabled True -> False
 input 'Microphone': IsMuted False -> True
 ```
+
+`Changed` says what changed, in order. It does not replace a look at the model after a resynchronization: what you held may belong to the scene collection that was left, so read again what you need.
 
 ## Which one do I use?
 
@@ -241,7 +247,7 @@ await obs.ConnectAsync("localhost", 4455, "secret");
 The model is not free, and it is as well to know where:
 
 - **It reads before it works.** `ConnectAsync` returns when the model is complete, which takes a number of requests (more with many inputs, and two more for each input without audio before OBS Studio 31.1).
-- **It holds a copy.** The copy is small, and it is kept right by the events. It is a copy: between two reads of it, it can have changed.
+- **It holds a copy.** The copy is small, and it is kept right by the events. It is a copy: between two reads of it, it can have changed, and while the connection is down it shows what was known last (`IsStale` says so).
 - **Changes go one at a time.** That is what makes them predictable and in order. A change that takes long makes the ones behind it wait.
 - **It needs OBS Studio 30.1 or newer**, the first version that gives scenes and inputs a UUID. Older versions work with the plain client alone.
 - **It is provisional.** Its names and shapes can change until 4.0.0 is released.

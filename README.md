@@ -27,7 +27,7 @@ OBS Studio is controlled through obs-websocket, a protocol of **requests** and *
 | **You find things by** | a name or a UUID, and ids that you look up first | their name: `obs.Scenes["Gaming Scene"]` |
 | **You read state** | with a request, each time | from a property, answered from memory, with no request |
 | **A change** | is one request; the call returns when OBS Studio has answered | is a method on the object; the call returns when the model shows the change |
-| **You hear about changes** | with one event for each kind of change, and you apply them | with one `Changed` event and `INotifyPropertyChanged`, after the model has applied them |
+| **You hear about changes** | with one event for each kind of change, and you apply them | with `Changed` and `INotifyPropertyChanged`, after the model has applied them, and `Resynchronized` when it read everything again |
 | **It covers** | the whole protocol | scenes, inputs, scene items, filters and outputs; the rest through `obs.Client` |
 | **It needs** | OBS Studio 28 or newer | OBS Studio 30.1 or newer |
 | **In 4.0** | the API is closed | new in 4.0.0-rc.2, provisional |
@@ -154,8 +154,8 @@ What it gives you:
 
 - **Names, not plumbing.** `obs.Scenes["Gaming Scene"].Items["Webcam"]`: no UUIDs, no scene item ids, no indexes to look up first.
 - **Reads without a round trip.** A property is answered from memory, from any thread, and sends no request.
-- **Changes that are true when the call returns.** A change is a method on the object. Changes are made one at a time, in the order in which you ask for them, and each call returns when the model shows the change. When something goes wrong the exception says whether the change was made. A change is never made twice.
-- **One stream of changes.** `Changed` says what changed, in order, and every object implements `INotifyPropertyChanged`, so a user interface can bind to it.
+- **Changes you can rely on.** A change is a method on the object. Changes are made one at a time, in the order in which you ask for them, and each call returns when the model shows the change (an output returns when OBS Studio has begun to start or stop). When something goes wrong the exception says whether the change was made. A change is never made twice.
+- **Changes you can follow.** `Changed` says what changed, in order, and every object implements `INotifyPropertyChanged`, so a user interface can bind to it. When the model had to read everything again (a lost connection came back, OBS Studio switched its scene collection, or your handlers were too slow), `Resynchronized` says so: read again what you hold.
 - **Made for the real OBS Studio.** It reconnects and reads again, follows a switch of the scene collection, and knows that OBS Studio keeps a removed scene or input alive for as long as a scene item shows it. It is checked against a simulation of OBS Studio that reproduces what the real one does that surprises, and in CI against a real one.
 - **Nothing hidden.** `obs.Client` is the `ObsClient`.
 

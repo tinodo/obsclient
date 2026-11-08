@@ -13,7 +13,7 @@ _description: A complete cross-platform .NET client for OBS Studio 28 and up. Ob
 
 Two ways to work with it, in one package: **`ObsClient`** speaks the protocol, and **`ObsModel`** speaks OBS Studio. Use the protocol when you
 want every request and event of obs-websocket as it is, typed and async. Use the model when you want your scenes, inputs and filters by
-name, always up to date. Switch scenes, mute inputs, start the stream, react to whatever happens in OBS Studio: from any .NET application,
+name, kept up to date for you. Switch scenes, mute inputs, start the stream, react to whatever happens in OBS Studio: from any .NET application,
 on Windows, Linux or macOS.
 
 <div class="oc-actions">
@@ -73,7 +73,7 @@ above it a model that keeps the picture for you.
 <div class="oc-way">
 <p class="oc-way-label">The protocol, as it is</p>
 <h3><code>ObsClient</code></h3>
-<p>Every request and every event of obs-websocket, as typed, async C#. Complete, direct and nothing hidden: close to the API, and the way to everything that OBS Studio offers.</p>
+<p>Every request and every event of obs-websocket, as typed, async C#. Complete, direct and nothing hidden: close to the API, and the way to everything that obs-websocket offers.</p>
 
 ```csharp
 using var client = new ObsClient();
@@ -175,14 +175,14 @@ await obs.Scenes["Gaming Scene"]
 
 <div class="oc-card">
 <i class="bi bi-check2-all"></i>
-<h3>Changes that are true when the call returns</h3>
+<h3>Changes you can rely on</h3>
 <p>A call returns when the model shows the change, one change at a time and in order. When one fails, the exception says whether anything was changed.</p>
 </div>
 
 <div class="oc-card">
 <i class="bi bi-broadcast"></i>
-<h3>One stream of changes</h3>
-<p><code>Changed</code> says what changed, in order, and every object implements <code>INotifyPropertyChanged</code>, so that a user interface can bind to it.</p>
+<h3>Hear what changes</h3>
+<p><code>Changed</code> says what changed, in order, and every object implements <code>INotifyPropertyChanged</code>, so that a user interface can bind to it. <code>Resynchronized</code> says when everything was read again.</p>
 </div>
 
 <div class="oc-card">
@@ -247,9 +247,12 @@ client.StreamStateChanged += (_, e) =>
 #### [ObsModel: changes](#tab/changes)
 
 ```csharp
-obs.Changed += (_, e) => Console.WriteLine(e);    // one event for every change, in order
+obs.Changed += (_, e) => Console.WriteLine(e);    // what changes, in order
 // input 'Microphone': IsMuted False -> True
 // scene item 3 of 'Gaming Scene': IsEnabled True -> False
+
+// The model read everything again: a lost connection came back, or the scene collection changed.
+obs.Resynchronized += (_, _) => Console.WriteLine("Read again what you hold.");
 
 // Every object is an INotifyPropertyChanged, so a user interface can bind to it.
 obs.Inputs["Microphone"].PropertyChanged += (_, e) => Console.WriteLine(e.PropertyName);
