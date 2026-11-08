@@ -45,9 +45,11 @@ Everything that is a property is answered from the model, at once, and can be re
 | Object | What you can read |
 | --- | --- |
 | [`ObsStudio`](xref:OBSStudioClient.Studio.ObsStudio) | `Scenes`, `Inputs`, `ProgramScene`, `IsStudioModeEnabled`, `Outputs`, `State`, `IsStale`, `Client` |
-| [`ObsScene`](xref:OBSStudioClient.Studio.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsGroup`, `Items`, `State` |
-| [`ObsInput`](xref:OBSStudioClient.Studio.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `State`, `GetSceneItems()` (every scene item that shows it) |
+| [`ObsScene`](xref:OBSStudioClient.Studio.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsGroup`, `Items`, `Filters`, `State` |
+| [`ObsInput`](xref:OBSStudioClient.Studio.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Studio.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
+| [`ObsFilters`](xref:OBSStudioClient.Studio.ObsFilters) | the filters of a scene or an input, from the first: `Filters["Gain"]` by name, by position, `TryGet`, `Find`, `Contains` |
+| [`ObsFilter`](xref:OBSStudioClient.Studio.ObsFilter) | `Source`, `Name`, `Kind`, `Index`, `IsEnabled`, `IsRemoved` |
 | [`ObsOutputs`](xref:OBSStudioClient.Studio.ObsOutputs) | `Stream`, `Record`, `VirtualCamera`, `ReplayBuffer`; also the four as a list, and by [`ObsOutputKind`](xref:OBSStudioClient.Studio.ObsOutputKind) |
 | [`ObsOutput`](xref:OBSStudioClient.Studio.ObsOutput) | `Kind`, `Name`, `Status` ([`ObsOutputStatus`](xref:OBSStudioClient.Studio.ObsOutputStatus)), `IsActive`; the recording ([`ObsRecordOutput`](xref:OBSStudioClient.Studio.ObsRecordOutput)) also has `IsPaused` |
 
@@ -86,6 +88,9 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | | `RenameAsync(name)`, `RemoveAsync()` | |
 | `ObsSceneItem` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
 | | `SetLockedAsync(bool)`, `SetIndexAsync(int)`, `RemoveAsync()` | |
+| `ObsScene`, `ObsInput` | `CreateFilterAsync(name, kind, settings)` | makes a filter, on top of the others (see [Filters](#filters)) |
+| `ObsFilter` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
+| | `RenameAsync(name)`, `SetIndexAsync(int)`, `RemoveAsync()` | |
 | `ObsOutput` | `StartAsync()`, `StopAsync()`, `ToggleAsync()` | return when OBS Studio has **begun** (see [Outputs](#outputs)) |
 | `ObsRecordOutput` | `PauseAsync()`, `ResumeAsync()` | |
 | `ObsReplayBufferOutput` | `SaveAsync()` | OBS Studio writes the file a moment later |
@@ -143,6 +148,31 @@ and tries again) or `Paused` (the recording). `IsActive` is true for `Started`, 
 - Within a connection the events are what the model goes by: OBS Studio can go on saying that a recording runs for a moment after it said that it stopped, and that does not make the model show `Started` again.
 - While there is no connection the outputs show what was known last (`IsStale` says so); when it is back they show what OBS Studio does.
 
+## Filters
+
+Every scene and every input has `Filters`: the filters of OBS Studio (a color correction, a noise gate), from the first, which is applied first. They are found by name, in the source that has them.
+
+```csharp
+var mic = obs.Inputs["Mic"];
+var gate = mic.Filters["Noise Gate"];                 // throws ObsNotFoundException (it suggests close names) when there is none
+Console.WriteLine($"{gate.Name} ({gate.Kind}) is {(gate.IsEnabled ? "on" : "off")}, at position {gate.Index}");   // no request is sent
+
+await gate.SetEnabledAsync(false);                    // or ToggleEnabledAsync()
+await gate.SetIndexAsync(0);                          // make it the first
+await gate.RenameAsync("Gate");                       // the same object, with another name
+var gain = await mic.CreateFilterAsync("Boost", "gain_filter", new { db = 6.0 });   // the kinds: obs.Client.GetSourceFilterKindList()
+await gain.RemoveAsync();
+```
+
+- **A filter has no UUID.** OBS Studio knows a filter by its name within its source, and the name can change. An `ObsFilter` stays the same object for as long as the filter exists, also when it is renamed or moved.
+  The exception: a filter that is renamed while there is no connection to hear it is a new object when the connection is back (the old one is `IsRemoved`).
+- **A change that you ask for right after a rename names the filter by its new name**, also when the model does not show the new name yet.
+- `IsEnabled`, `Name`, `Index` and the list itself are current: OBS Studio announces every change of them (`PropertyChanged`, and `obs.Changed` with `Added` and `Removed` for filters).
+- **The settings of a filter are not in the model.** OBS Studio sends no event for most changes of them, so the model would show old values for ever. Ask OBS Studio when you need them, with the plain client:
+  `await obs.Client.GetSourceFilter(mic.Uuid, "Noise Gate")` and `obs.Client.SetSourceFilterSettings(...)`. Settings that you pass to `CreateFilterAsync` start the filter with them.
+- The filters of a source that was announced a moment ago can be read a moment later: `await obs.WaitUntilSettledAsync()` waits for them (and for the rest of the model).
+- `RenameAsync` and `CreateFilterAsync` throw an [`ObsNameInUseException`](xref:OBSStudioClient.Exceptions.ObsNameInUseException) when the source has a filter with that name already.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Studio.ObsStudio.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Studio.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -192,7 +222,7 @@ OBS Studio keeps a scene or an input **alive after it is removed** for as long a
 
 ## What the model does not cover yet
 
-The model has scenes, inputs, scene items, the program scene, the audio of inputs and the outputs (stream, recording, virtual camera, replay buffer). Filters, transitions and the control of studio mode, profiles and scene collections, media inputs and the rest of
+The model has scenes, inputs, scene items, the program scene, the audio of inputs, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, media inputs and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsStudio.ConnectAsync` and `DisconnectAsync`.
 

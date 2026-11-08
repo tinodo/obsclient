@@ -225,6 +225,27 @@ namespace OBSStudioClient.Tests.Live
                     scene.Items.OrderBy(item => item.Id).Select(item => $"{item.Id}: '{item.Source.Name}' {item.Source.Uuid:D} index {item.Index}, enabled {item.IsEnabled}, locked {item.IsLocked}"));
             }
 
+            // The filters of every scene and input.
+            foreach (var source in modelScenes.Cast<ObsSource>().Concat(studio.Inputs))
+            {
+                Filter[] obsFilters;
+                try
+                {
+                    obsFilters = await this.Client.GetSourceFilterList(SourceRef.FromUuid(source.Uuid));
+                }
+                catch (ObsResponseException exception)
+                {
+                    problems.Add($"the filters of '{source.Name}' could not be read: {exception.Message}");
+                    continue;
+                }
+
+                Compare(
+                    problems,
+                    $"the filters of '{source.Name}'",
+                    obsFilters.OrderBy(filter => filter.FilterIndex).Select(filter => $"{filter.FilterIndex}: '{filter.FilterName}' {filter.FilterKind}, enabled {filter.FilterEnabled}"),
+                    source.Filters.Select(filter => $"{filter.Index}: '{filter.Name}' {filter.Kind}, enabled {filter.IsEnabled}"));
+            }
+
             // The inputs: OBS Studio lists the ones that it keeps alive after they were removed too, and the model shows those through the scene items that keep them alive. What the model does not show has
             // to be what OBS Studio announced as removed: the model is not its own witness.
             var stillListed = new List<string>();

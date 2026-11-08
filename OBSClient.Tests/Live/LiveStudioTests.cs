@@ -1,5 +1,7 @@
 namespace OBSStudioClient.Tests.Live
 {
+    using System.Globalization;
+    using System.Text.Json;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
@@ -424,6 +426,132 @@ namespace OBSStudioClient.Tests.Live
             await live.AssertModelEqualsObsAsync("after the user removed a scene");
             await raw.RemoveScene(scene);
             await live.AssertModelEqualsObsAsync("after the user removed the other scene");
+        }
+
+        [LiveUuidChangesFact]
+        public async Task TheFilters_AreMadeChangedMovedAndRemovedByName_AndTheModelEqualsWhatObsStudioHoldsAfterEveryStep()
+        {
+            await using var live = await LiveStudio.ConnectAsync(output);
+            var studio = live.Studio;
+            var kinds = await live.Client.GetSourceFilterKindList();
+            const string Kind = "color_filter_v2";
+            Assert.Contains(Kind, kinds);
+            var sceneName = LiveObs.UniqueName("scene");
+            var inputName = LiveObs.UniqueName("color");
+            var scene = await studio.CreateSceneAsync(sceneName);
+            var input = await scene.CreateInputAsync(inputName, await live.ColorKindAsync(), ColorSettings);
+            await live.AssertModelEqualsObsAsync("after a scene and an input were made");
+            Assert.Empty(input.Filters);
+
+            // Made by name, on top of each other.
+            var first = await input.CreateFilterAsync("first", Kind, new { gamma = 0.25 });
+            var second = await input.CreateFilterAsync("second", Kind);
+            Assert.Same(first, input.Filters["first"]);
+            Assert.Equal(new[] { "first", "second" }, input.Filters.Select(filter => filter.Name).ToArray());
+            Assert.Equal(new[] { 0, 1 }, input.Filters.Select(filter => filter.Index).ToArray());
+            Assert.All(input.Filters, filter => Assert.True(filter.IsEnabled));
+            Assert.All(input.Filters, filter => Assert.Equal(Kind, filter.Kind));
+            await live.AssertModelEqualsObsAsync("after two filters were made");
+            var settings = (await live.Client.GetSourceFilter(SourceRef.FromUuid(input.Uuid), "first")).FilterSettings;
+            Assert.Equal(0.25, double.Parse(JsonSerializer.Serialize(settings["gamma"]), CultureInfo.InvariantCulture));
+
+            // Enabled, disabled and toggled.
+            await first.SetEnabledAsync(false);
+            Assert.False(first.IsEnabled);
+            await live.AssertModelEqualsObsAsync("after a filter was disabled");
+            Assert.True(await first.ToggleEnabledAsync());
+            Assert.True(first.IsEnabled);
+            Assert.False(await second.ToggleEnabledAsync());
+            await live.AssertModelEqualsObsAsync("after the filters were toggled");
+
+            // Moved and renamed.
+            await second.SetIndexAsync(0);
+            Assert.Equal(0, second.Index);
+            Assert.Equal(1, first.Index);
+            Assert.Equal(new[] { "second", "first" }, input.Filters.Select(filter => filter.Name).ToArray());
+            await live.AssertModelEqualsObsAsync("after a filter was moved");
+            await first.RenameAsync("renamed");
+            Assert.Equal("renamed", first.Name);
+            Assert.Same(first, input.Filters["renamed"]);
+            Assert.False(input.Filters.Contains("first"));
+            await live.AssertModelEqualsObsAsync("after a filter was renamed");
+
+            // A change that is asked for right after a rename names the filter by its new name.
+            var rename = first.RenameAsync("again");
+            var enable = first.SetEnabledAsync(false);
+            await rename;
+            await enable;
+            Assert.Equal("again", first.Name);
+            Assert.False(first.IsEnabled);
+            await live.AssertModelEqualsObsAsync("after a rename and a change right behind it");
+
+            // A name that is taken.
+            var inUse = await Assert.ThrowsAsync<ObsNameInUseException>(() => second.RenameAsync("again"));
+            Assert.Equal("again", inUse.Name);
+            await Assert.ThrowsAsync<ObsNameInUseException>(() => input.CreateFilterAsync("again", Kind));
+
+            // A scene has filters too.
+            var onScene = await scene.CreateFilterAsync("scene filter", Kind);
+            Assert.Equal(new[] { "scene filter" }, scene.Filters.Select(filter => filter.Name).ToArray());
+            await live.AssertModelEqualsObsAsync("after a filter was made on a scene");
+
+            // Removed.
+            await second.RemoveAsync();
+            Assert.True(second.IsRemoved);
+            Assert.Equal(new[] { "again" }, input.Filters.Select(filter => filter.Name).ToArray());
+            Assert.Equal(0, first.Index);
+            await Assert.ThrowsAsync<ObsRemovedException>(() => second.SetEnabledAsync(true));
+            await live.AssertModelEqualsObsAsync("after a filter was removed");
+            await onScene.RemoveAsync();
+            await live.AssertModelEqualsObsAsync("after the filter of the scene was removed");
+        }
+
+        [LiveUuidChangesFact]
+        public async Task WhatTheUserDoesToFiltersInObsStudio_IsFollowedByTheModel_AndTheModelEqualsWhatObsStudioHolds()
+        {
+            await using var live = await LiveStudio.ConnectAsync(output);
+            var studio = live.Studio;
+            var raw = live.Client;
+            const string Kind = "color_filter_v2";
+            var inputName = LiveObs.UniqueName("color");
+            var scene = await studio.CreateSceneAsync(LiveObs.UniqueName("scene"));
+            var input = await scene.CreateInputAsync(inputName, await live.ColorKindAsync(), ColorSettings);
+            var source = SourceRef.FromUuid(input.Uuid);
+
+            // Made, in OBS Studio.
+            await raw.CreateSourceFilter(source, "one", Kind);
+            await raw.CreateSourceFilter(source, "two", Kind);
+            await raw.CreateSourceFilter(source, "three", Kind);
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => input.Filters.Count == 3, Wait), "The model did not show the filters that the user made.");
+            await live.AssertModelEqualsObsAsync("after the user made three filters");
+            var one = input.Filters["one"];
+            var two = input.Filters["two"];
+
+            // Enabled and moved.
+            await raw.SetSourceFilterEnabled(source, "one", false);
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => !one.IsEnabled, Wait), "The model did not show that the user disabled a filter.");
+            await raw.SetSourceFilterIndex(source, "three", 0);
+            await live.AssertModelEqualsObsAsync("after the user disabled a filter and moved another");
+            Assert.Equal(new[] { "three", "one", "two" }, input.Filters.Select(filter => filter.Name).ToArray());
+
+            // Renamed: the same object.
+            await raw.SetSourceFilterName(source, "two", "deux");
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => two.Name == "deux", Wait), "The model did not show that the user renamed a filter.");
+            await live.AssertModelEqualsObsAsync("after the user renamed a filter");
+            Assert.Same(two, input.Filters["deux"]);
+
+            // Removed.
+            await raw.RemoveSourceFilter(source, "deux");
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => two.IsRemoved, Wait), "The model did not show that the user removed a filter.");
+            await live.AssertModelEqualsObsAsync("after the user removed a filter");
+            Assert.Equal(new[] { "three", "one" }, input.Filters.Select(filter => filter.Name).ToArray());
+
+            // The filters of an input that is removed with its scene items go with it.
+            await input.RemoveAsync();
+            await AssertGoneAsync(input);
+            Assert.Empty(input.Filters);
+            Assert.True(one.IsRemoved);
+            await live.AssertModelEqualsObsAsync("after the input was removed");
         }
 
         [LiveUuidChangesFact]

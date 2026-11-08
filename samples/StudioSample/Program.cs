@@ -126,6 +126,73 @@ async Task<bool> RunAsync(List<string> words)
         case "outputs":
             PrintOutputs();
             break;
+        case "filters":
+            PrintFilters(FindSource(Arg(1, "scene or input name")));
+            break;
+        case "filterkinds":
+            Console.WriteLine(string.Join(", ", await studio.Client.GetSourceFilterKindList()));
+            break;
+        case "filter":
+            {
+                // A filter is found by its name within the scene or the input that has it.
+                var filter = FindSource(Arg(1, "scene or input name")).Filters[Arg(2, "filter name")];
+                switch (Arg(3, "on, off or toggle").ToLowerInvariant())
+                {
+                    case "on":
+                        await filter.SetEnabledAsync(true);
+                        break;
+                    case "off":
+                        await filter.SetEnabledAsync(false);
+                        break;
+                    case "toggle":
+                        await filter.ToggleEnabledAsync();
+                        break;
+                    default:
+                        throw new UserError("What to do with the filter: on, off or toggle.");
+                }
+
+                Console.WriteLine($"'{filter.Name}' on '{filter.Source.Name}' is {(filter.IsEnabled ? "on" : "off")} now.");
+                break;
+            }
+
+        case "newfilter":
+            {
+                var source = FindSource(Arg(1, "scene or input name"));
+                var filter = await source.CreateFilterAsync(Arg(2, "name of the new filter"), Arg(3, "kind of filter (type filterkinds for the list)"));
+                Console.WriteLine($"Made filter '{filter.Name}' ({filter.Kind}) on '{source.Name}', at position {filter.Index}.");
+                break;
+            }
+
+        case "renamefilter":
+            {
+                var filter = FindSource(Arg(1, "scene or input name")).Filters[Arg(2, "filter name")];
+                var before = filter.Name;
+                await filter.RenameAsync(Arg(3, "new name"));
+                Console.WriteLine($"'{before}' is called '{filter.Name}' now.");
+                break;
+            }
+
+        case "movefilter":
+            {
+                var filter = FindSource(Arg(1, "scene or input name")).Filters[Arg(2, "filter name")];
+                if (!int.TryParse(Arg(3, "position, 0 is the first"), NumberStyles.None, CultureInfo.InvariantCulture, out var position))
+                {
+                    throw new UserError("The position is a number, 0 for the first filter.");
+                }
+
+                await filter.SetIndexAsync(position);
+                Console.WriteLine($"'{filter.Name}' is at position {filter.Index} now.");
+                break;
+            }
+
+        case "removefilter":
+            {
+                var filter = FindSource(Arg(1, "scene or input name")).Filters[Arg(2, "filter name")];
+                var name = filter.Name;
+                await filter.RemoveAsync();
+                Console.WriteLine($"Removed filter '{name}'.");
+                break;
+            }
         case "stream":
         case "record":
         case "virtualcam":
@@ -266,7 +333,7 @@ void PrintScenes()
     Console.WriteLine($"Scenes ({studio.Scenes.Count}), * is on the air:");
     foreach (var scene in studio.Scenes)
     {
-        Console.WriteLine($"  {(scene.IsProgram ? "*" : " ")} {scene.Name}{(scene.IsGroup ? " (group)" : string.Empty)}");
+        Console.WriteLine($"  {(scene.IsProgram ? "*" : " ")} {scene.Name}{(scene.IsGroup ? " (group)" : string.Empty)}{FilterCount(scene)}");
         foreach (var item in scene.Items)
         {
             Console.WriteLine($"        {item.Source.Name}  [{(item.IsEnabled ? "shown" : "hidden")}{(item.IsLocked ? ", locked" : string.Empty)}]");
@@ -280,8 +347,14 @@ void PrintInputs()
     foreach (var input in studio.Inputs)
     {
         var audio = input.HasAudio ? $"{(input.IsMuted ? "muted" : "not muted")}, {input.VolumeDb:0.0} dB" : "no audio";
-        Console.WriteLine($"    {input.Name}  ({input.Kind}; {audio})");
+        Console.WriteLine($"    {input.Name}  ({input.Kind}; {audio}{FilterCount(input)})");
     }
+}
+
+// What a scene or an input says about its filters in the lists: nothing when it has none.
+static string FilterCount(ObsSource source)
+{
+    return source.Filters.Count == 0 ? string.Empty : (source is ObsScene ? "  " : "; ") + $"{source.Filters.Count} filter{(source.Filters.Count == 1 ? string.Empty : "s")}";
 }
 
 void PrintOutputs()
@@ -290,6 +363,21 @@ void PrintOutputs()
     foreach (var output in studio.Outputs)
     {
         Console.WriteLine($"    {output.Name}: {output.Status}");
+    }
+}
+
+// A scene or an input, by name. OBS Studio before 31.1 can have a scene and an input with the same name: the scene is taken then.
+ObsSource FindSource(string name)
+{
+    return (ObsSource?)studio.Scenes.Find(name) ?? studio.Inputs.Find(name) ?? throw new UserError($"There is no scene or input named '{name}'.");
+}
+
+void PrintFilters(ObsSource source)
+{
+    Console.WriteLine($"Filters of {(source is ObsScene ? "scene" : "input")} '{source.Name}' ({source.Filters.Count}), from the first:");
+    foreach (var filter in source.Filters)
+    {
+        Console.WriteLine($"    {filter.Index}. {filter.Name}  ({filter.Kind}; {(filter.IsEnabled ? "on" : "off")})");
     }
 }
 
@@ -370,6 +458,10 @@ void PrintHelp()
     Console.WriteLine("  renamescene \"Break\" \"Pause\" | renameinput \"Red box\" \"Box\"");
     Console.WriteLine("  removescene \"Pause\" | removeinput \"Box\"            (the scene items that show it go too)");
     Console.WriteLine("  outputs                                  what the stream, recording, virtual camera and replay buffer do");
+    Console.WriteLine("  filters \"Mic\"                            the filters of a scene or an input, from the first");
+    Console.WriteLine("  filter \"Mic\" \"Gain\" on | off | toggle     enable or disable a filter");
+    Console.WriteLine("  newfilter \"Mic\" \"Boost\" gain_filter      make a filter (filterkinds lists the kinds) | removefilter \"Mic\" \"Boost\"");
+    Console.WriteLine("  renamefilter \"Mic\" \"Boost\" \"Louder\" | movefilter \"Mic\" \"Louder\" 0");
     Console.WriteLine("  stream start | stop | toggle             (start asks you to type yes: it goes live)");
     Console.WriteLine("  record start | stop | toggle | pause | resume");
     Console.WriteLine("  virtualcam start | stop | toggle");
