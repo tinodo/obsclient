@@ -213,6 +213,22 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void ASceneThatTheListDoesNotHaveYet_StaysFirst_WhileTheListLags_AsOBSStudioPutsANewSceneFirst()
+        {
+            // The list that is read lags (OBS Studio makes it from its user interface): it does not have the scene, and the order that it gives is that of the scenes that it has. A new scene
+            // is first in OBS Studio, so the model must not move it behind them and back when the list catches up.
+            var harness = Started(world => world.AddScene("Gaming"));
+            var uuid = harness.World.AddScene("Chatting");
+            SceneCreated(harness, uuid, "Chatting");
+
+            harness.Settle(ListWithout(harness, uuid, () => true));
+
+            var listed = harness.World.Scenes.Where(scene => scene.Uuid != uuid).Select(scene => scene.Name);
+            Assert.Equal(["Chatting", .. listed], harness.Engine.Snapshot().Scenes.Select(scene => scene.Name));
+            Assert.Equal([0, 1, 2], harness.Engine.Snapshot().Scenes.Select(scene => scene.Index));
+        }
+
+        [Fact]
         public void AnEvent_BeatsARead_ThatWasSentBeforeIt()
         {
             Guid gaming = Guid.Empty;

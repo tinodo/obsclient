@@ -594,8 +594,8 @@ namespace OBSStudioClient.Studio.Engine
             this._scenesScope.MarkDirty();
         }
 
-        // Gives the scenes the positions of the list, in the order of the list: the scenes of the list first, then the live scenes that the
-        // list does not have (they are newer than the list), in the order that they had.
+        // Gives the scenes the positions of the list, in the order of the list: the live scenes that the list does not have first (they are newer than the list, which OBS Studio makes from its
+        // user interface, and it puts a new scene first), then the scenes of the list. The scenes that the list does not have keep the order that they had.
         private void ApplySceneOrder(IEnumerable<Guid> listed, bool fromEvent, long seq)
         {
             var ordered = new List<SceneNode>();
@@ -608,7 +608,7 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
-            ordered.AddRange(this._scenes.Values.Where(s => s.State == SourceState.Live && !s.IsGroup && !seen.Contains(s.Uuid)).OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid));
+            ordered.InsertRange(0, this._scenes.Values.Where(s => s.State == SourceState.Live && !s.IsGroup && !seen.Contains(s.Uuid)).OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid));
             for (var i = 0; i < ordered.Count; i++)
             {
                 var changed = fromEvent ? ordered[i].Index.ApplyEvent(i, seq) : ordered[i].Index.ApplyRead(i, seq);
