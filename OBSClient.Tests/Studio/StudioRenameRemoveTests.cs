@@ -1007,6 +1007,35 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task ASceneAndAnInput_ThatOBSStudioLostWithoutAnEvent_AreTakenForRemoved_WhenAChangeAboutThemIsAnsweredWithNotFound()
+        {
+            // OBS Studio does not have them any more, and the model was never told (the event did not come). The change is refused with 600, no event says that they are gone, and the model
+            // reads the lists, which do not have them: the call ends with them removed, and a call that is made right after is refused before it is sent.
+            await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300) });
+            var chatting = test.Studio.Scenes["Chatting"];
+            var mic = test.Studio.Inputs["Mic"];
+            test.Responder.OnRequest = (type, data) => type is "SetCurrentProgramScene" or "SetInputMute" ? (600, null) : null;
+            test.Responder.Change(world =>
+            {
+                world.Scenes.RemoveAll(scene => scene.Uuid == chatting.Uuid);
+                world.Items.Remove(chatting.Uuid);
+                world.Inputs.RemoveAll(input => input.Uuid == mic.Uuid);
+                foreach (var scene in world.Items.Keys.ToArray())
+                {
+                    world.Items[scene] = world.Items[scene].Where(item => item.Source != mic.Uuid).ToList();
+                }
+            });
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => chatting.SwitchToAsync().WithTimeoutAsync(Timeout));
+            Assert.True(chatting.IsRemoved);
+            await Assert.ThrowsAsync<ObsRemovedException>(() => mic.SetMutedAsync(true).WithTimeoutAsync(Timeout));
+            Assert.True(mic.IsRemoved);
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => chatting.SwitchToAsync().WithTimeoutAsync(Timeout));
+            Assert.Equal(1, test.Count("SetCurrentProgramScene"));
+        }
+
+        [Fact]
         public async Task ASceneWhoseRemovalOBSStudioAnswersWithNotFound_DoesNotWaitForTheProgramScene_BecauseNothingWasRemoved()
         {
             await using var test = await ByNameFixture.StartAsync();

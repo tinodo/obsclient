@@ -838,7 +838,14 @@ namespace OBSStudioClient.Studio
                     targets = job.Refresh;
                 }
 
-                var asked = this._host.RefreshAsync(targets, linked.Token);
+                if (shown is not null)
+                {
+                    // The change was refused because OBS Studio does not know what it was about (600), and the events did not say that it is gone: the lists say what OBS Studio has, and
+                    // an object that the model still shows and that the lists do not have is taken for removed, so that what the application does next is refused before it is sent.
+                    targets = [.. targets, new RefreshTarget(ReadKind.Scenes), new RefreshTarget(ReadKind.Inputs)];
+                }
+
+                var asked = this._host.RefreshAsync(targets.Distinct().ToArray(), linked.Token);
                 this.AfterTheReadWasAskedFor?.Invoke(asked);
                 Volatile.Write(ref read, asked);
 

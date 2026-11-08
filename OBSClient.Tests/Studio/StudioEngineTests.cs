@@ -173,6 +173,7 @@ namespace OBSStudioClient.Tests.Studio
             var snapshot = harness.Engine.Snapshot();
             Assert.Contains(snapshot.Scenes, scene => scene.Name == "Gaming");
             Assert.DoesNotContain(snapshot.DetachedScenes, scene => scene.Name == "Gaming");
+            Assert.Equal(harness.World.Scenes.Select(scene => scene.Name), snapshot.Scenes.Select(scene => scene.Name));
             Assert.Contains(harness.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.Repaired && change.Text == "Gaming");
         }
 
