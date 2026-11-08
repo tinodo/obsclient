@@ -4,6 +4,9 @@ title: Calling requests
 
 # Calling requests
 
+> [!NOTE]
+> This article is about `ObsClient`, the protocol as it is. [`ObsModel`](model.md) works with scenes, inputs and filters by name, and it is built on the client: see [Two ways to work with OBS Studio](two-ways.md).
+
 Every request of the obs-websocket protocol is a method of [`ObsClient`](xref:OBSStudioClient.ObsClient), named after the request.
 
 ```csharp

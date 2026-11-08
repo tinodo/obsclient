@@ -1,8 +1,10 @@
-# Controlling OBS Studio by name
+# ObsModel: controlling OBS Studio by name
 
 > [!NOTE]
 > This part of the library is new, and **provisional**: it first appears in 4.0.0-rc.2, and the names and the shapes of its types can still change
 > before 4.0.0 is released. Everything else in OBSClient is unaffected, and you can ignore this article if you only use the requests.
+>
+> `ObsModel` is one of the [two ways to work with OBS Studio](two-ways.md). The other is `ObsClient`, the protocol as it is, which the model is built on.
 
 OBS Studio identifies most things by a UUID, a scene item id or an index. People think in names: *"mute the Mic"*, *"hide the Webcam in the Gaming scene"*.
 [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) closes that gap. When it connects it reads your scenes, inputs and scene items, it listens to the events that

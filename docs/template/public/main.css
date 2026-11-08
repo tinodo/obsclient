@@ -215,3 +215,157 @@ a.oc-card:hover {
     transform: none;
   }
 }
+
+/* A group of cards under its own heading, such as the two groups of "Why OBSClient". */
+
+.oc-section > h3 {
+  margin: 2rem 0 1rem;
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.oc-section > h2 + h3 {
+  margin-top: 0;
+}
+
+/* Two ways to work with OBS Studio: the two cards of the home page, and the diagram of the article. */
+
+.oc-section > h2 + p {
+  max-width: 62rem;
+}
+
+.oc-ways {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 992px) {
+  .oc-ways {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.oc-way {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.5rem 1.6rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--oc-radius);
+  background: var(--bs-body-bg);
+}
+
+.oc-way-model {
+  border-color: var(--oc-brand);
+  box-shadow: 0 1rem 2.5rem -1.5rem var(--oc-brand);
+}
+
+.oc-way-label {
+  margin: 0 0 0.4rem;
+  color: var(--oc-brand);
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.oc-way-tag {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--oc-brand);
+  color: var(--oc-brand-contrast);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  vertical-align: 0.05rem;
+}
+
+.oc-way h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.oc-way pre {
+  margin: 0.25rem 0 1rem;
+}
+
+.oc-way-note {
+  margin: 0 0 0.75rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.93rem;
+}
+
+.oc-way-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: auto 0 0;
+  font-weight: 600;
+}
+
+.oc-ways-foot {
+  margin: 1.25rem 0 0;
+  color: var(--bs-secondary-color);
+}
+
+.oc-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0.5rem;
+  max-width: 38rem;
+  margin: 1.75rem auto;
+  text-align: center;
+}
+
+.oc-stack > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.6rem;
+  background: var(--bs-body-bg);
+}
+
+.oc-stack > div > span {
+  color: var(--bs-secondary-color);
+  font-size: 0.9rem;
+}
+
+.oc-stack-app,
+.oc-stack-client,
+.oc-stack-wire,
+.oc-stack-obs {
+  grid-column: 1 / -1;
+}
+
+.oc-stack > .oc-stack-model {
+  border-color: var(--oc-brand);
+  background: var(--oc-brand-soft);
+}
+
+.oc-stack > .oc-stack-client {
+  border-color: var(--oc-brand);
+}
+
+.oc-stack > .oc-stack-direct {
+  border-style: dashed;
+  color: var(--bs-secondary-color);
+  font-size: 0.9rem;
+}
+
+.oc-stack > .oc-stack-wire {
+  padding: 0.1rem 0;
+  border: 0;
+  background: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.85rem;
+}
+
+.oc-stack > .oc-stack-obs {
+  border-color: var(--oc-brand);
+  background: var(--oc-brand);
+  color: var(--oc-brand-contrast);
+}

@@ -38,7 +38,7 @@
       "_appFooter": "<span>OBSClient is an independent, MIT licensed open source project. It is not affiliated with or endorsed by the OBS Project.</span>",
       "_enableSearch": true,
       "_lang": "en",
-      "_description": "A complete cross-platform .NET WebSocket client for OBS Studio 28 and up, implementing obs-websocket 5.7.6.",
+      "_description": "A complete cross-platform .NET client for OBS Studio 28 and up: ObsClient, the whole obs-websocket 5.7.6 protocol as typed C#, and ObsModel, OBS Studio by name.",
       "_gitContribute": {
         "repo": "https://github.com/tinodo/obsclient",
         "branch": "main"

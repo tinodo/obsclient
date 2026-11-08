@@ -4,6 +4,9 @@ title: Handling events
 
 # Handling events
 
+> [!NOTE]
+> This article is about the events of `ObsClient`, the protocol as it is: one event for each kind of change, and applying them is up to you. [`ObsModel`](model.md#hearing-about-changes) applies them for you and raises one `Changed` event: see [Two ways to work with OBS Studio](two-ways.md).
+
 OBS Studio tells you when something happens: the scene changed, an input was muted, the stream started. Each event of the protocol is a
 .NET event of [`ObsClient`](xref:OBSStudioClient.ObsClient) with the name of the event, and its arguments carry the fields of the event:
 

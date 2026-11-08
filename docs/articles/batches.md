@@ -4,6 +4,9 @@ title: Request batches
 
 # Request batches
 
+> [!NOTE]
+> Batches belong to `ObsClient`, the protocol as it is. [`ObsModel`](model.md) makes its changes one at a time, in order, and has no batches: use `obs.Client` for them. See [Two ways to work with OBS Studio](two-ways.md).
+
 A batch sends several requests to OBS Studio in one message, and OBS Studio runs them one after the other (or all at once) and
 answers once. That is faster than awaiting each request, and it is the way to run requests that must follow each other without a
 gap, or in step with the video frames.
