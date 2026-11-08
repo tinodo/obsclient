@@ -59,6 +59,20 @@ namespace OBSStudioClient.Tests.Studio
             return test.Responder.RequestLog.Where(type => type.StartsWith("Remove", StringComparison.Ordinal)).ToArray();
         }
 
+        // RemoveAsync returns when the model shows the object removed (not Live) and the scene items that showed it gone. The model learns that the last scene item is gone from its event or, when the
+        // events are slower than the confirmation time (as they can be on a busy machine), from a read: the object is Detached then until one more read says that OBS Studio destroyed it, a moment later.
+        private static Task BeGoneAsync(ObsSource source)
+        {
+            return StudioRig.EventuallyAsync(() => source.State == ObsObjectState.Gone, $"the {source.Label} to be destroyed");
+        }
+
+        // For the tests whose subject is what the model shows when a call ends: the call ends when the events show it, however slow the machine is, and not when the confirmation time is over (a read
+        // can not show what only an event tells, such as an input that OBS Studio removed and keeps alive).
+        private static ObsStudioOptions WaitsForTheEvents()
+        {
+            return new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromSeconds(5), WriteTimeout = TimeSpan.FromSeconds(10) };
+        }
+
         [Fact]
         public async Task AScene_IsRenamed_WhenTheModelShowsTheName()
         {
@@ -381,7 +395,7 @@ namespace OBSStudioClient.Tests.Studio
             await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
 
             // The scene is removed first, and the scene item that showed it after it: that was the last thing that kept the scene alive, so it is gone.
-            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            await BeGoneAsync(chatting);
             Assert.False(test.Studio.Scenes.Contains("Chatting"));
             Assert.Equal(["RemoveScene", "RemoveSceneItem"], Removals(test));
 
@@ -404,9 +418,52 @@ namespace OBSStudioClient.Tests.Studio
 
             await spare.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, spare.State);
+            await BeGoneAsync(spare);
             Assert.Equal(["RemoveScene"], Removals(test));
             Assert.Equal(3, test.Studio.Scenes.Count);
+        }
+
+        [Fact]
+        public async Task AScene_ThatSceneItemsShow_IsDetachedWhenTheCallReturns_WhenOnlyReadsTellTheModel_AndIsGoneWhenTheReadThatChecksItIsApplied()
+        {
+            // The events are slower than the confirmation time (they can be, on a busy machine): the model learns from reads that the scene item that showed the scene is gone. A read is ahead of the
+            // events, so the model does not conclude from its count that OBS Studio destroyed the scene: it reads the scene once more, and the call returns before that read is applied.
+            await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(1), WriteTimeout = TimeSpan.FromSeconds(5) });
+            var chatting = test.Studio.Scenes["Chatting"];
+            var gaming = test.Studio.Scenes["Gaming"];
+            var events = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            test.EventGate = events;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                // The read that checks the scene is held: the test says when OBS Studio answers it.
+                if (type == "GetSceneItemList" && Uuid(data, "sceneUuid") == test.Chatting)
+                {
+                    return (-1, null);
+                }
+
+                return null;
+            });
+
+            try
+            {
+                await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
+
+                await StudioRig.EventuallyAsync(() => test.Responder.HeldCount == 1, "the read that checks the scene to be sent");
+                Assert.True(chatting.IsRemoved);
+                Assert.Equal(ObsObjectState.Detached, chatting.State);
+                Assert.False(test.Studio.Scenes.Contains("Chatting"));
+                Assert.False(gaming.Items.TryGet("Chatting", out _));
+
+                // OBS Studio does not have the scene: it was destroyed with the last scene item that showed it.
+                await test.Responder.AnswerHeldAsync(type => type == "GetSceneItemList" ? (600, (object?)null) : (100, null));
+
+                await BeGoneAsync(chatting);
+                Assert.Equal(["RemoveScene", "RemoveSceneItem"], Removals(test));
+            }
+            finally
+            {
+                events.TrySetResult();
+            }
         }
 
         [Fact]
@@ -428,7 +485,7 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task AScene_WhoseSceneItemOBSStudioRefuses_IsAResponseException_ThatSaysWhatWasDone_AndRemovingItAgainRemovesWhatIsLeft()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            await using var test = await ByNameFixture.StartAsync(WaitsForTheEvents());
             var chatting = test.Studio.Scenes["Chatting"];
             var refuse = true;
             test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
@@ -453,7 +510,7 @@ namespace OBSStudioClient.Tests.Studio
             Volatile.Write(ref refuse, false);
             await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            await BeGoneAsync(chatting);
             Assert.Equal(["RemoveScene", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
         }
 
@@ -468,7 +525,7 @@ namespace OBSStudioClient.Tests.Studio
 
             await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            await BeGoneAsync(chatting);
             Assert.Equal(["RemoveSceneItem"], Removals(test));
         }
 
@@ -545,7 +602,7 @@ namespace OBSStudioClient.Tests.Studio
             await mic.RemoveAsync().WithTimeoutAsync(Timeout);
 
             // The input is removed first, and the scene items that showed it after it, in the scenes that showed it: the last one destroys the input.
-            Assert.Equal(ObsObjectState.Gone, mic.State);
+            await BeGoneAsync(mic);
             Assert.False(test.Studio.Inputs.Contains("Mic"));
             Assert.Equal(["RemoveInput", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
 
@@ -567,7 +624,7 @@ namespace OBSStudioClient.Tests.Studio
 
             await desktop.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, desktop.State);
+            await BeGoneAsync(desktop);
             Assert.Equal(["RemoveInput"], Removals(test));
         }
 
@@ -610,7 +667,7 @@ namespace OBSStudioClient.Tests.Studio
 
             await mic.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, mic.State);
+            await BeGoneAsync(mic);
             Assert.Equal(1, test.Count("RemoveInput"));
         }
 
@@ -624,7 +681,7 @@ namespace OBSStudioClient.Tests.Studio
 
             await overlay.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, overlay.State);
+            await BeGoneAsync(overlay);
             Assert.Equal(["RemoveSceneItem", "RemoveSceneItem"], Removals(test));
             Assert.False(test.Studio.Scenes["Gaming"].Items.TryGet("Overlay", out _));
             Assert.False(test.Studio.Scenes["Chatting"].Items.TryGet("Overlay", out _));
@@ -677,7 +734,7 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task AnInput_WhoseSceneItemOBSStudioRefuses_ShowsWhatWasDone_WhenTheCallEnds_SoThatRemovingItAtOnceSendsOnlyWhatIsLeft()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            await using var test = await ByNameFixture.StartAsync(WaitsForTheEvents());
             var mic = test.Studio.Inputs["Mic"];
             var sceneItemRequests = 0;
             test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
@@ -698,14 +755,14 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Single(test.Studio.Scenes, scene => scene.Items.TryGet("Mic", out _));
             await mic.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, mic.State);
+            await BeGoneAsync(mic);
             Assert.Equal(["RemoveInput", "RemoveSceneItem", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
         }
 
         [Fact]
         public async Task AScene_WhoseSceneItemOBSStudioRefuses_ShowsWhatWasDone_WhenTheCallEnds_SoThatRemovingItAtOnceSendsOnlyWhatIsLeft()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            await using var test = await ByNameFixture.StartAsync(WaitsForTheEvents());
             var chatting = test.Studio.Scenes["Chatting"];
             var refuse = 1;
             test.Responder.OnRequest = ObsRemoves(test, (type, data) => type == "RemoveSceneItem" && Interlocked.Exchange(ref refuse, 0) == 1 ? (600, null) : null);
@@ -715,7 +772,7 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(ObsObjectState.Detached, chatting.State);
             await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            await BeGoneAsync(chatting);
             Assert.Equal(["RemoveScene", "RemoveSceneItem", "RemoveSceneItem"], Removals(test));
         }
 
@@ -774,7 +831,7 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Single(overlay.GetSceneItems());
             await overlay.RemoveAsync().WithTimeoutAsync(Timeout);
 
-            Assert.Equal(ObsObjectState.Gone, overlay.State);
+            await BeGoneAsync(overlay);
             Assert.Equal(["RemoveSceneItem", "RemoveSceneItem"], Removals(test));
         }
 
@@ -800,14 +857,14 @@ namespace OBSStudioClient.Tests.Studio
             var refused = await Assert.ThrowsAsync<ObsResponseException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
 
             Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
-            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            await BeGoneAsync(chatting);
             Assert.Equal(["RemoveSceneItem"], Removals(test));
         }
 
         [Fact]
         public async Task ASourceWhoseRemovalOBSStudioAnswersWithNotFound_EndsTheCallWhenTheModelShowsItRemoved_SoThatACallMadeAtOnceDoesNotAskAgain()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            await using var test = await ByNameFixture.StartAsync(WaitsForTheEvents());
             var mic = test.Studio.Inputs["Mic"];
             var chatting = test.Studio.Scenes["Chatting"];
             test.Responder.OnRequest = (type, data) =>
@@ -963,7 +1020,7 @@ namespace OBSStudioClient.Tests.Studio
         [Fact]
         public async Task ASceneItem_AnInput_AndAScene_WhoseChangeOBSStudioAnswersWithNotFound_EndTheCallWhenTheModelShowsThemRemoved()
         {
-            await using var test = await ByNameFixture.StartAsync();
+            await using var test = await ByNameFixture.StartAsync(WaitsForTheEvents());
             var item = test.Studio.Scenes["Gaming"].Items["Mic"];
             var mic = test.Studio.Inputs["Mic"];
             var chatting = test.Studio.Scenes["Chatting"];

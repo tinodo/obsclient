@@ -250,6 +250,12 @@ namespace OBSStudioClient.Studio
         /// A scene that a scene item shows that the model did not know yet (OBS Studio announces it a few milliseconds late) stays Detached in the same way.
         /// </para>
         /// <para>
+        /// The call returns when the model shows the scene removed and the scene items that showed it gone, and the scene can still be <see cref="ObsObjectState.Detached"/> at that moment: OBS Studio destroys it when the last
+        /// of those scene items is gone, and the model learns of that from an event of OBS Studio. When the events are slower than the confirmation time of the options (they can be, on a busy machine) the model learns that the
+        /// scene items are gone from a read instead, which is ahead of the events, so it reads OBS Studio once more to be sure that it destroyed the scene: the scene is <see cref="ObsObjectState.Gone"/> a moment after the call
+        /// returned. Wait for that when what follows needs the scene to be destroyed (<see cref="ObsSource.PropertyChanged"/> is raised for <see cref="ObsSource.State"/>, and <see cref="ObsStudio.Changed"/> for <see cref="ObsChangeKind.StateChanged"/>).
+        /// </para>
+        /// <para>
         /// What the scene shows is destroyed with it: the inputs that only this scene showed are destroyed by OBS Studio a moment after the scene, and the model learns of that from its
         /// events. If this call removes the scene (a scene that is Detached already has no such wait: the model learns from the events of OBS Studio which scene is the program scene now) and the scene is the program scene, OBS Studio makes another scene the program scene about one frame after it has answered (16 ms were measured, and a read of the program scene in between still says the
         /// scene that was removed): the call returns when the model shows that scene as the program scene, so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now. The model is read for

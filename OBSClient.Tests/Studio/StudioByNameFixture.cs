@@ -57,6 +57,9 @@ namespace OBSStudioClient.Tests.Studio
 
         public Guid Group { get; }
 
+        /// <summary>Gets or sets a gate that holds the events that OBS Studio announces back until it is completed: what the model learns, it learns from reads.</summary>
+        public TaskCompletionSource? EventGate { get; set; }
+
         public static async Task<ByNameFixture> StartAsync(ObsStudioOptions? options = null, bool withGroup = false, bool inGroup = false, string? webSocketVersion = null, string? obsVersion = null)
         {
             Guid gaming = default, chatting = default, spare = default, camera = default, mic = default, overlay = default, desktop = default, group = default;
@@ -243,6 +246,11 @@ namespace OBSStudioClient.Tests.Studio
                     {
                         try
                         {
+                            if (this.EventGate is { } gate)
+                            {
+                                await gate.Task;
+                            }
+
                             await Task.Delay(30);
                             await this.Responder.SendEventAsync(eventType, data, intent);
                         }
