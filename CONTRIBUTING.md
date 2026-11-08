@@ -191,6 +191,17 @@ running) on one machine, and the arguments of a start decide which configuration
 To point the read-only tests at an OBS Studio of your own, set `OBS_LIVE_PORT` and `OBS_LIVE_PASSWORD` (and `OBS_LIVE_HOST`); the tests that
 change something stay skipped. `-WebSocketDebug` has the copy of OBS Studio log every message of its WebSocket server, to see what it did.
 
+**The studio tests** (`LiveStudioTests`) use the studio layer (`ObsStudio`) against the OBS Studio of the run, and the plain client plays the
+user in OBS Studio: after each step the model has to equal what OBS Studio holds (`AssertModelEqualsObsAsync`). They check what the model assumes
+of OBS Studio where the simulation only had what was read in its source: when a name is taken, what a removed scene or input does to its name
+(and what a scene that was removed and is kept alive answers: it refuses `RemoveScene` again with 701), and what OBS Studio does with the program
+scene when it is removed. A copy of OBS Studio that was just started is slow at its first changes (its list of scenes was late by 8 to 23 seconds,
+because it is made from the user interface), so the first connection of a run makes and removes scenes until OBS Studio answers three times in a
+row within half a second (`LiveStudio.WarmUpAsync`), and no test pays for it. `OBS_LIVE_WIRE_LOG=1` has them write every message that goes over the
+wire into the output of the test, with the time (what a slow OBS Studio looks like from the outside); it is off by default, because the output of a
+test is part of the log of CI. They follow scenes and inputs by UUID, so they are skipped against OBS Studio 30.0.2, like the other tests that need
+UUIDs.
+
 **The soak test** (`LiveSoakTests`) runs for minutes, and only when `OBS_LIVE_SOAK_SECONDS` says for how long: `-SoakMinutes 30` does that
 (`-Filter "FullyQualifiedName~LiveSoakTests"` runs only that test). The client connects to OBS Studio through a proxy (`ChaosProxy`) that cuts
 the connection with a reset, stalls it, and refuses it, at random, while the client asks OBS Studio things all the time (requests, a batch, an
