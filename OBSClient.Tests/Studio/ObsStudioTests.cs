@@ -751,6 +751,8 @@ namespace OBSStudioClient.Tests.Studio
                     gaming = world.AddScene("Gaming");
                     mic = world.AddInput("Mic", "wasapi_input_capture", 2);
                     old = world.AddInput("Old", "wasapi_input_capture", 2);
+                    world.AddFilter(gaming, "Color", "color_filter_v2");
+                    world.AddFilter(mic, "Gain", "gain_filter");
                 },
                 new ObsStudioOptions { MaxPendingNotifications = 5 });
             var resynchronized = 0;
@@ -760,12 +762,16 @@ namespace OBSStudioClient.Tests.Studio
             var scene = rig.Studio.Scenes["Gaming"];
             var micInput = rig.Studio.Inputs["Mic"];
             var oldInput = rig.Studio.Inputs["Old"];
+            var color = scene.Filters["Color"];
+            var gain = micInput.Filters["Gain"];
             var raised = new ConcurrentQueue<(object Sender, string Property)>();
             PropertyChangedEventHandler handler = (sender, e) => raised.Enqueue((sender!, e.PropertyName!));
             scene.PropertyChanged += handler;
             micInput.PropertyChanged += handler;
             oldInput.PropertyChanged += handler;
             rig.Studio.PropertyChanged += handler;
+            color.PropertyChanged += handler;
+            gain.PropertyChanged += handler;
 
             // While the connection is down seven properties change: more than the five that may be kept for the application.
             rig.Responder.AbortConnection();
@@ -794,6 +800,10 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(1, Count(micInput, string.Empty));
             Assert.Equal(1, Count(scene, string.Empty));
             Assert.Equal(1, Count(rig.Studio, string.Empty));
+
+            // The filters are bound to as well: their sources say that everything changed, and so do they.
+            Assert.Equal(1, Count(color, string.Empty));
+            Assert.Equal(1, Count(gain, string.Empty));
             Assert.Equal(0, Count(micInput, "IsMuted"));
             Assert.Equal(0, Count(scene, "Name"));
             Assert.Equal(0, Count(rig.Studio, "Scenes"));
@@ -836,6 +846,49 @@ namespace OBSStudioClient.Tests.Studio
 
             // What the removal changed, and then once that everything may have changed, however many scene items show the input.
             Assert.Equal(new[] { "State", "IsRemoved", string.Empty }, raised.ToArray());
+        }
+
+        [Fact]
+        public async Task WhenEverythingMayHaveChanged_TheFiltersOfScenesAndInputs_SayItToo_AlsoThoseOfAnInputThatOBSRemovedAndKeepsAlive()
+        {
+            Guid gaming = Guid.Empty;
+            Guid camera = Guid.Empty;
+            await using var rig = StudioRig.Create(world =>
+            {
+                gaming = world.AddScene("Gaming");
+                var mic = world.AddInput("Mic", "wasapi_input_capture", 2);
+                camera = world.AddInput("Camera", "dshow_input", 8);
+                world.AddItem(gaming, camera, "Camera");
+                world.AddFilter(gaming, "Color", "color_filter_v2");
+                world.AddFilter(mic, "Gain", "gain_filter");
+                world.AddFilter(camera, "Blur", "obs_blur");
+            });
+            var resynchronized = 0;
+            rig.Studio.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+            await rig.ConnectAsync().WithTimeoutAsync(TimeSpan.FromSeconds(15));
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "Resynchronized for the first connection");
+            var color = rig.Studio.Scenes["Gaming"].Filters["Color"];
+            var gain = rig.Studio.Inputs["Mic"].Filters["Gain"];
+            var cameraInput = rig.Studio.Inputs["Camera"];
+            var blur = cameraInput.Filters["Blur"];
+            var raised = new ConcurrentQueue<(object Sender, string Property)>();
+            PropertyChangedEventHandler handler = (sender, e) => raised.Enqueue((sender!, e.PropertyName!));
+            color.PropertyChanged += handler;
+            gain.PropertyChanged += handler;
+            blur.PropertyChanged += handler;
+
+            // OBS removes the camera and keeps it alive for the scene item that shows it: it is not among the inputs any more, and its filters stay with it.
+            await rig.Responder.SendEventAsync("InputRemoved", new { inputName = "Camera", inputUuid = camera }, 8);
+            await StudioRig.EventuallyAsync(() => cameraInput.IsRemoved && !rig.Studio.Inputs.Contains("Camera"), "the input to be removed and to leave the inputs");
+            Assert.Same(blur, cameraInput.Filters["Blur"]);
+
+            rig.Studio.QueueEverything(onlyStudio: false);
+
+            await StudioRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "Resynchronized after everything may have changed");
+
+            // A filter is bound to like the source that has it: every one of them says that everything changed, once.
+            var notifications = raised.ToArray();
+            Assert.All(new[] { color, gain, blur }, filter => Assert.Single(notifications, n => ReferenceEquals(n.Sender, filter) && n.Property == string.Empty));
         }
 
         [Fact]

@@ -994,6 +994,7 @@ namespace OBSStudioClient.Studio
                 foreach (var scene in view.AllScenes)
                 {
                     scene.RaisePropertyChanged(string.Empty);
+                    RaiseFilters(scene);
                     foreach (var item in scene.Items)
                     {
                         item.RaisePropertyChanged(string.Empty);
@@ -1007,10 +1008,20 @@ namespace OBSStudioClient.Studio
                 foreach (var input in inputs)
                 {
                     input.RaisePropertyChanged(string.Empty);
+                    RaiseFilters(input);
                 }
             }
 
             this.RaiseResynchronized();
+        }
+
+        // The filters are objects that the application can be bound to, like the source that has them: they say that everything changed when it does.
+        private static void RaiseFilters(ObsSource source)
+        {
+            foreach (var filter in source.Filters)
+            {
+                filter.RaisePropertyChanged(string.Empty);
+            }
         }
 
         // A call of ConnectAsync that is under way.

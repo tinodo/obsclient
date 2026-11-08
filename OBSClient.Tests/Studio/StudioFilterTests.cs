@@ -573,6 +573,87 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task ARename_WhoseEventComesBeforeItsAnswer_AndWhoseCallWasGivenUp_LeavesNoNameBehind()
+        {
+            await using var rig = await StartAsync();
+            var mic = rig.Studio.Inputs["Mic"];
+            var gate = mic.Filters["Gate"];
+            using var giveUp = new CancellationTokenSource();
+            var enabledNames = new List<string>();
+            rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "SetSourceFilterName")
+                {
+                    // OBS Studio makes the change and tells it, and then it answers: the model shows the new name before the answer is handled, and the caller has given up by then.
+                    rig.Responder.Change(world => world.RenameFilter(mic.Uuid, "Gate", "Noise gate"));
+                    RenamedAsync(rig, "Mic", "Gate", "Noise gate").GetAwaiter().GetResult();
+                    SpinWait.SpinUntil(() => gate.Name == "Noise gate", Timeout);
+                    giveUp.Cancel();
+                    return (100, null);
+                }
+
+                if (type == "SetSourceFilterEnabled")
+                {
+                    var source = Text(data, "filterName");
+                    var enabled = data!.Value.GetProperty("filterEnabled").GetBoolean();
+                    lock (enabledNames)
+                    {
+                        enabledNames.Add(source);
+                    }
+
+                    rig.Responder.Change(world => world.SetFilterEnabled(mic.Uuid, source, enabled));
+                    Later(() => EnabledAsync(rig, "Mic", source, enabled));
+                    return (100, null);
+                }
+
+                return null;
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => gate.RenameAsync("Noise gate", giveUp.Token).WithTimeoutAsync(Timeout));
+
+            // A change of another filter has its turn when the answer to the rename has been handled.
+            await mic.Filters["Gain"].SetEnabledAsync(false).WithTimeoutAsync(Timeout);
+
+            // Somebody else renames the filter in OBS Studio: what is sent for it from now on has to use that name, and not the one that the rename of the application gave it.
+            rig.Responder.Change(world => world.RenameFilter(mic.Uuid, "Noise gate", "Gate again"));
+            await RenamedAsync(rig, "Mic", "Noise gate", "Gate again");
+            await StudioRig.EventuallyAsync(() => gate.Name == "Gate again", "the model to show the other rename");
+            await gate.SetEnabledAsync(true).WithTimeoutAsync(Timeout);
+
+            lock (enabledNames)
+            {
+                Assert.Equal(new[] { "Gain", "Gate again" }, enabledNames.ToArray());
+            }
+        }
+
+        [Fact]
+        public async Task TheNameThatARequestUses_IsTheOneOfTheLastAnswer_UntilTheModelHasCaughtUp_AndNeverAfter()
+        {
+            await using var rig = await StartAsync();
+            var filter = new ObsFilter(rig.Studio.Inputs["Mic"], "A", "gain_filter", 0, true);
+
+            // The answer comes before the model shows the name: the name waits, and the model ends the wait by showing it.
+            filter.SetPendingName("B");
+            Assert.Equal("B", filter.NameForRequests);
+            filter.SetName("B");
+            Assert.Equal("B", filter.NameForRequests);
+
+            // The model shows the name before the answer is handled: nothing waits, so nothing is left to be sent when somebody else renames the filter.
+            filter.SetPendingName("B");
+            filter.SetName("C");
+            Assert.Equal("C", filter.NameForRequests);
+
+            // Renamed to another name and back, with the model behind: the name of the last answer is the one that is used, whatever the model shows on its way.
+            filter.SetPendingName("D");
+            filter.SetPendingName("C");
+            filter.SetName("D");
+            Assert.Equal("C", filter.NameForRequests);
+            filter.SetName("C");
+            filter.SetName("E");
+            Assert.Equal("E", filter.NameForRequests);
+        }
+
+        [Fact]
         public async Task ARenameToANameThatIsTaken_IsANameInUseException_AndNothingIsChanged()
         {
             await using var rig = await StartAsync();

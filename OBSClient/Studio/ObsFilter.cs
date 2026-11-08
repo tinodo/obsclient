@@ -104,6 +104,14 @@ namespace OBSStudioClient.Studio
         {
             lock (this._pendingNameLock)
             {
+                // OBS Studio makes the change, tells it, and then answers: the model can show the new name before the answer to the rename is handled, and then nothing is waiting for it. A name that
+                // nothing clears (the call that made it can have ended, so that no Finish clears it) would be sent for this filter after somebody else renamed it. When an earlier name is still waiting the model
+                // is behind, and a name that it shows is the one of an earlier step (the filter was renamed to a name and back, quickly), so this one is waiting too.
+                if (this._pendingName is null && string.Equals(this._name, name, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
                 this._pendingName = name;
             }
         }
