@@ -113,10 +113,10 @@ namespace OBSStudioClient.Tests.Live
         public static async Task<LiveStudio> ConnectAsync(ITestOutputHelper? output = null)
         {
             var raw = await LiveSession.ConnectAsync(EventSubscriptions.None, removeLeftovers: true);
-            await WarmUpAsync(raw.Client);
             ObsStudio? studio = null;
             try
             {
+                await WarmUpAsync(raw.Client);
                 var version = await raw.Client.GetVersion();
                 var program = await raw.Client.GetCurrentProgramScene();
 
@@ -357,6 +357,12 @@ namespace OBSStudioClient.Tests.Live
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
+                // The extension methods of ILogger (LogDebug and the others) do not ask IsEnabled: the logger has to, or the messages of the wire would be written whatever OBS_LIVE_WIRE_LOG says.
+                if (!this.IsEnabled(logLevel))
+                {
+                    return;
+                }
+
                 try
                 {
                     output.WriteLine($"[{clock.ElapsedMilliseconds,6}] {logLevel} {category}: {formatter(state, exception)}");
