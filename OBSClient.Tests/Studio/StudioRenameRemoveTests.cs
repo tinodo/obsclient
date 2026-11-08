@@ -834,17 +834,21 @@ namespace OBSStudioClient.Tests.Studio
             // says the scene that was removed: one read after the answer is not enough, and the call waits until the model shows the new program scene.
             await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromSeconds(5) });
             var program = test.Studio.ProgramScene!;
+            var frameGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var frame = 0;
+            var removed = 0;
+            var staleReads = 0;
             test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
             {
                 switch (type)
                 {
                     case "RemoveScene":
                         test.RemoveScene(Uuid(data, "sceneUuid"));
+                        Volatile.Write(ref removed, 1);
                         _ = Task.Run(async () =>
                         {
-                            // The frame: OBS Studio makes the first scene of its list the program scene, and says so.
-                            await Task.Delay(600);
+                            // The frame: OBS Studio makes the first scene of its list the program scene, and says so (when the test lets it).
+                            await frameGate.Task;
                             (Guid Uuid, string Name) next = default;
                             test.Responder.Change(world =>
                             {
@@ -856,6 +860,11 @@ namespace OBSStudioClient.Tests.Studio
                         });
                         return (100, null);
                     case "GetCurrentProgramScene" when Volatile.Read(ref frame) == 0:
+                        if (Volatile.Read(ref removed) == 1)
+                        {
+                            Interlocked.Increment(ref staleReads);
+                        }
+
                         return (100, new { sceneName = program.Name, sceneUuid = program.Uuid });
                     default:
                         return null;
@@ -864,12 +873,15 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal("Scene", program.Name);
 
             var remove = program.RemoveAsync();
-            await Task.Delay(250);
+            await StudioRig.EventuallyAsync(() => program.IsRemoved && Volatile.Read(ref staleReads) > 0, "the scene to be removed in the model, and a read of the program scene after the removal to say the removed scene");
 
             // The scene is removed, and the program scene that the model has read is still the removed scene: the call has not returned.
             Assert.True(program.IsRemoved);
             Assert.True(program.IsProgram);
             Assert.False(remove.IsCompleted);
+
+            // Now the frame comes.
+            frameGate.SetResult();
 
             await remove.WithTimeoutAsync(Timeout);
 
@@ -955,6 +967,43 @@ namespace OBSStudioClient.Tests.Studio
             // What was said is what the model showed: a call made at once is refused before anything is sent.
             await Assert.ThrowsAsync<ObsRemovedException>(() => item.SetEnabledAsync(true).WithTimeoutAsync(Timeout));
             Assert.Equal(1, test.Count("SetSceneItemEnabled"));
+        }
+
+        [Fact]
+        public async Task AToggle_WhoseQuestionOBSStudioAnswersWithNotFound_EndsTheCallWhenTheModelShowsTheSceneItemRemoved()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var item = test.Studio.Scenes["Gaming"].Items["Mic"];
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "GetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                // The scene item was removed just before: OBS Studio does not know it any more, and the event is on its way.
+                test.RemoveItem(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"));
+                return (600, null);
+            };
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => item.ToggleEnabledAsync().WithTimeoutAsync(Timeout));
+
+            // The call says that the scene item is gone, and the model shows that by the time that it says so.
+            Assert.True(item.IsRemoved);
+        }
+
+        [Fact]
+        public async Task AnInputThatIsMadeInASceneThatOBSStudioDoesNotKnow_EndsTheCallWithoutAnEventThatRemovesTheScene_AndHasNoResultToReadPartsOf()
+        {
+            // The event that removes the scene is late or lost: the model goes on showing the scene, the wait for the events ends, and the model is read. A change that was refused has no
+            // result, so the read names nothing of it (the audio of the input that was not made).
+            await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300) });
+            var gaming = test.Studio.Scenes["Gaming"];
+            test.Responder.OnRequest = (type, data) => type == "CreateInput" ? (600, null) : null;
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => gaming.CreateInputAsync("Extra", "color_source_v3").WithTimeoutAsync(Timeout));
+
+            Assert.False(gaming.IsRemoved);
         }
 
         [Fact]

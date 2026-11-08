@@ -136,10 +136,13 @@ namespace OBSStudioClient.Studio
         /// </summary>
         public Func<object?, IReadOnlyList<RefreshTarget>>? RefreshFor { get; init; }
 
-        /// <summary>Gets what the read covers when the events did not show the change in time: <see cref="Refresh"/>, and the parts of the result (<see cref="RefreshFor"/>).</summary>
+        /// <summary>
+        /// Gets what the read covers when the events did not show the change in time: <see cref="Refresh"/>, and the parts of the result (<see cref="RefreshFor"/>) when the change has one: a change
+        /// that OBS Studio refused made nothing, and has no result to name parts of.
+        /// </summary>
         internal IReadOnlyList<RefreshTarget> RefreshWith(object? result)
         {
-            return this.RefreshFor is { } more ? [.. this.Refresh, .. more(result)] : this.Refresh;
+            return result is not null && this.RefreshFor is { } more ? [.. this.Refresh, .. more(result)] : this.Refresh;
         }
 
         /// <summary>Gets or sets the connection that the change was asked for on.</summary>
@@ -532,7 +535,16 @@ namespace OBSStudioClient.Studio
                 this.EnsureItCanBeSent(job);
                 if (job.Prepare is { } prepare)
                 {
-                    await prepare(question => this.AskAsync(job, question)).ConfigureAwait(false);
+                    try
+                    {
+                        await prepare(question => this.AskAsync(job, question)).ConfigureAwait(false);
+                    }
+                    catch (ObsRemovedException ex) when (job.SubjectGone is { } gone && !gone())
+                    {
+                        // OBS Studio does not know what the question was about (600) and the model still shows it: the call ends when the model shows it removed (see WriteJob.SubjectGone).
+                        _ = this.FailWhenReconciledAsync(job, ex, gone);
+                        return;
+                    }
 
                     // The question took its time: what was true before it is looked at again.
                     this.EnsureItCanBeSent(job);
@@ -814,7 +826,19 @@ namespace OBSStudioClient.Studio
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
             using var eventsTimedOut = events.Token.Register(() =>
             {
-                var asked = this._host.RefreshAsync(job.RefreshWith(result), linked.Token);
+                // Nothing that is thrown here may leave the callback: it runs on a timer, and the application would end with it.
+                IReadOnlyList<RefreshTarget> targets;
+                try
+                {
+                    targets = job.RefreshWith(result);
+                }
+                catch (Exception ex)
+                {
+                    this._logger.LogError(ex, "The parts that the model has to read again could not be told: {Description}", job.Description);
+                    targets = job.Refresh;
+                }
+
+                var asked = this._host.RefreshAsync(targets, linked.Token);
                 this.AfterTheReadWasAskedFor?.Invoke(asked);
                 Volatile.Write(ref read, asked);
 

@@ -251,7 +251,7 @@ namespace OBSStudioClient.Studio
         /// </para>
         /// <para>
         /// What the scene shows is destroyed with it: the inputs that only this scene showed are destroyed by OBS Studio a moment after the scene, and the model learns of that from its
-        /// events. If the scene is the program scene, OBS Studio makes another scene the program scene about one frame after it has answered (16 ms were measured, and a read of the program scene in between still says the
+        /// events. If this call removes the scene (a scene that is Detached already has no such wait: the model learns from the events of OBS Studio which scene is the program scene now) and the scene is the program scene, OBS Studio makes another scene the program scene about one frame after it has answered (16 ms were measured, and a read of the program scene in between still says the
         /// scene that was removed): the call returns when the model shows that scene as the program scene, so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now. The model is read for
         /// that after the answer whatever the events said, also when a switch to this scene was asked for just before and the model did not show it yet. When the events do not show it within the confirmation time of
         /// the options (1 second by default) the model is read again, and the call returns when that read has been applied, whatever it shows (the model goes on following OBS Studio by its events); when no read is applied in time

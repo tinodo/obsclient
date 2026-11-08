@@ -426,6 +426,22 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
+        // A scene that the model held as Detached, and that a list of scenes has while no event removed it: OBS Studio has it as a live scene. It was only inferred to exist, or an
+        // earlier list did not have it in time (the model gave up on it and said so: the repair is reported too).
+        private void Revive(SceneNode scene)
+        {
+            var inferred = scene.Provisional;
+            scene.Provisional = false;
+            scene.State = SourceState.Live;
+            scene.RemovalUnresolved = false;
+            scene.CheckAfter = 0;
+            this._unresolved.Remove(scene.Uuid);
+            if (!inferred)
+            {
+                this.Emit(StudioChangeKind.Repaired, scene.Uuid, 0, scene.Name.Value);
+            }
+        }
+
         // A scene that OBS removed, because an event told so, or because a read showed that it does not exist (repaired). A scene that is Detached already
         // (a read showed that the list of scenes lacks it, or it was only inferred to exist: see EnsureItemSource) is not announced as Detached again, and its
         // place in the list of scenes is not closed again; what OBS did with it is decided as for any scene.

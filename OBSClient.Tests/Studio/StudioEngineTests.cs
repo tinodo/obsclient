@@ -140,6 +140,77 @@ namespace OBSStudioClient.Tests.Studio
             Assert.True(harness.Now >= TimeSpan.FromSeconds(10), "The scene was removed before the grace was over.");
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ASceneThatTheListHasOnlyAfterTheGrace_IsLiveAgain_WhenAReadOfTheListSaysSo_AndNoEventRemovedIt(bool theEventOfTheListComesFirst)
+        {
+            // OBS Studio makes its list of scenes from its user interface, which was away for 13 seconds on a copy that had just been started: the model gave up on the scene after the grace,
+            // and OBS Studio lists it later. Nothing removed it, so it is live.
+            var harness = Started();
+            var uuid = harness.World.AddScene("Gaming");
+            var hiding = true;
+            SceneCreated(harness, uuid, "Gaming");
+            harness.SettleWithTime(ListWithout(harness, uuid, () => hiding));
+            Assert.DoesNotContain(harness.Engine.Snapshot().Scenes, scene => scene.Name == "Gaming");
+            Assert.Contains(harness.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.Repaired && change.Text == "Gaming");
+
+            hiding = false;
+            harness.Advance(TimeSpan.FromSeconds(3));
+            if (theEventOfTheListComesFirst)
+            {
+                // The user interface is done, and OBS Studio says that its list changed: the model reads the list.
+                harness.Event("SceneListChanged", new { scenes = harness.World.Scenes.Select((s, i) => new { sceneIndex = i, sceneName = s.Name, sceneUuid = s.Uuid }).ToArray() }, 4);
+            }
+            else
+            {
+                // Nothing says it: another change makes the model read the list.
+                SceneCreated(harness, harness.World.AddScene("Chatting"), "Chatting");
+            }
+
+            harness.SettleWithTime();
+
+            var snapshot = harness.Engine.Snapshot();
+            Assert.Contains(snapshot.Scenes, scene => scene.Name == "Gaming");
+            Assert.DoesNotContain(snapshot.DetachedScenes, scene => scene.Name == "Gaming");
+            Assert.Contains(harness.Engine.TakeChanges(), change => change.Kind == StudioChangeKind.Repaired && change.Text == "Gaming");
+        }
+
+        [Fact]
+        public void ASceneThatAnEventRemoved_IsNotLiveAgain_WhenTheListThatLagsBehindRemovalsStillHasIt()
+        {
+            var harness = Started(world => world.AddScene("Gaming"));
+            var gaming = harness.World.Scenes.Single(scene => scene.Name == "Gaming").Uuid;
+            var holder = harness.World.AddScene("Holder");
+            harness.World.AddItem(holder, gaming, "Gaming", isScene: true);
+            harness.Event("SceneListChanged", new { scenes = harness.World.Scenes.Select((s, i) => new { sceneIndex = i, sceneName = s.Name, sceneUuid = s.Uuid }).ToArray() }, 4);
+            harness.SettleWithTime();
+
+            // OBS Studio removes the scene and keeps it alive for the scene item of the other scene; its list still has it for a while, and another change makes the model read the list.
+            SceneRemoved(harness, gaming, "Gaming");
+            SceneCreated(harness, harness.World.AddScene("Chatting"), "Chatting");
+            harness.SettleWithTime();
+
+            Assert.DoesNotContain(harness.Engine.Snapshot().Scenes, scene => scene.Name == "Gaming");
+            Assert.Contains(harness.Engine.Snapshot().DetachedScenes, scene => scene.Name == "Gaming");
+        }
+
+        // The answers of an OBS Studio whose list of scenes does not have a scene while it says so.
+        private static Func<ReadRequest, (int, object?)> ListWithout(EngineHarness harness, Guid hidden, Func<bool> hiding)
+        {
+            return request =>
+            {
+                if (request.Kind == ReadKind.Scenes && hiding())
+                {
+                    var without = harness.World.Scenes.Where(s => s.Uuid != hidden).Select((s, i) => new { sceneIndex = i, sceneName = s.Name, sceneUuid = s.Uuid }).ToArray();
+                    var program = harness.World.Scenes.First(s => s.Uuid != hidden);
+                    return (100, new { currentProgramSceneName = program.Name, currentProgramSceneUuid = program.Uuid, currentPreviewSceneName = (string?)null, currentPreviewSceneUuid = (Guid?)null, scenes = without });
+                }
+
+                return harness.World.Answer(request);
+            };
+        }
+
         [Fact]
         public void AnEvent_BeatsARead_ThatWasSentBeforeIt()
         {

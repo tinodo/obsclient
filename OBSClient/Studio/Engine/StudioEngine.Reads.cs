@@ -357,14 +357,15 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     if (scene.State != SourceState.Live)
                     {
-                        if (!(scene.Provisional && !scene.RemovedAnnounced))
+                        if (scene.RemovedAnnounced || scene.IsGroup)
                         {
                             continue;
                         }
 
-                        // A scene that was only inferred to be Detached is in the list: it is a live scene.
-                        scene.Provisional = false;
-                        scene.State = SourceState.Live;
+                        // A scene that was only inferred to be Detached is in the list: it is a live scene. So is one that an earlier list did not have in time (OBS Studio makes the list from its
+                        // user interface, which can be busy for longer than the grace, and the scene is in the list when the interface is done) and that no event removed: the list has the scenes
+                        // that are live, and the scenes that were removed a moment ago (their event is what says so).
+                        this.Revive(scene);
                     }
 
                     var old = scene.Name.Value;

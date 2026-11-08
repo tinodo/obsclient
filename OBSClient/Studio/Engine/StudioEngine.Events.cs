@@ -193,9 +193,16 @@ namespace OBSStudioClient.Studio.Engine
                     continue;
                 }
 
-                if (!this._scenes.ContainsKey(entry.SceneUuid))
+                if (!this._scenes.TryGetValue(entry.SceneUuid, out var known))
                 {
                     // A scene that the model does not know yet: a read finds it.
+                    this._scenesScope.MarkDirty();
+                    continue;
+                }
+
+                if (known.State == SourceState.Detached && !known.Provisional && !known.RemovedAnnounced && !known.IsGroup)
+                {
+                    // The model gave up on this scene (an earlier list did not have it in time) and no event removed it, and the list has it now: a read of the list says whether it is live.
                     this._scenesScope.MarkDirty();
                     continue;
                 }

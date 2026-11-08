@@ -89,7 +89,9 @@ namespace OBSStudioClient.Tests.Studio
         {
             return (seed % 3) switch
             {
-                0 => StudioSimRig.DefaultQuirks,
+                // A real OBS Studio never answers SetSceneName for a scene that it removed and keeps alive (fact 9). The simulation without that quirk renames the scene and says nothing, which
+                // no OBS Studio does and no model can follow: a walk that renames a scene that was removed meanwhile would end with a name that the model can not know.
+                0 => StudioSimRig.DefaultQuirks with { HangOnRemovedSceneRename = true },
                 1 => SimQuirks.Real,
                 _ => SimQuirks.Hostile,
             };
