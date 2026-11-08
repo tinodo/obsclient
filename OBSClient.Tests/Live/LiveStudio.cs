@@ -4,6 +4,7 @@ namespace OBSStudioClient.Tests.Live
     using Microsoft.Extensions.Logging;
     using OBSStudioClient.Classes;
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Events;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Studio;
     using Xunit.Abstractions;
@@ -36,8 +37,9 @@ namespace OBSStudioClient.Tests.Live
 
         private readonly Guid _originalProgramScene;
 
-        // The inputs that the model announced as removed. OBS Studio goes on listing some of them (it keeps an input alive that was removed, also when no scene item shows it any more: seen with
-        // the plain client alone too, about once in a few dozen rapid removals), and the model does not show an input that was removed: that is not a difference.
+        // The inputs that OBS Studio announced as removed on the plain connection, which does not depend on the model that is compared. OBS Studio goes on listing some of them (it keeps an input alive that was
+        // removed, also when no scene item shows it any more: seen with the plain client alone too, about once in a few dozen rapid removals), and the model does not show an input that was removed: that is not a
+        // difference. An input that the model does not show while OBS Studio did not say that it was removed is one.
         private readonly HashSet<Guid> _removedInputs = [];
 
         private LiveStudio(LiveSession raw, ObsStudio studio, string obsVersion, string webSocketVersion, Guid originalProgramScene)
@@ -49,10 +51,10 @@ namespace OBSStudioClient.Tests.Live
             this.ObsVersion = ParseVersion(obsVersion);
             this.WebSocketVersion = ParseVersion(webSocketVersion);
             this._originalProgramScene = originalProgramScene;
-            studio.Changed += this.OnChanged;
+            raw.Client.InputRemoved += this.OnInputRemoved;
         }
 
-        /// <summary>Gets the names of the inputs that OBS Studio still listed at the last comparison, and that the model does not show because it announced them as removed.</summary>
+        /// <summary>Gets the names of the inputs that OBS Studio still listed at the last comparison, and that the model does not show because OBS Studio announced them as removed.</summary>
         public IReadOnlyList<string> StillListedRemovedInputs { get; private set; } = [];
 
         /// <summary>Gets the connection of the plain client: the guard, the clean-up, and the truth.</summary>
@@ -129,7 +131,7 @@ namespace OBSStudioClient.Tests.Live
         /// <returns>The connections.</returns>
         public static async Task<LiveStudio> ConnectAsync(ITestOutputHelper? output = null)
         {
-            var raw = await LiveSession.ConnectAsync(EventSubscriptions.None, removeLeftovers: true);
+            var raw = await LiveSession.ConnectAsync(EventSubscriptions.Inputs, removeLeftovers: true);
             ObsStudio? studio = null;
             try
             {
@@ -223,7 +225,8 @@ namespace OBSStudioClient.Tests.Live
                     scene.Items.OrderBy(item => item.Id).Select(item => $"{item.Id}: '{item.Source.Name}' {item.Source.Uuid:D} index {item.Index}, enabled {item.IsEnabled}, locked {item.IsLocked}"));
             }
 
-            // The inputs: OBS Studio lists the ones that it keeps alive after they were removed too, and the model shows those through the scene items that keep them alive.
+            // The inputs: OBS Studio lists the ones that it keeps alive after they were removed too, and the model shows those through the scene items that keep them alive. What the model does not show has
+            // to be what OBS Studio announced as removed: the model is not its own witness.
             var stillListed = new List<string>();
             foreach (var input in inputs)
             {
@@ -235,17 +238,13 @@ namespace OBSStudioClient.Tests.Live
                         problems.Add($"the input {uuid:D} is '{input.InputName}' ({input.InputKind}) in OBS Studio and '{shown.Name}' ({shown.Kind}) in the model");
                     }
                 }
-                else if (IsKeptAliveInTheModel(modelScenes, uuid))
+                else if (!this.ObsAnnouncedRemoved(uuid))
                 {
-                    continue;
+                    problems.Add($"OBS Studio lists the input '{input.InputName}' ({uuid:D}), and the model shows none, and OBS Studio did not announce that it was removed");
                 }
-                else if (this.WasAnnouncedRemoved(uuid))
+                else if (!IsKeptAliveInTheModel(modelScenes, uuid))
                 {
                     stillListed.Add(input.InputName);
-                }
-                else
-                {
-                    problems.Add($"OBS Studio lists the input '{input.InputName}' ({uuid:D}), and the model shows none");
                 }
             }
 
@@ -312,18 +311,15 @@ namespace OBSStudioClient.Tests.Live
             return scenes.SelectMany(scene => scene.Items).Any(item => item.Source is ObsInput { State: ObsObjectState.Detached } source && source.Uuid == uuid);
         }
 
-        private void OnChanged(object? sender, ObsChangedEventArgs e)
+        private void OnInputRemoved(object? sender, InputNameEventArgs e)
         {
-            if (e.Kind == ObsChangeKind.Removed && e.Entity is ObsInput input)
+            lock (this._removedInputs)
             {
-                lock (this._removedInputs)
-                {
-                    this._removedInputs.Add(input.Uuid);
-                }
+                this._removedInputs.Add(e.InputUuid);
             }
         }
 
-        private bool WasAnnouncedRemoved(Guid uuid)
+        private bool ObsAnnouncedRemoved(Guid uuid)
         {
             lock (this._removedInputs)
             {
