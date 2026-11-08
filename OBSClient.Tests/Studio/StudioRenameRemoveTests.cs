@@ -1035,6 +1035,166 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(1, test.Count("SetCurrentProgramScene"));
         }
 
+        // OBS Studio still has the scene, and the list of scenes that it gives does not (the list is made from its user interface, which can be busy for seconds): no event says that the scene was
+        // removed, and the model takes it for removed when it reads the list, which a scene that is made meanwhile makes it do.
+        private static async Task LoseFromTheListAsync(ByNameFixture test, Guid uuid, ObsScene scene)
+        {
+            test.Responder.Change(world => world.Scenes.RemoveAll(listed => listed.Uuid == uuid));
+            var made = test.MakeScene("Made while the list was busy");
+            await test.Responder.SendEventAsync("SceneCreated", new { sceneName = "Made while the list was busy", sceneUuid = made, isGroup = false }, 4);
+            await StudioRig.EventuallyAsync(() => scene.State == ObsObjectState.Detached, "the scene to be taken for removed");
+        }
+
+        [Fact]
+        public async Task AScene_ThatTheListLostAndOBSStudioStillHas_IsAskedToBeRemoved_BecauseNoEventSaidThatItWasRemoved()
+        {
+            // The model took the scene for removed, and removing the scene items that show it (there are none) would leave it in OBS Studio while the call returns.
+            await using var test = await ByNameFixture.StartAsync();
+            var spare = test.Studio.Scenes["Spare"];
+            await LoseFromTheListAsync(test, test.Spare, spare);
+            var asked = new List<Guid>();
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "RemoveScene")
+                {
+                    return null;
+                }
+
+                asked.Add(Uuid(data, "sceneUuid"));
+                return (100, null);
+            };
+
+            await spare.RemoveAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal([test.Spare], asked);
+            Assert.Equal(["RemoveScene"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AScene_ThatTheListLostAndThatOBSStudioRemovedAndKeepsAliveForASceneItem_IsRemovedByItsSceneItems_WhenOBSStudioRefusesToRemoveItWith701()
+        {
+            // Real OBS Studio (33.0.0) refuses to remove a scene that it removed already and keeps alive: "Error getting canvas for the specified scene." (701). That is the answer for the scene items.
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            await LoseFromTheListAsync(test, test.Chatting, chatting);
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) => type == "RemoveScene" ? (701, null) : null);
+
+            await chatting.RemoveAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(["RemoveScene", "RemoveSceneItem"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AScene_ThatTheListLostAndOBSStudioDoesNotHave_IsARemovedException_AndNoSceneItemIsRemoved()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            await LoseFromTheListAsync(test, test.Chatting, chatting);
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) => type == "RemoveScene" ? (600, null) : null);
+
+            var gone = await Assert.ThrowsAsync<ObsRemovedException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Equal(ObsObjectState.Gone, gone.State);
+            Assert.Equal(["RemoveScene"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AScene_ThatWasLiveWhenItsRemovalWasAskedFor_AndThatTheListLostWhileItWaitedForItsTurn_IsAskedToBeRemoved_AtItsTurn()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var spare = test.Studio.Scenes["Spare"];
+            var camera = test.Studio.Scenes["Gaming"].Items["Camera"];
+            var held = 0;
+            var asked = new List<Guid>();
+            test.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "SetSceneItemEnabled":
+                        // The first change is held, and the line waits for its answer.
+                        test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                        return Interlocked.Exchange(ref held, 1) == 0 ? (-1, null) : (100, null);
+                    case "RemoveScene":
+                        asked.Add(Uuid(data, "sceneUuid"));
+                        return (100, null);
+                    default:
+                        return null;
+                }
+            };
+            var change = camera.SetEnabledAsync(false);
+            await StudioRig.EventuallyAsync(() => test.Responder.HeldCount == 1, "the change to be held");
+
+            // The scene is live when its removal is asked for, and the model takes it for removed before the removal has its turn.
+            var removal = spare.RemoveAsync();
+            await LoseFromTheListAsync(test, test.Spare, spare);
+            await test.Responder.AnswerHeldAsync();
+            await change.WithTimeoutAsync(Timeout);
+            await removal.WithTimeoutAsync(Timeout);
+
+            Assert.Equal([test.Spare], asked);
+        }
+
+        [Fact]
+        public async Task AScene_ThatTheListLostAndThatOBSStudioDestroysWhenItIsAskedToRemoveIt_IsRemoved_AlsoWhenTheModelShowsItGoneBeforeTheSceneItemsAreRemoved()
+        {
+            // The call has two steps: OBS Studio is asked to remove the scene, and then the scene items that show it are removed (none here). Another change is in front of the second step, and meanwhile OBS Studio
+            // says that it destroyed the scene: the model shows it gone when the second step has its turn. The call is done then. It did not find a scene that somebody else had removed.
+            await using var test = await ByNameFixture.StartAsync();
+            var spare = test.Studio.Scenes["Spare"];
+            var camera = test.Studio.Scenes["Gaming"].Items["Camera"];
+            await LoseFromTheListAsync(test, test.Spare, spare);
+            var held = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                switch (type)
+                {
+                    case "RemoveScene":
+                        return (100, null);
+                    case "SetSceneItemEnabled":
+                        test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                        return Interlocked.Exchange(ref held, 1) == 0 ? (-1, null) : (100, null);
+                    default:
+                        return null;
+                }
+            };
+            var removal = spare.RemoveAsync();
+            var change = camera.SetEnabledAsync(false);
+            await StudioRig.EventuallyAsync(() => test.Responder.HeldCount == 1, "the change to be held");
+            await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Spare", sceneUuid = test.Spare, isGroup = false }, 4);
+            await StudioRig.EventuallyAsync(() => spare.State == ObsObjectState.Gone, "the scene to be gone");
+            await test.Responder.AnswerHeldAsync();
+            await change.WithTimeoutAsync(Timeout);
+
+            await removal.WithTimeoutAsync(Timeout);
+
+            Assert.Equal(["RemoveScene"], Removals(test));
+        }
+
+        [Fact]
+        public async Task AnInput_ShownInASceneThatTheListLost_IsShownOrHiddenThereToo_BecauseOBSStudioCanStillHaveTheScene()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var chatting = test.Studio.Scenes["Chatting"];
+            await LoseFromTheListAsync(test, test.Chatting, chatting);
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                return (100, null);
+            };
+
+            await mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout);
+
+            Assert.Equal(2, test.Count("SetSceneItemEnabled"));
+            Assert.False(test.Studio.Scenes["Gaming"].Items["Mic"].IsEnabled);
+            Assert.False(chatting.Items["Mic"].IsEnabled);
+        }
+
         [Fact]
         public async Task AnInputThatTheUserRemovesWhileItsSceneItemsAreChanged_IsNotTheEndOfTheWait_BecauseItsSceneItemsAreAliveAndShown()
         {
@@ -1202,7 +1362,7 @@ namespace OBSStudioClient.Tests.Studio
 
             await mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout);
 
-            // A scene that was removed does not take requests: only the scene item of the scene that is not removed was changed.
+            // A scene that was removed is left alone by design (OBS Studio 33.0.0 accepts a change there, and a scene that shows it still renders it): only the scene item of the scene that is not removed was changed.
             Assert.Equal(1, test.Count("SetSceneItemEnabled"));
             Assert.False(test.Studio.Scenes["Gaming"].Items["Mic"].IsEnabled);
             Assert.True(chatting.Items["Mic"].IsEnabled);

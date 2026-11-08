@@ -114,6 +114,13 @@ namespace OBSStudioClient.Studio
             };
         }
 
+        // A scene that the model knew as a live scene, and that a list of scenes did not have while no event removed it (RemoveSceneUnverified): OBS Studio can still have it. A scene that is only
+        // inferred to be Detached (it is the source of a scene item and no list had it) is not one: the model never saw it live.
+        private static bool IsRemovalUnverified(SceneNode node)
+        {
+            return node.State == SourceState.Detached && !node.RemovedAnnounced && !node.Provisional && !node.IsGroup;
+        }
+
         private ObsSource? FindSource(Guid uuid)
         {
             if (this._scenes.TryGetValue(uuid, out var scene))
@@ -138,16 +145,28 @@ namespace OBSStudioClient.Studio
                 }
 
                 var state = ToState(node.State);
+                var unverified = IsRemovalUnverified(node);
                 if (!this._scenes.TryGetValue(node.Uuid, out var scene))
                 {
                     scene = new ObsScene(this._studio, node.Uuid, node.Name.Value, state, node.IsGroup);
+                    scene.SetRemovalUnverified(unverified);
                     this._scenes.Add(node.Uuid, scene);
                     this._setOfScenesChanged = true;
                     this._added.Add(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Added, scene), null, null));
                 }
                 else
                 {
+                    // An application that sees the scene Detached has to see why: the flag is set before the state when the scene is taken for removed without a word of OBS Studio, and after it when it is not.
+                    if (unverified)
+                    {
+                        scene.SetRemovalUnverified(true);
+                    }
+
                     this.UpdateSource(scene, node.Name.Value, state);
+                    if (!unverified)
+                    {
+                        scene.SetRemovalUnverified(false);
+                    }
                 }
 
                 scene.Pass = pass;

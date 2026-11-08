@@ -265,7 +265,9 @@ namespace OBSStudioClient.Studio
         /// <remarks>
         /// <para>
         /// OBS Studio has no request for this: the call changes each scene item that shows the input, in one batch that stops at its first refusal (the scene items before it were
-        /// changed). The scene items are the ones that the model shows when the change has its turn, in scenes that are not removed (see <see cref="ObsSource.GetSceneItems"/>); an input that
+        /// changed). The scene items are the ones that the model shows when the change has its turn, in scenes that are not removed (see <see cref="ObsSource.GetSceneItems"/>; a scene that the model took for
+        /// removed only because a list of scenes did not have it, while no event of OBS Studio removed it, counts as not removed: OBS Studio makes that list from its user interface, which can be busy for seconds,
+        /// and can still have the scene); an input that
         /// no scene item shows has nothing to change, and the call returns when it has its turn. An input that the user removes meanwhile stays alive for its scene items, and the call returns when the
         /// model shows the change of those. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.
         /// </para>
@@ -282,7 +284,8 @@ namespace OBSStudioClient.Studio
                     Check = this.CheckLive,
                     BuildRequests = () =>
                     {
-                        targets = this.GetSceneItems().Where(item => !item.IsRemoved && item.Scene.State == ObsObjectState.Live).ToArray();
+                        // A scene that the model took for removed because a list of scenes did not have it, and that no event removed, can still be live in OBS Studio: its scene items are changed too.
+                        targets = this.GetSceneItems().Where(item => !item.IsRemoved && (item.Scene.State == ObsObjectState.Live || (item.Scene.State == ObsObjectState.Detached && item.Scene.RemovalUnverified))).ToArray();
                         return targets.Select(item => new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = item.Scene.Uuid, sceneItemId = item.Id, sceneItemEnabled = value })).ToArray();
                     },
                     ReadResponses = _ => targets,

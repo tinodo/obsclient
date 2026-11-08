@@ -259,8 +259,57 @@ namespace OBSStudioClient.Studio
         /// See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of
         /// changes and the wait.
         /// </para>
+        /// <para>
+        /// A scene that is <see cref="ObsObjectState.Detached"/> because a list of scenes did not have it, while no event of OBS Studio removed it, can still be a live scene in OBS Studio (OBS Studio makes
+        /// that list from its user interface, which can be busy for seconds, right after it was started for one). The call asks OBS Studio to remove such a scene first, and then removes the scene items that show it.
+        /// A scene that OBS Studio removed already and keeps alive for a scene item refuses that request (701 with OBS Studio 33.0.0), and that is taken for the answer: the scene items are removed all the same.
+        /// A scene that OBS Studio does not have at all (600) ends the call with <see cref="ObsRemovedException"/>. A scene that the model only knows as the source of a scene item was never seen live, and is taken for removed.
+        /// The two steps are two changes in the line of changes (see <see cref="ObsSceneItem.SetEnabledAsync"/>): a change that you ask for right after this call is made between them, not after both.
+        /// </para>
         /// </remarks>
-        public Task RemoveAsync(CancellationToken cancellationToken = default)
+        public async Task RemoveAsync(CancellationToken cancellationToken = default)
+        {
+            var asked = false;
+            if (this.State == ObsObjectState.Detached && this.RemovalUnverified)
+            {
+                // The model took the scene for removed, and OBS Studio did not say so: it can still have it as a live scene (its list of scenes is made from its user interface, which can be busy for
+                // seconds), and then removing the scene items that show it would leave it there while the call returns. It is asked to remove the scene first. A scene that it removed already and keeps alive
+                // for a scene item refuses that with 701 (measured with OBS Studio 33.0.0): that is what the scene items are for.
+                asked = true;
+                try
+                {
+                    await this.RemoveTheSceneAloneAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (ObsResponseException exception) when (exception.ErrorCode == RequestStatusCode.ResourceActionFailed)
+                {
+                    // Removed already, and kept alive.
+                }
+            }
+
+            await this.RemoveWithItsSceneItemsAsync(asked, cancellationToken).ConfigureAwait(false);
+        }
+
+        private Task RemoveTheSceneAloneAsync(CancellationToken cancellationToken)
+        {
+            var description = $"removing scene '{this.Name}'";
+            return this.Studio.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = description,
+                    Subject = $"scene '{this.Name}'",
+                    Check = this.CheckCanBeRemoved,
+                    BuildRequests = () => StudioRemovals.Requests(new WriteRequest(RequestType.RemoveScene, new { sceneUuid = this.Uuid }), []),
+                    IsConfirmed = _ => this.IsRemoved,
+                    Refresh = [new RefreshTarget(ReadKind.Scenes)],
+                    RefreshAtTurn = () => [new RefreshTarget(ReadKind.Scenes), new RefreshTarget(ReadKind.Program)],
+                    ObserveAtTurn = () => [new RefreshTarget(ReadKind.Program)],
+                    ObservedShown = () => !this.IsProgram,
+                    Reconcile = (index, code) => StudioRemovals.Reconciled(this, true, [], index, code),
+                },
+                cancellationToken);
+        }
+
+        private Task RemoveWithItsSceneItemsAsync(bool asked, CancellationToken cancellationToken)
         {
             var description = $"removing scene '{this.Name}'";
             ObsSceneItem[] showing = [];
@@ -270,11 +319,14 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"scene '{this.Name}'",
-                    Check = this.CheckCanBeRemoved,
+
+                    // When the first step asked OBS Studio to remove the scene, it did the checks, and what it did shows by now: the model can show the scene gone (OBS Studio destroyed it) before this step has its turn.
+                    Check = asked ? static () => { } : this.CheckCanBeRemoved,
                     BuildRequests = () =>
                     {
+                        // The scene was asked to be removed already when it was in doubt at the call. When it was Live at the call and is in doubt at its turn, it is asked here, and a refusal is the answer.
                         showing = this.GetSceneItems().Where(item => !item.IsRemoved).ToArray();
-                        includesRemoval = this.State == ObsObjectState.Live;
+                        includesRemoval = !asked && (this.State == ObsObjectState.Live || (this.State == ObsObjectState.Detached && this.RemovalUnverified));
                         return StudioRemovals.Requests(includesRemoval ? new WriteRequest(RequestType.RemoveScene, new { sceneUuid = this.Uuid }) : null, showing);
                     },
                     ReadResponses = _ => showing,

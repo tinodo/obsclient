@@ -11,6 +11,7 @@ namespace OBSStudioClient.Studio
     {
         private ObsSceneItems _items;
         private int _index = -1;
+        private int _removalUnverified;
 
         internal ObsScene(ObsStudio studio, Guid uuid, string name, ObsObjectState state, bool isGroup)
             : base(studio, uuid, name, state)
@@ -58,6 +59,15 @@ namespace OBSStudioClient.Studio
         internal void SetItems(ObsSceneItems items)
         {
             Volatile.Write(ref this._items, items);
+        }
+
+        // Whether the model took the scene for removed because a list of scenes did not have it, while no event of OBS Studio removed it: it knew the scene as a live scene, and the list of OBS Studio
+        // is made from its user interface, which can be busy for seconds (23 were seen), so OBS Studio can still have the scene as a live scene. Written by the publisher together with the state.
+        internal bool RemovalUnverified => Volatile.Read(ref this._removalUnverified) != 0;
+
+        internal void SetRemovalUnverified(bool unverified)
+        {
+            Volatile.Write(ref this._removalUnverified, unverified ? 1 : 0);
         }
     }
 }
