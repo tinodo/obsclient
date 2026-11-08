@@ -18,10 +18,17 @@ namespace OBSStudioClient.Tests.Live
     /// </remarks>
     internal sealed class LiveStudio : IAsyncDisposable
     {
+        // A fresh OBS Studio is warm when it made and removed a scene within this time, so many times in a row (see WarmUpAsync), in at most so many attempts.
+        private const int WarmUpAttempts = 20;
+
+        private const int WarmUpFastAnswers = 3;
+
         // How long the model may take to equal what OBS Studio holds: the list of scenes of OBS Studio lags behind its events by up to about two seconds, and a busy machine adds to that.
         private static readonly TimeSpan EqualTimeout = TimeSpan.FromSeconds(20);
 
         private static readonly TimeSpan SettleTimeout = TimeSpan.FromSeconds(60);
+
+        private static readonly TimeSpan WarmUpFastAnswer = TimeSpan.FromMilliseconds(500);
 
         private static readonly SemaphoreSlim WarmUpTurn = new(1, 1);
 
@@ -83,8 +90,10 @@ namespace OBSStudioClient.Tests.Live
                 }
 
                 var fast = 0;
-                for (var attempt = 0; attempt < 20 && fast < 3; attempt++)
+                var attempts = 0;
+                while (attempts < WarmUpAttempts && fast < WarmUpFastAnswers)
                 {
+                    attempts++;
                     var clock = Stopwatch.StartNew();
                     var name = LiveObs.UniqueName("warm");
                     var uuid = await client.CreateScene(name);
@@ -97,7 +106,15 @@ namespace OBSStudioClient.Tests.Live
                         // Being removed already: the leftovers are removed when the connection is made.
                     }
 
-                    fast = clock.Elapsed < TimeSpan.FromMilliseconds(500) ? fast + 1 : 0;
+                    fast = clock.Elapsed < WarmUpFastAnswer ? fast + 1 : 0;
+                }
+
+                // A warm-up that ran out of attempts is not a warm-up: say so now, and let the next connection try again, rather than have every test fail later on a synchronization that was too slow.
+                if (fast < WarmUpFastAnswers)
+                {
+                    throw new InvalidOperationException(
+                        $"OBS Studio did not make and remove a scene within {WarmUpFastAnswer.TotalMilliseconds:0} ms, {WarmUpFastAnswers} times in a row, in {attempts} attempts: it is too busy (or stuck) for the live tests of the studio layer. "
+                        + "A fresh OBS Studio is slow for its first changes for seconds, not for this long.");
                 }
 
                 _warm = true;

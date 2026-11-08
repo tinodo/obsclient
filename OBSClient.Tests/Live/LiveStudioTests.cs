@@ -20,6 +20,13 @@ namespace OBSStudioClient.Tests.Live
 
         private static object ColorSettings => new { color = 4278190335L, width = 640, height = 360 };
 
+        // A call that removes a scene or an input returns when the model shows it removed, and the model can call it Gone a moment later: when the events were late, it reads OBS Studio once more before it
+        // calls an object destroyed.
+        private static async Task AssertGoneAsync(ObsSource source)
+        {
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => source.State == ObsObjectState.Gone, Wait), $"The {source.Label} was not destroyed (it is {source.State}).");
+        }
+
         [LiveUuidChangesFact]
         public async Task ScenesInputsAndSceneItems_AreMadeChangedSwitchedAndRemovedByName_AndTheModelEqualsWhatObsStudioHoldsAfterEveryStep()
         {
@@ -92,14 +99,14 @@ namespace OBSStudioClient.Tests.Live
 
             // Removal: the input goes with the scene items that show it, and OBS Studio destroys it; then the scenes.
             await input.RemoveAsync();
-            Assert.Equal(ObsObjectState.Gone, input.State);
+            await AssertGoneAsync(input);
             Assert.False(studio.Inputs.Contains(renamedInput));
             Assert.Empty(scene.Items);
             await live.AssertModelEqualsObsAsync("after the input was removed");
             await other.RemoveAsync();
             await scene.RemoveAsync();
-            Assert.Equal(ObsObjectState.Gone, other.State);
-            Assert.Equal(ObsObjectState.Gone, scene.State);
+            await AssertGoneAsync(other);
+            await AssertGoneAsync(scene);
             await live.AssertModelEqualsObsAsync("after the scenes were removed");
 
             // The names are free again.
@@ -222,7 +229,7 @@ namespace OBSStudioClient.Tests.Live
                 var taken = await Assert.ThrowsAsync<ObsNameInUseException>(() => studio.CreateSceneAsync(name));
                 Assert.Same(scene, taken.HeldBy);
                 await scene.RemoveAsync();
-                Assert.Equal(ObsObjectState.Gone, scene.State);
+                await AssertGoneAsync(scene);
                 var again = await studio.CreateSceneAsync(name);
                 Assert.Same(again, studio.Scenes[name]);
             }
@@ -260,7 +267,7 @@ namespace OBSStudioClient.Tests.Live
 
             await scene.RemoveAsync();
 
-            Assert.Equal(ObsObjectState.Gone, scene.State);
+            await AssertGoneAsync(scene);
             await live.AssertModelEqualsObsAsync("after the scene was removed for good");
         }
 
@@ -289,7 +296,7 @@ namespace OBSStudioClient.Tests.Live
 
             // Removing it removes the scene items that are left, OBS Studio destroys it, and the name is free.
             await input.RemoveAsync();
-            Assert.Equal(ObsObjectState.Gone, input.State);
+            await AssertGoneAsync(input);
             var again = await scene.CreateInputAsync(name, kind, ColorSettings);
             Assert.NotSame(input, again);
             await live.AssertModelEqualsObsAsync("after the name was used again");
@@ -308,7 +315,7 @@ namespace OBSStudioClient.Tests.Live
             await scene.RemoveAsync();
 
             // The call returns when the model shows the scene that OBS Studio made the program scene instead.
-            Assert.Equal(ObsObjectState.Gone, scene.State);
+            await AssertGoneAsync(scene);
             Assert.NotNull(studio.ProgramScene);
             Assert.NotSame(scene, studio.ProgramScene);
             Assert.Equal((await live.Client.GetCurrentProgramScene()).SceneUuid, studio.ProgramScene!.Uuid);
@@ -341,11 +348,11 @@ namespace OBSStudioClient.Tests.Live
                 catch (ObsResponseException exception) when (exception.ErrorCode == RequestStatusCode.ResourceNotFound)
                 {
                     races++;
-                    Assert.Equal(ObsObjectState.Detached, input.State);
+                    Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => input.State == ObsObjectState.Detached, Wait), "The input was not detached.");
                     await input.RemoveAsync();
                 }
 
-                Assert.Equal(ObsObjectState.Gone, input.State);
+                await AssertGoneAsync(input);
             }
 
             output.WriteLine($"{races} of {Rounds} removals met a scene item that was gone already (the race with the frame of OBS Studio {live.ObsVersionText}).");
@@ -401,12 +408,16 @@ namespace OBSStudioClient.Tests.Live
             await raw.SetCurrentProgramScene(SceneRef.FromUuid(original!.Uuid));
             await live.AssertModelEqualsObsAsync("after the user switched back");
 
-            // Removals: the input stays alive for the scene items that show it, and goes when the last of them goes; then the scenes.
+            // Removals: the input stays alive for the scene items that show it, and goes when the last of them goes; then the scenes. OBS Studio goes on listing the input, so the comparison alone does not
+            // show that the model noticed the removal: the model has to call the input Detached, and not show it among the inputs any more.
+            var modelInput = studio.Inputs[inputName + "-renamed"];
             await raw.RemoveInput(InputRef.FromUuid(created.InputUuid));
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => modelInput.State == ObsObjectState.Detached && !studio.Inputs.TryGet(modelInput.Uuid, out _), Wait), "The model did not show the input as removed (Detached, and not among the inputs).");
             await live.AssertModelEqualsObsAsync("after the user removed the input");
             await raw.RemoveSceneItem(other, shownId);
             await live.AssertModelEqualsObsAsync("after the user removed a scene item of the input");
             await raw.RemoveSceneItem(scene, created.SceneItemId);
+            await AssertGoneAsync(modelInput);
             await live.AssertModelEqualsObsAsync("after the user removed the last scene item of the input");
             Assert.DoesNotContain(studio.Scenes.SelectMany(candidate => candidate.Items), item => item.Source is ObsInput input && input.Uuid == created.InputUuid);
             await raw.RemoveScene(other);
