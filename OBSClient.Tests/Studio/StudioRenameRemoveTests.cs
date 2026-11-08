@@ -167,6 +167,52 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AReconnect_TakesTheRuleForTheNamesOfRemovedScenesFromTheObsStudioThatItReaches_AndKeepsNothingOfTheOneBefore()
+        {
+            await using var test = await ByNameFixture.StartAsync(webSocketVersion: "5.5.4", obsVersion: "31.0.0");
+            Assert.True(test.Studio.RemovedScenesKeepTheirName);
+
+            await ReconnectAsync(test, "5.7.6", "33.0.0");
+            Assert.False(test.Studio.RemovedScenesKeepTheirName);
+
+            await ReconnectAsync(test, "5.5.4", "31.0.0");
+            Assert.True(test.Studio.RemovedScenesKeepTheirName);
+
+            // A version that can not be read is no reason to keep what the connection before said: the newest behaviour.
+            await ReconnectAsync(test, "5.7.6", "not a version");
+            Assert.False(test.Studio.RemovedScenesKeepTheirName);
+        }
+
+        [Fact]
+        public async Task AReconnect_AssumesTheNewestBehaviour_UntilTheNewConnectionHasSaidWhichObsStudioItIs()
+        {
+            await using var test = await ByNameFixture.StartAsync(webSocketVersion: "5.5.4", obsVersion: "31.0.0");
+            Assert.True(test.Studio.RemovedScenesKeepTheirName);
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            test.Responder.VersionGate = gate;
+            var handshakes = test.Responder.Handshakes;
+            test.Responder.AbortConnection();
+
+            // The new connection is made, and OBS Studio has not said its version yet: what the connection before said about its OBS Studio is not kept.
+            await StudioRig.EventuallyAsync(() => test.Responder.Handshakes > handshakes && test.Studio.State == ObsStudioState.Synchronizing, "the new connection to be followed", TimeSpan.FromSeconds(30));
+            Assert.False(test.Studio.RemovedScenesKeepTheirName);
+
+            gate.SetResult();
+            await StudioRig.EventuallyAsync(() => test.Studio.State == ObsStudioState.Synchronized, "the model to be read again", TimeSpan.FromSeconds(30));
+            Assert.True(test.Studio.RemovedScenesKeepTheirName);
+        }
+
+        // The stand-in goes away and comes back as the OBS Studio of these versions (the client reconnects by itself, after a few seconds), and this returns when the model has read it.
+        private static async Task ReconnectAsync(ByNameFixture test, string webSocketVersion, string obsVersion)
+        {
+            test.Responder.WebSocketVersion = webSocketVersion;
+            test.Responder.ObsVersion = obsVersion;
+            var handshakes = test.Responder.Handshakes;
+            test.Responder.AbortConnection();
+            await StudioRig.EventuallyAsync(() => test.Responder.Handshakes > handshakes && test.Studio.State == ObsStudioState.Synchronized, "the model to be read again from the new connection", TimeSpan.FromSeconds(30));
+        }
+
+        [Fact]
         public async Task AGroupThatWasRemovedAndIsAlive_HoldsItsName_AndTheMessageSaysToRemoveTheSceneItemThatShowsIt_NotTheGroup()
         {
             // A group is destroyed with the scene item that shows it, and RemoveAsync() refuses a group: the advice must not send the application there.
@@ -727,6 +773,58 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
             Assert.Equal(ObsObjectState.Gone, chatting.State);
             Assert.Equal(["RemoveSceneItem"], Removals(test));
+        }
+
+        [Fact]
+        public async Task ASourceWhoseRemovalOBSStudioAnswersWithNotFound_EndsTheCallWhenTheModelShowsItRemoved_SoThatACallMadeAtOnceDoesNotAskAgain()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var chatting = test.Studio.Scenes["Chatting"];
+            test.Responder.OnRequest = (type, data) =>
+            {
+                // The user removed the source just before: OBS Studio does not know it any more (it keeps it alive for the scene items that show it), and its event is on its way.
+                switch (type)
+                {
+                    case "RemoveInput":
+                        test.RemoveInput(Uuid(data, "inputUuid"));
+                        return (600, null);
+                    case "RemoveScene":
+                        test.RemoveScene(Uuid(data, "sceneUuid"));
+                        return (600, null);
+                    default:
+                        return null;
+                }
+            };
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => mic.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            // The call says that the source is gone, and the model agrees by the time it says so.
+            Assert.True(mic.IsRemoved);
+
+            await Assert.ThrowsAsync<ObsRemovedException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.True(chatting.IsRemoved);
+            Assert.Equal(["RemoveInput", "RemoveScene"], Removals(test));
+        }
+
+        [Fact]
+        public async Task Reconciled_HasSomethingToWaitFor_OnlyWhenSomethingWasDoneOrIsGone()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var mic = test.Studio.Inputs["Mic"];
+            var items = mic.GetSceneItems().ToArray();
+
+            // The request that removes the source was refused, or the first scene item of a source that is removed already: nothing was done, and there is something to wait for only
+            // when OBS Studio does not know it (600: it is gone).
+            Assert.Null(StudioRemovals.Reconciled(mic, true, items, 0, RequestStatusCode.ResourceActionFailed));
+            Assert.NotNull(StudioRemovals.Reconciled(mic, true, items, 0, RequestStatusCode.ResourceNotFound));
+            Assert.Null(StudioRemovals.Reconciled(mic, false, items, 0, RequestStatusCode.ResourceActionFailed));
+            Assert.NotNull(StudioRemovals.Reconciled(mic, false, items, 0, RequestStatusCode.ResourceNotFound));
+
+            // A request after the first was refused: what the ones before it made is waited for, whatever the code.
+            Assert.NotNull(StudioRemovals.Reconciled(mic, true, items, 1, RequestStatusCode.ResourceActionFailed));
+            Assert.NotNull(StudioRemovals.Reconciled(mic, false, items, 1, RequestStatusCode.ResourceActionFailed));
         }
 
         [Fact]

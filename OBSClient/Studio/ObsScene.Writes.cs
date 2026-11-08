@@ -248,7 +248,7 @@ namespace OBSStudioClient.Studio
         /// <para>
         /// What the scene shows is destroyed with it: the inputs that only this scene showed are destroyed by OBS Studio a moment after the scene, and the model learns of that from its
         /// events. If the scene is the program scene, OBS Studio makes the first scene of the list the program scene: the call returns when the model has read the program scene again after the removal (whatever
-        /// the events said, and also when a switch to this scene was asked for just before and the model did not show it yet), so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now.
+        /// the events said, and also when a switch to this scene was asked for just before and the model did not show it yet), so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now. When that read does not come within the time that a change is waited for (a few seconds, and more when OBS Studio is slow to answer), the call returns all the same, with a warning in the log, and the model catches up by itself.
         /// See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of
         /// changes and the wait.
         /// </para>

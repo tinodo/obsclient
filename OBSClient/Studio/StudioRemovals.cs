@@ -35,7 +35,7 @@ namespace OBSStudioClient.Studio
 
         /// <summary>
         /// Says what the model shows when the requests of a removal before the one that was refused have been applied: the source is removed (when the first request removed it), and the
-        /// scene items before the refused one are gone, and the refused one too when OBS Studio does not know it (600: it is gone already). A call that is made again at once (the message of
+        /// scene items before the refused one are gone, and the refused one too when OBS Studio does not know it (600: it is gone already, and the source itself is shown removed when it is the request that removes it that was refused). A call that is made again at once (the message of
         /// the refusal asks for that) builds its requests from what the model shows, and would repeat the ones that were made, or ask for the one that is gone, if it did not show it yet.
         /// </summary>
         /// <param name="source">The source that is removed.</param>
@@ -43,14 +43,16 @@ namespace OBSStudioClient.Studio
         /// <param name="showing">The scene items that the requests after it remove.</param>
         /// <param name="index">The position of the request that was refused.</param>
         /// <param name="code">The code of the refusal: a scene item that OBS Studio does not know (600) is gone, and the model has to show that too.</param>
-        /// <returns>What says that the model shows it, or null when nothing was done (the refusal of the request that removes the source, or of the first scene item of a source that is removed already, when
-        /// that scene item is not gone): there is nothing to wait for.</returns>
+        /// <returns>What says that the model shows it, or null when nothing was done and nothing is gone: the request that removes the source was refused with a code other than 600, or the
+        /// first scene item of a source that is removed already was. There is nothing to wait for then.</returns>
         internal static Func<bool>? Reconciled(ObsSource source, bool includesRemoval, ObsSceneItem[] showing, int index, RequestStatusCode code)
         {
             var requestsOfTheSource = includesRemoval ? 1 : 0;
             if (index < requestsOfTheSource)
             {
-                return null;
+                // The request that removes the source itself was refused. When OBS Studio does not know the source (600) it is gone, which is what the call says, and the model has to show
+                // that before it does: a call made right after would send the request again.
+                return code == RequestStatusCode.ResourceNotFound ? () => source.IsRemoved : null;
             }
 
             var done = index - requestsOfTheSource + (code == RequestStatusCode.ResourceNotFound ? 1 : 0);

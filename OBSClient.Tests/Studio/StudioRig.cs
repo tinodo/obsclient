@@ -35,6 +35,9 @@ namespace OBSStudioClient.Tests.Studio
         /// <summary>Gets or sets the OBS Studio version that GetVersion answers (the default goes with the obs-websocket version: OBS Studio 33.0.0 has obs-websocket 5.7.6).</summary>
         public string ObsVersion { get; set; } = "33.0.0";
 
+        /// <summary>Gets or sets a gate that holds the answer to GetVersion back until it is completed: the handshake is done, and the studio does not know the version of OBS Studio yet.</summary>
+        public TaskCompletionSource? VersionGate { get; set; }
+
         /// <summary>Gets or sets whether the batches of reads are answered.</summary>
         public bool AnswerBatches { get; set; } = true;
 
@@ -238,6 +241,11 @@ namespace OBSStudioClient.Tests.Studio
         {
             var type = d.GetProperty("requestType").GetString()!;
             var id = d.GetProperty("requestId").GetString()!;
+            if (type == "GetVersion" && this.VersionGate is { } versionGate)
+            {
+                await versionGate.Task.WaitAsync(this._stopping.Token);
+            }
+
             var (code, data) = this.Answer(type, d.TryGetProperty("requestData", out var requestData) ? requestData : null);
             await this._write.WaitAsync();
             try

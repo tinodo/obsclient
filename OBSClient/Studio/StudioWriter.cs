@@ -94,7 +94,7 @@ namespace OBSStudioClient.Studio
         /// <summary>
         /// Gets what says, for a change of several requests that stopped at a refusal, what the model shows when the requests before the one that was refused (its position) have been applied,
         /// and the refused one too when it is gone (the code of the refusal says: a scene item that OBS Studio does not know), or null when there is nothing to wait for and the call may end at once
-        /// (the first request was refused and it was not made); it is given the position and the code of the refusal. The call ends with the refusal when the model shows it, or when it was not shown in time: the model
+        /// (the first request was refused, and nothing was made or is gone); it is given the position and the code of the refusal. The call ends with the refusal when the model shows it, or when it was not shown in time: the model
         /// learns of what the first requests made a moment after the answer, and a call that is made again at once (the message of the refusal asks for that) would otherwise see the
         /// objects as they were, and repeat the requests that were made.
         /// </summary>

@@ -93,7 +93,9 @@ namespace OBSStudioClient.Studio
         private volatile bool _disposed;
 
         // Whether a scene that OBS Studio removed and keeps alive keeps its name taken: with OBS Studio 31.0 and older it does, from 31.1 on the name is free at once. It is what the version of
-        // OBS Studio that the connection reports says (StudioHost.HandleVersion); until that is known the newest behaviour is assumed (nothing is written before it is known).
+        // OBS Studio that the connection reports says (StudioHost.HandleVersion). Until the connection has said it, and when what it says can not be read, the newest behaviour is assumed:
+        // a connection starts with it, and what the connection before it said is not kept (a reconnect can be to another OBS Studio). A change that is asked for in that time is not held back
+        // for the version, so the message of a name that is taken (StudioNames) is the one of the newest behaviour then.
         private volatile bool _removedScenesKeepTheirName;
 
         // The number of the call of ConnectAsync that has the connection: only that call may end it (see AbandonConnect). Under _stateLock.
@@ -630,10 +632,11 @@ namespace OBSStudioClient.Studio
         // Whether a scene that OBS Studio removed and keeps alive keeps its name taken (see _removedScenesKeepTheirName).
         internal bool RemovedScenesKeepTheirName => this._removedScenesKeepTheirName;
 
-        // Called by the loop of the model when the connection says which version of OBS Studio it is connected to.
-        internal void SetObsVersion(Version version)
+        // Called by the loop of the model when a connection starts (with null: what the connection before it said about its OBS Studio says nothing about this one) and when it says which version of
+        // OBS Studio it is connected to (null when the version can not be read): without a version the newest behaviour is assumed.
+        internal void SetObsVersion(Version? version)
         {
-            this._removedScenesKeepTheirName = version < ScenesFreeTheirNameFrom;
+            this._removedScenesKeepTheirName = version is not null && version < ScenesFreeTheirNameFrom;
         }
 
         // The group of the moment that has the name: a group is a scene that the collection of scenes does not list, and its name is taken like that of any source.

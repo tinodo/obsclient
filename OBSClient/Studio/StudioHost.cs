@@ -605,6 +605,9 @@ namespace OBSStudioClient.Studio
                         attempt.Session = ingress.SessionId;
                     }
 
+                    // The OBS Studio of this connection may not be the one of the connection before (a reconnect): what that one said about the names of removed scenes is not kept, and
+                    // the connection says its own with its version (HandleVersion).
+                    this._studio.SetObsVersion(null);
                     this._engine.OnSessionStarted(ingress.SessionId, ingress.Sequence, now);
                     this._studio.SetState(ObsStudioState.Synchronizing);
                     this.StartVersionCheck(ingress.SessionId);
@@ -674,11 +677,8 @@ namespace OBSStudioClient.Studio
             {
                 this._versionKnown = true;
 
-                // What a removed scene does to its name depends on the version of OBS Studio (libobs), not on that of obs-websocket. A version that can not be read leaves the newest behaviour.
-                if (TryParseVersion(item.Version.ObsVersion, out var obsVersion))
-                {
-                    this._studio.SetObsVersion(obsVersion);
-                }
+                // What a removed scene does to its name depends on the version of OBS Studio (libobs), not on that of obs-websocket. A version that can not be read gives the newest behaviour (null).
+                this._studio.SetObsVersion(TryParseVersion(item.Version.ObsVersion, out var obsVersion) ? obsVersion : null);
 
                 return;
             }
