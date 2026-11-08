@@ -35,6 +35,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"{(muted ? "muting" : "unmuting")} input '{this.Name}'",
                     Subject = $"input '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritableAudio,
                     BuildRequests = () => [new WriteRequest(RequestType.SetInputMute, new { inputUuid = this.Uuid, inputMuted = muted })],
                     IsConfirmed = _ => this.IsRemoved || this.IsMuted == muted,
@@ -66,6 +67,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"toggling the mute of input '{this.Name}'",
                     Subject = $"input '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritableAudio,
                     BuildRequests = () => [new WriteRequest(RequestType.ToggleInputMute, new { inputUuid = this.Uuid })],
                     ReadResponses = static responses => ((InputMutedResponse)responses[0].ResponseData!).InputMuted,
@@ -99,6 +101,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"setting the volume of input '{this.Name}' to {decibels} dB",
                     Subject = $"input '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritableAudio,
                     BuildRequests = () => [new WriteRequest(RequestType.SetInputVolume, new { inputUuid = this.Uuid, inputVolumeDb = decibels })],
                     IsConfirmed = _ => this.IsRemoved || Math.Abs(this.VolumeDb - decibels) <= VolumeDbTolerance,
@@ -131,6 +134,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"setting the volume of input '{this.Name}' to {multiplier}",
                     Subject = $"input '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritableAudio,
                     BuildRequests = () => [new WriteRequest(RequestType.SetInputVolume, new { inputUuid = this.Uuid, inputVolumeMul = multiplier })],
                     IsConfirmed = _ => this.IsRemoved || Math.Abs(this.VolumeMul - multiplier) <= Math.Max(VolumeMulRelativeTolerance * multiplier, VolumeMulFloor),
@@ -179,6 +183,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"input '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckLive,
                     BuildRequests = () => [new WriteRequest(RequestType.SetInputName, new { inputUuid = this.Uuid, newInputName = name })],
                     IsConfirmed = _ => this.IsRemoved || string.Equals(this.Name, name, StringComparison.Ordinal),
@@ -286,6 +291,20 @@ namespace OBSStudioClient.Studio
                     Map = (index, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && index < targets.Length
                         ? new ObsRemovedException($"scene item {targets[index].Id} of scene '{targets[index].Scene.Name}'", ObsObjectState.Gone)
                         : null,
+
+                    // A change that stopped halfway: the scene items before the refused one were changed, and the refused one is gone when OBS Studio does not know it (600). The call ends when the model
+                    // shows that, so that a call that is made right after does not ask for the scene item that is gone, and what the application reads shows what was changed.
+                    Reconcile = (index, code) =>
+                    {
+                        var gone = code == RequestStatusCode.ResourceNotFound && index < targets.Length ? targets[index] : null;
+                        if (index == 0 && gone is null)
+                        {
+                            return null;
+                        }
+
+                        var changed = targets.Take(index).ToArray();
+                        return () => changed.All(item => item.IsRemoved || item.IsEnabled == value) && (gone is null || gone.IsRemoved);
+                    },
                 },
                 cancellationToken);
         }

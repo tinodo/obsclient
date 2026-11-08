@@ -35,6 +35,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"switching to scene '{this.Name}'",
                     Subject = $"scene '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckCanBeProgram,
                     BuildRequests = () => [new WriteRequest(RequestType.SetCurrentProgramScene, new { sceneUuid = this.Uuid })],
                     IsConfirmed = _ => this.IsRemoved || this.IsProgram,
@@ -101,6 +102,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"scene '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckCanHoldItems,
                     BuildRequests = () => [new WriteRequest(RequestType.CreateInput, data)],
                     ReadResponses = static responses =>
@@ -167,6 +169,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"scene '{this.Name}' or {source.Label}",
+                    SubjectGone = () => this.IsRemoved || source.IsRemoved,
                     Check = () =>
                     {
                         this.CheckCanHoldItems();
@@ -212,6 +215,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = description,
                     Subject = $"scene '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckCanBeRenamed,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneName, new { sceneUuid = this.Uuid, newSceneName = name })],
                     IsConfirmed = _ => this.IsRemoved || string.Equals(this.Name, name, StringComparison.Ordinal),
@@ -247,8 +251,11 @@ namespace OBSStudioClient.Studio
         /// </para>
         /// <para>
         /// What the scene shows is destroyed with it: the inputs that only this scene showed are destroyed by OBS Studio a moment after the scene, and the model learns of that from its
-        /// events. If the scene is the program scene, OBS Studio makes the first scene of the list the program scene: the call returns when the model has read the program scene again after the removal (whatever
-        /// the events said, and also when a switch to this scene was asked for just before and the model did not show it yet), so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now. When that read does not come within the time that a change is waited for (a few seconds, and more when OBS Studio is slow to answer), the call returns all the same, with a warning in the log, and the model catches up by itself.
+        /// events. If the scene is the program scene, OBS Studio makes another scene the program scene about one frame after it has answered (16 ms were measured, and a read of the program scene in between still says the
+        /// scene that was removed): the call returns when the model shows that scene as the program scene, so that <see cref="ObsStudio.ProgramScene"/> is the scene that OBS Studio has now. The model is read for
+        /// that after the answer whatever the events said, also when a switch to this scene was asked for just before and the model did not show it yet. When the events do not show it within the confirmation time of
+        /// the options (1 second by default) the model is read again, and the call returns when that read has been applied, whatever it shows (the model goes on following OBS Studio by its events); when no read is applied in time
+        /// (the read timeout of the options, 10 seconds by default, counts twice, after the confirmation time) the call returns all the same, with a warning in the log.
         /// See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of
         /// changes and the wait.
         /// </para>
@@ -281,6 +288,7 @@ namespace OBSStudioClient.Studio
                         .. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct(),
                     ],
                     ObserveAtTurn = () => includesRemoval ? [new RefreshTarget(ReadKind.Program)] : [],
+                    ObservedShown = () => !this.IsProgram,
                     Map = (index, response) => StudioRemovals.Refusal(description, includesRemoval, showing, index, response),
                     Reconcile = (index, code) => StudioRemovals.Reconciled(this, includesRemoval, showing, index, code),
                 },

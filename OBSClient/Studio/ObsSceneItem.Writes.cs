@@ -43,6 +43,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"{(value ? "showing" : "hiding")} {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemEnabled = value })],
                     IsConfirmed = _ => this.IsRemoved || this.IsEnabled == value,
@@ -83,6 +84,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"toggling {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     Prepare = async ask =>
                     {
@@ -117,6 +119,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"{(value ? "locking" : "unlocking")} {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemLocked, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemLocked = value })],
                     IsConfirmed = _ => this.IsRemoved || this.IsLocked == value,
@@ -150,6 +153,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"moving {this.Subject()} to position {index}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = () =>
                     {
                         this.CheckWritable();
@@ -192,6 +196,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"removing {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.RemoveSceneItem, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id })],
                     IsConfirmed = _ => this.IsRemoved,

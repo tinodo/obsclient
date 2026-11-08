@@ -114,6 +114,22 @@ namespace OBSStudioClient.Studio
         public IReadOnlyList<RefreshTarget> Observe { get; internal set; } = [];
 
         /// <summary>
+        /// Gets what the observed parts (<see cref="Observe"/>) have to show, once they have been read again, for the observation to be done, or null when a read is all that is asked for.
+        /// OBS Studio makes a side effect of a change a moment after it has answered (it makes another scene the program scene about a frame after it removed the program scene, 16 ms were
+        /// measured, and a read in between still says the scene that was removed), so the read after the answer may not show it yet: the model is read again, by the event that OBS Studio
+        /// sends or, when the events do not come in time, by the read that the wait asks for, until it does. A wait that ends without it ends as it would without the observation.
+        /// </summary>
+        public Func<bool>? ObservedShown { get; init; }
+
+        /// <summary>
+        /// Gets what says that the model shows the object that the change is about removed, for a change of one request: when OBS Studio does not know that object (600) the call says that
+        /// it is gone (<see cref="ObsRemovedException"/>), and it ends when the model says so too, so that what the application does next (it is the same object that it holds) is not
+        /// sent to an object that is gone. The wait is the one of any change (the events, and then a read of <see cref="Refresh"/>), and the call ends with the same exception when it ends
+        /// without the model showing it.
+        /// </summary>
+        public Func<bool>? SubjectGone { get; init; }
+
+        /// <summary>
         /// Gets the parts of the model that a read has to cover as well once the result of the change is known: what the change made has parts of its own that the model reads
         /// before it shows the object (the audio of an input, which the list of inputs does not say), and that no read of <see cref="Refresh"/> covers, because the object is not
         /// in the model before the list that shows it has been read. A part that the model does not have has nothing to read.
@@ -634,7 +650,16 @@ namespace OBSStudioClient.Studio
                 if (!results[i].RequestStatus.Result)
                 {
                     var failure = MapFailure(job, i, results[i]);
-                    if (job.Reconcile?.Invoke(i, results[i].RequestStatus.Code) is { } reconciled)
+                    if (i == 0)
+                    {
+                        // Nothing was made before the refusal, so nothing happened that has to be observed.
+                        job.Observe = [];
+                    }
+
+                    // What the model has to show before the call ends with the refusal: what the requests before the refused one made, and the refused thing when it is gone (WriteJob.Reconcile);
+                    // or, for a change of one request that OBS Studio answers with 600 (it does not know what the change is about), that object removed (WriteJob.SubjectGone).
+                    var reconciled = job.Reconcile?.Invoke(i, results[i].RequestStatus.Code) ?? (failure is ObsRemovedException ? job.SubjectGone : null);
+                    if (reconciled is not null)
                     {
                         // The requests before the one that failed were made (and the one that failed is gone, when OBS Studio does not know it), and the model learns of that a moment after the answer: the call ends with the refusal when the model
                         // shows it (see WriteJob.Reconcile). The turn is over, and the next change goes on meanwhile.
@@ -780,7 +805,7 @@ namespace OBSStudioClient.Studio
             // the change was made in a collection that the model has left (or is leaving), and nothing will show it. So does the end of the read (what a read says is what
             // OBS Studio holds, whatever the events said or did not say), also when it ends in failure: the connection ended, or the studio is disposed of. A read that was
             // cancelled is the end of the time that the wait was given, not the end of the read.
-            bool Done() => ((shown is not null ? shown() : job.IsConfirmed(result)) && (observe.Count == 0 || this._host.AreRefreshed(observe)))
+            bool Done() => ((shown is not null ? shown() : job.IsConfirmed(result)) && (observe.Count == 0 || (this._host.AreRefreshed(observe) && (job.ObservedShown?.Invoke() ?? true))))
                 || this.Left(job)
                 || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
 
