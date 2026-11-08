@@ -266,7 +266,8 @@ namespace OBSStudioClient.Studio
         /// <para>
         /// OBS Studio has no request for this: the call changes each scene item that shows the input, in one batch that stops at its first refusal (the scene items before it were
         /// changed). The scene items are the ones that the model shows when the change has its turn, in scenes that are not removed (see <see cref="ObsSource.GetSceneItems"/>); an input that
-        /// no scene item shows has nothing to change, and the call returns when it has its turn. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.
+        /// no scene item shows has nothing to change, and the call returns when it has its turn. An input that the user removes meanwhile stays alive for its scene items, and the call returns when the
+        /// model shows the change of those. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.
         /// </para>
         /// </remarks>
         public Task SetEnabledInAllScenesAsync(bool value, CancellationToken cancellationToken = default)
@@ -285,7 +286,7 @@ namespace OBSStudioClient.Studio
                         return targets.Select(item => new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = item.Scene.Uuid, sceneItemId = item.Id, sceneItemEnabled = value })).ToArray();
                     },
                     ReadResponses = _ => targets,
-                    IsConfirmed = result => this.IsRemoved || ((ObsSceneItem[])result!).All(item => item.IsRemoved || item.IsEnabled == value),
+                    IsConfirmed = result => ((ObsSceneItem[])result!).All(item => item.IsRemoved || item.IsEnabled == value),
                     Finish = static _ => null,
                     RefreshAtTurn = () => [.. this.GetSceneItems().Select(item => new RefreshTarget(ReadKind.Items, item.Scene.Uuid)).Distinct()],
                     Map = (index, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && index < targets.Length

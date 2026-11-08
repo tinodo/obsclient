@@ -840,7 +840,7 @@ namespace OBSStudioClient.Studio
 
                 if (shown is not null)
                 {
-                    // The change was refused because OBS Studio does not know what it was about (600), and the events did not say that it is gone: the lists say what OBS Studio has, and
+                    // The change was refused, and the events did not show what the refusal says (OBS Studio does not know the object that the change was about: 600): the lists say what OBS Studio has, and
                     // an object that the model still shows and that the lists do not have is taken for removed, so that what the application does next is refused before it is sent.
                     targets = [.. targets, new RefreshTarget(ReadKind.Scenes), new RefreshTarget(ReadKind.Inputs)];
                 }

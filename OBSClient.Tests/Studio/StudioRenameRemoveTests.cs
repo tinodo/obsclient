@@ -1036,6 +1036,38 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AnInputThatTheUserRemovesWhileItsSceneItemsAreChanged_IsNotTheEndOfTheWait_BecauseItsSceneItemsAreAliveAndShown()
+        {
+            // OBS Studio keeps the removed input alive for its scene items, which are in live scenes and are changed: the call returns when the model shows that, not when it learns that the
+            // input was removed (the scene items of a removed input are still shown, and the application reads them).
+            await using var test = await ByNameFixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300) });
+            var mic = test.Studio.Inputs["Mic"];
+            var removed = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "SetSceneItemEnabled")
+                {
+                    return null;
+                }
+
+                // The change is made and nothing says so: the model learns of it by a read. The user removes the input at the same time: OBS Studio keeps it alive, and says so.
+                test.SetEnabled(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"), data!.Value.GetProperty("sceneItemEnabled").GetBoolean());
+                if (Interlocked.Exchange(ref removed, 1) == 0)
+                {
+                    test.RemoveInput(mic.Uuid);
+                }
+
+                return (100, null);
+            };
+
+            await mic.SetEnabledInAllScenesAsync(false).WithTimeoutAsync(Timeout);
+
+            Assert.True(mic.IsRemoved);
+            Assert.NotEmpty(mic.GetSceneItems());
+            Assert.All(mic.GetSceneItems(), item => Assert.False(item.IsEnabled));
+        }
+
+        [Fact]
         public async Task ASceneWhoseRemovalOBSStudioAnswersWithNotFound_DoesNotWaitForTheProgramScene_BecauseNothingWasRemoved()
         {
             await using var test = await ByNameFixture.StartAsync();
