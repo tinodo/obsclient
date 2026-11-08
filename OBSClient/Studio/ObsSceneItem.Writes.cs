@@ -220,7 +220,7 @@ namespace OBSStudioClient.Studio
 
             if (this.Scene.State != ObsObjectState.Live)
             {
-                throw new ObsRemovedException($"scene '{this.Scene.Name}'", this.Scene.State);
+                throw new ObsRemovedException(this.Scene.Label, this.Scene.State);
             }
         }
     }

@@ -498,6 +498,35 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AGroupThatIsGone_IsCalledAGroupInTheMessagesAboutIt_AndASceneIsCalledAScene()
+        {
+            // A group is a scene of OBS Studio, and an application calls it a group: the message of an exception about a group that was removed says so.
+            await using var test = await ByNameFixture.StartAsync(withGroup: true);
+            var gaming = test.Studio.Scenes["Gaming"];
+            var spare = test.Studio.Scenes["Spare"];
+            var group = (ObsScene)gaming.Items["Group"].Source;
+            test.RemoveItem(test.Gaming, 5);
+            await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Group", sceneUuid = test.Group, isGroup = true }, 4);
+            await StudioRig.EventuallyAsync(() => group.State == ObsObjectState.Gone, "the group to be gone");
+            test.RemoveScene(test.Spare);
+            await StudioRig.EventuallyAsync(() => spare.State == ObsObjectState.Gone, "the scene to be gone");
+
+            var removed = await Assert.ThrowsAsync<ObsRemovedException>(() => group.RemoveAsync().WithTimeoutAsync(Timeout));
+            var renamed = await Assert.ThrowsAsync<ObsRemovedException>(() => group.RenameAsync("Team").WithTimeoutAsync(Timeout));
+            var added = await Assert.ThrowsAsync<ObsRemovedException>(() => gaming.AddAsync(group).WithTimeoutAsync(Timeout));
+            var sceneRemoved = await Assert.ThrowsAsync<ObsRemovedException>(() => spare.RemoveAsync().WithTimeoutAsync(Timeout));
+            var sceneAdded = await Assert.ThrowsAsync<ObsRemovedException>(() => gaming.AddAsync(spare).WithTimeoutAsync(Timeout));
+
+            Assert.All(new[] { removed, renamed, added }, exception =>
+            {
+                Assert.Contains("group 'Group'", exception.Message);
+                Assert.DoesNotContain("scene 'Group'", exception.Message);
+            });
+            Assert.Contains("scene 'Spare'", sceneRemoved.Message);
+            Assert.Contains("scene 'Spare'", sceneAdded.Message);
+        }
+
+        [Fact]
         public async Task AnInput_ThatSceneItemsShow_IsRemovedWithThoseSceneItems_InOneBatchInThatOrder()
         {
             await using var test = await ByNameFixture.StartAsync();

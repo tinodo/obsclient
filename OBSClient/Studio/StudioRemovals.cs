@@ -61,7 +61,21 @@ namespace OBSStudioClient.Studio
                 return null;
             }
 
-            return () => (!includesRemoval || source.IsRemoved) && showing.Take(done).All(item => item.IsRemoved);
+            return () => (!includesRemoval || source.IsRemoved) && AreRemoved(showing, done);
+        }
+
+        // The first scene items are removed: a loop and not LINQ, as the model asks it at every step of a wait.
+        private static bool AreRemoved(ObsSceneItem[] items, int count)
+        {
+            for (var i = 0; i < count && i < items.Length; i++)
+            {
+                if (!items[i].IsRemoved)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

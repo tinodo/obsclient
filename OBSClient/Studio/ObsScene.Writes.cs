@@ -48,7 +48,7 @@ namespace OBSStudioClient.Studio
         {
             if (this.State != ObsObjectState.Live)
             {
-                throw new ObsRemovedException($"scene '{this.Name}'", this.State);
+                throw new ObsRemovedException(this.Label, this.State);
             }
 
             if (this.IsGroup)
@@ -364,7 +364,7 @@ namespace OBSStudioClient.Studio
         {
             if (this.State != ObsObjectState.Live)
             {
-                throw new ObsRemovedException($"scene '{this.Name}'", this.State);
+                throw new ObsRemovedException(this.Label, this.State);
             }
         }
 
@@ -393,7 +393,7 @@ namespace OBSStudioClient.Studio
         {
             if (this.State == ObsObjectState.Gone)
             {
-                throw new ObsRemovedException($"scene '{this.Name}'", this.State);
+                throw new ObsRemovedException(this.Label, this.State);
             }
 
             if (this.IsGroup)
