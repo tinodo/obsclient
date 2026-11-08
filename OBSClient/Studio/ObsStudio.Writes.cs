@@ -24,7 +24,8 @@ namespace OBSStudioClient.Studio
         /// <para>
         /// The scene is empty. OBS Studio announces a new scene with an event and lists it a moment later (up to about two seconds), and the model shows it as soon as it is
         /// complete: the call returns then, so the scene is in <see cref="Scenes"/> when you get it. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the
-        /// wait.
+        /// wait. When the user interface of OBS Studio is busy, its list can be late for much longer (13 seconds were seen on a copy of OBS Studio that had just been started). The model gives up on
+        /// a scene that the list does not have after 10 seconds, and shows it again when the list has it; a call that ends before that says <see cref="ObsNotConfirmedException"/>.
         /// </para>
         /// </remarks>
         public Task<ObsScene> CreateSceneAsync(string name, CancellationToken cancellationToken = default)
