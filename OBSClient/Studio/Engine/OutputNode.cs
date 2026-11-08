@@ -33,8 +33,19 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>Gets or sets the number of events that said that the output stopped or is stopping.</summary>
         public int StopsSeen { get; set; }
 
-        /// <summary>Gets or sets the connection that an event gave the step (starting, stopping) that the output is in. No event of a later connection will end it.</summary>
-        public int StepSession { get; set; }
+        /// <summary>
+        /// Gets or sets the connection in which an event last told what the output does, or 0 when none has. Within a connection the events are right: OBS Studio can show an output that stopped as
+        /// running for a moment after it said so (seen with a recording, a real OBS Studio 33.0.0), so a read is applied to an output that is in no step only when no event of this connection has
+        /// told yet (the state at the start of a connection, and what a connection before saw is not known to hold). It is also the connection that the step (starting, stopping) comes from:
+        /// no event of a later connection will end it.
+        /// </summary>
+        public int EventSession { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time at which an output that is starting or stopping is read, to see whether the step is over (see <see cref="StudioEngineOptions.OutputStepTimeout"/>); null when
+        /// the output is in no step.
+        /// </summary>
+        public TimeSpan? StepCheckAt { get; set; }
 
         /// <summary>Gets what the read of the output is for.</summary>
         public ReadKind ReadKind => ReadKindOf(this.Kind);
@@ -90,19 +101,22 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>
         /// Gets the status that a read says. A read can only say whether the output is running, and whether the stream is reconnecting or the recording is paused: it cannot tell an
-        /// output that is starting or stopping from one that is not, so the step that the events of this connection gave is kept. A step that an earlier connection saw is not: nothing ends it.
+        /// output that is starting or stopping from one that is not, so the step that the events of this connection gave is kept, for a while: OBS Studio does not always say that a start
+        /// failed (a recording that cannot begin sends no event after the first), so a step that lasted too long is over when the output is not running. A step that an earlier connection saw
+        /// is not kept at all: nothing ends it.
         /// </summary>
         /// <param name="kind">The output.</param>
         /// <param name="current">The status that the model holds.</param>
         /// <param name="stepIsCurrent">Whether the connection that the read was made on is the one that the events gave the step (starting, stopping) that the model holds.</param>
+        /// <param name="stepExpired">Whether the step has lasted as long as the engine waits for it (see <see cref="StudioEngineOptions.OutputStepTimeout"/>): an output that is not running then is not on its way up.</param>
         /// <param name="active">Whether the output is running.</param>
         /// <param name="flagged">Whether the stream is reconnecting, or the recording is paused.</param>
-        public static ObsOutputStatus FromRead(ObsOutputKind kind, ObsOutputStatus current, bool stepIsCurrent, bool active, bool flagged)
+        public static ObsOutputStatus FromRead(ObsOutputKind kind, ObsOutputStatus current, bool stepIsCurrent, bool stepExpired, bool active, bool flagged)
         {
             var step = stepIsCurrent && current is ObsOutputStatus.Starting or ObsOutputStatus.Stopping ? current : ObsOutputStatus.Stopped;
             if (!active)
             {
-                return step;
+                return stepExpired ? ObsOutputStatus.Stopped : step;
             }
 
             if (flagged)

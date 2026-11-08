@@ -445,6 +445,75 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AStartThatOBSStudioCannotMake_IsStoppedAgain_AfterTheOutputStepTimeout()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(
+                options: new ObsStudioOptions
+                {
+                    OutputStepTimeout = TimeSpan.FromMilliseconds(400),
+                    ConfirmationTimeout = TimeSpan.FromMilliseconds(300),
+                    WriteTimeout = TimeSpan.FromMilliseconds(600),
+                });
+            var record = rig.Studio.Outputs.Record;
+            rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "StartRecord")
+                {
+                    return null;
+                }
+
+                // As a real OBS Studio does when the encoder of a recording does not start: it answers, sends that it is starting, shows an error in its own window, and sends nothing more.
+                SendLater(rig, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+                return (100, null);
+            };
+
+            await record.StartAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsOutputStatus.Starting, record.Status);
+
+            await StudioRig.EventuallyAsync(() => record.Status == ObsOutputStatus.Stopped, "the recording to be stopped again", Timeout);
+            Assert.True(Count(rig, "GetRecordStatus") >= 2);
+        }
+
+        [Fact]
+        public async Task AStopThatTakesLong_IsNotTakenForDone_WhileOBSStudioRunsTheOutput()
+        {
+            await using var rig = await StudioRig.ConnectedAsync(
+                world => world.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Started,
+                new ObsStudioOptions { OutputStepTimeout = TimeSpan.FromMilliseconds(300), ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromMilliseconds(600) });
+            var stream = rig.Studio.Outputs.Stream;
+            rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "StopStream")
+                {
+                    return null;
+                }
+
+                SendLater(rig, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPING);
+                return (100, null);
+            };
+
+            await stream.StopAsync().WithTimeoutAsync(Timeout);
+            Assert.Equal(ObsOutputStatus.Stopping, stream.Status);
+
+            // The stream still runs (it sends what it has buffered) when the model looks: it is stopping still. The events that end the stop come later.
+            var reads = Count(rig, "GetStreamStatus");
+            await StudioRig.EventuallyAsync(() => Count(rig, "GetStreamStatus") > reads, "the model to look at the stream", Timeout);
+            Assert.Equal(ObsOutputStatus.Stopping, stream.Status);
+
+            rig.Responder.Change(world => world.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Stopped);
+            await StudioRig.EventuallyAsync(() => stream.Status == ObsOutputStatus.Stopped, "the stream to be stopped", Timeout);
+        }
+
+        [Fact]
+        public void TheOutputStepTimeout_IsCheckedLikeTheOtherTimes()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { OutputStepTimeout = TimeSpan.Zero }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ObsStudio(new ObsStudioOptions { OutputStepTimeout = TimeSpan.FromDays(25) }));
+            using var studio = new ObsStudio(new ObsStudioOptions { OutputStepTimeout = TimeSpan.FromMilliseconds(1) });
+            Assert.NotNull(studio);
+        }
+
+        [Fact]
         public async Task AChangeOfAnOutput_WithoutAConnection_IsANotConnectedException_AndNothingIsSent()
         {
             await using var rig = StudioRig.Create();

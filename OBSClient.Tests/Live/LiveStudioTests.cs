@@ -425,5 +425,142 @@ namespace OBSStudioClient.Tests.Live
             await raw.RemoveScene(scene);
             await live.AssertModelEqualsObsAsync("after the user removed the other scene");
         }
+
+        [LiveUuidChangesFact]
+        public async Task TheRecording_IsStartedAndStopped_AsOBSStudioDoesIt_AndTheModelShowsEveryStep()
+        {
+            await using var live = await LiveStudio.ConnectAsync(output);
+            var studio = live.Studio;
+            var record = studio.Outputs.Record;
+            Assert.All(studio.Outputs, candidate => Assert.False(candidate.IsActive, $"The OBS Studio of the live tests is running its {candidate.Name} already."));
+
+            var steps = new List<ObsOutputStatus>();
+            studio.Client.RecordStateChanged += (_, e) => output.WriteLine($"RecordStateChanged: {e.OutputState} (active {e.OutputActive}) {e.OutputPath}");
+            studio.Changed += (_, e) =>
+            {
+                if (ReferenceEquals(e.Entity, record) && e.PropertyName == nameof(ObsOutput.Status))
+                {
+                    lock (steps)
+                    {
+                        steps.Add((ObsOutputStatus)e.NewValue!);
+                    }
+                }
+            };
+
+            // The recording goes to a folder that this test makes and removes: the profile of a fresh OBS Studio has the videos folder of the user.
+            var folder = Path.Combine(Path.GetTempPath(), "obsclient-live-" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(folder);
+            var settings = new[] { (Category: "SimpleOutput", Name: "FilePath", Value: folder) };
+            var before = new List<(string Category, string Name, string? Value)>();
+            var paused = false;
+            try
+            {
+                foreach (var (category, name, value) in settings)
+                {
+                    before.Add((category, name, (await live.Client.GetProfileParameter(category, name)).ParameterValue));
+                    await live.Client.SetProfileParameter(category, name, value);
+                }
+
+                await record.StartAsync();
+                var started = await AsyncTestHelpers.WaitUntilAsync(() => record.Status == ObsOutputStatus.Started, Wait);
+                var status = await live.Client.GetRecordStatus();
+                output.WriteLine($"After the start: the model says {record.Status}; OBS Studio says active {status.OutputActive}, paused {status.OutputPaused}, {status.OutputTimecode}.");
+                Assert.True(started, $"The recording did not start: it is {record.Status}.");
+                Assert.True(status.OutputActive);
+
+                // A recording that uses the encoder of the stream (the default of the simple output) cannot be paused: OBS Studio answers that it paused it, and sends no event, and the recording goes on.
+                // The call returns with what OBS Studio holds, so one of the two follows, whatever the OBS Studio and its settings.
+                await record.PauseAsync();
+                paused = record.IsPaused;
+                Assert.Equal(paused, (await live.Client.GetRecordStatus()).OutputPaused);
+                if (paused)
+                {
+                    Assert.True(record.IsActive);
+                    await record.ResumeAsync();
+                    Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => record.Status == ObsOutputStatus.Started, Wait), $"The recording did not resume: it is {record.Status}.");
+                }
+                else
+                {
+                    var refused = await Assert.ThrowsAsync<ObsResponseException>(() => record.ResumeAsync());
+                    Assert.Equal(RequestStatusCode.OutputNotPaused, refused.ErrorCode);
+                    Assert.Equal(ObsOutputStatus.Started, record.Status);
+                }
+
+                output.WriteLine(paused ? "The recording was paused and resumed." : "The recording was not paused (it shares the encoder of the stream), and could not be resumed.");
+
+                await record.StopAsync();
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => record.Status == ObsOutputStatus.Stopped, Wait), $"The recording did not stop: it is {record.Status}.");
+                // OBS Studio says that the recording stopped a moment before it stops saying that it runs (seen with OBS Studio 33.0.0: the status was still active when the event came). The model
+                // goes by the event, so it does not take that status for a change.
+                var waited = 0;
+                while (waited < 10_000 && (await live.Client.GetRecordStatus()).OutputActive)
+                {
+                    await Task.Delay(250);
+                    waited += 250;
+                }
+
+                output.WriteLine($"OBS Studio went on saying that the recording ran for {waited} ms after it said that it stopped.");
+                Assert.True(waited < 10_000, "OBS Studio still says that the recording runs.");
+                Assert.Equal(ObsOutputStatus.Stopped, record.Status);
+                Assert.True(Directory.EnumerateFiles(folder).Any(), "OBS Studio wrote no file.");
+            }
+            finally
+            {
+                // Whatever happened: the recording is stopped, the settings are as they were, and the file is gone.
+                try
+                {
+                    await live.Client.StopRecord();
+                }
+                catch (ObsResponseException)
+                {
+                    // It does not run: it was stopped by the test.
+                }
+
+                for (var attempt = 0; attempt < 40 && (await live.Client.GetRecordStatus()).OutputActive; attempt++)
+                {
+                    await Task.Delay(250);
+                }
+
+                foreach (var (category, name, value) in before)
+                {
+                    await live.Client.SetProfileParameter(category, name, value);
+                }
+
+                for (var attempt = 0; attempt < 20 && Directory.Exists(folder); attempt++)
+                {
+                    try
+                    {
+                        Directory.Delete(folder, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                        // OBS Studio still has the file open for a moment.
+                        await Task.Delay(250);
+                    }
+                }
+            }
+
+            var expected = paused
+                ? new[] { ObsOutputStatus.Starting, ObsOutputStatus.Started, ObsOutputStatus.Paused, ObsOutputStatus.Started, ObsOutputStatus.Stopping, ObsOutputStatus.Stopped }
+                : new[] { ObsOutputStatus.Starting, ObsOutputStatus.Started, ObsOutputStatus.Stopping, ObsOutputStatus.Stopped };
+
+            // The changes are raised on a thread of their own, a moment after the model shows them.
+            Assert.True(
+                await AsyncTestHelpers.WaitUntilAsync(
+                    () =>
+                    {
+                        lock (steps)
+                        {
+                            return steps.Count >= expected.Length;
+                        }
+                    },
+                    Wait),
+                "The model did not tell every step.");
+            lock (steps)
+            {
+                output.WriteLine($"The steps of the recording, as the model showed them: {string.Join(" > ", steps)}.");
+                Assert.Equal(expected, steps);
+            }
+        }
     }
 }

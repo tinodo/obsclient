@@ -68,6 +68,7 @@ Console.WriteLine($"Connected to OBS Studio {version.ObsVersion} (obs-websocket 
 PrintStatus();
 PrintScenes();
 PrintInputs();
+PrintOutputs();
 Console.WriteLine();
 PrintHelp();
 
@@ -121,6 +122,15 @@ async Task<bool> RunAsync(List<string> words)
             break;
         case "inputs":
             PrintInputs();
+            break;
+        case "outputs":
+            PrintOutputs();
+            break;
+        case "stream":
+        case "record":
+        case "virtualcam":
+        case "replay":
+            await RunOutputAsync(command, Arg(1, "action: start, stop, toggle (record: pause, resume; replay: save)"));
             break;
         case "watch":
             watching = Arg(1, "on or off").Equals("on", StringComparison.OrdinalIgnoreCase);
@@ -274,6 +284,80 @@ void PrintInputs()
     }
 }
 
+void PrintOutputs()
+{
+    Console.WriteLine("Outputs:");
+    foreach (var output in studio.Outputs)
+    {
+        Console.WriteLine($"    {output.Name}: {output.Status}");
+    }
+}
+
+async Task RunOutputAsync(string which, string action)
+{
+    var output = which switch
+    {
+        "stream" => studio.Outputs.Stream,
+        "record" => studio.Outputs.Record,
+        "virtualcam" => studio.Outputs.VirtualCamera,
+        _ => (ObsOutput)studio.Outputs.ReplayBuffer,
+    };
+
+    // Starting and stopping return when OBS Studio has BEGUN: a stream that connects takes seconds, and can fail. The status says how it goes
+    // (type outputs, or watch the changes that are shown).
+    switch (action.ToLowerInvariant())
+    {
+        case "start":
+            await ConfirmGoingLiveAsync(output);
+            await output.StartAsync();
+            Console.WriteLine($"{output}. (A start takes a moment: type outputs to see when it runs.)");
+            break;
+        case "stop":
+            await output.StopAsync();
+            Console.WriteLine($"{output}. (A stop takes a moment too.)");
+            break;
+        case "toggle":
+            if (!output.IsActive)
+            {
+                await ConfirmGoingLiveAsync(output);
+            }
+
+            var started = await output.ToggleAsync();
+            Console.WriteLine($"{output}. ({(started ? "Started" : "Stopped")} by the toggle.)");
+            break;
+        case "pause" when output is ObsRecordOutput recording:
+            await recording.PauseAsync();
+            Console.WriteLine($"{recording}.");
+            break;
+        case "resume" when output is ObsRecordOutput recording:
+            await recording.ResumeAsync();
+            Console.WriteLine($"{recording}.");
+            break;
+        case "save" when output is ObsReplayBufferOutput buffer:
+            await buffer.SaveAsync();
+            Console.WriteLine("Asked OBS Studio to save the replay buffer: it writes the file a moment later.");
+            break;
+        default:
+            throw new UserError($"What can the {output.Name} do? Type help.");
+    }
+}
+
+// A stream goes live on the service that OBS Studio has set up: it is not started by a typo.
+async Task ConfirmGoingLiveAsync(ObsOutput output)
+{
+    if (output.Kind != ObsOutputKind.Stream)
+    {
+        return;
+    }
+
+    Console.Write("This goes live on the streaming service that OBS Studio has set up. Type yes to start the stream: ");
+    var answer = await Task.Run(Console.ReadLine);
+    if (!string.Equals(answer?.Trim(), "yes", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new UserError("You did not type yes, so the stream was not started.");
+    }
+}
+
 void PrintHelp()
 {
     Console.WriteLine("Commands (put a name that has spaces in double quotes):");
@@ -285,6 +369,11 @@ void PrintHelp()
     Console.WriteLine("  newscene \"Break\" | newcolor \"Break\" \"Red box\"      make a scene, or a color input in a scene");
     Console.WriteLine("  renamescene \"Break\" \"Pause\" | renameinput \"Red box\" \"Box\"");
     Console.WriteLine("  removescene \"Pause\" | removeinput \"Box\"            (the scene items that show it go too)");
+    Console.WriteLine("  outputs                                  what the stream, recording, virtual camera and replay buffer do");
+    Console.WriteLine("  stream start | stop | toggle             (start asks you to type yes: it goes live)");
+    Console.WriteLine("  record start | stop | toggle | pause | resume");
+    Console.WriteLine("  virtualcam start | stop | toggle");
+    Console.WriteLine("  replay start | stop | toggle | save      the replay buffer (it must be enabled in OBS Studio)");
     Console.WriteLine("  watch on | watch off                     show the changes that OBS Studio announces");
     Console.WriteLine("  help | quit");
 }

@@ -21,7 +21,9 @@ namespace OBSStudioClient.Studio
         /// <para>
         /// Starting an output takes time: a stream connects to the streaming service, which can take seconds, and can fail. The call returns when OBS Studio has <b>begun</b> (the output is
         /// <see cref="ObsOutputStatus.Starting"/>), not when it runs. Watch <see cref="Status"/> (or <see cref="PropertyChanged"/>, or <see cref="ObsStudio.Changed"/>) for
-        /// <see cref="ObsOutputStatus.Started"/>, and for <see cref="ObsOutputStatus.Stopped"/> again when it could not start.
+        /// <see cref="ObsOutputStatus.Started"/>, and for <see cref="ObsOutputStatus.Stopped"/> again when it could not start. OBS Studio does not always say that a start failed (a recording whose
+        /// encoder does not start shows an error in its own window and sends nothing more): the status is <see cref="ObsOutputStatus.Starting"/> until the model reads the output, after
+        /// <see cref="ObsStudioOptions.OutputStepTimeout"/>, and <see cref="ObsOutputStatus.Stopped"/> then.
         /// </para>
         /// <para>See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.</para>
         /// </remarks>

@@ -235,9 +235,11 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
-        // The status of an output. A read can only say whether it is running (and whether the stream is reconnecting, or the recording is paused), so the step that the events gave is
-        // kept (see OutputNode.FromRead). An OBS Studio that refuses the read for good (the simulations of the tests do not know the request) has no such output to read: that ends the wait for
-        // it, as an answer would, and the status stays what the events say. Only a refusal that can pass (not ready) and an answer that did not come or is not what it should be are read again.
+        // The status of an output. Within a connection the events are right (see OutputNode.EventSession): a read tells the state at the start of a connection, and what a step (starting,
+        // stopping) turned into. A read can only say whether the output is running (and whether the stream is reconnecting, or the recording is paused), so a step that the events gave is kept
+        // while it is young (see OutputNode.FromRead). An OBS Studio that refuses the read for good (the simulations of the tests do not know the request) has no such output to read: that ends
+        // the wait for it, as an answer would, and the status stays what the events say. Only a refusal that can pass (not ready) and an answer that did not come or is not what it should be are
+        // read again.
         private void ApplyOutputResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok)
         {
             var output = this._outputs[(int)OutputNode.KindOf(request.Kind)];
@@ -246,9 +248,31 @@ namespace OBSStudioClient.Studio.Engine
                 output.Scope.Attempts = 0;
                 output.Read = true;
                 var old = output.Status.Value;
-                if (output.Status.ApplyRead(OutputNode.FromRead(output.Kind, old, output.StepSession == this._sessionId, active, flagged), ticket.SentSeq))
+                var told = output.EventSession == this._sessionId;
+                if (told && old is not (ObsOutputStatus.Starting or ObsOutputStatus.Stopping))
+                {
+                    // What an event of this connection said is what the output does: OBS Studio can show an output that stopped as running for a moment after it said so.
+                    return;
+                }
+
+                var expired = output.StepCheckAt is { } due && this._now >= due;
+                if (output.Status.ApplyRead(OutputNode.FromRead(output.Kind, old, told, expired, active, flagged), ticket.SentSeq))
                 {
                     this.Emit(StudioChangeKind.OutputChanged, Guid.Empty, 0, output.Kind.ToString(), old, output.Status.Value);
+                }
+
+                // Only a read that was applied says anything about the step: an event that came after it was sent is newer, and has set the time of its own.
+                if (output.Status.ReadSeq == ticket.SentSeq)
+                {
+                    if (output.Status.Value is not (ObsOutputStatus.Starting or ObsOutputStatus.Stopping))
+                    {
+                        output.StepCheckAt = null;
+                    }
+                    else if (expired)
+                    {
+                        // The step goes on (a recording that closes its file is still running): it is looked at again after the same time.
+                        output.StepCheckAt = this._now + this._options.OutputStepTimeout;
+                    }
                 }
             }
             else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)

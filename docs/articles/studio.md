@@ -44,10 +44,12 @@ Everything that is a property is answered from the model, at once, and can be re
 
 | Object | What you can read |
 | --- | --- |
-| [`ObsStudio`](xref:OBSStudioClient.Studio.ObsStudio) | `Scenes`, `Inputs`, `ProgramScene`, `IsStudioModeEnabled`, `State`, `IsStale`, `Client` |
+| [`ObsStudio`](xref:OBSStudioClient.Studio.ObsStudio) | `Scenes`, `Inputs`, `ProgramScene`, `IsStudioModeEnabled`, `Outputs`, `State`, `IsStale`, `Client` |
 | [`ObsScene`](xref:OBSStudioClient.Studio.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsGroup`, `Items`, `State` |
 | [`ObsInput`](xref:OBSStudioClient.Studio.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `State`, `GetSceneItems()` (every scene item that shows it) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Studio.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
+| [`ObsOutputs`](xref:OBSStudioClient.Studio.ObsOutputs) | `Stream`, `Record`, `VirtualCamera`, `ReplayBuffer`; also the four as a list, and by [`ObsOutputKind`](xref:OBSStudioClient.Studio.ObsOutputKind) |
+| [`ObsOutput`](xref:OBSStudioClient.Studio.ObsOutput) | `Kind`, `Name`, `Status` ([`ObsOutputStatus`](xref:OBSStudioClient.Studio.ObsOutputStatus)), `IsActive`; the recording ([`ObsRecordOutput`](xref:OBSStudioClient.Studio.ObsRecordOutput)) also has `IsPaused` |
 
 ## Names
 
@@ -84,6 +86,9 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | | `RenameAsync(name)`, `RemoveAsync()` | |
 | `ObsSceneItem` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
 | | `SetLockedAsync(bool)`, `SetIndexAsync(int)`, `RemoveAsync()` | |
+| `ObsOutput` | `StartAsync()`, `StopAsync()`, `ToggleAsync()` | return when OBS Studio has **begun** (see [Outputs](#outputs)) |
+| `ObsRecordOutput` | `PauseAsync()`, `ResumeAsync()` | |
+| `ObsReplayBufferOutput` | `SaveAsync()` | OBS Studio writes the file a moment later |
 
 Every method takes a `CancellationToken`. A token that ends before the request is sent keeps it from being sent; one that was sent is not undone.
 
@@ -100,6 +105,43 @@ Every method takes a `CancellationToken`. A token that ends before the request i
 | [`ObsNotConfirmedException`](xref:OBSStudioClient.Exceptions.ObsNotConfirmedException) | OBS Studio made it, and the model could not show it in time | **yes**: do not send it again |
 
 The messages are meant to be read: they name the object, say what was changed and what was not, and say what to do.
+
+## Outputs
+
+`obs.Outputs` has the four outputs of OBS Studio: `Stream`, `Record`, `VirtualCamera` and `ReplayBuffer`. They are the same objects for as long as the `ObsStudio` lives, also before it connects
+(they are `Stopped` until the model has read them): an output does not belong to a scene collection, so switching the collection does not replace them.
+
+```csharp
+var record = obs.Outputs.Record;
+record.PropertyChanged += (_, e) => Console.WriteLine($"{record.Name}: {record.Status}");
+
+if (!record.IsActive)
+{
+    await record.StartAsync();                  // returns when OBS Studio has begun, not when the recording runs
+}
+
+await record.PauseAsync();                      // only the recording can be paused
+await obs.Outputs.ReplayBuffer.SaveAsync();     // the replay buffer has to be running (and enabled in OBS Studio)
+```
+
+`Status` is an [`ObsOutputStatus`](xref:OBSStudioClient.Studio.ObsOutputStatus): `Stopped`, `Starting`, `Started`, `Stopping`, `Reconnecting` (a stream that lost its connection to the service
+and tries again) or `Paused` (the recording). `IsActive` is true for `Started`, `Reconnecting` and `Paused`.
+
+- **A start or a stop returns when OBS Studio has *begun*, not when it is done.** A stream connects to the streaming service, which can take seconds and can fail: it is `Starting`, and then `Started`, or `Stopped` again.
+  Watch `Status` (`PropertyChanged`, or `obs.Changed`) for how it goes.
+- `ToggleAsync()` starts the output when it is not running and stops it when it is, and returns `true` when it was started. OBS Studio decides, so two toggles that you ask for one after the other make two toggles.
+- When OBS Studio refuses (the output runs already, it does not run, there is no streaming service, the replay buffer is not enabled), the call throws an `ObsResponseException` whose `ErrorCode`
+  says why (`OutputRunning`, `OutputNotRunning`, `OutputDisabled`, and others), and nothing was changed.
+- **Going live is a decision.** `obs.Outputs.Stream.StartAsync()` starts the stream on the service that OBS Studio has set up. The sample asks you to type `yes` first.
+- The model does not hold where a recording or a replay was written. The plain client says: `obs.Client.RecordStateChanged` (`OutputPath`, when the recording has stopped), `RecordFileChanged` (a recording that was split)
+  and `ReplayBufferSaved` (`SavedReplayPath`). The model subscribes to the events of the outputs, so they come whatever you pass in `AdditionalEvents`.
+- **OBS Studio does not always say that a start failed.** A recording whose encoder does not start shows an error in the window of OBS Studio and sends no event after `Starting` (seen with OBS Studio 33.0.0). The model reads
+  an output that is still starting or stopping after [`OutputStepTimeout`](xref:OBSStudioClient.Studio.ObsStudioOptions.OutputStepTimeout) (30 seconds): when OBS Studio does not run it, `Status` is `Stopped`. A stream that needs
+  longer than that to connect shows `Stopped` until OBS Studio says that it started: raise the setting when your streaming service is slow.
+- **A recording can be answered "paused" and not pause.** A recording that uses the encoder of the stream (the default of the simple output) cannot be paused, and a recording that does not run is not refused: OBS Studio answers `PauseAsync()`
+  with success and sends no event. The call returns with what OBS Studio holds, so look at `IsPaused` after it.
+- Within a connection the events are what the model goes by: OBS Studio can go on saying that a recording runs for a moment after it said that it stopped, and that does not make the model show `Started` again.
+- While there is no connection the outputs show what was known last (`IsStale` says so); when it is back they show what OBS Studio does.
 
 ## Hearing about changes
 
@@ -142,6 +184,7 @@ OBS Studio keeps a scene or an input **alive after it is removed** for as long a
 | `SynchronizationTimeout` | 30 s | how long `ConnectAsync` waits for the model to be complete |
 | `ReadTimeout` | 10 s | how long one read of the model may take |
 | `WriteTimeout` | 10 s | how long OBS Studio gets to answer a change |
+| `OutputStepTimeout` | 30 s | how long an output may be starting or stopping before the model reads it again to see whether the step is over (see [Outputs](#outputs)) |
 | `ConfirmationTimeout` | 1 s | how long a change waits for the event that shows it before the model is read again |
 | `NotificationContext` | none | where the notifications run (for example the UI thread) |
 | `MaxPendingNotifications` | 10,000 | how many notifications may wait for slow handlers; beyond that new ones are dropped until the handlers catch up, and then every object raises `PropertyChanged` with an empty name and `Resynchronized` is raised (the model itself is always current) |
@@ -149,12 +192,12 @@ OBS Studio keeps a scene or an input **alive after it is removed** for as long a
 
 ## What the model does not cover yet
 
-The model has scenes, inputs, scene items, the program scene and the audio of inputs. Outputs (stream, record, the virtual camera), filters, transitions and studio mode, profiles and scene collections, media inputs and the rest of
-the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs and scene items through the events, as it does for anything
+The model has scenes, inputs, scene items, the program scene, the audio of inputs and the outputs (stream, recording, virtual camera, replay buffer). Filters, transitions and the control of studio mode, profiles and scene collections, media inputs and the rest of
+the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsStudio.ConnectAsync` and `DisconnectAsync`.
 
 ```csharp
-await obs.Client.StartStream();                                  // not modelled yet: the plain client
+await obs.Client.SetCurrentSceneTransition("Fade");              // not modelled yet: the plain client
 await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true); // and the model follows
 ```
 

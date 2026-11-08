@@ -96,6 +96,19 @@ namespace OBSStudioClient.Studio
         public TimeSpan WriteTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
+        /// Gets or sets how long an output may be starting or stopping before the model reads it again, to see whether the step is over. The default is 30 seconds. It must be between
+        /// 1 millisecond and 24 days.
+        /// </summary>
+        /// <remarks>
+        /// OBS Studio does not always say that a start failed: a recording that cannot begin (an encoder that does not start, for example) shows an error in its own window and sends no event
+        /// after <see cref="ObsOutputStatus.Starting"/>. An output that is still starting or stopping after this time is read: when OBS Studio runs it the status is
+        /// <see cref="ObsOutputStatus.Started"/> (or <see cref="ObsOutputStatus.Stopping"/> when it was stopping: a stream that sends what is buffered runs until it is done, and is looked at again
+        /// after the same time), and when it does not run it is <see cref="ObsOutputStatus.Stopped"/>. A stream that needs longer than this to connect shows <see cref="ObsOutputStatus.Stopped"/> until
+        /// OBS Studio says that it started: raise this when the streaming service is slow.
+        /// </remarks>
+        public TimeSpan OutputStepTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// Gets or sets the source of time, for the waits of the model. The default is <see cref="TimeProvider.System"/>. Tests can pass their own.
         /// </summary>
         public TimeProvider? TimeProvider { get; set; }

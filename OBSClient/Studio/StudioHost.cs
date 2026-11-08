@@ -93,7 +93,7 @@ namespace OBSStudioClient.Studio
             this._time = options.TimeProvider ?? TimeProvider.System;
             this._start = this._time.GetTimestamp();
             this._readTimeout = options.ReadTimeout;
-            this._engine = new StudioEngine(new StudioEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout) });
+            this._engine = new StudioEngine(new StudioEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout });
             this._held = new StudioNoticeHold(options.MaxPendingNotifications);
             this._publisher = new StudioPublisher(studio, options.IgnoreCase);
         }

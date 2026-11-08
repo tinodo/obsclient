@@ -307,6 +307,7 @@ namespace OBSStudioClient.Studio
             ValidateTimeout(options.SynchronizationTimeout, nameof(options.SynchronizationTimeout));
             ValidateTimeout(options.ConfirmationTimeout, nameof(options.ConfirmationTimeout));
             ValidateTimeout(options.WriteTimeout, nameof(options.WriteTimeout));
+            ValidateTimeout(options.OutputStepTimeout, nameof(options.OutputStepTimeout));
             ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxPendingNotifications, 1, nameof(options.MaxPendingNotifications));
         }
 

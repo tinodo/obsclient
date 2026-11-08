@@ -246,6 +246,59 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void ARead_ThatSaysRunning_DoesNotUndoAnEventThatSaidStopped()
+        {
+            var h = Started(world => world.Outputs[ObsOutputKind.Record] = ObsOutputStatus.Started);
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPING);
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED);
+
+            // A real OBS Studio 33.0.0 does this: a moment after the event that says that a recording stopped, it still says that it runs.
+            h.Engine.RequestRefresh(ReadKind.Record, Guid.Empty, h.Now);
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Record));
+        }
+
+        [Fact]
+        public void ARead_ThatSaysNotRunning_DoesNotUndoAnEventThatSaidStarted()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED);
+
+            h.Engine.RequestRefresh(ReadKind.Stream, Guid.Empty, h.Now);
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Stream));
+        }
+
+        [Fact]
+        public void ARead_IsApplied_WhenNoEventOfThisConnectionHasToldWhatTheOutputDoes()
+        {
+            var h = Started();
+
+            // OBS Studio started it, and the model was not told: the read of a change that the application made is what shows it.
+            h.World.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Started;
+            h.Engine.RequestRefresh(ReadKind.Stream, Guid.Empty, h.Now);
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Stream));
+        }
+
+        [Fact]
+        public void AStateThatTheModelDoesNotKnow_IsReplacedByWhatTheReadSays_EvenAfterEventsThatTold()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED);
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Stream));
+
+            h.World.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Stopped;
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_UNKNOWN);
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Stream));
+        }
+
+        [Fact]
         public void TheOutputs_AreReadAgain_WhenTheConnectionIsRestored()
         {
             var h = Started();
@@ -302,7 +355,7 @@ namespace OBSStudioClient.Tests.Studio
             h.Start();
 
             Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
-            h.SettleWithTime();
+            h.Settle();
 
             Assert.Equal(ObsOutputStatus.Starting, StatusOf(h, ObsOutputKind.Stream));
         }
@@ -396,6 +449,168 @@ namespace OBSStudioClient.Tests.Studio
 
             Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Record));
             Assert.Empty(OutputChanges(h));
+        }
+
+        [Fact]
+        public void AStartThatOBSStudioNeverEnds_IsLookedAtAfterTheTimeout_AndIsOverWhenTheOutputDoesNotRun()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            OutputChanges(h);
+
+            // As a real OBS Studio does when the encoder of a recording does not start: STARTING, an error in its own window, and nothing more.
+            Assert.Equal(ObsOutputStatus.Starting, StatusOf(h, ObsOutputKind.Record));
+            Assert.True(h.Engine.IsSettled);
+            Assert.Equal(h.Now + TimeSpan.FromSeconds(30), h.Engine.NextWake);
+            Assert.Null(h.Take());
+            h.Advance(TimeSpan.FromSeconds(29));
+            Assert.Null(h.Take());
+
+            h.Advance(TimeSpan.FromSeconds(1));
+            var ticket = h.Take();
+            Assert.NotNull(ticket);
+            Assert.Equal(ReadKind.Record, Assert.Single(ticket!.Requests).Kind);
+            Assert.False(h.Engine.IsSettled);
+            h.Complete(ticket);
+
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Record));
+            var change = Assert.Single(OutputChanges(h));
+            Assert.Equal(ObsOutputStatus.Starting, change.OldValue);
+            Assert.Equal(ObsOutputStatus.Stopped, change.NewValue);
+            Assert.Null(h.Engine.NextWake);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void AStepThatAnEventEnds_IsNotLookedAt()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED);
+
+            Assert.Null(h.Engine.NextWake);
+            h.Advance(TimeSpan.FromMinutes(5));
+            Assert.Null(h.Take());
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Record));
+        }
+
+        [Fact]
+        public void AStartThatTheReadShowsRunning_AfterTheTimeout_IsStarted()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+
+            // The event that said that it started was lost.
+            h.World.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Started;
+            h.Advance(TimeSpan.FromSeconds(30));
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Stream));
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void AStopThatTakesLongerThanTheTimeout_IsLookedAtAgainAndAgain_WhileTheOutputRuns_AndIsOverWhenItDoesNot()
+        {
+            var h = Started(world => world.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Started);
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPING);
+
+            // A stream that sends what it has buffered runs until it is done: it is closing, it is not stopped.
+            h.Advance(TimeSpan.FromSeconds(30));
+            h.Settle();
+            Assert.Equal(ObsOutputStatus.Stopping, StatusOf(h, ObsOutputKind.Stream));
+            Assert.Equal(h.Now + TimeSpan.FromSeconds(30), h.Engine.NextWake);
+
+            // And the event that says that it stopped was lost.
+            h.World.Outputs[ObsOutputKind.Stream] = ObsOutputStatus.Stopped;
+            h.Advance(TimeSpan.FromSeconds(30));
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Stream));
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void ARead_ThatIsMadeBeforeTheTimeout_LeavesTheStepAndItsTimeAsTheyAre()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            var due = h.Engine.NextWake;
+            Assert.NotNull(due);
+
+            h.Advance(TimeSpan.FromSeconds(5));
+            h.Engine.RequestRefresh(ReadKind.Record, Guid.Empty, h.Now);
+            h.Settle();
+
+            Assert.Equal(ObsOutputStatus.Starting, StatusOf(h, ObsOutputKind.Record));
+            Assert.Equal(due, h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void TheCheckOfAStep_IsRepeated_WhenOBSStudioIsNotReadyToAnswer()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            h.Advance(TimeSpan.FromSeconds(30));
+            var refused = 2;
+
+            h.SettleWithTime(request =>
+            {
+                if (request.Kind == ReadKind.Record && refused > 0)
+                {
+                    refused--;
+                    return (207, null);
+                }
+
+                return h.World.Answer(request);
+            });
+
+            Assert.Equal(0, refused);
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Record));
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void AnEvent_ThatComesWhileTheStepIsChecked_IsNotUndoneByTheCheck()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            h.Advance(TimeSpan.FromSeconds(30));
+            var ticket = h.Take();
+            Assert.NotNull(ticket);
+
+            // It started after all, as the read goes out: the answer says that it does not run, for it was taken before.
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED);
+            h.Complete(ticket!);
+
+            Assert.Equal(ObsOutputStatus.Started, StatusOf(h, ObsOutputKind.Record));
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void AStepThatAConnectionBeforeSaw_HasNoCheck_OnTheNextConnection()
+        {
+            var h = Started();
+            Send(h, ObsOutputKind.Record, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+            h.End();
+            h.Start();
+            h.SettleWithTime();
+
+            Assert.Equal(ObsOutputStatus.Stopped, StatusOf(h, ObsOutputKind.Record));
+            Assert.Null(h.Engine.NextWake);
+        }
+
+        [Fact]
+        public void TheTimeoutOfTheSteps_IsTheOneOfTheOptions()
+        {
+            var h = new EngineHarness(new StudioEngineOptions { OutputStepTimeout = TimeSpan.FromSeconds(3) });
+            h.World.AddScene("Scene");
+            h.Start();
+            h.SettleWithTime();
+
+            Send(h, ObsOutputKind.Stream, ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING);
+
+            Assert.Equal(h.Now + TimeSpan.FromSeconds(3), h.Engine.NextWake);
         }
 
         [Fact]

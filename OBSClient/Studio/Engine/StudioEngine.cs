@@ -153,6 +153,12 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets or sets how often the engine looks for what it need not remember any more: it does so when it is given something, at most this often.</summary>
         public TimeSpan TombstoneCleanupInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets how long an output may be starting or stopping before the engine reads it, to see whether the step is over. OBS Studio does not always say that a start failed (a
+        /// recording that cannot begin shows an error in its own window and sends no event after the first), so a step that lasts this long is checked: a start that is not running then is over.
+        /// </summary>
+        public TimeSpan OutputStepTimeout { get; set; } = TimeSpan.FromSeconds(30);
     }
 
     /// <summary>
@@ -273,6 +279,15 @@ namespace OBSStudioClient.Studio.Engine
                     }
                 }
 
+                // An output that is starting or stopping is looked at when the step has lasted as long as it may (the scope is marked then, and counts as work from then on).
+                foreach (var output in this._outputs)
+                {
+                    if (output.StepCheckAt is { } due && !output.Scope.Dirty && !output.Scope.InFlight && (earliest is null || due < earliest))
+                    {
+                        earliest = due;
+                    }
+                }
+
                 return earliest;
             }
         }
@@ -296,6 +311,7 @@ namespace OBSStudioClient.Studio.Engine
             foreach (var output in this._outputs)
             {
                 output.Read = false;
+                output.StepCheckAt = null;
             }
 
             // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has
@@ -452,6 +468,12 @@ namespace OBSStudioClient.Studio.Engine
 
             foreach (var output in this._outputs)
             {
+                // A start or a stop that has lasted as long as it may is looked at (see StudioEngineOptions.OutputStepTimeout).
+                if (output.StepCheckAt is { } due && due <= now && !output.Scope.Dirty && !output.Scope.InFlight)
+                {
+                    output.Scope.MarkDirty();
+                }
+
                 if (output.Scope.IsReady(now))
                 {
                     Take(output.Scope, new ReadRequest(output.ReadKind, output.StatusRequest, null, Guid.Empty));

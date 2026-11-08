@@ -98,10 +98,12 @@ namespace OBSStudioClient.Studio.Engine
             if (!OutputNode.TryFromEvent(state, out var status))
             {
                 // A state that the model does not know: a read says what the output is doing.
+                output.EventSession = 0;
                 output.Scope.MarkDirty();
                 return;
             }
 
+            output.EventSession = this._sessionId;
             if (state is ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING or ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
             {
                 output.StartsSeen++;
@@ -112,14 +114,27 @@ namespace OBSStudioClient.Studio.Engine
             }
 
             var old = output.Status.Value;
-            if (status is ObsOutputStatus.Starting or ObsOutputStatus.Stopping)
-            {
-                output.StepSession = this._sessionId;
-            }
-
-            if (output.Status.ApplyEvent(status, this._seq))
+            var changed = output.Status.ApplyEvent(status, this._seq);
+            if (changed)
             {
                 this.Emit(StudioChangeKind.OutputChanged, Guid.Empty, 0, kind.ToString(), old, status);
+            }
+
+            // A step that OBS Studio does not end is found out by a read, after a while (see StudioEngineOptions.OutputStepTimeout); one that an event ended needs no read.
+            var held = output.Status.Value;
+            if (held is ObsOutputStatus.Starting or ObsOutputStatus.Stopping)
+            {
+                if (status == held)
+                {
+                    if (changed || output.StepCheckAt is null)
+                    {
+                        output.StepCheckAt = this._now + this._options.OutputStepTimeout;
+                    }
+                }
+            }
+            else
+            {
+                output.StepCheckAt = null;
             }
         }
 
