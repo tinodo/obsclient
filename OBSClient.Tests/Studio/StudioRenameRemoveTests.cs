@@ -167,6 +167,24 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public async Task AGroupThatWasRemovedAndIsAlive_HoldsItsName_AndTheMessageSaysToRemoveTheSceneItemThatShowsIt_NotTheGroup()
+        {
+            // A group is destroyed with the scene item that shows it, and RemoveAsync() refuses a group: the advice must not send the application there.
+            await using var test = await ByNameFixture.StartAsync(withGroup: true, webSocketVersion: "5.5.4", obsVersion: "31.0.0");
+            var group = (ObsScene)test.Studio.Scenes["Gaming"].Items["Group"].Source;
+            await test.Responder.SendEventAsync("SceneRemoved", new { sceneName = "Group", sceneUuid = test.Group, isGroup = true }, 4);
+            await StudioRig.EventuallyAsync(() => group.State == ObsObjectState.Detached, "the group to be detached");
+            test.Responder.OnRequest = (type, data) => type == "SetInputName" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Studio.Inputs["Camera"].RenameAsync("Group").WithTimeoutAsync(Timeout));
+
+            Assert.Same(group, exception.HeldBy);
+            Assert.Contains("a group named 'Group' was removed, but OBS Studio keeps it alive because 1 scene item still shows it (scene item 5 of scene 'Gaming')", exception.Message);
+            Assert.Contains("call RemoveAsync() on that scene item (scene item 5 of scene 'Gaming'), not on the group", exception.Message);
+            Assert.DoesNotContain("Call RemoveAsync() on the group", exception.Message);
+        }
+
+        [Fact]
         public async Task AnInputThatAGroupShowsAndThatWasRemoved_HoldsItsName_AndTheMessageSaysToTakeItOutOfTheGroupFirst()
         {
             await using var test = await ByNameFixture.StartAsync(withGroup: true, inGroup: true);
@@ -197,7 +215,9 @@ namespace OBSStudioClient.Tests.Studio
             var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => group.RenameAsync("Team").WithTimeoutAsync(Timeout));
 
             Assert.Equal(ObsObjectState.Detached, removed.State);
-            Assert.Contains("The group 'Group' can not be renamed through the scene", refused.Message);
+            Assert.Contains("The group 'Group' can not be renamed from here", refused.Message);
+            Assert.Contains("Rename it in OBS Studio", refused.Message);
+            Assert.DoesNotContain("ObsClient", refused.Message);
             Assert.Equal(0, test.Count("SetSceneName"));
         }
 
@@ -650,6 +670,63 @@ namespace OBSStudioClient.Tests.Studio
             Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
             Assert.Equal(ObsObjectState.Detached, mic.State);
             Assert.Empty(mic.GetSceneItems());
+        }
+
+        [Fact]
+        public async Task ADetachedInput_WhoseFirstSceneItemIsGoneWhenOBSStudioIsAskedToRemoveIt_EndsTheCallWhenTheModelShowsThatSceneItemGone_SoThatRemovingItAtOnceSendsOnlyWhatIsLeft()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            await test.DetachAsync("Overlay", test.Overlay);
+            var overlay = test.FindDetached(test.Overlay);
+            var sceneItemRequests = 0;
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                if (type == "RemoveSceneItem" && Interlocked.Increment(ref sceneItemRequests) == 1)
+                {
+                    // The scene item was removed just before (by the user, or by OBS Studio itself): it is gone, its event is on its way, and OBS Studio refuses the request. It is the first
+                    // request of the call (the source is removed already), so no request of the call was made before it.
+                    test.RemoveItem(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"));
+                    return (600, null);
+                }
+
+                return null;
+            });
+
+            var refused = await Assert.ThrowsAsync<ObsResponseException>(() => overlay.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            // The call does not end before the model shows that scene item gone: a call that is made at once would send the request for it again.
+            Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
+            Assert.Single(overlay.GetSceneItems());
+            await overlay.RemoveAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(ObsObjectState.Gone, overlay.State);
+            Assert.Equal(["RemoveSceneItem", "RemoveSceneItem"], Removals(test));
+        }
+
+        [Fact]
+        public async Task ADetachedScene_WhoseSceneItemIsGoneWhenOBSStudioIsAskedToRemoveIt_EndsTheCallWhenTheModelShowsThatSceneItemGone_AndTheSceneIsDestroyed()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var chatting = test.Studio.Scenes["Chatting"];
+            test.RemoveScene(test.Chatting);
+            await StudioRig.EventuallyAsync(() => chatting.State == ObsObjectState.Detached, "the scene to be detached");
+            test.Responder.OnRequest = ObsRemoves(test, (type, data) =>
+            {
+                if (type != "RemoveSceneItem")
+                {
+                    return null;
+                }
+
+                // The only scene item that shows the scene is gone, and its event is on its way.
+                test.RemoveItem(Uuid(data, "sceneUuid"), Number(data, "sceneItemId"));
+                return (600, null);
+            });
+
+            var refused = await Assert.ThrowsAsync<ObsResponseException>(() => chatting.RemoveAsync().WithTimeoutAsync(Timeout));
+
+            Assert.Equal(RequestStatusCode.ResourceNotFound, refused.ErrorCode);
+            Assert.Equal(ObsObjectState.Gone, chatting.State);
+            Assert.Equal(["RemoveSceneItem"], Removals(test));
         }
 
         [Fact]

@@ -12,7 +12,8 @@ namespace OBSStudioClient.Exceptions
     /// removed and that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>) because scene items still show it. The name of such an input stays taken until its last scene
     /// item is gone, so creating or renaming something to that name fails until the input is removed for good: <see cref="HeldBy"/> is the object to call <c>RemoveAsync</c> on (unless a scene
     /// item inside a group shows it: <c>RemoveAsync</c> refuses that, and it has to be taken out of the group in OBS Studio first). With OBS Studio 31.0 and older a scene that was removed and is
-    /// alive holds its name in the same way; OBS Studio 31.1 and newer free the name of a scene at once.
+    /// alive holds its name in the same way, and so does a group (a group is destroyed with the scene item that shows it, and <c>RemoveAsync</c> refuses a group: call it on that scene item);
+    /// OBS Studio 31.1 and newer free the name of a scene at once.
     /// </para>
     /// <para>
     /// The names of scenes and inputs are not alike. An input can not have the name of a scene or of another input (also not of an input that was removed and is alive). A scene can
@@ -47,7 +48,7 @@ namespace OBSStudioClient.Exceptions
         /// </summary>
         /// <remarks>
         /// When it is a source that is <see cref="ObsObjectState.Detached"/>, <c>RemoveAsync</c> on it removes the scene items that keep it alive, so that OBS Studio destroys it and
-        /// the name is free.
+        /// the name is free (not for a group: <c>RemoveAsync</c> refuses a group, which is destroyed with the scene item that shows it, and the message names that scene item).
         /// </remarks>
         public ObsSource? HeldBy { get; }
     }

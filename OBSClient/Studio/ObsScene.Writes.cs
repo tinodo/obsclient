@@ -193,7 +193,7 @@ namespace OBSStudioClient.Studio
         /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
         /// <returns>A task that completes when <see cref="ObsSource.Name"/> is <paramref name="name"/>.</returns>
         /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
-        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): rename it through the <see cref="ObsClient"/>.</exception>
+        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): obs-websocket can not rename a group (<c>SetSceneName</c> refuses a group, and a group is not an input), so rename it in OBS Studio. Nothing was changed.</exception>
         /// <exception cref="ObsNameInUseException">The name is taken, also when it is the name that the scene has already. Nothing was changed.</exception>
         /// <exception cref="ObsRemovedException">The scene was removed.</exception>
         /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
@@ -313,7 +313,7 @@ namespace OBSStudioClient.Studio
             this.CheckLive();
             if (this.IsGroup)
             {
-                throw new InvalidOperationException($"The group '{this.Name}' can not be renamed through the scene: rename it with the ObsClient.");
+                throw new InvalidOperationException($"The group '{this.Name}' can not be renamed from here: obs-websocket renames scenes (SetSceneName) and inputs (SetInputName), and both refuse a group. Rename it in OBS Studio. Nothing was changed.");
             }
         }
 
