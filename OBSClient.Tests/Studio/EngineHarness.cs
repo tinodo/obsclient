@@ -136,6 +136,9 @@ namespace OBSStudioClient.Tests.Studio
 
         public bool StudioMode { get; set; }
 
+        /// <summary>Gets the groups: scenes that a scene item shows, and that the list of scenes does not have (a group says <c>isGroup</c> in the scene items that show it).</summary>
+        public HashSet<Guid> Groups { get; } = [];
+
         /// <summary>Gets or sets whether the list of inputs leaves out the capabilities of the kinds, as obs-websocket before 5.6.0 does.</summary>
         public bool OmitInputKindCaps { get; set; }
 
@@ -223,7 +226,7 @@ namespace OBSStudioClient.Tests.Studio
                     return (100, new { studioModeEnabled = this.StudioMode });
                 case ReadKind.Items:
                     return this.Items.TryGetValue(request.Target, out var items)
-                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(Item).ToArray() })
+                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(this.Item).ToArray() })
                         : (600, null);
                 case ReadKind.AudioMute:
                     return this.AudioAnswer(request.Target, input => new { inputMuted = input.Muted });
@@ -246,12 +249,12 @@ namespace OBSStudioClient.Tests.Studio
             return (600, null);
         }
 
-        private static object Item((int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
+        private object Item((int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
         {
             return new
             {
                 inputKind = item.IsScene ? null : "color_source_v3",
-                isGroup = (bool?)null,
+                isGroup = item.IsScene ? this.Groups.Contains(item.Source) : (bool?)null,
                 sceneItemBlendMode = "OBS_BLEND_NORMAL",
                 sceneItemEnabled = item.Enabled,
                 sceneItemId = item.Id,

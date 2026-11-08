@@ -855,6 +855,45 @@ namespace OBSStudioClient.Tests.Studio
         }
 
         [Fact]
+        public void TheReadForAChangeThatMadeNothing_NamesNoPartsOfAResult()
+        {
+            // A change that OBS Studio refused has no result: the parts that a result names (the audio of an input that was made) are not asked for, and nothing is unboxed from nothing.
+            var job = new WriteJob
+            {
+                Description = "something",
+                BuildRequests = () => [],
+                Refresh = [new RefreshTarget(ReadKind.Inputs)],
+                RefreshFor = static result => [new RefreshTarget(ReadKind.AudioMute, (Guid)result!)],
+            };
+
+            Assert.Equal(job.Refresh, job.RefreshWith(null));
+            var made = Guid.NewGuid();
+            Assert.Equal([new RefreshTarget(ReadKind.Inputs), new RefreshTarget(ReadKind.AudioMute, made)], job.RefreshWith(made));
+        }
+
+        [Fact]
+        public async Task WhenThePartsThatTheResultOfAChangeNamesCanNotBeTold_TheModelIsReadAllTheSame_AndTheApplicationGoesOn()
+        {
+            await using var test = await Fixture.StartAsync(new ObsStudioOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300) });
+            test.Rig.Responder.OnRequest = (type, data) => type == "SetSceneItemEnabled" ? (100, null) : null;
+
+            // The callback of the timer that ends the wait for the events must not throw: it runs on a thread of the pool, and the application would end with it.
+            var call = test.Rig.Studio.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = "hiding the camera",
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = test.Gaming, sceneItemId = 1, sceneItemEnabled = false })],
+                    IsConfirmed = _ => false,
+                    ReadResponses = _ => new object(),
+                    Refresh = [new RefreshTarget(ReadKind.Items, test.Gaming)],
+                    RefreshFor = static _ => throw new InvalidOperationException("The parts can not be told."),
+                },
+                CancellationToken.None);
+
+            await call.WithTimeoutAsync(Timeout);
+        }
+
+        [Fact]
         public async Task AChangeWhoseBatchWaitsForItsTurnToBeWritten_IsNotWritten_WhenOBSStudioChangesItsSceneCollectionMeanwhile()
         {
             await using var test = await Fixture.StartAsync(new ObsStudioOptions { WriteTimeout = TimeSpan.FromSeconds(30) });

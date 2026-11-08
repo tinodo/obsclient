@@ -426,6 +426,22 @@ namespace OBSStudioClient.Studio.Engine
             }
         }
 
+        // A scene that the model held as Detached, and that a list of scenes has while no event removed it: OBS Studio has it as a live scene. It was only inferred to exist, or an
+        // earlier list did not have it in time (the model gave up on it and said so: the repair is reported too).
+        private void Revive(SceneNode scene)
+        {
+            var inferred = scene.Provisional;
+            scene.Provisional = false;
+            scene.State = SourceState.Live;
+            scene.RemovalUnresolved = false;
+            scene.CheckAfter = 0;
+            this._unresolved.Remove(scene.Uuid);
+            if (!inferred)
+            {
+                this.Emit(StudioChangeKind.Repaired, scene.Uuid, 0, scene.Name.Value);
+            }
+        }
+
         // A scene that OBS removed, because an event told so, or because a read showed that it does not exist (repaired). A scene that is Detached already
         // (a read showed that the list of scenes lacks it, or it was only inferred to exist: see EnsureItemSource) is not announced as Detached again, and its
         // place in the list of scenes is not closed again; what OBS did with it is decided as for any scene.
@@ -578,8 +594,8 @@ namespace OBSStudioClient.Studio.Engine
             this._scenesScope.MarkDirty();
         }
 
-        // Gives the scenes the positions of the list, in the order of the list: the scenes of the list first, then the live scenes that the
-        // list does not have (they are newer than the list), in the order that they had.
+        // Gives the scenes the positions of the list, in the order of the list: the live scenes that the list does not have first (they are newer than the list, which OBS Studio makes from its
+        // user interface, and it puts a new scene first), then the scenes of the list. The scenes that the list does not have keep the order that they had.
         private void ApplySceneOrder(IEnumerable<Guid> listed, bool fromEvent, long seq)
         {
             var ordered = new List<SceneNode>();
@@ -592,7 +608,7 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
-            ordered.AddRange(this._scenes.Values.Where(s => s.State == SourceState.Live && !s.IsGroup && !seen.Contains(s.Uuid)).OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid));
+            ordered.InsertRange(0, this._scenes.Values.Where(s => s.State == SourceState.Live && !s.IsGroup && !seen.Contains(s.Uuid)).OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid));
             for (var i = 0; i < ordered.Count; i++)
             {
                 var changed = fromEvent ? ordered[i].Index.ApplyEvent(i, seq) : ordered[i].Index.ApplyRead(i, seq);

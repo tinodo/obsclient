@@ -48,6 +48,14 @@ namespace OBSStudioClient.Studio
     /// <see cref="ObsNotConfirmedException"/>: the change was made, so do not send it again. A token that ends a call ends the wait at once and keeps a change that was not
     /// sent yet from being sent; one that was sent is not undone, and the next change still waits for the answer of OBS Studio to it, so that the order holds.
     /// </para>
+    /// <para>
+    /// Scenes, inputs and scene items are made, renamed and removed in the same way: <see cref="CreateSceneAsync"/>, <see cref="ObsScene.CreateInputAsync"/>,
+    /// <see cref="ObsScene.AddAsync"/>, <see cref="ObsScene.RenameAsync"/>, <see cref="ObsScene.RemoveAsync"/>, <see cref="ObsInput.RenameAsync"/> and
+    /// <see cref="ObsInput.RemoveAsync"/>. A name that is taken is refused with an <see cref="ObsNameInUseException"/> that says what holds it. OBS Studio keeps an input or a scene
+    /// that was removed alive for as long as scene items show it (it is <see cref="ObsObjectState.Detached"/>): the name of the input stays taken, and so does the name of the scene
+    /// with OBS Studio 31.0 and older (OBS Studio 31.1 and newer free the name of a scene that was removed at once). <c>RemoveAsync</c> removes those scene items too, so that OBS Studio
+    /// destroys the object (<see cref="ObsObjectState.Gone"/>) and the name is free.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -60,12 +68,16 @@ namespace OBSStudioClient.Studio
     /// obs.Changed += (_, e) => Console.WriteLine(e);
     /// </code>
     /// </example>
-    public sealed class ObsStudio : INotifyPropertyChanged, IDisposable, IAsyncDisposable
+    public sealed partial class ObsStudio : INotifyPropertyChanged, IDisposable, IAsyncDisposable
     {
         private static readonly TimeSpan ClosingTimeout = TimeSpan.FromSeconds(5);
 
         // The longest wait that the model asks a timer or a request for: they take whole milliseconds as an int.
         private static readonly TimeSpan LongestTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
+        // The first version of OBS Studio from which a scene that was removed gives up its name at once: libobs 31.1.0 takes it out of the list of its canvas in obs_source_remove (what OBS Studio
+        // 31.0 and older do not). It is the version of OBS Studio, not that of obs-websocket: OBS Studio 31.1 and 32.0 come with obs-websocket 5.6.
+        private static readonly Version ScenesFreeTheirNameFrom = new(31, 1, 0);
 
         private readonly ObsClient _client;
         private readonly bool _ownsClient;
@@ -79,6 +91,12 @@ namespace OBSStudioClient.Studio
         private volatile ObsStudioState _state;
         private volatile bool _everSynchronized;
         private volatile bool _disposed;
+
+        // Whether a scene that OBS Studio removed and keeps alive keeps its name taken: with OBS Studio 31.0 and older it does, from 31.1 on the name is free at once. It is what the version of
+        // OBS Studio that the connection reports says (StudioHost.HandleVersion). Until the connection has said it, and when what it says can not be read, the newest behaviour is assumed:
+        // a connection starts with it, and what the connection before it said is not kept (a reconnect can be to another OBS Studio). A change that is asked for in that time is not held back
+        // for the version, so the message of a name that is taken (StudioNames) is the one of the newest behaviour then.
+        private volatile bool _removedScenesKeepTheirName;
 
         // The number of the call of ConnectAsync that has the connection: only that call may end it (see AbandonConnect). Under _stateLock.
         private int _connectTicket;
@@ -609,6 +627,58 @@ namespace OBSStudioClient.Studio
             }
 
             return found?.ToArray() ?? [];
+        }
+
+        // Whether a scene that OBS Studio removed and keeps alive keeps its name taken (see _removedScenesKeepTheirName).
+        internal bool RemovedScenesKeepTheirName => this._removedScenesKeepTheirName;
+
+        // Called by the loop of the model when a connection starts (with null: what the connection before it said about its OBS Studio says nothing about this one) and when it says which version of
+        // OBS Studio it is connected to (null when the version can not be read): without a version the newest behaviour is assumed.
+        internal void SetObsVersion(Version? version)
+        {
+            this._removedScenesKeepTheirName = version is not null && version < ScenesFreeTheirNameFrom;
+        }
+
+        // The group of the moment that has the name: a group is a scene that the collection of scenes does not list, and its name is taken like that of any source.
+        internal ObsScene? FindLiveGroup(string name)
+        {
+            foreach (var scene in this._view.AllScenes)
+            {
+                if (scene.IsGroup && scene.State == ObsObjectState.Live && string.Equals(scene.Name, name, StringComparison.Ordinal))
+                {
+                    return scene;
+                }
+            }
+
+            return null;
+        }
+
+        // The scene items that show a scene or an input that OBS Studio removed and keeps alive (Detached), the name of which is given: while they exist, so does the source, with
+        // its name. An input keeps its name until it is destroyed; a scene keeps it only with OBS Studio 31.0 and older (libobs 31.1 takes the name of a scene out of the list of its canvas when it
+        // is removed, and every version of obs-websocket looks scene names up there or in the sources that it lists). They are the items of one source: when a scene and an input have the name (OBS Studio does not allow it, and the
+        // model can show both for a moment), the one of the kind that is preferred.
+        internal IReadOnlyList<ObsSceneItem> FindItemsOfRemovedSource(string name, bool preferScene)
+        {
+            var scenesKeepTheirName = this.RemovedScenesKeepTheirName;
+            List<ObsSceneItem>? found = null;
+            foreach (var scene in this._view.AllScenes)
+            {
+                foreach (var item in scene.Items)
+                {
+                    if (item.Source is { State: ObsObjectState.Detached } source && (scenesKeepTheirName || source is not ObsScene) && string.Equals(source.Name, name, StringComparison.Ordinal))
+                    {
+                        (found ??= []).Add(item);
+                    }
+                }
+            }
+
+            if (found is null)
+            {
+                return [];
+            }
+
+            var chosen = found.Select(item => item.Source).FirstOrDefault(source => (source is ObsScene) == preferScene) ?? found[0].Source;
+            return found.Where(item => ReferenceEquals(item.Source, chosen)).ToArray();
         }
 
         // Raises a PropertyChanged event so that a handler that throws does not keep the other handlers from running.

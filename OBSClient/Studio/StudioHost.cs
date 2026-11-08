@@ -605,6 +605,9 @@ namespace OBSStudioClient.Studio
                         attempt.Session = ingress.SessionId;
                     }
 
+                    // The OBS Studio of this connection may not be the one of the connection before (a reconnect): what that one said about the names of removed scenes is not kept, and
+                    // the connection says its own with its version (HandleVersion).
+                    this._studio.SetObsVersion(null);
                     this._engine.OnSessionStarted(ingress.SessionId, ingress.Sequence, now);
                     this._studio.SetState(ObsStudioState.Synchronizing);
                     this.StartVersionCheck(ingress.SessionId);
@@ -673,6 +676,10 @@ namespace OBSStudioClient.Studio
             if (TryParseVersion(reported, out var version) && version >= RequiredWebSocketVersion)
             {
                 this._versionKnown = true;
+
+                // What a removed scene does to its name depends on the version of OBS Studio (libobs), not on that of obs-websocket. A version that can not be read gives the newest behaviour (null).
+                this._studio.SetObsVersion(TryParseVersion(item.Version.ObsVersion, out var obsVersion) ? obsVersion : null);
+
                 return;
             }
 
@@ -885,7 +892,8 @@ namespace OBSStudioClient.Studio
             });
         }
 
-        private bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
+        // Whether every one of the parts has been read since it was asked for. It reads the engine, so it is for the loop only (the waits for the model to show something are looked at there).
+        internal bool AreRefreshed(IReadOnlyList<RefreshTarget> targets)
         {
             foreach (var target in targets)
             {

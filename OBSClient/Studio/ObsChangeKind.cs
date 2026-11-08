@@ -24,12 +24,14 @@ namespace OBSStudioClient.Studio
         PropertyChanged,
 
         /// <summary>
-        /// OBS Studio removed a scene or an input that scene items still use: the object is now <see cref="ObsObjectState.Detached"/>.
+        /// The state of a scene or an input changed: OBS Studio removed one that scene items still use, and it is now <see cref="ObsObjectState.Detached"/>; or the model took it for
+        /// removed and a read showed that OBS Studio has it as a live object (a scene that its list did not have in time: the list is made from the user interface of OBS Studio, which can be
+        /// busy), and it is <see cref="ObsObjectState.Live"/> again.
         /// </summary>
         StateChanged,
 
         /// <summary>
-        /// The model corrected itself: it held something that a read showed not to exist.
+        /// The model corrected itself: it held something that a read showed not to exist, or it took a scene for removed (see <see cref="StateChanged"/>) and a read showed that it is there.
         /// </summary>
         Repaired,
     }

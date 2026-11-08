@@ -43,6 +43,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"{(value ? "showing" : "hiding")} {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemEnabled, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemEnabled = value })],
                     IsConfirmed = _ => this.IsRemoved || this.IsEnabled == value,
@@ -83,6 +84,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"toggling {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     Prepare = async ask =>
                     {
@@ -117,6 +119,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"{(value ? "locking" : "unlocking")} {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneItemLocked, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id, sceneItemLocked = value })],
                     IsConfirmed = _ => this.IsRemoved || this.IsLocked == value,
@@ -150,6 +153,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"moving {this.Subject()} to position {index}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = () =>
                     {
                         this.CheckWritable();
@@ -181,8 +185,9 @@ namespace OBSStudioClient.Studio
         /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
         /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
         /// <remarks>
-        /// The source that the item shows is not removed. When it was the last scene item that showed an input that OBS Studio keeps alive (<see cref="ObsObjectState.Detached"/>),
-        /// OBS Studio destroys the input with it.
+        /// The source that the item shows is not removed, but OBS Studio keeps an input only for as long as something uses it: when this was the last scene item that showed the input,
+        /// OBS Studio destroys the input with it (it is not in <see cref="ObsStudio.Inputs"/> any more, and its <see cref="ObsSource.State"/> is <see cref="ObsObjectState.Gone"/>),
+        /// whether the input was removed (<see cref="ObsObjectState.Detached"/>) or not. An input that something else holds, such as an audio device of the settings of OBS Studio, stays.
         /// </remarks>
         public Task RemoveAsync(CancellationToken cancellationToken = default)
         {
@@ -191,6 +196,7 @@ namespace OBSStudioClient.Studio
                 {
                     Description = $"removing {this.Subject()}",
                     Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
                     BuildRequests = () => [new WriteRequest(RequestType.RemoveSceneItem, new { sceneUuid = this.Scene.Uuid, sceneItemId = this.Id })],
                     IsConfirmed = _ => this.IsRemoved,
@@ -214,7 +220,7 @@ namespace OBSStudioClient.Studio
 
             if (this.Scene.State != ObsObjectState.Live)
             {
-                throw new ObsRemovedException($"scene '{this.Scene.Name}'", this.Scene.State);
+                throw new ObsRemovedException(this.Scene.Label, this.Scene.State);
             }
         }
     }

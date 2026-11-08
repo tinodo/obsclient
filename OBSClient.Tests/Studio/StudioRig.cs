@@ -18,6 +18,7 @@ namespace OBSStudioClient.Tests.Studio
         private readonly SemaphoreSlim _write = new(1, 1);
         private readonly object _worldLock = new();
         private readonly List<string> _requestLog = [];
+        private readonly List<string[]> _batchLog = [];
         private readonly List<JsonElement> _held = [];
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
@@ -30,6 +31,12 @@ namespace OBSStudioClient.Tests.Studio
 
         /// <summary>Gets or sets the obs-websocket version that GetVersion answers.</summary>
         public string WebSocketVersion { get; set; } = "5.7.6";
+
+        /// <summary>Gets or sets the OBS Studio version that GetVersion answers (the default goes with the obs-websocket version: OBS Studio 33.0.0 has obs-websocket 5.7.6).</summary>
+        public string ObsVersion { get; set; } = "33.0.0";
+
+        /// <summary>Gets or sets a gate that holds the answer to GetVersion back until it is completed: the handshake is done, and the studio does not know the version of OBS Studio yet.</summary>
+        public TaskCompletionSource? VersionGate { get; set; }
 
         /// <summary>Gets or sets whether the batches of reads are answered.</summary>
         public bool AnswerBatches { get; set; } = true;
@@ -63,6 +70,18 @@ namespace OBSStudioClient.Tests.Studio
                 lock (this._worldLock)
                 {
                     return this._requestLog.ToArray();
+                }
+            }
+        }
+
+        /// <summary>Gets the types of the requests of each batch that was received, in the order in which the batches were read.</summary>
+        public string[][] BatchLog
+        {
+            get
+            {
+                lock (this._worldLock)
+                {
+                    return this._batchLog.ToArray();
                 }
             }
         }
@@ -195,6 +214,11 @@ namespace OBSStudioClient.Tests.Studio
                         else if (op == 8)
                         {
                             Interlocked.Increment(ref this._batches);
+                            lock (this._worldLock)
+                            {
+                                this._batchLog.Add(d.GetProperty("requests").EnumerateArray().Select(request => request.GetProperty("requestType").GetString()!).ToArray());
+                            }
+
                             if (this.AnswerBatches)
                             {
                                 await this.AnswerBatchAsync(d);
@@ -217,6 +241,11 @@ namespace OBSStudioClient.Tests.Studio
         {
             var type = d.GetProperty("requestType").GetString()!;
             var id = d.GetProperty("requestId").GetString()!;
+            if (type == "GetVersion" && this.VersionGate is { } versionGate)
+            {
+                await versionGate.Task.WaitAsync(this._stopping.Token);
+            }
+
             var (code, data) = this.Answer(type, d.TryGetProperty("requestData", out var requestData) ? requestData : null);
             await this._write.WaitAsync();
             try
@@ -239,6 +268,9 @@ namespace OBSStudioClient.Tests.Studio
         private async Task AnswerBatchAsync(JsonElement d)
         {
             var results = new List<object>();
+
+            // OBS Studio stops a batch at its first refusal when the batch says so, and the answer holds the results of the requests that were run.
+            var haltOnFailure = d.TryGetProperty("haltOnFailure", out var halt) && halt.ValueKind == JsonValueKind.True;
             foreach (var request in d.GetProperty("requests").EnumerateArray())
             {
                 var type = request.GetProperty("requestType").GetString()!;
@@ -281,6 +313,10 @@ namespace OBSStudioClient.Tests.Studio
                     requestStatus = new { result = code == 100, code },
                     responseData = answer,
                 });
+                if (haltOnFailure && code != 100)
+                {
+                    break;
+                }
             }
 
             var json = JsonSerializer.Serialize(new { op = 9, d = new { requestId = d.GetProperty("requestId").GetString(), results } });
@@ -301,7 +337,7 @@ namespace OBSStudioClient.Tests.Studio
             {
                 return (100, new
                 {
-                    obsVersion = "31.0.0",
+                    obsVersion = this.ObsVersion,
                     obsWebSocketVersion = this.WebSocketVersion,
                     rpcVersion = 1,
                     availableRequests = Array.Empty<string>(),
@@ -415,11 +451,21 @@ namespace OBSStudioClient.Tests.Studio
             return rig;
         }
 
-        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null)
+        public static async Task<StudioRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsStudioOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null)
         {
             var rig = Create(setup, options, loggerFactory);
             try
             {
+                if (webSocketVersion is not null)
+                {
+                    rig.Responder.WebSocketVersion = webSocketVersion;
+                }
+
+                if (obsVersion is not null)
+                {
+                    rig.Responder.ObsVersion = obsVersion;
+                }
+
                 await rig.Studio.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
             }
             catch
