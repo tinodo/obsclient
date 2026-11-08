@@ -13,7 +13,7 @@ What it does:
    source of OBSClient, and the articles from docs/;
 4. checks the links of the result (tools/docs/check-links.py).
 
-Needs the .NET SDK 8.0 or later (the library targets net8.0 and net10.0, so a restore needs the 10.0 SDK).
+Needs the .NET 10 SDK (the library targets net10.0).
 """
 
 import argparse

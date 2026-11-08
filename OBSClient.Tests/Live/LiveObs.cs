@@ -60,6 +60,12 @@ namespace OBSStudioClient.Tests.Live
         /// <summary>Gets a value that indicates whether the OBS Studio has UUIDs for its scenes and inputs: it does, unless <c>OBS_LIVE_UUIDS</c> is 0 (obs-websocket has them from 5.4.0, OBS Studio from 30.1.0).</summary>
         public static bool HasUuids => Environment.GetEnvironmentVariable("OBS_LIVE_UUIDS") != "0";
 
+        /// <summary>
+        /// Gets a value that indicates whether the tests of the model write the messages that go over the wire into their output, with the time (<c>OBS_LIVE_WIRE_LOG=1</c>): that is what a slow OBS Studio
+        /// looks like from the outside. It is a long log (the output of a test is part of the log of CI), so it is off unless somebody looks for something.
+        /// </summary>
+        public static bool WireLog => Environment.GetEnvironmentVariable("OBS_LIVE_WIRE_LOG") == "1";
+
         /// <summary>A name for a scene or an input that no other run uses, and that <see cref="LiveSession.RemoveLeftoversAsync"/> recognises.</summary>
         /// <param name="what">What it is called for.</param>
         /// <returns>The name.</returns>

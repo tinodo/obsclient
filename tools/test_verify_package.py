@@ -77,7 +77,7 @@ def nuspec(*dependencies, icon="icon.png", license=("expression", "MIT")):
     license_element = f'<license type="{license[0]}">{license[1]}</license>' if license else ""
     return (
         '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"><metadata><id>OBSClient</id>'
-        f"{icon_element}{license_element}<dependencies><group targetFramework=\"net8.0\">{items}</group></dependencies></metadata></package>"
+        f"{icon_element}{license_element}<dependencies><group targetFramework=\"net10.0\">{items}</group></dependencies></metadata></package>"
     ).encode()
 
 
@@ -89,7 +89,7 @@ def package_files(**changes):
         "LICENSE": b"MIT",
         "icon.png": png(),
     }
-    for framework in ("net8.0", "net10.0"):
+    for framework in ("net10.0",):
         files[f"lib/{framework}/OBSClient.dll"] = b"MZ"
         files[f"lib/{framework}/OBSClient.xml"] = b"<doc/>"
     files.update(changes)
@@ -98,7 +98,7 @@ def package_files(**changes):
 
 def symbol_files(**changes):
     files = {**PLUMBING, "OBSClient.nuspec": nuspec()}
-    for framework in ("net8.0", "net10.0"):
+    for framework in ("net10.0",):
         files[f"lib/{framework}/OBSClient.pdb"] = b"BSJB" + SOURCE_LINK
     files.update(changes)
     return {name: content for name, content in files.items() if content is not None}
@@ -570,10 +570,10 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertIn("the nuspec does not declare the license of the package as the MIT expression", output)
 
     def test_a_pdb_in_the_package_is_refused(self):
-        code, output = self.verify(packages=package_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB"}), symbols=symbol_files())
+        code, output = self.verify(packages=package_files(**{"lib/net10.0/OBSClient.pdb": b"BSJB"}), symbols=symbol_files())
 
         self.assertEqual(1, code)
-        self.assertIn("unexpected file in the package: lib/net8.0/OBSClient.pdb", output)
+        self.assertIn("unexpected file in the package: lib/net10.0/OBSClient.pdb", output)
 
     def test_a_file_that_is_not_the_library_is_refused(self):
         code, output = self.verify(packages=package_files(**{"contentFiles/protocol.json": b"{}"}), symbols=symbol_files())
@@ -590,6 +590,17 @@ class VerifyPackageTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("lib/net10.0/OBSClient.dll is missing", output)
         self.assertIn("unexpected target framework in the package: net9.0", output)
+
+    def test_a_package_that_still_has_net8_is_refused(self):
+        # .NET 8 is not a target framework of the library any more: a package that has it was not made from this source.
+        code, output = self.verify(
+            packages=package_files(**{"lib/net8.0/OBSClient.dll": b"MZ", "lib/net8.0/OBSClient.xml": b"<doc/>"}),
+            symbols=symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + SOURCE_LINK}),
+        )
+
+        self.assertEqual(1, code)
+        self.assertIn("unexpected target framework in the package: net8.0", output)
+        self.assertIn("unexpected target framework in the symbol package: net8.0", output)
 
     def test_a_new_dependency_is_refused(self):
         code, output = self.verify(
@@ -609,22 +620,22 @@ class VerifyPackageTests(unittest.TestCase):
     def test_source_link_to_another_repository_is_refused(self):
         other = SOURCE_LINK.replace(b"tinodo/obsclient", b"someone/else")
 
-        code, output = self.verify(symbols=symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + other}))
+        code, output = self.verify(symbols=symbol_files(**{"lib/net10.0/OBSClient.pdb": b"BSJB" + other}))
 
         self.assertEqual(1, code)
-        self.assertIn("lib/net8.0/OBSClient.pdb has no Source Link", output)
+        self.assertIn("lib/net10.0/OBSClient.pdb has no Source Link", output)
 
     def test_symbols_that_miss_a_target_framework_are_refused(self):
-        code, output = self.verify(symbols=symbol_files(**{"lib/net8.0/OBSClient.pdb": None}))
+        code, output = self.verify(symbols=symbol_files(**{"lib/net10.0/OBSClient.pdb": None}))
 
         self.assertEqual(1, code)
-        self.assertIn("lib/net8.0/OBSClient.pdb is missing", output)
+        self.assertIn("lib/net10.0/OBSClient.pdb is missing", output)
 
     def test_an_assembly_in_the_symbols_is_refused(self):
-        code, output = self.verify(symbols=symbol_files(**{"lib/net8.0/OBSClient.dll": b"MZ"}))
+        code, output = self.verify(symbols=symbol_files(**{"lib/net10.0/OBSClient.dll": b"MZ"}))
 
         self.assertEqual(1, code)
-        self.assertIn("unexpected file in the symbol package: lib/net8.0/OBSClient.dll", output)
+        self.assertIn("unexpected file in the symbol package: lib/net10.0/OBSClient.dll", output)
 
     def test_a_symbol_package_that_is_named_is_verified_too_and_only_once(self):
         package = self.write("OBSClient.4.0.0.nupkg", package_files())
@@ -639,7 +650,7 @@ class VerifyPackageTests(unittest.TestCase):
 
     def test_a_fork_verifies_symbols_that_point_at_itself(self):
         fork = SOURCE_LINK.replace(b"tinodo/obsclient", b"someone/else")
-        symbols = symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + fork, "lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
+        symbols = symbol_files(**{"lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
 
         accepted_code, accepted = self.verify(symbols=symbols, options=["--repository", "someone/else"])
         refused_code, refused = self.verify(symbols=symbols, options=["--repository", "tinodo/obsclient"])
@@ -650,7 +661,7 @@ class VerifyPackageTests(unittest.TestCase):
 
     def test_the_repository_is_the_one_of_github_actions_unless_one_is_named(self):
         fork = SOURCE_LINK.replace(b"tinodo/obsclient", b"someone/else")
-        symbols = symbol_files(**{"lib/net8.0/OBSClient.pdb": b"BSJB" + fork, "lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
+        symbols = symbol_files(**{"lib/net10.0/OBSClient.pdb": b"BSJB" + fork})
 
         with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "someone/else"}):
             from_the_environment, _ = self.verify(symbols=symbols, options=[])

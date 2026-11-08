@@ -38,7 +38,7 @@ import zlib
 
 ASSEMBLY_NAME = "OBSClient"
 DEFAULT_REPOSITORY = "tinodo/obsclient"
-REQUIRED_FRAMEWORKS = {"net8.0", "net10.0"}
+REQUIRED_FRAMEWORKS = {"net10.0"}
 ALLOWED_DEPENDENCIES = {"Microsoft.Extensions.Logging.Abstractions"}
 
 ICON_NAME = "icon.png"

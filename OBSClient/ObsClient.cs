@@ -45,7 +45,13 @@
 
         private readonly int _reconnectInterval = 3000;
 
-        private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(2);
+        // The time that a connection to OBS Studio is given to open (the TCP connection and the upgrade to a WebSocket) before the attempt is given up. It is not a setting
+        // of the client: the tests of the assembly allow more than this by default (see TestAssemblyInitializer), because a machine that is too busy can take longer than
+        // two seconds to open a connection to itself.
+        internal static TimeSpan DefaultConnectTimeout { get; set; } = TimeSpan.FromSeconds(2);
+
+        // What this client gives a connection to open: the default when it was made. A test of the timeout itself sets it for one client.
+        internal TimeSpan ConnectTimeout { get; set; } = DefaultConnectTimeout;
 
         private static readonly TimeSpan _authenticationTimeout = TimeSpan.FromSeconds(10);
 
@@ -57,6 +63,15 @@
         private const int AttemptCompleted = 1;
 
         private const int AttemptCancelled = 2;
+
+        // How far a connection got, for the model (ConnectionSession.IngressState): its handshake completed, and its receive loop ended.
+        private const int IngressNotStarted = 0;
+
+        private const int IngressStarted = 1;
+
+        private const int IngressEnded = 2;
+
+        private static int _lastSessionId;
 
         private readonly Timer _reconnectTimer;
 
@@ -217,16 +232,23 @@
             }
         }
 
-        // The setter of AutoReconnect. With a session it only changes the setting while that session is the active one: the check and the
-        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the
-        // setting of the one that replaced it.
-        private void SetAutoReconnect(bool value, ConnectionSession? onlyForSession = null)
+        // The setter of AutoReconnect.
+        private void SetAutoReconnect(bool value)
+        {
+            this.ChangeAutoReconnect(value, null)?.Invoke();
+        }
+
+        // Changes the setting, and returns what raises the notification of the change (null when nothing was changed): the caller raises it when it likes.
+        // A handler runs on the thread that raises it. With a session it only changes the setting while that session is the active one: the check and the
+        // change are one step with respect to activating another session, so what is done for a session that was replaced cannot change the setting of
+        // the one that replaced it.
+        private Action? ChangeAutoReconnect(bool value, ConnectionSession? onlyForSession)
         {
             lock (_syncRoot)
             {
                 if (onlyForSession is not null && !ReferenceEquals(this._session, onlyForSession))
                 {
-                    return;
+                    return null;
                 }
 
                 // The timer is disposed by Dispose, after it took this lock to set _disposed.
@@ -240,7 +262,7 @@
 
             // Raised outside the lock and guarded, like ConnectionState: Disconnect() and ConnectAsync() set this
             // property, so a handler must not be able to deadlock the client or break those calls.
-            this.RaisePropertyChangedSafely(nameof(AutoReconnect));
+            return () => this.RaisePropertyChangedSafely(nameof(AutoReconnect));
         }
 
         /// <summary>
@@ -548,6 +570,51 @@
             this._session?.Cancellation.Cancel();
         }
 
+        // Disconnect() for a caller that holds a lock of its own: the connection is ended and AutoReconnect is switched off at once, but the notification of
+        // that change is returned, for the caller to raise when it has let go of its lock (a handler runs on the thread that raises it).
+        internal Action? DisconnectDeferred()
+        {
+            _logger.LogInformation("Disconnecting from OBS Studio");
+            var raise = this.ChangeAutoReconnect(false, null);
+            try
+            {
+                this._session?.Cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+            }
+
+            return raise;
+        }
+
+        // Disconnect() for the connection with that number and for nothing else (see EndAttempt): AutoReconnect is switched off only while that connection is
+        // still the active one, so a connection that was made in its place is left as it is. Returns whether there was such a connection.
+        internal bool EndSession(int sessionId)
+        {
+            ConnectionSession? session;
+            lock (_syncRoot)
+            {
+                session = this._session;
+            }
+
+            if (session is null || session.Id != sessionId)
+            {
+                return false;
+            }
+
+            try
+            {
+                this.EndAttempt(session);
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The connection ended and let go of its resources already.
+                return false;
+            }
+        }
+
         /// <summary>
         /// Sends a Batch Request.
         /// </summary>
@@ -558,6 +625,13 @@
         /// <remarks>Since batch requests typically take more time than individual request, you have the opportunity here to override the default timeout for this specific call.</remarks>
         public async Task<RequestResponseMessage[]> SendRequestBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds = null, CancellationToken cancellationToken = default)
         {
+            var response = await this.SendBatchAsync(requestBatchMessage, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
+            return response.Results;
+        }
+
+        // The batch of SendRequestBatchAsync, with the whole response message.
+        private async Task<RequestBatchResponseMessage> SendBatchAsync(RequestBatchMessage requestBatchMessage, int? timeOutInMilliseconds, CancellationToken cancellationToken, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
+        {
             timeOutInMilliseconds ??= Math.Max(this._requestTimeout, 150);
 
             var executionType = (int)requestBatchMessage.RequestBatchExecutionType;
@@ -566,10 +640,10 @@
             var d = new { requestId, haltOnFailure = requestBatchMessage.HaltOnFailure, executionType, requests };
             var op = (int)OpCode.RequestBatch;
 
-            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken).ConfigureAwait(false);
+            var result = await this.SendAndWaitAsync(requestId, new { d, op }, timeOutInMilliseconds, cancellationToken, cancelUntilWritten, beforeWriting).ConfigureAwait(false);
             if (result is RequestBatchResponseMessage requestBatchResponseData)
             {
-                return requestBatchResponseData.Results;
+                return requestBatchResponseData;
             }
 
             throw new ObsClientException($"Unexpected response type {result?.GetType().Name} in {MethodBase.GetCurrentMethod()?.Name}");
@@ -673,7 +747,7 @@
             try
             {
                 using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(session.Cancellation.Token);
-                connectCts.CancelAfter(_connectTimeout);
+                connectCts.CancelAfter(this.ConnectTimeout);
                 await session.Socket.ConnectAsync(this._uri, connectCts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -712,8 +786,21 @@
         private void EndAttempt(ConnectionSession session)
         {
             _logger.LogInformation("Ending the attempt to connect to OBS Studio");
-            this.SetAutoReconnect(false, session);
-            session.Cancellation.Cancel();
+            var raise = this.ChangeAutoReconnect(false, session);
+            try
+            {
+                session.Cancellation.Cancel();
+            }
+            finally
+            {
+                // The handlers of the notification are the application's code. This usually runs as the callback of the token that was cancelled, and the attempt
+                // cannot end before that callback has returned: a handler that waits for something that needs the attempt to end (the DisconnectAsync of another thread,
+                // for one) would wait for itself. So they are told on another thread, when the setting is changed and the attempt is ended.
+                if (raise is not null)
+                {
+                    _ = Task.Run(raise);
+                }
+            }
         }
 
         private async Task<bool> WaitForAuthenticationAsync(ConnectionSession session)
@@ -798,7 +885,7 @@
             }
         }
 
-        private void ProcessIdentifiedMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessIdentifiedMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             // We have succesfully authenticated - OR - we did a Reidentify.
             if (responseMessage.Data is not IdentifiedMessage)
@@ -810,13 +897,17 @@
             // caller's `await ConnectAsync(...)`) could otherwise observe the still-stale previous state if
             // their continuation runs synchronously on this thread as part of TrySetResult().
             this.SetConnectionState(session, ConnectionState.Connected);
+
+            // Before the authentication task completes, so that the model knows of the connection before ConnectAsync returns.
+            this.TapSessionStarted(session, sequence);
             session.Authenticated.TrySetResult(true);
         }
 
-        private void ProcessRequestResponseMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessRequestResponseMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             if (responseMessage.Data is RequestResponseMessage requestResponseData)
             {
+                requestResponseData.IngressSequence = sequence;
                 this.CompleteRequest(session, requestResponseData.RequestId, requestResponseData);
             }
             else
@@ -996,10 +1087,21 @@
             }
         }
 
-        private void ProcessRequestBatchResponseMessage(ConnectionSession session, ObsMessage responseMessage)
+        private void ProcessRequestBatchResponseMessage(ConnectionSession session, ObsMessage responseMessage, long sequence)
         {
             if (responseMessage.Data is RequestBatchResponseMessage requestBatchResponseData)
             {
+                requestBatchResponseData.IngressSequence = sequence;
+                foreach (var result in requestBatchResponseData.Results)
+                {
+                    // A malformed response can have a null entry (the elements of the array are not checked when it is read): that is not for
+                    // this code to refuse, and it must not end the connection. The batch is returned as it came.
+                    if (result is not null)
+                    {
+                        result.IngressSequence = sequence;
+                    }
+                }
+
                 this.CompleteRequest(session, requestBatchResponseData.RequestId, requestBatchResponseData);
             }
             else
@@ -1016,16 +1118,35 @@
             }
 
             var response = responseBuilder.ToString();
-            _logger.LogDebug("Received: {Response}", response);
 
-            ObsMessage? message;
+            ObsMessage? message = null;
+            Exception? unreadable = null;
             try
             {
                 message = JsonSerializer.Deserialize<ObsMessage>(response);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                this.HandleUnreadableMessage(session, response, ex);
+                unreadable = ex;
+            }
+
+            // Numbered as it is read, in the order of arrival (see ObsClient_Ingress.cs). An event is handed to the model before anything of the application runs: the logger takes
+            // as long as it takes (one that writes to a console that nobody reads can take seconds), and until the model knows of an event that begins a change of the scene collection
+            // it lets a change through that OBS Studio would make in the collection that it has left.
+            long sequence = 0;
+            var tapped = false;
+            if (message is { Op: OpCode.Event, Data: EventMessage eventMessage })
+            {
+                sequence = this.NextIngress();
+                this.Tap(IngressKind.Event, sequence, session, eventMessage);
+                tapped = true;
+            }
+
+            _logger.LogDebug("Received: {Response}", response);
+
+            if (unreadable is not null)
+            {
+                this.HandleUnreadableMessage(session, response, unreadable);
                 return;
             }
 
@@ -1035,16 +1156,21 @@
                 return;
             }
 
+            if (!tapped)
+            {
+                sequence = this.NextIngress();
+            }
+
             switch (message.Op)
             {
                 case OpCode.Hello:
                     await this.ProcessHelloMessageAsync(session, message).ConfigureAwait(false);
                     break;
                 case OpCode.Identified:
-                    this.ProcessIdentifiedMessage(session, message);
+                    this.ProcessIdentifiedMessage(session, message, sequence);
                     break;
                 case OpCode.RequestResponse:
-                    this.ProcessRequestResponseMessage(session, message);
+                    this.ProcessRequestResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Event:
                     try
@@ -1058,7 +1184,7 @@
 
                     break;
                 case OpCode.RequestBatchResponse:
-                    this.ProcessRequestBatchResponseMessage(session, message);
+                    this.ProcessRequestBatchResponseMessage(session, message, sequence);
                     break;
                 case OpCode.Identify:
                 case OpCode.Reidentify:
@@ -1148,7 +1274,7 @@
             return end < 0 ? json : json[..start] + "***" + json[end..];
         }
 
-        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null)
+        private async Task SendAsync(ConnectionSession session, object request, CancellationToken cancellationToken = default, Action? written = null, Action<int>? beforeWriting = null)
         {
             var socket = session.Socket;
             if (socket.State != WebSocketState.Open)
@@ -1176,11 +1302,31 @@
                 await session.SendLock.WaitAsync(turn).ConfigureAwait(false);
                 lockTaken = true;
 
+                // The semaphore processes the end of a wait after the fact: a turn that is given up while another message is done can be handed over all the same. Whoever gave
+                // up (the caller, or the time that was allowed) is not waiting any more, and nothing may be written for it.
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // The logger is code of the application: whether the message is logged is asked before the look at what has to be true, so that no code of the application runs
+                // between the last look and the write.
+                var logging = _logger.IsEnabled(LogLevel.Debug);
+
+                // What has to be true when the message is written, and may have changed while it waited for its turn (it is told which connection that is: the connection can have
+                // been replaced by another since the message was asked for). When it fails nothing is written, and the turn is given back.
+                beforeWriting?.Invoke(session.Id);
+
                 // Logged when it is its turn, so that the log shows the messages that are written, in the order in which they are.
-                if (_logger.IsEnabled(LogLevel.Debug))
+                if (logging)
                 {
                     _logger.LogDebug("Sending: {Request}", RedactAuthentication(Encoding.UTF8.GetString(bytes)));
+
+                    // The logger takes as long as it takes (one that writes to a console that nobody reads can take seconds): OBS Studio can have begun to change its scene collection
+                    // meanwhile, and the look has to be the last thing before the write, not the thing before the log.
+                    beforeWriting?.Invoke(session.Id);
                 }
+
+                // The last look: what ran since the first (the check of whoever asked for the message, the log) took time, and whoever gave up meanwhile is not waiting any more. What is
+                // left is the moment between this look and the write, which can not be told from a token that ends a moment after the write.
+                cancellationToken.ThrowIfCancellationRequested();
 
                 await socket.SendAsync(sendBuffer, WebSocketMessageType.Text, true, session.Cancellation.Token).ConfigureAwait(false);
 
@@ -1282,6 +1428,9 @@
                     // while ConnectionState is still reporting Connected. See https://github.com/tinodo/obsclient/issues/17.
                     _logger.LogError(ex, "Unhandled exception in the receiver loop; closing the connection");
                 }
+
+                // The model learns that the connection ended after every event that arrived on it.
+                this.TapSessionEnded(session);
 
                 // Guaranteed to run whenever the loop above stops, for any reason, so ConnectionState always
                 // reaches Disconnected and ConnectionClosed always fires.
@@ -1430,9 +1579,10 @@
             this.Notify(() => this.RaiseConnectionClosed(closed));
         }
 
-        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default)
+        private async Task<IMessage> SendAndWaitAsync(string requestId, object request, int? timeout = null, CancellationToken cancellationToken = default, CancellationToken cancelUntilWritten = default, Action<int>? beforeWriting = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            cancelUntilWritten.ThrowIfCancellationRequested();
 
             var session = this._session;
             if (session is null || this._connectionState != ConnectionState.Connected)
@@ -1463,9 +1613,12 @@
                 // The wait of the caller ends with its token or with the timeout, whatever the write is doing: when OBS Studio does not read,
                 // a write can block, and it cannot be cancelled without aborting the connection. So it is left to finish by itself, still
                 // holding the turn (nothing can be written in the middle of it), and what goes wrong with it is observed. A message that
-                // still waits for its turn is given up together with the wait.
-                using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-                var write = this.SendAsync(session, request, turnCts.Token);
+                // still waits for its turn is given up together with the wait. The token that ends the call only until the message is written
+                // (cancelUntilWritten) is part of the wait for the turn and of nothing after it: once the message is being written it has no effect.
+                using var turnCts = cancelUntilWritten.CanBeCanceled
+                    ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token, cancelUntilWritten)
+                    : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
+                var write = this.SendAsync(session, request, turnCts.Token, beforeWriting: beforeWriting);
                 if (await Task.WhenAny(write, tcs.Task).ConfigureAwait(false) == write)
                 {
                     await write.ConfigureAwait(false);
@@ -1476,6 +1629,11 @@
                 }
 
                 return await tcs.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancelUntilWritten.IsCancellationRequested && !cancellationToken.IsCancellationRequested && !cts.IsCancellationRequested)
+            {
+                // The message was still waiting for its turn when that token ended (nothing else ends a wait for the turn, and after the turn nothing is cancelled by it): it was not written.
+                throw;
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -1575,6 +1733,12 @@
         /// </summary>
         private sealed class ConnectionSession : IDisposable
         {
+            /// <summary>Gets the number of this connection: unique, and higher for a connection that was made later.</summary>
+            public int Id { get; } = Interlocked.Increment(ref _lastSessionId);
+
+            /// <summary>How far the connection got, for the model: see <c>IngressNotStarted</c>, <c>IngressStarted</c> and <c>IngressEnded</c>.</summary>
+            public int IngressState;
+
             /// <summary>Gets the socket for this connection. It is disposed together with the session.</summary>
             public ClientWebSocket Socket { get; } = new();
 

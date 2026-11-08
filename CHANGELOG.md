@@ -5,6 +5,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [4.0.0-rc.2] - 2026-11-08
+
+The second release candidate of 4.0.0, for trying out. It has everything that 4.0.0-rc.1 has, and what is marked *after rc.1* under 4.0.0 in the
+[changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md). The public API of the client is as closed as it was in rc.1. The new
+`ObsModel` is the exception: it is **provisional**, and its names and its details can still change before 4.0.0 is released. Read the
+*Breaking changes* there to see what you have to change, and report what you find in an
+[issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain `dotnet add package OBSClient`: use
+`dotnet add package OBSClient --version 4.0.0-rc.2` (or `--prerelease` for the newest prerelease). The GitHub release of this version has the
+package, the test app and the attestation of where the files come from as downloads.
+
+What is new since 4.0.0-rc.1, in short:
+
+- **`ObsModel`: OBS Studio by name** *(new, and provisional)*. It reads the scenes, the inputs, the scene items, the filters and the outputs of OBS Studio into a
+  model in memory, follows what OBS Studio and the user in it do, and tells you what changed, so that you work with names: `obs.Scenes["Gaming Scene"]`,
+  `obs.Inputs["Microphone"]`. It makes, renames and removes scenes, inputs and filters by name, switches the program scene, shows, hides, locks, moves and removes
+  scene items, mutes an input and sets its volume, enables, disables, moves and renames filters, and starts, stops and toggles the stream, the recording (which can
+  be paused), the virtual camera and the replay buffer (which can be saved). A call returns when the model shows the change. It extends the client and hides
+  nothing of it: `obs.Client` is the `ObsClient`. It does not have yet the control of studio mode and of the preview scene, transitions, profiles, scene collections,
+  media inputs, and the settings of inputs and filters: use `obs.Client` for those. The article
+  [Controlling OBS Studio by name](https://tinodo.github.io/obsclient/articles/model.html) tells the rest, and `samples/ModelSample` is a small command prompt to
+  try it against your own OBS Studio (OBS Studio 30.1 or newer).
+- **The library targets `net10.0` only**: the `net8.0` target is gone, because Microsoft ends the support of .NET 8 and .NET 9 on 10 November 2026. An application
+  that uses 4.0.0-beta1, 4.0.0-beta2 or 4.0.0-rc.1 on .NET 8 or 9 stays on that version. Nothing in the API changed because of it.
+
 ## [4.0.0-rc.1] - 2026-11-03
 
 The first release candidate of 4.0.0, for trying out. The public API is closed now, so what changes between this version and 4.0.0 is fixes
@@ -88,6 +112,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 | 5.7.2 – 5.7.6 | No changes to the protocol definition. | – |
 
 ### Breaking changes
+- **The library targets `net10.0` only** *(after rc.1)*: the `net8.0` target that 4.0.0-beta1, 4.0.0-beta2 and 4.0.0-rc.1 had is gone, because Microsoft ends the
+  support of .NET 8 and .NET 9 on 10 November 2026. An application that uses one of those prereleases on .NET 8 or 9 stays on it. Nothing in the API changed because of it.
 - **One parameter for a name or a UUID.** The pairs of overloads `Foo(string inputName, …)` / `Foo(Guid inputUuid, …)` (and
   their `canvasUuid` variants, which were never released) are replaced by one method per request that takes an `InputRef`,
   a `SceneRef` or a `SourceRef`: a small value that holds either a name or a UUID. A `string`, a `Guid`, and the `Input`,
@@ -191,6 +217,22 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     longer a public method.
 
 ### Added
+- **`ObsModel`: OBS Studio by name** *(after rc.1; new, and provisional: its names and details can change until 4.0.0 is released)*. `ObsModel` keeps a model of the
+  scenes, the inputs, the scene items, the filters and the outputs of OBS Studio in memory, so that you work with names and objects and not with UUIDs and ids that you have to
+  look up first: `obs.Scenes["Gaming"]`, `obs.Inputs["Webcam"]`, `scene.Items`, `obs.ProgramScene`, `input.Filters["Noise Gate"]`, `obs.Outputs.Stream`. It follows OBS Studio (and
+  the user in it) with the events, reads again where the events cannot say, and tells you what changed (`Changed`, `INotifyPropertyChanged`, `Resynchronized`).
+  - You can make, rename and remove scenes and inputs by name (`CreateSceneAsync`, `CreateInputAsync`, `AddAsync`, `RenameAsync`, `RemoveAsync`), switch the program scene
+    (`SwitchToAsync`), show, hide, lock, move and remove scene items, mute an input and set its volume, and show or hide an input in every scene.
+  - The filters of scenes and inputs can be enabled, disabled, toggled, renamed, moved, removed and made (`CreateFilterAsync`), and stay the same object when they are renamed or
+    moved. Their settings stay with the plain client, because OBS Studio announces few changes of them.
+  - The outputs, `obs.Outputs.Stream`, `.Record` (which can be paused), `.VirtualCamera` and `.ReplayBuffer` (which can be saved), show their `Status` and `IsActive`, and can be started,
+    stopped and toggled. A start or a stop returns when OBS Studio has begun, because a stream takes seconds to connect and can fail, and OBS Studio does not always say that a start
+    failed (an output that stays starting is read again after `ObsModelOptions.OutputStepTimeout`).
+  - The changes are made one at a time, in the order of the calls, and a call returns when the model shows the change. What can go wrong is told by exceptions that say what to do
+    (`ObsNameInUseException`, `ObsRemovedException`, `ObsNotConfirmedException`, `ObsUnknownOutcomeException`, `ObsNotReadyException`).
+  - It extends the client and hides nothing of it: `ObsModel.Client` is the `ObsClient`. It is tested against a simulation of OBS Studio that lags and reorders events the way the real
+    one does, and against a real OBS Studio. There is an article, *Controlling OBS Studio by name*, and a runnable sample, `samples/ModelSample` (a small command prompt: `scene "Gaming"`,
+    `mute "Mic"`, `hide "Gaming" "Webcam"`). The text of a change in `Changed` (`Console.WriteLine(e)`) shows a list by the names in it.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).
@@ -226,7 +268,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   off, for that attempt only: a connection that a handler started in its place keeps its settings) and throws an
   `OperationCanceledException`, where a failed attempt returns `false`. A `ReidentifyAsync` that was cancelled, or that failed, leaves
   the events that a reconnect subscribes to as they were: they are remembered when the message has been written.
-- `net10.0` as an additional target framework, next to `net8.0`.
+- `net10.0` as an additional target framework, next to `net8.0` (4.0.0-beta1 to 4.0.0-rc.1; from 4.0.0-rc.2 on it is the only one, see *Breaking changes*).
 - **A test suite** (`OBSClient.Tests`) with an in-process fake obs-websocket server. Besides the connection, request,
   event and failure-mode tests it contains *protocol conformance tests*: they call every request method and every batch
   builder, check that each sends the request it is named after and compare what is sent on the wire, field by field,
@@ -287,9 +329,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   icon is a whole PNG, with its chunks in order, a valid header, palette and transparency and image data that is as long as its header says,
   of at least 128 by 128 pixels). `samples/ConsoleSample`
   is a small program that connects, says which OBS Studio it reached, lists the scenes and prints the events (`dotnet run --project samples/ConsoleSample`); CI builds it
-  against the package that was just packed, for both target frameworks, which shows that the package can be used. The target frameworks
-  are `net8.0` and `net10.0`, the LTS releases: .NET 8 reaches the end of its support on 10 November 2026, and its target stays in the 4.x packages (see
-  the compatibility table of the documentation).
+  against the package that was just packed, which shows that the package can be used. The target frameworks were `net8.0` and `net10.0`, the LTS releases, up to
+  4.0.0-rc.1; from 4.0.0-rc.2 on `net10.0` is the only one (see *Breaking changes*).
 - **The README of the package** *(after beta2)* has absolute links and no raw HTML now: nuget.org drops a relative link (the page of 4.0.0-beta2
   shows five of them without a target) and shows HTML as text (it showed `<ins>` around two phrases), and a published version cannot be
   changed. CI parses the README with Markdig, the parser of nuget.org (`ReadmeTests`), and fails on either, and on an image from a domain that

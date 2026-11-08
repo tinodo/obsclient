@@ -28,8 +28,8 @@ def package_bytes(**changes):
         "[Content_Types].xml": b"<Types/>",
         "_rels/.rels": b"<Relationships/>",
         "OBSClient.nuspec": NUSPEC,
-        "lib/net8.0/OBSClient.dll": b"MZ8",
         "lib/net10.0/OBSClient.dll": b"MZ10",
+        "lib/net10.0/OBSClient.xml": b"<doc/>",
     }
     files.update(changes)
     stream = io.BytesIO()
@@ -49,13 +49,13 @@ class CompareTests(unittest.TestCase):
         self.assertEqual([], compare_published.compare(package_bytes(), served))
 
     def test_a_file_that_differs_is_found(self):
-        served = package_bytes(**{"lib/net8.0/OBSClient.dll": b"another build"})
+        served = package_bytes(**{"lib/net10.0/OBSClient.dll": b"another build"})
         problems = compare_published.compare(package_bytes(), served)
         self.assertEqual(1, len(problems))
-        self.assertIn("lib/net8.0/OBSClient.dll", problems[0])
+        self.assertIn("lib/net10.0/OBSClient.dll", problems[0])
 
     def test_a_file_that_is_missing_is_found(self):
-        served = package_bytes(**{"lib/net10.0/OBSClient.dll": None})
+        served = package_bytes(**{"lib/net10.0/OBSClient.xml": None})
         problems = compare_published.compare(package_bytes(), served)
         self.assertEqual(1, len(problems))
         self.assertIn("not in the one on nuget.org", problems[0])
@@ -104,10 +104,10 @@ class MainTests(unittest.TestCase):
         self.assertIn("is the package that was built", output)
 
     def test_another_package_fails_and_says_what_differs(self):
-        code, output, _, _ = self.run_main(served=package_bytes(**{"lib/net8.0/OBSClient.dll": b"other"}))
+        code, output, _, _ = self.run_main(served=package_bytes(**{"lib/net10.0/OBSClient.dll": b"other"}))
         self.assertEqual(1, code)
         self.assertIn("::error::", output)
-        self.assertIn("lib/net8.0/OBSClient.dll", output)
+        self.assertIn("lib/net10.0/OBSClient.dll", output)
 
     def test_a_package_that_cannot_be_downloaded_is_tried_again_and_then_fails_with_another_code(self):
         error = urllib.error.HTTPError("url", 404, "Not Found", {}, None)

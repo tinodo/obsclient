@@ -171,7 +171,18 @@ namespace OBSStudioClient.Tests.TestSupport
             {
                 while (!this._stopped.IsCancellationRequested)
                 {
-                    var client = await this._listener.AcceptTcpClientAsync(this._stopped.Token).ConfigureAwait(false);
+                    TcpClient client;
+                    try
+                    {
+                        client = await this._listener.AcceptTcpClientAsync(this._stopped.Token).ConfigureAwait(false);
+                    }
+                    catch (SocketException exception) when (exception.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+                    {
+                        // A client that was ended while it connected can reset its connection before it is accepted: the connection is gone, and the next one is accepted
+                        // all the same.
+                        continue;
+                    }
+
                     Interlocked.Increment(ref this._accepted);
                     _ = this.ServeAsync(client);
                 }
