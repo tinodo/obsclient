@@ -18,8 +18,8 @@
             server.Start();
             var client = new ObsClient
             {
-                // The default 500ms is tight for a loaded CI machine running both the net8.0 and net10.0 test
-                // TFMs in parallel; these tests care about correctness, not about exercising the default timeout.
+                // The default 500ms is tight for a loaded CI machine running many tests in parallel;
+                // these tests care about correctness, not about exercising the default timeout.
                 RequestTimeout = 5000,
             };
             var connectTask = client.ConnectAsync(hostname: "127.0.0.1", port: server.Port);

@@ -7,7 +7,7 @@
 
 A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.  
 Currently implementing: [**obs-websocket 5.7.6 Protocol**](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md) (including multi-canvas support added in 5.7.0)  
-Targets `net8.0` and `net10.0`, the LTS releases of .NET (see [Compatibility](https://tinodo.github.io/obsclient/#compatibility)).  
+Targets `net10.0`, the current LTS release of .NET (see [Compatibility](https://tinodo.github.io/obsclient/#compatibility)).  
 Our intent is to create a **complete** and **easy to use** client for OBS Studio.  
 **Documentation, guides and the API reference: [tinodo.github.io/obsclient](https://tinodo.github.io/obsclient/)**
 

@@ -15,7 +15,7 @@ Thanks for your interest in improving OBSClient, a .NET client for OBS Studio's
 
 ## Development setup
 
-- .NET SDK 8.0 and 10.0 (the library multi-targets both; see `OBSClient/OBSClient.csproj`).
+- .NET SDK 10.0 (the library targets `net10.0`; see `OBSClient/OBSClient.csproj`).
 - `dotnet test OBSClient.Tests/OBSClient.Tests.csproj` restores and builds the library and runs the tests. It works on
   Windows, Linux and macOS, and is what CI runs on each of them.
 - CI also measures what the tests reach of the library (`--collect:"XPlat Code Coverage"`), and `tools/coverage_summary.py` puts it in the
@@ -409,7 +409,7 @@ listed, and a failure to push them is a warning, not a failed release.
 
 **Build provenance.** The *Prepare the release* job makes a signed
 [build provenance attestation](https://docs.github.com/en/actions/concepts/security/artifact-attestations) (`actions/attest`) for the
-package, its symbols, the test app and the two libraries in the package (`lib/net8.0/OBSClient.dll`, `lib/net10.0/OBSClient.dll`), and
+package, its symbols, the test app and the library in the package (`lib/net10.0/OBSClient.dll`), and
 then checks each of them with `gh attestation verify`, before anything waits for your approval. An attestation is GitHub's statement
 that this workflow of this repository made a file, from this commit and ref, on a GitHub-hosted runner. It is signed with a certificate
 that Sigstore issues for that one run, and kept with the repository (and, as the repository is public, in a public transparency log). It
@@ -431,7 +431,7 @@ can be checked from the release alone.
 first job refuses the other way round, each), so the ref of an attestation says which of the two made the files, and the command above,
 which asks for a tag, never accepts the files of a dry run. nuget.org signs the package that it serves,
 which changes that file and not what is in it: the `.nupkg` from nuget.org does not verify (the one on the release page does), and the
-libraries in it do. After a restore, the same command on `~/.nuget/packages/obsclient/X.Y.Z/lib/net8.0/OBSClient.dll` checks the library
+library in it does. After a restore, the same command on `~/.nuget/packages/obsclient/X.Y.Z/lib/net10.0/OBSClient.dll` checks the library
 that runs.
 
 ### When it fails

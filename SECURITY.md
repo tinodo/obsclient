@@ -40,7 +40,7 @@ gh attestation verify OBSClient.4.0.0.nupkg --repo tinodo/obsclient --signer-wor
 
 nuget.org signs the package that it serves, so the `.nupkg` that a restore downloads from nuget.org is not byte for byte the file of
 the release page, and does not verify. The libraries in it are the same, so run the command on
-`~/.nuget/packages/obsclient/<version>/lib/net8.0/OBSClient.dll` (or `net10.0`) to check the library that your application loads.
+`~/.nuget/packages/obsclient/<version>/lib/net10.0/OBSClient.dll` (`net8.0` for a 4.x package) to check the library that your application loads.
 The notes of every release repeat this with its version. The attestation is also an asset of the release, `OBSClient.<version>.intoto.jsonl`
 (a Sigstore bundle, one attestation for all the files): add `--bundle OBSClient.4.0.0.intoto.jsonl` to the command and it checks the file
 against that one, without asking GitHub for the attestation (it still fetches the keys that check the signature).
