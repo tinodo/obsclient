@@ -93,7 +93,7 @@ while (true)
             break;
         }
     }
-    catch (Exception ex) when (ex is UserError or ObsClientException or InvalidOperationException)
+    catch (Exception ex) when (ex is UserError or ObsClientException or InvalidOperationException or ArgumentException)
     {
         // What the library says is meant to be read: it names what holds a name, what was changed and what was not.
         Console.WriteLine($"Not done: {ex.Message}");
