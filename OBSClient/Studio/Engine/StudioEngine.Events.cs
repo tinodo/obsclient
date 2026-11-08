@@ -36,6 +36,11 @@ namespace OBSStudioClient.Studio.Engine
             [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Record, e.OutputState)),
             [EventType.VirtualcamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.VirtualCamera, e.OutputState)),
             [EventType.ReplayBufferStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.ReplayBuffer, e.OutputState)),
+            [EventType.SourceFilterCreated] = On<SourceFilterCreatedEventArgs>(static (engine, e) => engine.OnFilterCreated(e)),
+            [EventType.SourceFilterRemoved] = On<SourceFilterRemovedEventArgs>(static (engine, e) => engine.OnFilterRemoved(e)),
+            [EventType.SourceFilterNameChanged] = On<SourceFilterNameChangedEventArgs>(static (engine, e) => engine.OnFilterRenamed(e)),
+            [EventType.SourceFilterEnableStateChanged] = On<SourceFilterEnableStateChangedEventArgs>(static (engine, e) => engine.OnFilterEnabledChanged(e)),
+            [EventType.SourceFilterListReindexed] = On<SourceFiltersEventArgs>(static (engine, e) => engine.OnFiltersReindexed(e)),
         }.ToFrozenDictionary();
 
         /// <summary>

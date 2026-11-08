@@ -88,6 +88,8 @@ namespace OBSStudioClient.Studio.Engine
                 case ReadKind.VirtualCamera:
                 case ReadKind.ReplayBuffer:
                     return this._outputs[(int)OutputNode.KindOf(request.Kind)].Scope;
+                case ReadKind.Filters:
+                    return this.SourceByUuid(request.Target)?.FiltersScope;
                 case ReadKind.Items:
                     return this._scenes.TryGetValue(request.Target, out var scene) ? scene.ItemsScope : null;
                 default:
@@ -134,6 +136,7 @@ namespace OBSStudioClient.Studio.Engine
                 ReadKind.Program => this._programScope,
                 ReadKind.StudioMode => this._studioScope,
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
+                ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
@@ -228,6 +231,9 @@ namespace OBSStudioClient.Studio.Engine
                     break;
                 case ReadKind.Items:
                     this.ApplyItemsResponse(ticket, request, response, ok, notFound);
+                    break;
+                case ReadKind.Filters:
+                    this.ApplyFiltersResponse(ticket, request, response, ok, notFound);
                     break;
                 case ReadKind.AudioMute:
                     this.ApplyAudioResponse(ticket, request, response, volumeResponse, notFound);

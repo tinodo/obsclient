@@ -140,6 +140,9 @@ namespace OBSStudioClient.Tests.Studio
         /// <summary>Gets what the outputs of OBS Studio are doing; an output that is not in it is stopped.</summary>
         public Dictionary<ObsOutputKind, ObsOutputStatus> Outputs { get; } = new();
 
+        /// <summary>Gets the filters of the scenes and the inputs, by the UUID of the source, in the order of their positions (the first is at position 0).</summary>
+        public Dictionary<Guid, List<(string Name, string Kind, bool Enabled)>> Filters { get; } = new();
+
         /// <summary>Gets the groups: scenes that a scene item shows, and that the list of scenes does not have (a group says <c>isGroup</c> in the scene items that show it).</summary>
         public HashSet<Guid> Groups { get; } = [];
 
@@ -168,6 +171,60 @@ namespace OBSStudioClient.Tests.Studio
             var id = items.Count == 0 ? 1 : items.Max(i => i.Id) + 1;
             items.Add((id, source, isScene, sourceName, items.Count, true, false));
             return id;
+        }
+
+        /// <summary>Puts a filter on top of the filters of a scene or an input.</summary>
+        public void AddFilter(Guid source, string name, string kind = "color_filter_v2", bool enabled = true)
+        {
+            if (!this.Filters.TryGetValue(source, out var filters))
+            {
+                this.Filters[source] = filters = [];
+            }
+
+            filters.Add((name, kind, enabled));
+        }
+
+        /// <summary>Gets the names of the filters of a source, in the order of their positions.</summary>
+        public string[] FilterNames(Guid source)
+        {
+            return this.Filters.TryGetValue(source, out var filters) ? filters.Select(filter => filter.Name).ToArray() : [];
+        }
+
+        /// <summary>Enables or disables a filter of a scene or an input, as OBS Studio does when the user or a request does.</summary>
+        public void SetFilterEnabled(Guid source, string name, bool enabled)
+        {
+            var filters = this.Filters[source];
+            var position = filters.FindIndex(filter => filter.Name == name);
+            filters[position] = (name, filters[position].Kind, enabled);
+        }
+
+        /// <summary>Gives a filter another name.</summary>
+        public void RenameFilter(Guid source, string name, string newName)
+        {
+            var filters = this.Filters[source];
+            var position = filters.FindIndex(filter => filter.Name == name);
+            filters[position] = (newName, filters[position].Kind, filters[position].Enabled);
+        }
+
+        /// <summary>Takes a filter away.</summary>
+        public void RemoveFilter(Guid source, string name)
+        {
+            this.Filters[source].RemoveAll(filter => filter.Name == name);
+        }
+
+        /// <summary>Moves a filter to a position among the filters of its source.</summary>
+        public void MoveFilter(Guid source, string name, int index)
+        {
+            var filters = this.Filters[source];
+            var position = filters.FindIndex(filter => filter.Name == name);
+            var moved = filters[position];
+            filters.RemoveAt(position);
+            filters.Insert(index, moved);
+        }
+
+        private bool IsSource(Guid uuid)
+        {
+            return this.Scenes.Any(s => s.Uuid == uuid) || this.Inputs.Any(i => i.Uuid == uuid) || this.Groups.Contains(uuid) || this.Items.ContainsKey(uuid);
         }
 
         /// <summary>Renames a scene or an input, and so the name that the scene items that show it have.</summary>
@@ -238,6 +295,15 @@ namespace OBSStudioClient.Tests.Studio
                     return (100, new { outputActive = IsRunning(this.OutputStatus(ObsOutputKind.VirtualCamera)) });
                 case ReadKind.ReplayBuffer:
                     return (100, new { outputActive = IsRunning(this.OutputStatus(ObsOutputKind.ReplayBuffer)) });
+                case ReadKind.Filters:
+                    return this.IsSource(request.Target)
+                        ? (100, new
+                        {
+                            filters = (this.Filters.TryGetValue(request.Target, out var filters) ? filters : [])
+                                .Select((filter, position) => new { filterEnabled = filter.Enabled, filterIndex = position, filterKind = filter.Kind, filterName = filter.Name, filterSettings = new { } })
+                                .ToArray(),
+                        })
+                        : (600, null);
                 case ReadKind.Items:
                     return this.Items.TryGetValue(request.Target, out var items)
                         ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(this.Item).ToArray() })

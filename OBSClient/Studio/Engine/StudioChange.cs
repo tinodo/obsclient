@@ -65,6 +65,21 @@ namespace OBSStudioClient.Studio.Engine
         /// <summary>An output (the stream, the recording, the virtual camera, the replay buffer) changed what it is doing; the text says which.</summary>
         OutputChanged,
 
+        /// <summary>A filter appeared in a scene or an input (the subject); the text is its name.</summary>
+        FilterAdded,
+
+        /// <summary>A filter was removed from a scene or an input (the subject); the text is its name.</summary>
+        FilterRemoved,
+
+        /// <summary>A filter was renamed; the text is the new name.</summary>
+        FilterRenamed,
+
+        /// <summary>A filter was enabled or disabled; the text is its name.</summary>
+        FilterEnabledChanged,
+
+        /// <summary>The position of a filter changed; the text is its name.</summary>
+        FilterIndexChanged,
+
         /// <summary>The model corrected itself: it held something that a read showed not to exist.</summary>
         Repaired,
     }

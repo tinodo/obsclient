@@ -314,6 +314,7 @@ namespace OBSStudioClient.Tests.Studio
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
+                EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
             ];
 
@@ -352,6 +353,11 @@ namespace OBSStudioClient.Tests.Studio
                 (EventType.RecordStateChanged, h => h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:\\Videos\\a.mkv" }, 64)),
                 (EventType.VirtualcamStateChanged, h => h.Event("VirtualcamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
                 (EventType.ReplayBufferStateChanged, h => h.Event("ReplayBufferStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
+                (EventType.SourceFilterCreated, h => h.Event("SourceFilterCreated", new { sourceName = "Scene", filterName = "Sharpen", filterKind = "sharpness_filter_v2", filterIndex = 1, filterSettings = new { }, defaultFilterSettings = new { } }, 32)),
+                (EventType.SourceFilterRemoved, h => h.Event("SourceFilterRemoved", new { sourceName = "Scene", filterName = "Blur" }, 32)),
+                (EventType.SourceFilterNameChanged, h => h.Event("SourceFilterNameChanged", new { sourceName = "Scene", oldFilterName = "Blur", filterName = "Blurred" }, 32)),
+                (EventType.SourceFilterEnableStateChanged, h => h.Event("SourceFilterEnableStateChanged", new { sourceName = "Scene", filterName = "Blur", filterEnabled = false }, 32)),
+                (EventType.SourceFilterListReindexed, h => h.Event("SourceFilterListReindexed", new { sourceName = "Scene", filters = new[] { new { filterEnabled = true, filterIndex = 1, filterKind = "color_filter_v2", filterName = "Blur", filterSettings = new { } } } }, 32)),
                 (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
                 (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
             };
@@ -366,6 +372,8 @@ namespace OBSStudioClient.Tests.Studio
                     world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
                     world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
                     world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
+                    world.AddFilter(scene, "Blur");
+                    world.AddFilter(scene, "Tint");
                     world.Program = scene;
                 });
 

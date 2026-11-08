@@ -15,10 +15,11 @@ namespace OBSStudioClient.Studio
     /// tells when a value changed, and is raised outside the model, in order (see <see cref="ObsStudioOptions.NotificationContext"/>).
     /// </para>
     /// </remarks>
-    public abstract class ObsSource : INotifyPropertyChanged
+    public abstract partial class ObsSource : INotifyPropertyChanged
     {
         private volatile string _name;
         private volatile ObsObjectState _state;
+        private ObsFilters _filters;
 
         private protected ObsSource(ObsStudio studio, Guid uuid, string name, ObsObjectState state)
         {
@@ -26,6 +27,7 @@ namespace OBSStudioClient.Studio
             this.Uuid = uuid;
             this._name = name;
             this._state = state;
+            this._filters = new ObsFilters(this, [], studio.IgnoreCase);
         }
 
         /// <inheritdoc/>
@@ -56,6 +58,21 @@ namespace OBSStudioClient.Studio
         /// Gets whether OBS Studio removed the object: <see cref="State"/> is not <see cref="ObsObjectState.Live"/>.
         /// </summary>
         public bool IsRemoved => this._state != ObsObjectState.Live;
+
+        /// <summary>
+        /// Gets the filters of the scene or input, from the first (index 0) to the last.
+        /// </summary>
+        /// <remarks>
+        /// The collection is a snapshot: it does not change while you look at it. Ask again, or follow <see cref="PropertyChanged"/> (the name of the property is <c>Filters</c>) and
+        /// <see cref="ObsStudio.Changed"/>, to see filters come and go and move. The filters of an object that was announced a moment ago can be read a moment later (see
+        /// <see cref="ObsStudio.WaitUntilSettledAsync"/>).
+        /// </remarks>
+        public ObsFilters Filters => Volatile.Read(ref this._filters);
+
+        internal void SetFilters(ObsFilters filters)
+        {
+            Volatile.Write(ref this._filters, filters);
+        }
 
         /// <summary>
         /// Gets every scene item that shows this scene or input, in every scene (a scene that OBS Studio keeps alive after its removal included), as they are

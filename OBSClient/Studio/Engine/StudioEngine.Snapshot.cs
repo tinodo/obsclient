@@ -9,6 +9,9 @@ namespace OBSStudioClient.Studio.Engine
     /// <summary>An input, as the model holds it.</summary>
     internal sealed record EngineInput(Guid Uuid, string Name, string Kind, bool HasAudio, bool Muted, float VolumeMul, float VolumeDb, SourceState State);
 
+    /// <summary>A filter of a scene or an input, as the model holds it.</summary>
+    internal sealed record EngineFilter(long Id, string Name, string Kind, int Index, bool Enabled);
+
     /// <summary>
     /// What the model holds, as plain values, for the tests.
     /// </summary>
@@ -62,6 +65,17 @@ namespace OBSStudioClient.Studio.Engine
             return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
         }
 
+        /// <summary>Returns the filters that the model holds of a scene or an input, from the first, as plain values; none when the model does not hold the source.</summary>
+        /// <param name="source">The UUID of the scene or the input.</param>
+        public IReadOnlyList<EngineFilter> FiltersOf(Guid source)
+        {
+            return this.SourceByUuid(source)?.Filters
+                .OrderBy(filter => filter.Index.Value)
+                .ThenBy(filter => filter.Name.Value, StringComparer.Ordinal)
+                .Select(filter => new EngineFilter(filter.Id, filter.Name.Value, filter.Kind, filter.Index.Value, filter.Enabled.Value))
+                .ToArray() ?? [];
+        }
+
         /// <summary>
         /// Checks that what the model holds is consistent with itself: that the references of a source are the scene items that use it and no others, and that
         /// nothing that was destroyed is still held. It returns what is not. It is for the tests (the walks call it each time that they compare the model with OBS
@@ -72,6 +86,13 @@ namespace OBSStudioClient.Studio.Engine
         {
             var problems = new List<string>();
             var counted = new Dictionary<Guid, int>();
+            foreach (var source in this._scenes.Values.Cast<SourceNode>().Concat(this._inputs.Values))
+            {
+                foreach (var group in source.Filters.GroupBy(filter => filter.Name.Value, StringComparer.Ordinal).Where(group => group.Count() > 1))
+                {
+                    problems.Add($"The source {source.Uuid:D} \"{source.Name.Value}\" has {group.Count()} filters named \"{group.Key}\".");
+                }
+            }
             foreach (var scene in this._scenes.Values)
             {
                 if (scene.State == SourceState.Gone)

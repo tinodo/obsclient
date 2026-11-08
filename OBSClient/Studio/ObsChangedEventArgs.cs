@@ -24,7 +24,7 @@ namespace OBSStudioClient.Studio
         public ObsChangeKind Kind { get; }
 
         /// <summary>
-        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsStudio"/> itself.
+        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsStudio"/> itself.
         /// </summary>
         public object? Entity { get; }
 
@@ -51,6 +51,7 @@ namespace OBSStudioClient.Studio
                 ObsSceneItem item => $"scene item {item.Id} of '{item.Scene.Name}'",
                 ObsSource source => $"{(source is ObsScene ? "scene" : "input")} '{source.Name}'",
                 ObsOutput output => $"the {output.Name}",
+                ObsFilter filter => $"filter '{filter.Name}' of {filter.Source.Label}",
                 _ => "the studio",
             };
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";
@@ -64,6 +65,7 @@ namespace OBSStudioClient.Studio
                 null => "(nothing)",
                 IEnumerable<ObsSource> sources => $"[{string.Join(", ", sources.Select(source => source.Name))}]",
                 IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
+                IEnumerable<ObsFilter> filters => $"[{string.Join(", ", filters.Select(filter => filter.Name))}]",
                 _ => value.ToString() ?? string.Empty,
             };
         }

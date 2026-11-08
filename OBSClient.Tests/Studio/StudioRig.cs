@@ -373,6 +373,7 @@ namespace OBSStudioClient.Tests.Studio
                 "GetRecordStatus" => new ReadRequest(ReadKind.Record, OBSStudioClient.Enums.RequestType.GetRecordStatus, null, Guid.Empty),
                 "GetVirtualCamStatus" => new ReadRequest(ReadKind.VirtualCamera, OBSStudioClient.Enums.RequestType.GetVirtualCamStatus, null, Guid.Empty),
                 "GetReplayBufferStatus" => new ReadRequest(ReadKind.ReplayBuffer, OBSStudioClient.Enums.RequestType.GetReplayBufferStatus, null, Guid.Empty),
+                "GetSourceFilterList" => new ReadRequest(ReadKind.Filters, OBSStudioClient.Enums.RequestType.GetSourceFilterList, null, Target("sourceUuid")),
                 "GetSceneItemList" => new ReadRequest(ReadKind.Items, OBSStudioClient.Enums.RequestType.GetSceneItemList, null, Target("sceneUuid")),
                 "GetGroupSceneItemList" => new ReadRequest(ReadKind.Items, OBSStudioClient.Enums.RequestType.GetGroupSceneItemList, null, Target("sceneUuid")),
                 "GetInputMute" => new ReadRequest(ReadKind.AudioMute, OBSStudioClient.Enums.RequestType.GetInputMute, null, Target("inputUuid")),

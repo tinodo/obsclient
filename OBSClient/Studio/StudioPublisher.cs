@@ -27,6 +27,7 @@ namespace OBSStudioClient.Studio
         private readonly Dictionary<Guid, ObsScene> _scenes = new();
         private readonly Dictionary<Guid, ObsInput> _inputs = new();
         private readonly Dictionary<ItemKey, ObsSceneItem> _items = new();
+        private readonly Dictionary<long, ObsFilter> _filters = new();
 
         // The notices of a pass, in the order in which they are raised.
         private readonly List<StudioNotice> _repaired = new();
@@ -42,6 +43,8 @@ namespace OBSStudioClient.Studio
         private readonly List<ObsInput> _liveInputs = new();
         private readonly List<ObsSceneItem> _sceneItems = new();
         private readonly List<ItemKey> _vanishedItems = new();
+        private readonly List<ObsFilter> _sourceFilters = new();
+        private readonly List<long> _vanishedFilters = new();
         private readonly List<Guid> _vanished = new();
         private StudioView _view;
         private int _pass;
@@ -93,6 +96,7 @@ namespace OBSStudioClient.Studio
 
             this.PublishSources(engine, pass);
             this.PublishItems(engine, pass);
+            this.PublishFilters(engine, pass);
             this.RemoveVanished(pass);
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
@@ -313,7 +317,74 @@ namespace OBSStudioClient.Studio
             }
         }
 
-        // What the model no longer holds is gone: items first, then the inputs, then the scenes, so that an object is removed after what it contained.
+        // The filters of the scenes and the inputs that are published. A filter appears with its source, and one that the model no longer holds is gone.
+        private void PublishFilters(StudioEngine engine, int pass)
+        {
+            foreach (var node in engine.SceneNodes)
+            {
+                if (node.Announced && this._scenes.TryGetValue(node.Uuid, out var scene))
+                {
+                    this.PublishFiltersOf(node, scene, pass);
+                }
+            }
+
+            foreach (var node in engine.InputNodes)
+            {
+                if (node.Announced && this._inputs.TryGetValue(node.Uuid, out var input))
+                {
+                    this.PublishFiltersOf(node, input, pass);
+                }
+            }
+        }
+
+        private void PublishFiltersOf(SourceNode node, ObsSource source, int pass)
+        {
+            this._sourceFilters.Clear();
+            foreach (var filterNode in node.Filters)
+            {
+                if (!this._filters.TryGetValue(filterNode.Id, out var filter))
+                {
+                    filter = new ObsFilter(source, filterNode.Name.Value, filterNode.Kind, filterNode.Index.Value, filterNode.Enabled.Value);
+                    this._filters.Add(filterNode.Id, filter);
+                    this._added.Add(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Added, filter), null, null));
+                }
+                else
+                {
+                    var name = filter.Name;
+                    if (filter.SetName(filterNode.Name.Value))
+                    {
+                        this.AddProperty(filter, nameof(ObsFilter.Name), name, filterNode.Name.Value, true);
+                    }
+
+                    var index = filter.Index;
+                    if (filter.SetIndex(filterNode.Index.Value))
+                    {
+                        this.AddProperty(filter, nameof(ObsFilter.Index), index, filterNode.Index.Value, false);
+                    }
+
+                    var enabled = filter.IsEnabled;
+                    if (filter.SetEnabled(filterNode.Enabled.Value))
+                    {
+                        this.AddProperty(filter, nameof(ObsFilter.IsEnabled), enabled, filterNode.Enabled.Value, true);
+                    }
+                }
+
+                filter.Pass = pass;
+                this._sourceFilters.Add(filter);
+            }
+
+            this._sourceFilters.Sort(static (a, b) => a.Index != b.Index ? a.Index.CompareTo(b.Index) : string.CompareOrdinal(a.Name, b.Name));
+            var filters = this._sourceFilters.ToArray();
+            if (!source.Filters.HoldsExactly(filters))
+            {
+                var before = source.Filters;
+                var after = new ObsFilters(source, filters, this._ignoreCase);
+                source.SetFilters(after);
+                this.AddProperty(source, nameof(ObsSource.Filters), before, after, true);
+            }
+        }
+
+        // What the model no longer holds is gone: items first, then the filters, then the inputs, then the scenes, so that an object is removed after what it contained.
         private void RemoveVanished(int pass)
         {
             this._vanishedItems.Clear();
@@ -333,6 +404,26 @@ namespace OBSStudioClient.Studio
                 {
                     this._removed.Add(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Removed, item), null, null));
                     this._removed.Add(new StudioNotice(null, item, nameof(ObsSceneItem.IsRemoved)));
+                }
+            }
+
+            this._vanishedFilters.Clear();
+            foreach (var pair in this._filters)
+            {
+                if (pair.Value.Pass != pass)
+                {
+                    this._vanishedFilters.Add(pair.Key);
+                }
+            }
+
+            foreach (var id in this._vanishedFilters)
+            {
+                var filter = this._filters[id];
+                this._filters.Remove(id);
+                if (filter.SetRemoved())
+                {
+                    this._removed.Add(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Removed, filter), null, null));
+                    this._removed.Add(new StudioNotice(null, filter, nameof(ObsFilter.IsRemoved)));
                 }
             }
 
@@ -388,6 +479,16 @@ namespace OBSStudioClient.Studio
 
         private void MarkGone(ObsSource source)
         {
+            // The filters of a source that OBS destroyed went with it (they were removed above), and its engine node is gone, so nothing publishes them any more: what a reference to the source
+            // shows is no filters. A collection that was taken earlier is not changed.
+            if (source.Filters.Count > 0)
+            {
+                var before = source.Filters;
+                var after = new ObsFilters(source, [], this._ignoreCase);
+                source.SetFilters(after);
+                this.AddProperty(source, nameof(ObsSource.Filters), before, after, true);
+            }
+
             if (source.SetState(ObsObjectState.Gone))
             {
                 this._removed.Add(new StudioNotice(new ObsChangedEventArgs(ObsChangeKind.Removed, source), null, null));

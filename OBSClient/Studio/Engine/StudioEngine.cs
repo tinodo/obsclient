@@ -41,6 +41,9 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>GetReplayBufferStatus.</summary>
         ReplayBuffer,
+
+        /// <summary>GetSourceFilterList, for a scene or an input.</summary>
+        Filters,
     }
 
     /// <summary>
@@ -214,6 +217,7 @@ namespace OBSStudioClient.Studio.Engine
         private StudioEngineState _state = StudioEngineState.Disconnected;
         private TimeSpan _now;
         private int _nextTicket;
+        private long _nextFilterId;
         private int _sessionId;
         private int _epoch;
         private bool _switching;
@@ -510,6 +514,33 @@ namespace OBSStudioClient.Studio.Engine
                 }
             }
 
+            // The filters of every scene and input, scenes first.
+            foreach (var scene in this._scenes.Values.OrderBy(s => s.Index.Value).ThenBy(s => s.Uuid))
+            {
+                if (requests.Count >= max)
+                {
+                    break;
+                }
+
+                if (scene.FiltersScope.IsReady(now))
+                {
+                    Take(scene.FiltersScope, new ReadRequest(ReadKind.Filters, RequestType.GetSourceFilterList, new { sourceUuid = scene.Uuid }, scene.Uuid));
+                }
+            }
+
+            foreach (var input in this._inputs.Values.OrderBy(i => i.Uuid))
+            {
+                if (requests.Count >= max)
+                {
+                    break;
+                }
+
+                if (input.FiltersScope.IsReady(now))
+                {
+                    Take(input.FiltersScope, new ReadRequest(ReadKind.Filters, RequestType.GetSourceFilterList, new { sourceUuid = input.Uuid }, input.Uuid));
+                }
+            }
+
             if (requests.Count == 0)
             {
                 return false;
@@ -600,6 +631,17 @@ namespace OBSStudioClient.Studio.Engine
                 {
                     yield return input.AudioScope;
                 }
+            }
+
+            // Every scene and input has filters to read.
+            foreach (var scene in this._scenes.Values)
+            {
+                yield return scene.FiltersScope;
+            }
+
+            foreach (var input in this._inputs.Values)
+            {
+                yield return input.FiltersScope;
             }
         }
 

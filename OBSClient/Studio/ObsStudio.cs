@@ -909,6 +909,9 @@ namespace OBSStudioClient.Studio
                     case ObsSceneItem item:
                         item.RaisePropertyChanged(property);
                         break;
+                    case ObsFilter filter:
+                        filter.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;

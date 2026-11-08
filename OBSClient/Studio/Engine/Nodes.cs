@@ -119,6 +119,34 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets whether everything that makes the source visible in the model is known.</summary>
         public abstract bool IsComplete { get; }
+
+        /// <summary>Gets the filters of the source, from the first (index 0) to the last. A filter has no UUID: it is found by its name, which is unique within its source.</summary>
+        public List<FilterNode> Filters { get; } = new();
+
+        /// <summary>Gets the state of the read of the filters. A source that the model gets to know is read for them: it starts as a part that needs a read.</summary>
+        public ScopeState FiltersScope { get; } = new() { Dirty = true };
+
+        /// <summary>
+        /// Gets or sets the number of the newest event that created, removed, renamed or moved a filter of the source. A read of the filters that was sent before it does not say
+        /// what OBS has any more (it can list a filter that the event removed, or by the name that the event changed), so it is not applied: the event has marked the part as needing
+        /// another read.
+        /// </summary>
+        public long FiltersEventSeq { get; set; }
+
+        /// <summary>Finds a filter of the source by its name, or null.</summary>
+        /// <param name="name">The name of the filter.</param>
+        public FilterNode? FindFilter(string name)
+        {
+            foreach (var filter in this.Filters)
+            {
+                if (string.Equals(filter.Name.Value, name, StringComparison.Ordinal))
+                {
+                    return filter;
+                }
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -259,5 +287,35 @@ namespace OBSStudioClient.Studio.Engine
 
         /// <summary>Gets the key of the item.</summary>
         public ItemKey Key => new(this.Scene.Uuid, this.Id);
+    }
+
+    /// <summary>
+    /// A filter of a scene or an input. OBS gives a filter no identity but its name within its source, and the name can change, so the model gives it an id of its own.
+    /// </summary>
+    internal sealed class FilterNode
+    {
+        /// <summary>The name of the filter.</summary>
+        public Cell<string> Name;
+
+        /// <summary>The position of the filter in its source: 0 is the first, which is applied first.</summary>
+        public Cell<int> Index;
+
+        /// <summary>Whether the filter is enabled.</summary>
+        public Cell<bool> Enabled;
+
+        public FilterNode(long id, string name, string kind, int index, bool enabled, long sentSeq)
+        {
+            this.Id = id;
+            this.Kind = kind;
+            this.Name = Cell<string>.FromRead(name, sentSeq);
+            this.Index = Cell<int>.FromRead(index, sentSeq);
+            this.Enabled = Cell<bool>.FromRead(enabled, sentSeq);
+        }
+
+        /// <summary>Gets the id that the model gave the filter, unique among all filters of a model, and never used again.</summary>
+        public long Id { get; }
+
+        /// <summary>Gets or sets the kind of the filter.</summary>
+        public string Kind { get; set; }
     }
 }
