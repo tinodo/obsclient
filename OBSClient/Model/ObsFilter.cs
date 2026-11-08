@@ -22,8 +22,6 @@ namespace OBSStudioClient.Model
     public sealed partial class ObsFilter : INotifyPropertyChanged
     {
         private volatile string _name;
-        private readonly object _pendingNameLock = new();
-        private string? _pendingName;
         private int _index;
         private bool _enabled;
         private bool _removed;
@@ -82,49 +80,7 @@ namespace OBSStudioClient.Model
             }
 
             this._name = name;
-            this.ClearPendingName(name);
             return true;
-        }
-
-        // The name that a request has to use for the filter: the one that OBS Studio has as far as the changes that it answered go. A filter has no id, its name is what a request says, and a change
-        // that has its turn right after a rename was answered, before the model shows the new name, has to say the new one. The writer sets it when it has the answer to a rename; it goes when the
-        // model shows that name (or the rename is done).
-        internal string NameForRequests
-        {
-            get
-            {
-                lock (this._pendingNameLock)
-                {
-                    return this._pendingName ?? this._name;
-                }
-            }
-        }
-
-        internal void SetPendingName(string name)
-        {
-            lock (this._pendingNameLock)
-            {
-                // OBS Studio makes the change, tells it, and then answers: the model can show the new name before the answer to the rename is handled, and then nothing is waiting for it. A name that
-                // nothing clears (the call that made it can have ended, so that no Finish clears it) would be sent for this filter after somebody else renamed it. When an earlier name is still waiting the model
-                // is behind, and a name that it shows is the one of an earlier step (the filter was renamed to a name and back, quickly), so this one is waiting too.
-                if (this._pendingName is null && string.Equals(this._name, name, StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                this._pendingName = name;
-            }
-        }
-
-        internal void ClearPendingName(string name)
-        {
-            lock (this._pendingNameLock)
-            {
-                if (string.Equals(this._pendingName, name, StringComparison.Ordinal))
-                {
-                    this._pendingName = null;
-                }
-            }
         }
 
         internal bool SetIndex(int index)

@@ -33,7 +33,7 @@ namespace OBSStudioClient.Model
                     Subject = this.Subject(),
                     SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
-                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterEnabled, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests, filterEnabled = value })],
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterEnabled, new { sourceUuid = this.Source.Uuid, filterName = this.Name, filterEnabled = value })],
                     IsConfirmed = _ => this.IsRemoved || this.IsEnabled == value,
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
                 },
@@ -68,10 +68,10 @@ namespace OBSStudioClient.Model
                     Check = this.CheckWritable,
                     Prepare = async ask =>
                     {
-                        var answer = await ask(new WriteRequest(RequestType.GetSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests })).ConfigureAwait(false);
+                        var answer = await ask(new WriteRequest(RequestType.GetSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.Name })).ConfigureAwait(false);
                         enabled = ((SourceFilterResponse)answer.ResponseData!).FilterEnabled;
                     },
-                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterEnabled, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests, filterEnabled = !enabled })],
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterEnabled, new { sourceUuid = this.Source.Uuid, filterName = this.Name, filterEnabled = !enabled })],
                     ReadResponses = _ => !enabled,
                     IsConfirmed = result => this.IsRemoved || this.IsEnabled == (bool)result!,
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
@@ -105,19 +105,10 @@ namespace OBSStudioClient.Model
                     Subject = this.Subject(),
                     SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
-                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterName, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests, newFilterName = name })],
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterName, new { sourceUuid = this.Source.Uuid, filterName = this.Name, newFilterName = name })],
 
-                    // The filter has the new name from the answer on, and what is asked for after this change (its turn comes before the model shows the name) has to say so.
-                    ReadResponses = _ =>
-                    {
-                        this.SetPendingName(name);
-                        return null;
-                    },
-                    Finish = _ =>
-                    {
-                        this.ClearPendingName(name);
-                        return null;
-                    },
+                    // A filter has no id, so the change that follows this one has to say the new name: the line waits until the model shows it.
+                    HoldsTheTurn = true,
                     IsConfirmed = _ => this.IsRemoved || string.Equals(this.Name, name, StringComparison.Ordinal),
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists ? NameInUse(this.Source, description, name) : null,
@@ -162,7 +153,7 @@ namespace OBSStudioClient.Model
                             throw new ArgumentOutOfRangeException(nameof(index), index, $"The {this.Source.Label} has {count} filters: a position is from 0 to {Math.Max(count, 1) - 1}.");
                         }
                     },
-                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterIndex, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests, filterIndex = index })],
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterIndex, new { sourceUuid = this.Source.Uuid, filterName = this.Name, filterIndex = index })],
                     IsConfirmed = _ => this.IsRemoved || this.Index == index,
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
                 },
@@ -190,7 +181,7 @@ namespace OBSStudioClient.Model
                     Subject = this.Subject(),
                     SubjectGone = () => this.IsRemoved,
                     Check = this.CheckWritable,
-                    BuildRequests = () => [new WriteRequest(RequestType.RemoveSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.NameForRequests })],
+                    BuildRequests = () => [new WriteRequest(RequestType.RemoveSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.Name })],
                     IsConfirmed = _ => this.IsRemoved,
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
                 },

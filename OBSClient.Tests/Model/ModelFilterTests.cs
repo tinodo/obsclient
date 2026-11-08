@@ -656,30 +656,49 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
-        public async Task TheNameThatARequestUses_IsTheOneOfTheLastAnswer_UntilTheModelHasCaughtUp_AndNeverAfter()
+        public async Task AChange_AskedForRightAfterARename_IsNotBuiltBeforeTheModelShowsTheNewName()
         {
             await using var rig = await StartAsync();
-            var filter = new ObsFilter(rig.Model.Inputs["Mic"], "A", "gain_filter", 0, true);
+            var mic = rig.Model.Inputs["Mic"];
+            var gate = mic.Filters["Gate"];
+            var renameIsTold = false;
+            var whenAsked = string.Empty;
+            var askedFor = string.Empty;
+            rig.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "SetSourceFilterName")
+                {
+                    rig.Responder.Change(world => world.RenameFilter(mic.Uuid, "Gate", "Noise gate"));
 
-            // The answer comes before the model shows the name: the name waits, and the model ends the wait by showing it.
-            filter.SetPendingName("B");
-            Assert.Equal("B", filter.NameForRequests);
-            filter.SetName("B");
-            Assert.Equal("B", filter.NameForRequests);
+                    // OBS Studio answers first, and what it did is told a moment after.
+                    Later(() =>
+                    {
+                        Volatile.Write(ref renameIsTold, true);
+                        return RenamedAsync(rig, "Mic", "Gate", "Noise gate");
+                    });
+                    return (100, null);
+                }
 
-            // The model shows the name before the answer is handled: nothing waits, so nothing is left to be sent when somebody else renames the filter.
-            filter.SetPendingName("B");
-            filter.SetName("C");
-            Assert.Equal("C", filter.NameForRequests);
+                if (type == "SetSourceFilterEnabled")
+                {
+                    askedFor = Text(data, "filterName");
+                    whenAsked = Volatile.Read(ref renameIsTold) ? "after the model was told" : "before the model was told";
+                    rig.Responder.Change(world => world.SetFilterEnabled(mic.Uuid, "Noise gate", true));
+                    Later(() => EnabledAsync(rig, "Mic", "Noise gate", true));
+                    return (100, null);
+                }
 
-            // Renamed to another name and back, with the model behind: the name of the last answer is the one that is used, whatever the model shows on its way.
-            filter.SetPendingName("D");
-            filter.SetPendingName("C");
-            filter.SetName("D");
-            Assert.Equal("C", filter.NameForRequests);
-            filter.SetName("C");
-            filter.SetName("E");
-            Assert.Equal("E", filter.NameForRequests);
+                return null;
+            };
+
+            var rename = gate.RenameAsync("Noise gate");
+            var enable = gate.SetEnabledAsync(true);
+            await rename.WithTimeoutAsync(Timeout);
+            await enable.WithTimeoutAsync(Timeout);
+
+            // A filter has no id: the change that follows a rename is built from the name that the model shows, so it waits until the model has been told, and no name is kept that could go stale.
+            Assert.Equal("after the model was told", whenAsked);
+            Assert.Equal("Noise gate", askedFor);
         }
 
         [Fact]

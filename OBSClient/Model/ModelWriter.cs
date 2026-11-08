@@ -79,6 +79,12 @@ namespace OBSStudioClient.Model
         public Func<object?, object?> Finish { get; init; } = static result => result;
 
         /// <summary>
+        /// Gets whether the line waits until the model shows the change before the next change has its turn. The next change is built from what the model shows then: a filter has no id, so the
+        /// change that follows a rename of it has to say its new name. The wait ends when the model shows the change or, when it does not, after the time that a confirmation is given.
+        /// </summary>
+        public bool HoldsTheTurn { get; init; }
+
+        /// <summary>
         /// Gets the parts of the model that the change is about. They are read again when the events did not show the change in time, and when its outcome is not known; and
         /// the changes that are about the same part are confirmed in the order in which they were made (see <see cref="ModelHost.ConfirmAsync"/>). A change whose parts depend on what
         /// the model shows when it has its turn names them in <see cref="RefreshAtTurn"/>, and what that says replaces this once the turn has come.
@@ -707,8 +713,16 @@ namespace OBSStudioClient.Model
                 return;
             }
 
-            // The answer came: the next change has its turn. The model takes its time to show this one, and that is no reason to hold up the others.
-            _ = this.ConfirmAsync(job, result);
+            // The answer came: the next change has its turn. The model takes its time to show this one, and that is no reason to hold up the others, unless the next change is built from what the
+            // model shows of this one (WriteJob.HoldsTheTurn).
+            if (job.HoldsTheTurn)
+            {
+                await this.ConfirmAsync(job, result).ConfigureAwait(false);
+            }
+            else
+            {
+                _ = this.ConfirmAsync(job, result);
+            }
         }
 
         // Ends the call of a change that stopped halfway with the refusal, once the model shows what the requests before it made. The wait is the one of any change (the events, and when
