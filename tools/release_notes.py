@@ -151,7 +151,7 @@ def verification(version, tag):
     """How to check where the files of a release come from: the build provenance attestation that the publish workflow made."""
     package = f"{PACKAGE_ID}.{version}.nupkg"
     bundle = f"{PACKAGE_ID}.{version}.intoto.jsonl"
-    cached = f"~/.nuget/packages/{PACKAGE_ID.lower()}/{version.lower()}/lib/net8.0/{PACKAGE_ID}.dll"
+    cached = f"~/.nuget/packages/{PACKAGE_ID.lower()}/{version.lower()}/lib/net10.0/{PACKAGE_ID}.dll"
     return (
         "## Verify\n\n"
         f"The files above, and the libraries inside the package, have a signed [build provenance attestation]({ATTESTATIONS}): "

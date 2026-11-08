@@ -8,6 +8,8 @@
   href: batches.md
 - name: Handling events
   href: events.md
+- name: Controlling OBS Studio by name
+  href: model.md
 - name: Moving from 3.x to 4.0
   href: migrating-to-4.md
 - name: The test app

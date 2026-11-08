@@ -4,7 +4,7 @@
 
 ## This repository (OBSClient)
 
-- A .NET client for OBS Studio (obs-websocket 5). `OBSClient` is the library (`net8.0` and `net10.0`, one assembly, whose only dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0), `OBSClient.Tests` the tests, `OBSClient.TestApp` a WinUI 3 app that tries every request by hand (Windows only), `tools/` the generators and the release tooling with their tests (Python, standard library only), and `docs/` the DocFX site.
+- A .NET client for OBS Studio (obs-websocket 5). `OBSClient` is the library (`net10.0`, one assembly, whose only dependency is `Microsoft.Extensions.Logging.Abstractions` 8.0.0), `OBSClient.Tests` the tests, `OBSClient.TestApp` a WinUI 3 app that tries every request by hand (Windows only), `tools/` the generators and the release tooling with their tests (Python, standard library only), and `docs/` the DocFX site.
 - Most of the client is generated from the protocol. Never edit `OBSClient/Generated`, `OBSClient.TestApp/Generated` or `OBSClient.Tests/Protocol`: change `tools/protocol/overlay.toml` or the generator and run `python tools/protocol/generate.py` (CI checks it with `--check`).
 - Build and test with `dotnet test OBSClient.Tests/OBSClient.Tests.csproj`, and `python -m unittest discover -s tools -p "test_*.py"` (also `-s tools/protocol`).
 - A change that users can see goes in `CHANGELOG.md` under the unreleased version. Public API needs XML documentation.

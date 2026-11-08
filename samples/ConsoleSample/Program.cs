@@ -19,7 +19,7 @@ if (args.Length > 1 && !(int.TryParse(args[1], NumberStyles.None, CultureInfo.In
 }
 
 var password = Environment.GetEnvironmentVariable("OBS_PASSWORD") ?? string.Empty;
-Console.WriteLine($"Connecting to OBS Studio at {host}:{port}{(args.Length > 1 ? string.Empty : " (the usual port of OBS Studio: give another one as the second argument)")}...");
+Console.WriteLine($"Connecting to OBS Studio at {host}:{port}{(args.Length > 1 ? string.Empty : " (the usual port of OBS Model: give another one as the second argument)")}...");
 
 using var client = new ObsClient();
 

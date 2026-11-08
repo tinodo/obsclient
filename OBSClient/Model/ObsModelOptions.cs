@@ -1,0 +1,122 @@
+namespace OBSStudioClient.Model
+{
+    using OBSStudioClient.Enums;
+
+    /// <summary>
+    /// The settings of an <see cref="ObsModel"/>.
+    /// </summary>
+    public sealed class ObsModelOptions
+    {
+        /// <summary>
+        /// Gets or sets whether a name also matches when it differs only by case, if that leaves one object. An exact match always wins.
+        /// The default is false: names are case sensitive, as they are in OBS Studio.
+        /// </summary>
+        public bool IgnoreCase { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the connection is restored when it is lost, as <see cref="ObsClient.AutoReconnect"/> does. The default is true: the model keeps
+        /// the last values that it knew while the connection is down (see <see cref="ObsModel.IsStale"/>), and reads OBS Studio again when it is back.
+        /// </summary>
+        public bool AutoReconnect { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets how long <see cref="ObsModel.ConnectAsync"/> waits for the model to be complete, after the connection is made. The default is 30 seconds.
+        /// The model reads the scenes, the inputs, the program scene, studio mode, the scene items of every scene and the audio state of the inputs, so the time
+        /// grows with the size of the collection and with the time that OBS Studio takes to answer. It must be between 1 millisecond and 24 days.
+        /// </summary>
+        /// <remarks>
+        /// What was measured: a collection of 100 scenes with 1,000 scene items and 100 inputs (half of them with audio) was read in about a second, against a simulation
+        /// of OBS Studio on the same computer, over the loopback address. That number is the work of this library, and of the connection; the time that OBS Studio
+        /// itself needs for each request is not in it, and it is what to measure with your own collection when it is large.
+        /// </remarks>
+        public TimeSpan SynchronizationTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets how long a read of the model may take. The default is 10 seconds. It must be between 1 millisecond and 24 days. (The requests that you make
+        /// through <see cref="ObsModel.Client"/> have the time limit of that client.)
+        /// </summary>
+        public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Gets or sets the events that OBS Studio sends in addition to the ones the model needs, for your own handlers on <see cref="ObsModel.Client"/>.
+        /// The default is none. The events that the model needs are always subscribed to.
+        /// </summary>
+        public EventSubscriptions AdditionalEvents { get; set; } = EventSubscriptions.None;
+
+        /// <summary>
+        /// Gets or sets the context that the notifications (<see cref="ObsModel.Changed"/> and the PropertyChanged events) are raised on, for
+        /// example the context of a user interface thread. When it is null, they are raised on a thread of the thread pool, one at a time, in order.
+        /// </summary>
+        /// <remarks>
+        /// The model itself is never changed on this context: it has a processing loop of its own. A handler that blocks holds up only the notifications behind it.
+        /// </remarks>
+        public SynchronizationContext? NotificationContext { get; set; }
+
+        /// <summary>
+        /// Gets or sets how many notifications may wait for your handlers at the most. The default is 10,000.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The notifications are raised one at a time, in order. When your handlers are slower than OBS Studio, the notifications wait in memory (also when they are
+        /// posted to the <see cref="NotificationContext"/> and its thread has not run them yet). When more than this number wait, the new ones are dropped, so that
+        /// the memory does not grow for ever, until your handlers have caught up. Then every object raises PropertyChanged with an empty property name, which says
+        /// that all of its properties changed, and <see cref="ObsModel.Resynchronized"/> is raised: read again what you hold. An object that was removed in the
+        /// meantime does not say so; its <see cref="ObsSource.IsRemoved"/> is right when you read it.
+        /// </para>
+        /// <para>
+        /// The same number bounds what is kept for you while the model is read again after a connection was lost (see <see cref="ObsModel.Changed"/>): when more
+        /// properties than this changed meanwhile (or the model could not be read for so long that this many changed), they are not kept, and when the model is
+        /// complete everything is raised as described above, once.
+        /// </para>
+        /// <para>
+        /// The model itself is not affected: it is always current, and only the notifications are dropped.
+        /// </para>
+        /// </remarks>
+        public int MaxPendingNotifications { get; set; } = 10_000;
+
+        /// <summary>
+        /// Gets or sets how long a change waits for the model to show it, after OBS Studio has answered the request. The default is 1 second. It must be between 1 millisecond
+        /// and 24 days.
+        /// </summary>
+        /// <remarks>
+        /// OBS Studio announces a change with an event, which can arrive a few milliseconds after the answer to the request. A change method (for example
+        /// <see cref="ObsSceneItem.SetEnabledAsync"/>) returns when the model shows the change, so that what you read next is what you changed. When the event has not made
+        /// the model show it within this time (OBS Studio sends no event for some changes until a transition has ended, and an event can be lost), the model reads the part
+        /// that the change was about, and the method returns with what OBS Studio holds then. When that read does not complete in time either (twice <see cref="ReadTimeout"/>),
+        /// the method ends with an <see cref="Exceptions.ObsNotConfirmedException"/>.
+        /// </remarks>
+        public TimeSpan ConfirmationTimeout { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets or sets how long a change may take: the time that OBS Studio is given to answer the request. The default is 10 seconds. It must be between 1 millisecond and
+        /// 24 days. When OBS Studio does not answer in time, the change ends with an <see cref="Exceptions.ObsUnknownOutcomeException"/>. It is also the time that OBS Studio is
+        /// given to answer the question that a toggle asks before it changes anything (see <see cref="ObsSceneItem.ToggleEnabledAsync"/>): then nothing was changed, and the
+        /// change ends with an <see cref="Exceptions.ObsNotReadyException"/>.
+        /// </summary>
+        public TimeSpan WriteTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Gets or sets how long an output may be starting or stopping before the model reads it again, to see whether the step is over. The default is 30 seconds. It must be between
+        /// 1 millisecond and 24 days.
+        /// </summary>
+        /// <remarks>
+        /// OBS Studio does not always say that a start failed: a recording that cannot begin (an encoder that does not start, for example) shows an error in its own window and sends no event
+        /// after <see cref="ObsOutputStatus.Starting"/>. An output that is still starting or stopping after this time is read: when OBS Studio runs it the status is
+        /// <see cref="ObsOutputStatus.Started"/> (or <see cref="ObsOutputStatus.Stopping"/> when it was stopping: a stream that sends what is buffered runs until it is done, and is looked at again
+        /// after the same time), and when it does not run it is <see cref="ObsOutputStatus.Stopped"/>. A stream that needs longer than this to connect shows <see cref="ObsOutputStatus.Stopped"/> until
+        /// OBS Studio says that it started: raise this when the streaming service is slow.
+        /// </remarks>
+        public TimeSpan OutputStepTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets the source of time, for the waits of the model. The default is <see cref="TimeProvider.System"/>. Tests can pass their own.
+        /// </summary>
+        public TimeProvider? TimeProvider { get; set; }
+
+        // A copy, so that an ObsModel is not changed by what the application does to the options afterwards.
+        internal ObsModelOptions Clone()
+        {
+            return (ObsModelOptions)this.MemberwiseClone();
+        }
+    }
+}
