@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [5.0.0] - Unreleased
+
+### Breaking changes
+
+- **The library targets `net10.0` only: the `net8.0` target is gone.** Microsoft ends the support of .NET 8 and .NET 9 on 10 November 2026. Every 4.x package has the `net8.0` library, as the documentation promised (dropping a target framework breaks the applications that use it, which is what a major version is for), so an application on .NET 8 or 9 stays on 4.x, and an application that moves to this version needs .NET 10 or later. Nothing in the API changed because of it.
+
 ## [4.0.0-rc.1] - 2026-11-03
 
 The first release candidate of 4.0.0, for trying out. The public API is closed now, so what changes between this version and 4.0.0 is fixes

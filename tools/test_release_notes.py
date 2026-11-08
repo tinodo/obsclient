@@ -184,7 +184,7 @@ class ComposeTests(unittest.TestCase):
         self.assertIn("gh attestation verify OBSClient.4.0.0-RC.1.nupkg ", text)
         self.assertIn("--source-ref refs/tags/v4.0.0-RC.1\n", text)
         # NuGet keeps a package in a folder named with the lower case of its ID and of its version.
-        self.assertIn("`~/.nuget/packages/obsclient/4.0.0-rc.1/lib/net8.0/OBSClient.dll`", text)
+        self.assertIn("`~/.nuget/packages/obsclient/4.0.0-rc.1/lib/net10.0/OBSClient.dll`", text)
 
 
 class CommandLineTests(unittest.TestCase):

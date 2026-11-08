@@ -7,7 +7,7 @@ _description: A complete cross-platform .NET WebSocket client for OBS Studio 28 
 <div class="oc-hero">
 <div class="oc-hero-text">
 
-<p class="oc-eyebrow">obs-websocket 5.7.6 &middot; OBS Studio 28 and up &middot; .NET 8 and 10</p>
+<p class="oc-eyebrow">obs-websocket 5.7.6 &middot; OBS Studio 28 and up &middot; .NET 10</p>
 
 # A complete .NET client for OBS Studio
 
@@ -162,7 +162,7 @@ await client.SetSceneItemTransform(
 | --- | --- |
 | **OBS Studio** | 28 and up. obs-websocket 5 is built into OBS Studio since version 28. The UUIDs of scenes and inputs need OBS Studio 30.1 (obs-websocket 5.4): an older one sends none, so name the scene or the input. CI runs the live tests against OBS Studio 30.0.2 and against the newest release. |
 | **Protocol** | [obs-websocket 5.7.6](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md), including the multi-canvas requests and events of 5.7.0. |
-| **Target frameworks** | `net8.0` and `net10.0`, the LTS releases of .NET. An application on .NET 9 or 11 uses them too. .NET 8 reaches the end of its support from Microsoft on 10 November 2026, and its target stays in every 4.x package: dropping a target framework breaks the applications that use it, which is what a major version is for. |
+| **Target frameworks** | `net10.0`, the current LTS release of .NET. An application on .NET 11 uses it too. Microsoft ends the support of .NET 8 and .NET 9 on 10 November 2026, and the `net8.0` target is gone from version 5 on: every 4.x package has it, so an application on .NET 8 or 9 stays on 4.x (dropping a target framework breaks the applications that use it, which is what a major version is for). |
 | **Platforms** | Windows, Linux and macOS: the client only uses `System.Net.WebSockets`, and its tests run on all three in CI. |
 | **Dependencies** | `Microsoft.Extensions.Logging.Abstractions` (8.0.0 and up), which has the `ILogger` that the client logs to. |
 | **License** | [MIT](https://github.com/tinodo/obsclient/blob/main/LICENSE) |

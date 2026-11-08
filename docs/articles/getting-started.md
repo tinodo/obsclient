@@ -16,7 +16,7 @@ This page takes you from nothing to a small program that talks to your OBS Studi
   `SceneItem.SourceUuid` are `null`, `CreateScene` returns `Guid.Empty`, and a `Scene`, an `Input` or a `SceneItem` that it gave you
   still converts to a reference, by name (see [Calling requests](requests.md#scenes-inputs-and-sources-names-or-uuids)). The live tests
   in CI run against OBS Studio 30.0.2 (obs-websocket 5.3.4) and against the newest release; 28 and 29 are not tested.
-- **The .NET 8 SDK or later.** The library targets `net8.0` and `net10.0`.
+- **The .NET 10 SDK or later.** The library targets `net10.0` (the 4.x packages also target `net8.0`).
 
 ## Enable the WebSocket server in OBS Studio
 
