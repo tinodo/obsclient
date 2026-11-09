@@ -9,7 +9,7 @@ to light when every request and field was checked against the protocol definitio
 compiles. This page lists what does not, what behaves differently, and what is new.
 
 > [!NOTE]
-> 4.0 is a release candidate. Install it with `dotnet add package OBSClient --version 4.0.0-rc.2` (`--prerelease` installs the newest prerelease), and report what you find in an
+> 4.0 is a release candidate. Install it with `dotnet add package OBSClient --version 4.0.0-rc.3` (`--prerelease` installs the newest prerelease), and report what you find in an
 > [issue](https://github.com/tinodo/obsclient/issues). The public API of the client is closed: what changes before 4.0.0 is fixes for what is
 > found, and a mistake in the API if somebody finds one. [`ObsModel`](model.md), which is new in 4.0.0-rc.2, is the exception: it is provisional. The [changelog](../changelog.md) has the complete list.
 
@@ -194,7 +194,7 @@ These were bugs. Code that worked around them may not need the workaround any mo
 
 ## Upgrading step by step
 
-1. Update the package: `dotnet add package OBSClient --version 4.0.0-rc.2` (or `--prerelease` for the newest prerelease).
+1. Update the package: `dotnet add package OBSClient --version 4.0.0-rc.3` (or `--prerelease` for the newest prerelease).
 2. Build. The compiler points to what has to change: named arguments, method groups, the types in the table above.
 3. Read the list of behavior changes. If you kept a workaround for a bug that is listed there, try without it.
 4. Run your program against OBS Studio. The [test app](test-app.md) is a quick way to see what a response looks like.

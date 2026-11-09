@@ -49,10 +49,10 @@ await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
 
 ## Installation
 Install from the [NuGet Gallery](https://www.nuget.org/packages/OBSClient)   
-Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 4.0.0-rc.2`  
-From the command line: `dotnet add package OBSClient --version 4.0.0-rc.2`  
+Or through the NuGet CLI: `NuGet\Install-Package OBSClient -Version 4.0.0-rc.3`  
+From the command line: `dotnet add package OBSClient --version 4.0.0-rc.3`  
 
-**4.0.0-rc.2 is a prerelease** (a release candidate): it is meant to be tried. The public API of the client is closed, so what changes before 4.0.0 is fixes for what is found. `ObsModel` (OBS Studio by name) is new and provisional: its names and details can still change.
+**4.0.0-rc.3 is a prerelease** (a release candidate): it is meant to be tried. The public API of the client is closed, so what changes before 4.0.0 is fixes for what is found. `ObsModel` (OBS Studio by name) is new and provisional: its names and details can still change.
 It targets `net10.0` only; an application on .NET 8 or 9 stays on 4.0.0-rc.1, which also has the `net8.0` library. A plain
 `dotnet add package OBSClient` keeps installing the latest stable release, so name the version (or add `--prerelease`) to get it.
 Please report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
