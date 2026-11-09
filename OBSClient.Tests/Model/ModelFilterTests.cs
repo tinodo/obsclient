@@ -623,7 +623,9 @@ namespace OBSStudioClient.Tests.Model
         [Fact]
         public async Task ARename_WhoseEventComesBeforeItsAnswer_AndWhoseCallWasGivenUp_LeavesNoNameBehind()
         {
-            await using var rig = await StartAsync();
+            // The test decides when OBS Studio answers the rename, so the model gets 30 seconds for the answer, as it does in the other tests that hold an answer: the model runs on threads of the
+            // pool, and on a busy machine it can take longer than the 600 milliseconds of the options of this class to show a name that it has been told.
+            await using var rig = await StartAsync(new ObsModelOptions { ConfirmationTimeout = TimeSpan.FromMilliseconds(300), WriteTimeout = TimeSpan.FromSeconds(30) });
             var mic = rig.Model.Inputs["Mic"];
             var gate = mic.Filters["Gate"];
             using var giveUp = new CancellationTokenSource();
@@ -632,12 +634,9 @@ namespace OBSStudioClient.Tests.Model
             {
                 if (type == "SetSourceFilterName")
                 {
-                    // OBS Studio makes the change and tells it, and then it answers: the model shows the new name before the answer is handled, and the caller has given up by then.
+                    // OBS Studio makes the change, and holds its answer until the test lets it go.
                     rig.Responder.Change(world => world.RenameFilter(mic.Uuid, "Gate", "Noise gate"));
-                    RenamedAsync(rig, "Mic", "Gate", "Noise gate").GetAwaiter().GetResult();
-                    SpinWait.SpinUntil(() => gate.Name == "Noise gate", Timeout);
-                    giveUp.Cancel();
-                    return (100, null);
+                    return (-1, null);
                 }
 
                 if (type == "SetSourceFilterEnabled")
@@ -657,7 +656,17 @@ namespace OBSStudioClient.Tests.Model
                 return null;
             };
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => gate.RenameAsync("Noise gate", giveUp.Token).WithTimeoutAsync(Timeout));
+            var rename = gate.RenameAsync("Noise gate", giveUp.Token);
+            await ModelRig.EventuallyAsync(() => rig.Responder.HeldCount == 1, "OBS Studio to hold the answer to the rename");
+
+            // OBS Studio tells the change before it answers: the model shows the new name before the answer is handled, and the caller has given up by then. No thread waits for the model
+            // (a handler that blocks would hold one of the pool, which the model needs): the answer is held, and the test lets it go when the model shows the name.
+            await RenamedAsync(rig, "Mic", "Gate", "Noise gate");
+            await ModelRig.EventuallyAsync(() => gate.Name == "Noise gate", "the model to show the new name before the answer");
+            await giveUp.CancelAsync();
+            await rig.Responder.AnswerHeldAsync();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => rename.WithTimeoutAsync(Timeout));
 
             // A change of another filter has its turn when the answer to the rename has been handled.
             await mic.Filters["Gain"].SetEnabledAsync(false).WithTimeoutAsync(Timeout);
