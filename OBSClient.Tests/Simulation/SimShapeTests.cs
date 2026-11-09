@@ -26,8 +26,8 @@ namespace OBSStudioClient.Tests.Simulation
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Real, seed)));
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Ideal, seed)));
 
-            // The walks are independent, so they run side by side; what they find is put together under a lock.
-            Parallel.ForEach(walks, entry =>
+            // The walks are independent, so they run side by side (not more at a time than there are processors, as in SimInvariantsTests); what they find is put together under a lock.
+            Parallel.ForEach(walks, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, entry =>
             {
                 var result = SimWalk.Execute(entry.Seed, entry.Quirks, 60, keepMessages: true, out var walk);
                 var found = new List<string>(result.Invariants);

@@ -18,9 +18,10 @@ namespace OBSStudioClient.Tests.Simulation
 
         private static IReadOnlyList<SimWalkResult> Walks(SimQuirks quirks, int seeds)
         {
-            // Every seed is a walk of its own, so they can run side by side, and the results stay in the order of the seeds.
+            // Every seed is a walk of its own, so they can run side by side, and the results stay in the order of the seeds. Not more at a time than there are processors: the pool of
+            // the tests starts threads at once (TestAssemblyInitializer), and walks that use the processor must not take all of them from the tests that run next to them.
             var results = new SimWalkResult[seeds];
-            Parallel.For(0, seeds, index => results[index] = SimWalk.Execute(index + 1, quirks, Steps, keepMessages: false, out _));
+            Parallel.For(0, seeds, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, index => results[index] = SimWalk.Execute(index + 1, quirks, Steps, keepMessages: false, out _));
             return results;
         }
 
