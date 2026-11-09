@@ -187,7 +187,7 @@ These were bugs. Code that worked around them may not need the workaround any mo
   `SceneItem.SourceUuid`.
 - Every message the client **sends** is logged at the debug level, as what it receives already was.
 - A `net10.0` target next to `net8.0` in 4.0.0-beta1 to 4.0.0-rc.1; from 4.0.0-rc.2 on `net10.0` is the only target.
-- [`ObsModel`](model.md), OBS Studio by name: a model of your scenes, inputs, scene items, filters and outputs that you work with by name (new in 4.0.0-rc.2, provisional).
+- [`ObsModel`](model.md), OBS Studio by name: a model of your scenes, inputs, scene items, filters and outputs that you work with by name (new in 4.0.0-rc.2, provisional). What you did with 3.x is `ObsClient`, the protocol as it is, and it stays; `ObsModel` is a second way to work with OBS Studio, built on it: see [Two ways to work with OBS Studio](two-ways.md).
 - [A test app](test-app.md), a WinUI 3 application to try every request and event by hand.
 - A test suite with protocol conformance tests, and code that is generated from the protocol definition: see
   [Staying in sync with obs-websocket](protocol-sync.md).

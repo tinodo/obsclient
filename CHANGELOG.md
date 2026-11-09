@@ -233,6 +233,10 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   - It extends the client and hides nothing of it: `ObsModel.Client` is the `ObsClient`. It is tested against a simulation of OBS Studio that lags and reorders events the way the real
     one does, and against a real OBS Studio. There is an article, *Controlling OBS Studio by name*, and a runnable sample, `samples/ModelSample` (a small command prompt: `scene "Gaming"`,
     `mute "Mic"`, `hide "Gaming" "Webcam"`). The text of a change in `Changed` (`Console.WriteLine(e)`) shows a list by the names in it.
+- **The two ways to work with OBS Studio, told in the README and on the site** *(after rc.2)*: the README, the home page of the site and a new article, *Two ways to work with OBS Studio*, tell that OBSClient has
+  two levels: `ObsClient`, the protocol as it is (every request and event, complete, close to the API), and `ObsModel`, OBS Studio by name (intuitive, close to OBS Studio). They say how the two differ, show the
+  same jobs done both ways, and say which one to use and how to use both. The getting started guide has a first program for each, the guides of the client say that they are about `ObsClient`, and the API
+  reference starts with both (it did not mention the `OBSStudioClient.Model` namespace). The description of the package says it too. The README is the page of the package on nuget.org, which shows what was packed: the new text appears there with the next version.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

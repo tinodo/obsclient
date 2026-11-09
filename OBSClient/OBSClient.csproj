@@ -8,7 +8,7 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>OBS Studio Client</Title>
     <Authors>tinod</Authors>
-    <Description>A Complete cross platform .NET WebSocket Client for OBS Studio version 28 and up.</Description>
+    <Description>A complete, cross-platform .NET client for OBS Studio: every request and event of obs-websocket as typed C# (ObsClient), and a live model to work with scenes, inputs and filters by name (ObsModel).</Description>
     <PackageProjectUrl>https://tinodo.github.io/obsclient/</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>

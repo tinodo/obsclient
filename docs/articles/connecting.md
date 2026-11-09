@@ -4,6 +4,9 @@ title: Connecting to OBS Studio
 
 # Connecting to OBS Studio
 
+> [!NOTE]
+> This article is about connecting `ObsClient`, the protocol as it is. [`ObsModel`](model.md#the-connection-and-scene-collections) connects with its own `ConnectAsync`, which returns when the model is complete: see [Two ways to work with OBS Studio](two-ways.md).
+
 ## Connect
 
 ```csharp
