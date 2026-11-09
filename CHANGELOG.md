@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/).
 For history before 4.0.0, see [GitHub Releases](https://github.com/tinodo/obsclient/releases).
 
+## [4.0.0-rc.3] - 2026-11-09
+
+The third release candidate of 4.0.0, for trying out. It has everything that 4.0.0-rc.2 has, and what is marked *after rc.2* under 4.0.0 in the
+[changelog](https://github.com/tinodo/obsclient/blob/main/CHANGELOG.md). **The library is the same as in 4.0.0-rc.2: no code of the package changed**, so there is nothing
+in it that you have to update for. What is new is what the package says about itself, and the test app. The public API of the client is as closed as it was in rc.1, and
+`ObsModel` is still **provisional**: its names and its details can still change before 4.0.0 is released. Read the *Breaking changes* there to see what you have to change,
+and report what you find in an [issue](https://github.com/tinodo/obsclient/issues). A prerelease is not installed by a plain `dotnet add package OBSClient`: use
+`dotnet add package OBSClient --version 4.0.0-rc.3` (or `--prerelease` for the newest prerelease). The GitHub release of this version has the package, the test app and the
+attestation of where the files come from as downloads.
+
+What is new since 4.0.0-rc.2, in short:
+
+- **The two ways to work with OBS Studio, told in the README and in the description of the package.** OBSClient has two levels. `ObsClient` is the protocol as it is: every
+  request and event of obs-websocket, complete, close to the API. `ObsModel` is OBS Studio by name: scenes, inputs and filters that you work with the way you think of them,
+  close to OBS Studio. The README (the page of the package on nuget.org) says how the two differ, shows the same jobs done both ways, and says which one to use and how to use
+  both; the description of the package says it in one sentence. The documentation site tells the same story in a new article, *Two ways to work with OBS Studio*, and has a
+  first program for each level in the getting started guide.
+- **The test app** (`OBSClient.TestApp`, for Windows, a download of the release) is built with Windows App SDK 2.6.4, where it was 2.5.1. It looks and works the same.
+
 ## [4.0.0-rc.2] - 2026-11-08
 
 The second release candidate of 4.0.0, for trying out. It has everything that 4.0.0-rc.1 has, and what is marked *after rc.1* under 4.0.0 in the
