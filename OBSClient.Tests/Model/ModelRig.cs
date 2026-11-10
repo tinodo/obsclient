@@ -35,6 +35,9 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets or sets the OBS Studio version that GetVersion answers (the default goes with the obs-websocket version: OBS Studio 33.0.0 has obs-websocket 5.7.6).</summary>
         public string ObsVersion { get; set; } = "33.0.0";
 
+        /// <summary>Gets or sets the image formats that GetVersion answers (what a screenshot can be asked in).</summary>
+        public string[] SupportedImageFormats { get; set; } = [];
+
         /// <summary>Gets or sets a gate that holds the answer to GetVersion back until it is completed: the handshake is done, and the model does not know the version of OBS Studio yet.</summary>
         public TaskCompletionSource? VersionGate { get; set; }
 
@@ -306,12 +309,14 @@ namespace OBSStudioClient.Tests.Model
                 }
 
                 var (code, answer) = custom ?? this.Answer(type, data);
+
+                // An answer that is not a success says what OBS Studio says about it in a text (the comment of the status), when the test gives one.
                 results.Add(new
                 {
                     requestType = type,
                     requestId = request.GetProperty("requestId").GetString(),
-                    requestStatus = new { result = code == 100, code },
-                    responseData = answer,
+                    requestStatus = new { result = code == 100, code, comment = code != 100 ? answer as string : null },
+                    responseData = code != 100 && answer is string ? null : answer,
                 });
                 if (haltOnFailure && code != 100)
                 {
@@ -341,7 +346,7 @@ namespace OBSStudioClient.Tests.Model
                     obsWebSocketVersion = this.WebSocketVersion,
                     rpcVersion = 1,
                     availableRequests = Array.Empty<string>(),
-                    supportedImageFormats = Array.Empty<string>(),
+                    supportedImageFormats = this.SupportedImageFormats,
                     platform = "windows",
                     platformDescription = "Windows",
                 });

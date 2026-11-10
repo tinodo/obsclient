@@ -34,6 +34,16 @@ namespace OBSStudioClient.Model.Engine
         public int StopsSeen { get; set; }
 
         /// <summary>
+        /// The file that OBS Studio last announced for the output, and the numbers that tell how new it is: the file of the recording (it says it when it starts, when it goes on in a new file, and when it
+        /// stops), or the file of the replay that was saved last. Only events set it: no request says it. A field and not a property: the cell is changed in place. Null for the outputs that write no
+        /// file, and until the first one was announced; it is not forgotten when a connection ends (a value that is not known to hold any more is still the last that was known, like the others).
+        /// </summary>
+        public Cell<string?> LastFile = new(null, 0);
+
+        /// <summary>Gets or sets whether the recording that is under way (or ended last) went on in a new file since it started: what it says about its file when it stops is then the first one.</summary>
+        public bool SplitSinceStart { get; set; }
+
+        /// <summary>
         /// Gets or sets the connection in which an event last told what the output does, or 0 when none has. Within a connection the events are right: OBS Studio can show an output that stopped as
         /// running for a moment after it said so (seen with a recording, a real OBS Studio 33.0.0), so a read is applied to an output that is in no step only when no event of this connection has
         /// told yet (the state at the start of a connection, and what a connection before saw is not known to hold). It is also the connection that the step (starting, stopping) comes from:
@@ -96,7 +106,8 @@ namespace OBSStudioClient.Model.Engine
         /// <param name="eventType">The type of the event.</param>
         public static bool IsOutputEvent(EventType eventType)
         {
-            return eventType is EventType.StreamStateChanged or EventType.RecordStateChanged or EventType.VirtualcamStateChanged or EventType.ReplayBufferStateChanged;
+            return eventType is EventType.StreamStateChanged or EventType.RecordStateChanged or EventType.VirtualcamStateChanged or EventType.ReplayBufferStateChanged
+                or EventType.RecordFileChanged or EventType.ReplayBufferSaved;
         }
 
         /// <summary>

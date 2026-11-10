@@ -56,7 +56,7 @@ namespace OBSStudioClient.Model
                     Description = description,
                     Subject = this.Label,
                     SubjectGone = () => this.State == ObsObjectState.Gone,
-                    Check = this.CheckCanHoldFilters,
+                    Check = this.CheckNotDestroyed,
                     BuildRequests = () =>
                     {
                         before = this.Filters.FindExact(name);
@@ -70,14 +70,6 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists ? ObsFilter.NameInUse(this, description, name) : null,
                 },
                 cancellationToken);
-        }
-
-        private void CheckCanHoldFilters()
-        {
-            if (this.State == ObsObjectState.Gone)
-            {
-                throw new ObsRemovedException(this.Label, this.State);
-            }
         }
 
         private static JsonElement FilterSettingsAsObject(object settings)

@@ -1,14 +1,18 @@
 namespace OBSStudioClient.Model
 {
+    using OBSStudioClient.Enums;
+    using OBSStudioClient.Events;
     using OBSStudioClient.Model.Engine;
 
     /// <summary>
-    /// One notification of a change: the record for <see cref="ObsModel.Changed"/>, the raising of a PropertyChanged event, or both.
+    /// One notification of a change: the record for <see cref="ObsModel.Changed"/>, the raising of a PropertyChanged event, or both; or, for something that happened and is not a
+    /// state of the model (a file that was saved), the raising of an event of the model or of one of its objects.
     /// </summary>
     /// <param name="Args">The record for <see cref="ObsModel.Changed"/>, or null.</param>
     /// <param name="Entity">The object whose PropertyChanged event is raised, or null.</param>
     /// <param name="Property">The name of the property for the PropertyChanged event.</param>
-    internal readonly record struct ModelNotice(ObsChangedEventArgs? Args, object? Entity, string? Property);
+    /// <param name="Raise">What raises the event of something that happened, or null.</param>
+    internal readonly record struct ModelNotice(ObsChangedEventArgs? Args, object? Entity, string? Property, Action? Raise = null);
 
     /// <summary>
     /// Brings what the application sees (the <see cref="ObsScene"/>, <see cref="ObsInput"/> and <see cref="ObsSceneItem"/> objects and the collections
@@ -36,6 +40,9 @@ namespace OBSStudioClient.Model
         private readonly List<ModelNotice> _added = new();
         private readonly List<ModelNotice> _changed = new();
         private readonly List<ModelNotice> _notices = new();
+
+        // What happened in the pass and is no state of the model (a file was saved): told after the notices, in the order of arrival, and also while the model is read.
+        private readonly List<ModelNotice> _events = new();
 
         // Reused by every pass.
         private readonly List<(int Index, ObsScene Scene)> _liveScenes = new();
@@ -69,6 +76,12 @@ namespace OBSStudioClient.Model
         public IReadOnlyList<ModelNotice> Notices => this._notices;
 
         /// <summary>
+        /// Gets what happened in the last call of <see cref="Publish"/> and is no state of the model (a file was saved, OBS Studio is exiting), in the order of arrival. They are raised after
+        /// <see cref="Notices"/>, and unlike them they are not held back while the model is read: it happened, and the application is told.
+        /// </summary>
+        public IReadOnlyList<ModelNotice> Events => this._events;
+
+        /// <summary>
         /// Publishes what the engine holds.
         /// </summary>
         /// <param name="engine">The engine.</param>
@@ -82,6 +95,7 @@ namespace OBSStudioClient.Model
             this._added.Clear();
             this._changed.Clear();
             this._notices.Clear();
+            this._events.Clear();
             this._setOfScenesChanged = false;
             var pass = ++this._pass;
 
@@ -92,6 +106,10 @@ namespace OBSStudioClient.Model
                 {
                     this._repaired.Add(new ModelNotice(new ObsChangedEventArgs(ObsChangeKind.Repaired, source), null, null));
                 }
+                else if (change.Kind == ModelChangeKind.Notification && change.OldValue is EventType eventType && change.NewValue is { } data)
+                {
+                    this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+                }
             }
 
             this.PublishSources(engine, pass);
@@ -100,6 +118,7 @@ namespace OBSStudioClient.Model
             this.RemoveVanished(pass);
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
+            this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
             this._notices.AddRange(this._removed);
@@ -611,6 +630,7 @@ namespace OBSStudioClient.Model
             foreach (var output in this._model.Outputs)
             {
                 var node = engine.Output(output.Kind);
+                this.PublishFile(output, node);
                 var wasActive = output.IsActive;
                 if (output.Publish(node.Status.Value, node.StartsSeen, node.StopsSeen, out var previous))
                 {
@@ -627,6 +647,47 @@ namespace OBSStudioClient.Model
                     }
                 }
             }
+        }
+
+        // OBS Studio said that it is exiting (or a connection to another one was made): ObsModel.IsExiting, and a record for ObsModel.Changed.
+        private void PublishExiting(ModelEngine engine)
+        {
+            var exiting = engine.Exiting;
+            if (this._model.SetExiting(exiting, out var before))
+            {
+                this.AddProperty(this._model, nameof(ObsModel.IsExiting), before, exiting, true);
+            }
+        }
+
+        // The file that an output last announced (the file of the recording, the replay that was saved): the property of the output that writes files, and a record for ObsModel.Changed.
+        private void PublishFile(ObsOutput output, OutputNode node)
+        {
+            var file = node.LastFile.Value;
+            switch (output)
+            {
+                case ObsRecordOutput record when record.SetCurrentFile(file, out var recordBefore):
+                    this.AddProperty(record, nameof(ObsRecordOutput.CurrentFile), recordBefore, file, true);
+                    break;
+                case ObsReplayBufferOutput replay when replay.SetLastSavedPath(file, out var replayBefore):
+                    this.AddProperty(replay, nameof(ObsReplayBufferOutput.LastSavedPath), replayBefore, file, true);
+                    break;
+            }
+        }
+
+        // What tells the application of something that happened: the event of the model, or of the output that it is about. It is raised later, by the notifier.
+        private Action RaiseOf(EventType eventType, object data)
+        {
+            var model = this._model;
+            return eventType switch
+            {
+                EventType.CustomEvent when data is CustomEventEventArgs custom => () => model.RaiseCustomEvent(custom),
+                EventType.VendorEvent when data is VendorEventEventArgs vendor => () => model.RaiseVendorEvent(vendor),
+                EventType.ScreenshotSaved when data is ScreenshotSavedEventArgs screenshot => () => model.RaiseScreenshotSaved(screenshot),
+                EventType.ExitStarted => model.RaiseExitStarted,
+                EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
+                EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),
+                _ => static () => { },
+            };
         }
 
         // A change of a property: the PropertyChanged event of the object, and when the change is one that the application is told about in

@@ -899,6 +899,12 @@ namespace OBSStudioClient.Model
                 this.RaiseChanged(args);
             }
 
+            if (notice.Raise is { } raise)
+            {
+                // Something that happened: the event of the model or of the object that it is about. A handler that throws is logged (see Raise).
+                raise();
+            }
+
             if (notice.Property is { } property)
             {
                 switch (notice.Entity)

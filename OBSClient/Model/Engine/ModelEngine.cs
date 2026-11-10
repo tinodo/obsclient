@@ -214,6 +214,7 @@ namespace OBSStudioClient.Model.Engine
         private readonly OutputNode[] _outputs = [new(ObsOutputKind.Stream), new(ObsOutputKind.Record), new(ObsOutputKind.VirtualCamera), new(ObsOutputKind.ReplayBuffer)];
         private Cell<Guid?> _programUuid = new(null, 0);
         private Cell<bool> _studioMode = new(false, 0);
+        private Cell<bool> _exiting = new(false, 0);
         private ModelEngineState _state = ModelEngineState.Disconnected;
         private TimeSpan _now;
         private int _nextTicket;
@@ -312,6 +313,9 @@ namespace OBSStudioClient.Model.Engine
             }
 
             this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
+
+            // OBS Studio that says that it is exiting does not come back as the same one: a connection that is made after it is made to one that was started again.
+            this._exiting.ApplyDerived(false, seq);
             foreach (var output in this._outputs)
             {
                 output.Read = false;

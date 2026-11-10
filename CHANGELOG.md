@@ -256,6 +256,22 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   two levels: `ObsClient`, the protocol as it is (every request and event, complete, close to the API), and `ObsModel`, OBS Studio by name (intuitive, close to OBS Studio). They say how the two differ, show the
   same jobs done both ways, and say which one to use and how to use both. The getting started guide has a first program for each, the guides of the client say that they are about `ObsClient`, and the API
   reference starts with both (it did not mention the `OBSStudioClient.Model` namespace). The description of the package says it too. The README is the page of the package on nuget.org, which shows what was packed: the new text appears there with the next version.
+- **`ObsModel` does more than scenes, inputs, filters and outputs: the calls that change nothing, the files of the outputs and the events that say that something happened** *(after rc.3; the first step of making
+  `ObsModel` complete, which goes on until 4.0.0)*.
+  - **Asking and telling** (nothing is kept in the model, and each call takes its turn in the line of the changes): `GetStatsAsync()`, `GetHotkeysAsync()`, `TriggerHotkeyAsync(name, context)` and
+    `TriggerHotkeyAsync(key, modifiers)` (and `TriggerHotkeyAsync(name)` on a scene or an input), `BroadcastCustomEventAsync(data)`, `CallVendorRequestAsync(vendor, request, data)`, `GetMonitorsAsync()` and
+    `OpenVideoMixProjectorAsync(...)`; on scenes and inputs `GetActivityAsync()`, `GetScreenshotAsync(...)` (an `ObsScreenshot`), `SaveScreenshotAsync(...)` and `OpenProjectorAsync(...)`; on inputs
+    `OpenPropertiesDialogAsync()`, `OpenFiltersDialogAsync()` and `OpenInteractDialogAsync()`.
+  - **Outputs**: `obs.Outputs.GetAllAsync()` lists every output of OBS Studio, and `obs.Outputs.Named(name)` gives one by its name (an `ObsNamedOutput`: start, stop, toggle, status, settings), for the outputs
+    that plugins add. The stream sends captions (`SendCaptionAsync`); the recording toggles its pause (`TogglePauseAsync`), splits (`SplitFileAsync`) and takes chapters (`CreateChapterAsync`); the replay buffer tells its
+    newest replay (`GetLastReplayFileAsync`); the stream and the recording tell their figures (`GetStatisticsAsync`: duration, bytes, congestion, skipped frames).
+  - **The files**: `record.CurrentFile` and `replayBuffer.LastSavedPath`, with the events `record.FileChanged` and `replayBuffer.Saved`: where OBS Studio writes the recording (obs-websocket 5.5.0 and newer say it
+    when the recording starts) and which replay was saved last.
+  - **Events that say that something happened**: `obs.CustomEvent`, `obs.VendorEvent` (you opt in with `AdditionalEvents = EventSubscriptions.Vendors`), `obs.ScreenshotSaved`, and `obs.ExitStarted` with
+    `obs.IsExiting` (a closed OBS Studio is not a lost connection). They are raised in the order of arrival, one at a time, also while the model is read. The model subscribes to the General events for them.
+  - **What OBS Studio says about itself**: `obs.ObsVersion`, `obs.WebSocketVersion`, `obs.Platform` and `obs.SupportedImageFormats`. A request that the obs-websocket of that OBS Studio does not have (splitting a
+    recording and chapters need 5.5.0) is refused with a message that says so.
+  - `obs.Outputs.Stream` has the type `ObsStreamOutput` (a subclass of `ObsOutput`) and no longer `ObsOutput`: code that was compiled against rc.3 has to be compiled again. `ObsModel` is provisional.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

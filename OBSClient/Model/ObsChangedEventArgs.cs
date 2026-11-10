@@ -66,6 +66,7 @@ namespace OBSStudioClient.Model
                 IEnumerable<ObsSource> sources => $"[{string.Join(", ", sources.Select(source => source.Name))}]",
                 IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
                 IEnumerable<ObsFilter> filters => $"[{string.Join(", ", filters.Select(filter => filter.Name))}]",
+                IEnumerable<string> texts => $"[{string.Join(", ", texts)}]",
                 _ => value.ToString() ?? string.Empty,
             };
         }

@@ -33,9 +33,17 @@ namespace OBSStudioClient.Model.Engine
             [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e) => engine.OnItemLockedChanged(e)),
             [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
             [EventType.StreamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Stream, e.OutputState)),
-            [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Record, e.OutputState)),
+            [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnRecordState(e)),
             [EventType.VirtualcamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.VirtualCamera, e.OutputState)),
             [EventType.ReplayBufferStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.ReplayBuffer, e.OutputState)),
+
+            // Things that happened, and that the model tells in the order in which they arrived (ModelChangeKind.Notification). A file that is written is also what an output last wrote.
+            [EventType.RecordFileChanged] = On<RecordFileChangedEventArgs>(static (engine, e) => engine.OnRecordFileChanged(e)),
+            [EventType.ReplayBufferSaved] = On<ReplayBufferSavedEventArgs>(static (engine, e) => engine.OnReplayBufferSaved(e)),
+            [EventType.ScreenshotSaved] = On<ScreenshotSavedEventArgs>(static (engine, e) => engine.Notify(EventType.ScreenshotSaved, e)),
+            [EventType.ExitStarted] = static (engine, _) => engine.OnExitStarted(),
+            [EventType.CustomEvent] = On<CustomEventEventArgs>(static (engine, e) => engine.Notify(EventType.CustomEvent, e)),
+            [EventType.VendorEvent] = On<VendorEventEventArgs>(static (engine, e) => engine.Notify(EventType.VendorEvent, e)),
             [EventType.SourceFilterCreated] = On<SourceFilterCreatedEventArgs>(static (engine, e) => engine.OnFilterCreated(e)),
             [EventType.SourceFilterRemoved] = On<SourceFilterRemovedEventArgs>(static (engine, e) => engine.OnFilterRemoved(e)),
             [EventType.SourceFilterNameChanged] = On<SourceFilterNameChangedEventArgs>(static (engine, e) => engine.OnFilterRenamed(e)),
@@ -60,8 +68,9 @@ namespace OBSStudioClient.Model.Engine
 
             // While OBS Studio changes its scene collection it has nothing to say about the collection that the model will hold: what it sends is about the one that
             // it is leaving, or (when a server does send them) about the sources that load, and the model of the new collection is read when the switch is over.
-            // Only the end of the switch counts. An output does not belong to a scene collection: what OBS Studio says about it then is as true as at any other time.
-            if (this._switching && message.EventType != EventType.CurrentSceneCollectionChanged && !OutputNode.IsOutputEvent(message.EventType))
+            // Only the end of the switch counts. An output does not belong to a scene collection: what OBS Studio says about it then is as true as at any other time,
+            // and so is what is not about a collection at all (a custom event, the exit of OBS Studio, a screenshot that was saved).
+            if (this._switching && message.EventType != EventType.CurrentSceneCollectionChanged && !IsIndependentOfCollection(message.EventType))
             {
                 return;
             }
@@ -85,6 +94,66 @@ namespace OBSStudioClient.Model.Engine
                     handle(engine, data);
                 }
             };
+        }
+
+        // Whether what an event says holds whatever scene collection OBS Studio has loaded (or is loading).
+        private static bool IsIndependentOfCollection(EventType eventType)
+        {
+            return OutputNode.IsOutputEvent(eventType) || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved;
+        }
+
+        // Something happened that is not a state of the model: the application is told, in the order of arrival (see ModelChangeKind.Notification).
+        private void Notify(EventType eventType, object data)
+        {
+            this.Emit(ModelChangeKind.Notification, Guid.Empty, 0, eventType.ToString(), eventType, data);
+        }
+
+        // OBS Studio is shutting down: the connection ends a moment later. The model says so (IsExiting) before the event that tells it, so that a handler finds the property set.
+        private void OnExitStarted()
+        {
+            this._exiting.ApplyDerived(true, this._seq);
+            this.Notify(EventType.ExitStarted, EventArgs.Empty);
+        }
+
+        // The recording says where it writes the file when it has started (obs-websocket 5.5.0 and newer), and where it wrote it when it has stopped: whenever it says a path, that is the file
+        // of the recording. A recording that was split says, when it stops, the file that it started with (seen with OBS Studio 33.0.0), and the file that it wrote last is the one that the split
+        // announced: that stays.
+        private void OnRecordState(RecordStateChangedEventArgs e)
+        {
+            var node = this._outputs[(int)ObsOutputKind.Record];
+            this.OnOutputState(ObsOutputKind.Record, e.OutputState);
+            if (e.OutputState is ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING or ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
+            {
+                node.SplitSinceStart = false;
+            }
+
+            if (!string.IsNullOrEmpty(e.OutputPath) && !(e.OutputState == ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED && node.SplitSinceStart))
+            {
+                node.LastFile.ApplyEvent(e.OutputPath, this._seq);
+            }
+        }
+
+        // The recording goes on in a new file: it is the file of the recording from now on.
+        private void OnRecordFileChanged(RecordFileChangedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.NewOutputPath))
+            {
+                var node = this._outputs[(int)ObsOutputKind.Record];
+                node.SplitSinceStart = true;
+                node.LastFile.ApplyEvent(e.NewOutputPath, this._seq);
+            }
+
+            this.Notify(EventType.RecordFileChanged, e);
+        }
+
+        private void OnReplayBufferSaved(ReplayBufferSavedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(e.SavedReplayPath))
+            {
+                this._outputs[(int)ObsOutputKind.ReplayBuffer].LastFile.ApplyEvent(e.SavedReplayPath, this._seq);
+            }
+
+            this.Notify(EventType.ReplayBufferSaved, e);
         }
 
         private void OnStudioModeChanged(StudioModeStateChangedEventArgs e)

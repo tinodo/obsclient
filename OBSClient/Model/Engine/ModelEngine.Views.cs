@@ -16,6 +16,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets whether studio mode is on.</summary>
         public bool StudioModeEnabled => this._studioMode.Value;
 
+        /// <summary>Gets whether OBS Studio said that it is exiting, on the connection that is the latest.</summary>
+        public bool Exiting => this._exiting.Value;
+
         /// <summary>Gets what the model holds about an output. Only for the thread that runs the engine.</summary>
         /// <param name="kind">The output.</param>
         public OutputNode Output(ObsOutputKind kind)

@@ -316,6 +316,9 @@ namespace OBSStudioClient.Tests.Model
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
                 EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
+
+                // What happened and is no state of the model: the model tells the application, in the order of arrival (ModelChangeKind.Notification).
+                EventType.RecordFileChanged, EventType.ReplayBufferSaved, EventType.ScreenshotSaved, EventType.ExitStarted, EventType.CustomEvent, EventType.VendorEvent,
             ];
 
             var handled = Enum.GetValues<EventType>().Where(ModelEngine.Handles).Order().ToArray();
@@ -360,6 +363,12 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SourceFilterListReindexed, h => h.Event("SourceFilterListReindexed", new { sourceName = "Scene", filters = new[] { new { filterEnabled = true, filterIndex = 1, filterKind = "color_filter_v2", filterName = "Blur", filterSettings = new { } } } }, 32)),
                 (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
                 (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
+                (EventType.RecordFileChanged, h => h.Event("RecordFileChanged", new { newOutputPath = "C:\\Videos\\b.mkv" }, 64)),
+                (EventType.ReplayBufferSaved, h => h.Event("ReplayBufferSaved", new { savedReplayPath = "C:\\Videos\\replay.mkv" }, 64)),
+                (EventType.ScreenshotSaved, h => h.Event("ScreenshotSaved", new { savedScreenshotPath = "C:\\Pictures\\shot.png" }, 1)),
+                (EventType.ExitStarted, h => h.Event("ExitStarted", new { }, 1)),
+                (EventType.CustomEvent, h => h.Event("CustomEvent", new { source = "a test" }, 1)),
+                (EventType.VendorEvent, h => h.Event("VendorEvent", new { vendorName = "a-plugin", eventType = "Something", eventData = new { } }, 512)),
             };
 
             Assert.Equal(cases.Select(c => c.Type).Order(), Enum.GetValues<EventType>().Where(ModelEngine.Handles).Order());

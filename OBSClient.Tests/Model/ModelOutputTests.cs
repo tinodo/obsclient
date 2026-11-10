@@ -136,11 +136,13 @@ namespace OBSStudioClient.Tests.Model
             };
             var steps = new (ObsOutputState State, ObsOutputStatus Status, string[] Told)[]
             {
-                (ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING, ObsOutputStatus.Starting, ["Status"]),
+                // The file of the recording is told with the first event that says it (the stand-in sends the path with every event, OBS Studio with the start and the stop).
+                (ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING, ObsOutputStatus.Starting, ["CurrentFile", "Status"]),
                 (ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED, ObsOutputStatus.Started, ["Status", "IsActive"]),
                 (ObsOutputState.OBS_WEBSOCKET_OUTPUT_PAUSED, ObsOutputStatus.Paused, ["Status", "IsPaused"]),
                 (ObsOutputState.OBS_WEBSOCKET_OUTPUT_RESUMED, ObsOutputStatus.Started, ["Status", "IsPaused"]),
                 (ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPING, ObsOutputStatus.Stopping, ["Status", "IsActive"]),
+
                 (ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED, ObsOutputStatus.Stopped, ["Status"]),
             };
             var expected = new List<string>();
@@ -166,10 +168,14 @@ namespace OBSStudioClient.Tests.Model
                 Assert.Equal(expected, properties);
             }
 
-            await ModelRig.EventuallyAsync(() => rig.Changes.Count(change => ReferenceEquals(change.Entity, record)) == steps.Length, "the records of the changes");
-            var changes = rig.Changes.Where(change => ReferenceEquals(change.Entity, record)).ToArray();
-            Assert.All(changes, change => Assert.Equal(ObsChangeKind.PropertyChanged, change.Kind));
-            Assert.All(changes, change => Assert.Equal("Status", change.PropertyName));
+            await ModelRig.EventuallyAsync(() => rig.Changes.Count(change => ReferenceEquals(change.Entity, record)) == steps.Length + 1, "the records of the changes");
+            var all = rig.Changes.Where(change => ReferenceEquals(change.Entity, record)).ToArray();
+            Assert.All(all, change => Assert.Equal(ObsChangeKind.PropertyChanged, change.Kind));
+            var file = Assert.Single(all, change => change.PropertyName == "CurrentFile");
+            Assert.Null(file.OldValue);
+            Assert.Equal("C:\\Videos\\a.mkv", file.NewValue);
+            var changes = all.Where(change => change.PropertyName == "Status").ToArray();
+            Assert.Equal(steps.Length, changes.Length);
             Assert.Equal(
                 new[] { ObsOutputStatus.Stopped, ObsOutputStatus.Starting, ObsOutputStatus.Started, ObsOutputStatus.Paused, ObsOutputStatus.Started, ObsOutputStatus.Stopping },
                 changes.Select(change => (ObsOutputStatus)change.OldValue!).ToArray());

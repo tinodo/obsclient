@@ -82,6 +82,13 @@ namespace OBSStudioClient.Model.Engine
 
         /// <summary>The model corrected itself: it held something that a read showed not to exist.</summary>
         Repaired,
+
+        /// <summary>
+        /// OBS Studio said something that is not a state of the model but happened: a screenshot was saved, a file was written, OBS Studio is exiting, somebody sent a custom event. The type of the
+        /// event (an <c>EventType</c>) is the old value, the text is its name, and the data of the event is the new value. The application is told in the order in which the events arrived, also
+        /// while the model is read.
+        /// </summary>
+        Notification,
     }
 
     /// <summary>

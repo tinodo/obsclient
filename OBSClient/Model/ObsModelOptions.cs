@@ -38,9 +38,14 @@ namespace OBSStudioClient.Model
         public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
-        /// Gets or sets the events that OBS Studio sends in addition to the ones the model needs, for your own handlers on <see cref="ObsModel.Client"/>.
-        /// The default is none. The events that the model needs are always subscribed to.
+        /// Gets or sets the events that OBS Studio sends in addition to the ones the model needs, for your own handlers on <see cref="ObsModel.Client"/> and for the events of the model that
+        /// need one (<see cref="ObsModel.VendorEvent"/> needs <see cref="EventSubscriptions.Vendors"/>). The default is none. The events that the model needs are always subscribed to.
         /// </summary>
+        /// <remarks>
+        /// Some events are sent very often, and every client that subscribes to them is sent them all: <see cref="EventSubscriptions.InputVolumeMeters"/>, <see cref="EventSubscriptions.InputActiveStateChanged"/>,
+        /// <see cref="EventSubscriptions.InputShowStateChanged"/> and <see cref="EventSubscriptions.SceneItemTransformChanged"/> are never subscribed to for the model: ask for them here when
+        /// you want them.
+        /// </remarks>
         public EventSubscriptions AdditionalEvents { get; set; } = EventSubscriptions.None;
 
         /// <summary>

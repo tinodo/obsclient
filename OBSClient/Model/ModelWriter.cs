@@ -85,6 +85,13 @@ namespace OBSStudioClient.Model
         public bool HoldsTheTurn { get; init; }
 
         /// <summary>
+        /// Gets whether the job only asks OBS Studio something and changes nothing (the statistics, the screenshot of a source, the list of outputs). It takes its turn in the line like a change, so that
+        /// it is asked after the changes that were asked for before it; but when no answer comes there is no outcome to be unsure of and no part of the model to read again: the call ends with a
+        /// <see cref="TimeoutException"/> (no answer in time) or an <see cref="ObsNotConnectedException"/> (the connection ended), and an answer that cannot be read is an <see cref="ObsClientException"/>.
+        /// </summary>
+        public bool ReadOnly { get; init; }
+
+        /// <summary>
         /// Gets the parts of the model that the change is about. They are read again when the events did not show the change in time, and when its outcome is not known; and
         /// the changes that are about the same part are confirmed in the order in which they were made (see <see cref="ModelHost.ConfirmAsync"/>). A change whose parts depend on what
         /// the model shows when it has its turn names them in <see cref="RefreshAtTurn"/>, and what that says replaces this once the turn has come.
@@ -385,7 +392,23 @@ namespace OBSStudioClient.Model
             {
                 RequestStatusCode.NotReady => new ObsNotReadyException($"OBS Studio was not ready for {job.Description}: it is changing its scene collection. Nothing was changed."),
                 RequestStatusCode.ResourceNotFound => new ObsRemovedException(job.Subject ?? job.Description, ObsObjectState.Gone),
+                RequestStatusCode.UnknownRequestType => new ObsResponseException(
+                    status.Code,
+                    $"This OBS Studio does not have the request that {job.Description} needs: the request is newer than the obs-websocket that it has (see ObsModel.WebSocketVersion). Nothing was changed."),
                 _ => new ObsResponseException(status),
+            };
+        }
+
+        // What a question that was sent and not answered ends with (WriteJob.ReadOnly): no answer in time, the connection that ended while it was under way (the client says so with an exception that
+        // has nothing inside, like a request that was not sent: see IsNotSent), or an answer that could not be read (it has the reason inside).
+        private static Exception ReadFailed(WriteJob job, Exception exception)
+        {
+            return exception switch
+            {
+                TimeoutException => new TimeoutException($"OBS Studio did not answer in time: {job.Description}.", exception),
+                ObsClientException { InnerException: null } => new ObsNotConnectedException($"The connection to OBS Studio ended before it answered: {job.Description}.", exception),
+                ObsClientException => exception,
+                _ => new ObsClientException($"OBS Studio could not be asked: {job.Description}: {exception.Message}", exception),
             };
         }
 
@@ -636,8 +659,8 @@ namespace OBSStudioClient.Model
             }
             catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
             {
-                // The model is disposed of while the request waits for its answer: it may have been written, and made.
-                job.Fail(new ObsUnknownOutcomeException(job.Description, new ObjectDisposedException(nameof(ObsModel))));
+                // The model is disposed of while the request waits for its answer: it may have been written, and made (a question changes nothing).
+                job.Fail(job.ReadOnly ? new ObjectDisposedException(nameof(ObsModel)) : new ObsUnknownOutcomeException(job.Description, new ObjectDisposedException(nameof(ObsModel))));
                 return;
             }
             catch (Exception ex) when (IsNotSent(ex))
@@ -647,6 +670,13 @@ namespace OBSStudioClient.Model
             }
             catch (Exception ex)
             {
+                if (job.ReadOnly)
+                {
+                    // A question that was not answered: nothing was changed, so there is no outcome to be unsure of, and nothing for the model to read again.
+                    job.Fail(ReadFailed(job, ex));
+                    return;
+                }
+
                 // No answer in time, or the connection ended with the batch under way: it is not known what OBS Studio did, and the batch is never sent again.
                 job.Fail(new ObsUnknownOutcomeException(job.Description, ex));
                 this.RefreshQuietly(job.Refresh);
@@ -656,6 +686,12 @@ namespace OBSStudioClient.Model
             var results = response.Results;
             if (!results.All(IsReadable))
             {
+                if (job.ReadOnly)
+                {
+                    job.Fail(new ObsClientException($"OBS Studio answered {job.Description} with a result that can not be read."));
+                    return;
+                }
+
                 // The client hands a malformed answer on as it came (an entry that is null, or has no status), and what it says about the requests is nothing: OBS Studio ran the batch,
                 // and may have made the change. It is not certain, like an answer that did not come, and the model reads again what the change was about.
                 job.Fail(new ObsUnknownOutcomeException(job.Description, new ObsClientException($"OBS Studio answered the {requests.Count} requests of the change with a result that can not be read.")));
@@ -708,6 +744,12 @@ namespace OBSStudioClient.Model
             }
             catch (Exception ex)
             {
+                if (job.ReadOnly)
+                {
+                    job.Fail(new ObsClientException($"OBS Studio answered {job.Description} with a result that can not be understood.", ex));
+                    return;
+                }
+
                 job.Fail(new ObsUnknownOutcomeException(job.Description, ex));
                 this.RefreshQuietly(job.Refresh);
                 return;
