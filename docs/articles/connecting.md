@@ -144,6 +144,9 @@ client.Disconnect();   // closes the connection and switches AutoReconnect off
 client.Dispose();      // does the same, and releases the client
 ```
 
+`Disconnect()` also ends a connection that is still being opened (to an OBS Studio that does not complete the handshake, for example): the
+attempt stops at once, `ConnectionState` is `Disconnected` a moment later, and the `ConnectAsync` that was waiting returns `false`.
+
 ## Logging
 
 The constructor takes an optional `ILogger<ObsClient>`. At the debug level the client logs every message that it sends

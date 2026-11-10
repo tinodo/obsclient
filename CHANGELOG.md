@@ -436,6 +436,12 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     `ObsClientException` instead of waiting for their timeout.
   - `ConnectAsync` returned never (it hung) when the connection was lost before OBS Studio had accepted the handshake; it
     now returns `false`, and it gives up after 10 seconds when OBS Studio never completes the handshake.
+  - `Disconnect()` did nothing to a connection that was still being opened: the attempt went on until its own 2 second limit, so
+    after a `Disconnect()` the client stayed `Connecting` for almost 2 seconds, for example while OBS Studio accepted the connection and
+    never completed the handshake (measured with a server that does that: 1.8 to 1.9 seconds with 3.0.1). It ends the attempt at once
+    now: `ConnectionState` is `Disconnected` a moment later (0.4 to 0.8 milliseconds in the same measurement), the connection that was
+    being opened is closed, `ConnectAsync` returns `false`, and the client does not connect again, also with `AutoReconnect`. Code
+    that relied on the wait (a test that keeps a stop open by holding a handshake, for one) has to bring its own.
   - A handler of `PropertyChanged` that reconnects as soon as the state becomes `Disconnected` could have the new
     connection disposed by the receive loop of the old one.
   - Multi-byte characters (scene names, settings) that straddled the 4096-byte receive buffer were corrupted.

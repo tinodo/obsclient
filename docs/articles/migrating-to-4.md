@@ -161,6 +161,10 @@ These were bugs. Code that worked around them may not need the workaround any mo
   `AutoReconnect` works.
 - **`ConnectAsync`** returns `false`, instead of hanging, when the connection is lost before OBS Studio accepted the handshake, gives
   up after 10 seconds when the handshake is never completed, and accepts port 65535.
+- **`Disconnect()` ends a connection that is still being opened.** In 3.x it had no effect on an attempt that was under way, which went on
+  until its own 2 second limit (for example when OBS Studio accepts the connection and never completes the handshake): the client stayed
+  `Connecting` for almost 2 seconds. Now the attempt ends at once, `ConnectionState` is `Disconnected` a moment later, `ConnectAsync`
+  returns `false` and the client does not try again, also with `AutoReconnect`. If a test of yours relied on that wait, give it one of its own.
 - **Requests that are waiting when the connection is lost** fail at once with an `ObsClientException` instead of after their timeout.
 - **`haltOnFailure` of a batch** takes effect. The client sent it under the wrong name, so a batch always ran on after a failure.
 - **State changes are no longer dropped.** 3.x passed on one event per 100 ms for each of `InputActiveStateChanged`,
