@@ -7,6 +7,7 @@ namespace OBSStudioClient.Tests.Live
     using OBSStudioClient.Events;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Model;
+    using OBSStudioClient.Tests.TestSupport;
     using Xunit.Abstractions;
 
     /// <summary>
@@ -128,8 +129,10 @@ namespace OBSStudioClient.Tests.Live
         }
 
         /// <summary>Connects the plain client (with the checks of the live tests) and the model, and waits until the model is read.</summary>
+        /// <param name="output">Where the log of the model goes, or null.</param>
+        /// <param name="highVolume">What the model follows of what OBS Studio sends often.</param>
         /// <returns>The connections.</returns>
-        public static async Task<LiveModel> ConnectAsync(ITestOutputHelper? output = null)
+        public static async Task<LiveModel> ConnectAsync(ITestOutputHelper? output = null, ObsHighVolume highVolume = ObsHighVolume.None)
         {
             var raw = await LiveSession.ConnectAsync(EventSubscriptions.Inputs, removeLeftovers: true);
             ObsModel? model = null;
@@ -146,6 +149,7 @@ namespace OBSStudioClient.Tests.Live
                         ReadTimeout = TimeSpan.FromSeconds(30),
                         WriteTimeout = TimeSpan.FromSeconds(30),
                         SynchronizationTimeout = TimeSpan.FromSeconds(60),
+                        HighVolume = highVolume,
                     },
                     output is null ? null : new StampedLoggerFactory(output));
                 model.Client.RequestTimeout = 30000;
@@ -220,11 +224,12 @@ namespace OBSStudioClient.Tests.Live
                     continue;
                 }
 
+                var follows = model.HighVolume.HasFlag(ObsHighVolume.Transforms);
                 Compare(
                     problems,
                     $"the scene items of '{scene.Name}'",
-                    obsItems.OrderBy(item => item.SceneItemId).Select(item => $"{item.SceneItemId}: '{item.SourceName}' {item.SourceUuid:D} index {item.SceneItemIndex}, enabled {item.SceneItemEnabled}, locked {item.SceneItemLocked}"),
-                    scene.Items.OrderBy(item => item.Id).Select(item => $"{item.Id}: '{item.Source.Name}' {item.Source.Uuid:D} index {item.Index}, enabled {item.IsEnabled}, locked {item.IsLocked}"));
+                    obsItems.OrderBy(item => item.SceneItemId).Select(item => $"{item.SceneItemId}: '{item.SourceName}' {item.SourceUuid:D} index {item.SceneItemIndex}, enabled {item.SceneItemEnabled}, locked {item.SceneItemLocked}{(follows ? ", " + (item.SceneItemTransform is { } obsTransform ? TransformTexts.Of(obsTransform) : "(no transform)") : string.Empty)}"),
+                    scene.Items.OrderBy(item => item.Id).Select(item => $"{item.Id}: '{item.Source.Name}' {item.Source.Uuid:D} index {item.Index}, enabled {item.IsEnabled}, locked {item.IsLocked}{(follows ? ", " + (item.Transform is { } held ? TransformTexts.Of(held) : "(no transform)") : string.Empty)}"));
             }
 
             // The filters of every scene and input.

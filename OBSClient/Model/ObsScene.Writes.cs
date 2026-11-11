@@ -485,7 +485,7 @@ namespace OBSStudioClient.Model
                 cancellationToken);
         }
 
-        private ObsSceneItem? FindItem(int id)
+        internal ObsSceneItem? FindItem(int id)
         {
             foreach (var item in this.Items)
             {

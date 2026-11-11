@@ -497,8 +497,10 @@ namespace OBSStudioClient.Tests.Simulation
                 }
             }
 
+            var sizeBefore = SourceSize(input);
             input.Settings = (JsonObject)Sorted(merged)!;
             Emit("InputSettingsChanged", Obj(("inputName", input.Name), ("inputSettings", input.Settings.DeepClone()), ("inputUuid", input.UuidText)));
+            AnnounceResizedSource(input, sizeBefore);
         }
 
         // The node without its fields that are null, at any depth; null for a node that is null.

@@ -53,6 +53,10 @@ namespace OBSStudioClient.Model.Engine
             [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e) => engine.OnItemsReindexed(e)),
             [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e) => engine.OnItemEnabledChanged(e)),
             [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e) => engine.OnItemLockedChanged(e)),
+            [EventType.SceneItemSelected] = On<SceneItemSelectedEventArgs>(static (engine, e) => engine.OnItemSelected(e)),
+
+            // What OBS Studio sends very often, and that is only acted on when the application asked for it (see Wants).
+            [EventType.SceneItemTransformChanged] = On<SceneItemTransformChangedEventArgs>(static (engine, e) => engine.OnItemTransformChanged(e)),
             [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
             [EventType.StreamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Stream, e.OutputState)),
             [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnRecordState(e)),
@@ -97,7 +101,7 @@ namespace OBSStudioClient.Model.Engine
                 return;
             }
 
-            if (Handlers.TryGetValue(message.EventType, out var handler))
+            if (Handlers.TryGetValue(message.EventType, out var handler) && this.Wants(message.EventType))
             {
                 handler(this, message);
             }
@@ -815,6 +819,39 @@ namespace OBSStudioClient.Model.Engine
                 {
                     this.Emit(ModelChangeKind.ItemLockedChanged, item.Scene.Uuid, item.Id, null, old, item.Locked.Value);
                 }
+            }
+        }
+
+        // OBS Studio sends the transform again whenever something about the item changes (also when nothing of the transform did: a blend mode that is set gives one), and a change of the transform can be
+        // two events (a copy of an item gives its crop after the rest): a transform that is the one that the model holds is no change.
+        private void OnItemTransformChanged(SceneItemTransformChangedEventArgs e)
+        {
+            if (this.TryGetItem(e.SceneUuid, e.SceneItemId, out var item))
+            {
+                var old = item.Transform.Value;
+                if (item.Transform.ApplyEvent(e.SceneItemTransform, this._seq) && item.Announced)
+                {
+                    this.Emit(ModelChangeKind.ItemTransformChanged, item.Scene.Uuid, item.Id, null, old, e.SceneItemTransform);
+                }
+            }
+        }
+
+        // An item was selected in OBS Studio. The model does not keep which one is (OBS Studio says nothing when it is not selected any more), so it is something that happened: the application is told, in
+        // the order of arrival. An item that was just made is selected at once, before its state is read and the application knows of it: it is told when it is.
+        private void OnItemSelected(SceneItemSelectedEventArgs e)
+        {
+            if (!this.TryGetItem(e.SceneUuid, e.SceneItemId, out var item))
+            {
+                return;
+            }
+
+            if (item.Announced)
+            {
+                this.Notify(EventType.SceneItemSelected, e);
+            }
+            else
+            {
+                item.PendingSelected = e;
             }
         }
 

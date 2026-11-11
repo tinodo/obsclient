@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Tests.Model
 {
     using OBSStudioClient.Enums;
+    using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
 
     /// <summary>
@@ -9,9 +10,9 @@ namespace OBSStudioClient.Tests.Model
     /// </summary>
     public class ModelEngineEventTests
     {
-        private static EngineHarness Started(Action<FakeWorld>? setup = null)
+        private static EngineHarness Started(Action<FakeWorld>? setup = null, ModelEngineOptions? options = null)
         {
-            var harness = new EngineHarness();
+            var harness = new EngineHarness(options);
             harness.World.AddScene("Scene");
             setup?.Invoke(harness.World);
             harness.Start();
@@ -316,10 +317,13 @@ namespace OBSStudioClient.Tests.Model
                 EventType.InputSettingsChanged, EventType.InputAudioBalanceChanged, EventType.InputAudioSyncOffsetChanged, EventType.InputAudioTracksChanged, EventType.InputAudioMonitorTypeChanged,
                 EventType.MediaInputPlaybackStarted, EventType.MediaInputPlaybackEnded, EventType.MediaInputActionTriggered,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
-                EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
+                EventType.SceneItemLockStateChanged, EventType.SceneItemSelected, EventType.StudioModeStateChanged,
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
                 EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
+
+                // What the model needs only when the application asks to follow it (see ObsHighVolume): the host does not pass it otherwise.
+                EventType.SceneItemTransformChanged,
 
                 // What happened and is no state of the model: the model tells the application, in the order of arrival (ModelChangeKind.Notification).
                 EventType.RecordFileChanged, EventType.ReplayBufferSaved, EventType.ScreenshotSaved, EventType.ExitStarted, EventType.CustomEvent, EventType.VendorEvent,
@@ -379,6 +383,8 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SceneItemListReindexed, h => h.Event("SceneItemListReindexed", new { sceneName = "Scene", sceneUuid = scene, sceneItems = new[] { new { sceneItemId = 1, sceneItemIndex = 7 } } }, 128)),
                 (EventType.SceneItemEnableStateChanged, h => h.Event("SceneItemEnableStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemEnabled = false }, 128)),
                 (EventType.SceneItemLockStateChanged, h => h.Event("SceneItemLockStateChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemLocked = true }, 128)),
+                (EventType.SceneItemSelected, h => h.Event("SceneItemSelected", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1 }, 128)),
+                (EventType.SceneItemTransformChanged, h => h.Event("SceneItemTransformChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemTransform = new { alignment = 5, boundsAlignment = 0, boundsHeight = 0.0, boundsType = "OBS_BOUNDS_NONE", boundsWidth = 0.0, cropBottom = 0, cropLeft = 0, cropRight = 0, cropToBounds = false, cropTop = 0, height = 1080.0, positionX = 100.0, positionY = 0.0, rotation = 0.0, scaleX = 1.0, scaleY = 1.0, sourceHeight = 1080.0, sourceWidth = 1920.0, width = 1920.0 } }, 524288)),
                 (EventType.StudioModeStateChanged, h => h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024)),
                 (EventType.StreamStateChanged, h => h.Event("StreamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
                 (EventType.RecordStateChanged, h => h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:\\Videos\\a.mkv" }, 64)),
@@ -402,18 +408,20 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(cases.Select(c => c.Type).Order(), Enum.GetValues<EventType>().Where(ModelEngine.Handles).Order());
             foreach (var (type, send) in cases)
             {
-                var h = Started(world =>
-                {
-                    world.Scenes.Clear();
-                    world.Scenes.Add((scene, "Scene"));
-                    world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
-                    world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
-                    world.Inputs.Add((clip, "Clip", "ffmpeg_source", 8327, false, 1.0));
-                    world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
-                    world.AddFilter(scene, "Blur");
-                    world.AddFilter(scene, "Tint");
-                    world.Program = scene;
-                });
+                var h = Started(
+                    world =>
+                    {
+                        world.Scenes.Clear();
+                        world.Scenes.Add((scene, "Scene"));
+                        world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
+                        world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
+                        world.Inputs.Add((clip, "Clip", "ffmpeg_source", 8327, false, 1.0));
+                        world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
+                        world.AddFilter(scene, "Blur");
+                        world.AddFilter(scene, "Tint");
+                        world.Program = scene;
+                    },
+                    new ModelEngineOptions { HighVolume = ObsHighVolume.All });
 
                 var epoch = h.Engine.Epoch;
                 send(h);

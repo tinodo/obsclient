@@ -43,10 +43,15 @@ namespace OBSStudioClient.Model
         /// </summary>
         /// <remarks>
         /// Some events are sent very often, and every client that subscribes to them is sent them all: <see cref="EventSubscriptions.InputVolumeMeters"/>, <see cref="EventSubscriptions.InputActiveStateChanged"/>,
-        /// <see cref="EventSubscriptions.InputShowStateChanged"/> and <see cref="EventSubscriptions.SceneItemTransformChanged"/> are never subscribed to for the model: ask for them here when
-        /// you want them.
+        /// <see cref="EventSubscriptions.InputShowStateChanged"/> and <see cref="EventSubscriptions.SceneItemTransformChanged"/> are never subscribed to for the model unless you ask for what they are for with
+        /// <see cref="HighVolume"/> (which makes the model keep what they say). Ask for them here when you want them for your own handlers on <see cref="ObsModel.Client"/>.
         /// </remarks>
         public EventSubscriptions AdditionalEvents { get; set; } = EventSubscriptions.None;
+
+        /// <summary>
+        /// Gets or sets what the model follows of the events that OBS Studio sends very often. The default is none: the model does not even subscribe to them (see <see cref="ObsHighVolume"/>).
+        /// </summary>
+        public ObsHighVolume HighVolume { get; set; } = ObsHighVolume.None;
 
         /// <summary>
         /// Gets or sets the context that the notifications (<see cref="ObsModel.Changed"/> and the PropertyChanged events) are raised on, for

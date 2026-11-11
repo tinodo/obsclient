@@ -22,7 +22,7 @@ namespace OBSStudioClient.Tests.Simulation
             var requests = new HashSet<string>(StringComparer.Ordinal);
             var messages = 0;
             var walks = new List<(SimQuirks Quirks, int Seed)>();
-            walks.AddRange(Enumerable.Range(1, 50).Select(seed => (SimQuirks.Hostile, seed)));
+            walks.AddRange(Enumerable.Range(1, 70).Select(seed => (SimQuirks.Hostile, seed)));
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Real, seed)));
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Ideal, seed)));
 

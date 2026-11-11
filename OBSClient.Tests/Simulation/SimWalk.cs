@@ -656,6 +656,9 @@ namespace OBSStudioClient.Tests.Simulation
             Request(3, () => Item("SetSceneItemEnabled", ("sceneItemEnabled", _random.Chance(0.5))));
             Request(2, () => Item("SetSceneItemLocked", ("sceneItemLocked", _random.Chance(0.5))));
             Request(3, () => Item("SetSceneItemIndex", ("sceneItemIndex", _random.Next(-1, 7))));
+            Request(3, () => SetSceneItemTransform());
+            Request(2, () => Item("SetSceneItemBlendMode", ("sceneItemBlendMode", _random.Chance(0.05) ? "OBS_BLEND_BOGUS" : SimWorld.BlendModes[_random.Next(SimWorld.BlendModes.Length)])));
+            Request(2, () => DuplicateSceneItem());
             Request(2, () => Input("SetInputMute", true, ("inputMuted", _random.Chance(0.5))));
             Request(1, () => Input("ToggleInputMute", true));
             Request(2, () => SetInputVolume());
@@ -680,6 +683,8 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => Item("GetSceneItemEnabled"));
             Request(1, () => Item("GetSceneItemLocked"));
             Request(1, () => Item("GetSceneItemIndex"));
+            Request(1, () => Item("GetSceneItemTransform"));
+            Request(1, () => Item("GetSceneItemBlendMode"));
             Request(1, () => Item("GetSceneItemSource"));
             Request(1, () => GetSceneItemId());
             Request(1, () => Input("GetInputMute", true));
@@ -722,6 +727,9 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SetItemEnabled", 2, () => ChangeItem("SetItemEnabled", (scene, id) => Sim.External.SetItemEnabled(scene, id, _random.Chance(0.5))));
             Operation("external SetItemLocked", 1, () => ChangeItem("SetItemLocked", (scene, id) => Sim.External.SetItemLocked(scene, id, _random.Chance(0.5))));
             Operation("external SetItemIndex", 3, () => ChangeItem("SetItemIndex", (scene, id) => Sim.External.SetItemIndex(scene, id, _random.Next(-1, 7))));
+            Operation("external SetItemTransform", 3, () => ChangeItem("SetItemTransform", (scene, id) => Sim.External.SetItemTransform(scene, id, TransformUpdate())));
+            Operation("external SetItemBlendMode", 1, () => ChangeItem("SetItemBlendMode", (scene, id) => Sim.External.SetItemBlendMode(scene, id, SimWorld.BlendModes[_random.Next(SimWorld.BlendModes.Length)])));
+            Operation("external DuplicateItem", 2, () => ChangeItem("DuplicateItem", (scene, id) => Sim.External.DuplicateItem(scene, id, _random.Chance(0.4) ? PickScene(tidy: true).Uuid : null)));
             Operation("external SetMute", 1, () => Do(() => Sim.External.SetMute(PickInput(audio: true, tidy: true).Uuid, _random.Chance(0.5)), "SetMute"));
             Operation("external SetVolumeDb", 1, () => Do(() => Sim.External.SetVolumeDb(PickInput(audio: true, tidy: true).Uuid, Decibels[_random.Next(Decibels.Length)]), "SetVolumeDb"));
             Operation("external SetSettings", 2, () => Do(() => Sim.External.SetSettings(PickInput(tidy: true).Uuid, SettingsFields()), "SetSettings"));
@@ -730,7 +738,7 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SetMonitorType", 1, () => Do(() => Sim.External.SetMonitorType(PickInput(audio: true, tidy: true).Uuid, MonitorTypeNames[_random.Next(MonitorTypeNames.Length)]), "SetMonitorType"));
             Operation("external SetTracks", 1, () => Do(() => Sim.External.SetTracks(PickInput(audio: true, tidy: true).Uuid, _random.Next(64)), "SetTracks"));
             Operation("external TriggerMedia", 2, () => Do(() => Sim.External.TriggerMedia(PickInput(tidy: true, media: true).Uuid, MediaActionNames[_random.Next(MediaActionNames.Length)]), "TriggerMedia"));
-            Operation("external EndMedia", 1, () => Do(() => Sim.External.EndMedia(PickInput(tidy: true, media: true).Uuid), "EndMedia"));
+            Operation("external EndMedia", 2, () => Do(() => Sim.External.EndMedia(PickInput(tidy: true, media: true).Uuid), "EndMedia"));
             Operation("external SwitchProgramScene", 3, () => Do(() => Sim.External.SwitchProgramScene(PickScene(tidy: true).Uuid), "SwitchProgramScene"));
             Operation("external SetStudioMode", 1, () => Do(() => Sim.External.SetStudioMode(_random.Chance(0.5)), "SetStudioMode"));
             Operation("external SwitchPreviewScene", 2, () => Do(() => Sim.External.SwitchPreviewScene(PickScene(tidy: true).Uuid), "SwitchPreviewScene"));
@@ -833,6 +841,156 @@ namespace OBSStudioClient.Tests.Simulation
             Put(data, "sceneName", "sceneUuid", (item.Name, item.Uuid));
             data["sceneItemId"] = item.ItemId;
             return (type, data);
+        }
+
+        // A change of the transform of an item that a client asks for: some of its members, and now and then a value that obs-websocket refuses (a rotation beyond a turn, a crop below 0, a size of the
+        // bounds below 1, text for a number) or nothing at all.
+        private (string Type, Dictionary<string, object?>? Data) SetSceneItemTransform()
+        {
+            var data = Data();
+            var item = PickItem();
+            Put(data, "sceneName", "sceneUuid", (item.Name, item.Uuid));
+            data["sceneItemId"] = item.ItemId;
+            var fields = new Dictionary<string, object?>();
+            var members = _random.Next(1, 5);
+            for (var i = 0; i < members; i++)
+            {
+                switch (_random.Next(15))
+                {
+                    case 0:
+                        fields["positionX"] = _random.Next(-800, 2000) / 4.0;
+                        break;
+                    case 1:
+                        fields["positionY"] = _random.Next(-800, 2000) / 4.0;
+                        break;
+                    case 2:
+                        fields["rotation"] = _random.Chance(0.1) ? 400 : _random.Next(-360, 361);
+                        break;
+                    case 3:
+                        fields["scaleX"] = _random.Next(1, 40) / 8.0;
+                        break;
+                    case 4:
+                        fields["scaleY"] = _random.Next(1, 40) / 8.0;
+                        break;
+                    case 5:
+                        fields["alignment"] = _random.Next(0, 16);
+                        break;
+                    case 6:
+                        fields["boundsType"] = _random.Chance(0.05) ? "OBS_BOUNDS_BOGUS" : SimWorld.BoundsTypes[_random.Next(SimWorld.BoundsTypes.Length)];
+                        break;
+                    case 7:
+                        fields["boundsAlignment"] = _random.Next(0, 16);
+                        break;
+                    case 8:
+                        fields["boundsWidth"] = _random.Chance(0.1) ? 0 : _random.Next(1, 800);
+                        break;
+                    case 9:
+                        fields["boundsHeight"] = _random.Chance(0.1) ? 0 : _random.Next(1, 800);
+                        break;
+                    case 10:
+                        fields["cropLeft"] = _random.Chance(0.1) ? -3 : _random.Next(0, 60);
+                        break;
+                    case 11:
+                        fields["cropRight"] = _random.Chance(0.1) ? -3 : _random.Next(0, 60);
+                        break;
+                    case 12:
+                        fields["cropTop"] = _random.Next(0, 60);
+                        break;
+                    case 13:
+                        fields["cropBottom"] = _random.Next(0, 60);
+                        break;
+                    default:
+                        fields["cropToBounds"] = _random.Chance(0.5);
+                        break;
+                }
+            }
+
+            if (_random.Chance(0.03))
+            {
+                fields.Clear();
+            }
+            else if (_random.Chance(0.03))
+            {
+                fields["positionX"] = "wrong";
+            }
+
+            data["sceneItemTransform"] = fields;
+            return ("SetSceneItemTransform", data);
+        }
+
+        // A copy of an item that a client asks for, in the scene of the item or, now and then, in another (named, or by its UUID: OBS Studio does not read the UUID).
+        private (string Type, Dictionary<string, object?>? Data) DuplicateSceneItem()
+        {
+            var item = PickItem();
+            var data = Data();
+            Put(data, "sceneName", "sceneUuid", (item.Name, item.Uuid));
+            data["sceneItemId"] = item.ItemId;
+            if (_random.Chance(0.4))
+            {
+                Put(data, "destinationSceneName", "destinationSceneUuid", PickScene());
+            }
+
+            return ("DuplicateSceneItem", data);
+        }
+
+        // A change of the transform that someone else makes, by dragging the item in the preview: valid members, some of them.
+        private SimTransformUpdate TransformUpdate()
+        {
+            var update = new SimTransformUpdate();
+            var members = _random.Next(1, 5);
+            for (var i = 0; i < members; i++)
+            {
+                switch (_random.Next(15))
+                {
+                    case 0:
+                        update.PositionX = _random.Next(-800, 2000) / 4f;
+                        break;
+                    case 1:
+                        update.PositionY = _random.Next(-800, 2000) / 4f;
+                        break;
+                    case 2:
+                        update.Rotation = _random.Next(-360, 361);
+                        break;
+                    case 3:
+                        update.ScaleX = _random.Next(1, 40) / 8f;
+                        break;
+                    case 4:
+                        update.ScaleY = _random.Next(1, 40) / 8f;
+                        break;
+                    case 5:
+                        update.Alignment = _random.Next(0, 16);
+                        break;
+                    case 6:
+                        update.BoundsType = SimWorld.BoundsTypes[_random.Next(SimWorld.BoundsTypes.Length)];
+                        break;
+                    case 7:
+                        update.BoundsAlignment = _random.Next(0, 16);
+                        break;
+                    case 8:
+                        update.BoundsWidth = _random.Next(1, 800);
+                        break;
+                    case 9:
+                        update.BoundsHeight = _random.Next(1, 800);
+                        break;
+                    case 10:
+                        update.CropLeft = _random.Next(0, 60);
+                        break;
+                    case 11:
+                        update.CropRight = _random.Next(0, 60);
+                        break;
+                    case 12:
+                        update.CropTop = _random.Next(0, 60);
+                        break;
+                    case 13:
+                        update.CropBottom = _random.Next(0, 60);
+                        break;
+                    default:
+                        update.CropToBounds = _random.Chance(0.5);
+                        break;
+                }
+            }
+
+            return update;
         }
 
         private (string Type, Dictionary<string, object?>? Data) CreateInput()
@@ -963,8 +1121,14 @@ namespace OBSStudioClient.Tests.Simulation
 
         private (string Type, Dictionary<string, object?>? Data) GetSceneItemId()
         {
-            var data = Data(("sourceName", _random.Chance(0.8) && _state.Inputs.Count > 0 ? _state.Inputs[_random.Next(_state.Inputs.Count)].Name : Name()));
-            Put(data, "sceneName", "sceneUuid", PickScene());
+            // Mostly the name of the source of an item that is in the scene, so that the request finds something now and then.
+            var item = PickItem();
+            var source = _state.Scenes.Concat(_state.DetachedScenes)
+                .Where(scene => scene.Uuid == item.Uuid)
+                .SelectMany(scene => scene.Items)
+                .FirstOrDefault(candidate => candidate.Id == item.ItemId)?.SourceName;
+            var data = Data(("sourceName", source ?? (_random.Chance(0.8) && _state.Inputs.Count > 0 ? _state.Inputs[_random.Next(_state.Inputs.Count)].Name : Name())));
+            Put(data, "sceneName", "sceneUuid", (item.Name, item.Uuid));
             if (_random.Chance(0.4))
             {
                 data["searchOffset"] = _random.Next(-1, 3);
@@ -1057,9 +1221,16 @@ namespace OBSStudioClient.Tests.Simulation
             Send(("SetSceneName", Data(("sceneUuid", scene.Uuid.ToString("D")), ("newSceneName", Name()))));
         }
 
-        // A client plays a media input and moves it right after: a move is only answered with success while the media plays or is paused, which a walk seldom arranges by chance.
+        // A client plays a media input and moves it right after: a move is only answered with success while the media plays or is paused, which a walk seldom arranges by chance. When there is no media
+        // input, someone makes one first, so that the walks do not depend on the chance that a media kind is picked when an input is made.
         private void PlayAndMove()
         {
+            if (!_state.Inputs.Any(input => input.MediaState is not null && !input.Removed))
+            {
+                Do(() => Sim.External.CreateInput(PickScene(tidy: true).Uuid, Name(0.1), SimInputKinds.All.First(kind => kind.IsMedia).Id), "CreateInput");
+                _state = Sim.Snapshot();
+            }
+
             var target = PickInput(media: true);
             var play = Data(("mediaAction", "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY"));
             Put(play, "inputName", "inputUuid", target);

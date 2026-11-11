@@ -11,7 +11,9 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="Enabled">Whether the item is enabled.</param>
     /// <param name="Locked">Whether the item is locked.</param>
     /// <param name="IsScene">Whether the source of the item is a scene.</param>
-    internal sealed record SimItemSnapshot(int Id, Guid SourceUuid, string SourceName, int Index, bool Enabled, bool Locked, bool IsScene);
+    /// <param name="Transform">The transform of the item, as obs-websocket writes it (JSON text, the members sorted).</param>
+    /// <param name="BlendMode">The blend mode of the item, as obs-websocket writes it.</param>
+    internal sealed record SimItemSnapshot(int Id, Guid SourceUuid, string SourceName, int Index, bool Enabled, bool Locked, bool IsScene, string Transform, string BlendMode);
 
     /// <summary>A scene in a <see cref="SimSnapshot"/>.</summary>
     /// <param name="Uuid">The UUID of the scene.</param>

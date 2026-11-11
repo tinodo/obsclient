@@ -40,6 +40,10 @@ namespace OBSStudioClient.Tests.Simulation
             var preview = initial.PreviewSceneUuid;
             var transition = initial.TransitionName;
             int? duration = initial.TransitionDuration;
+
+            // Whether a transition was started and its events had not told that it was over when the events end: a switch of the scene collection ends a stretch of events while a transition runs, and what OBS
+            // Studio says of the program scene then (it is the scene that the transition goes to, at once) is what the events say of it when the transition has ended (and never, when it was cut off).
+            var transitionRunning = false;
             var number = 0;
             foreach (var message in messages)
             {
@@ -112,6 +116,13 @@ namespace OBSStudioClient.Tests.Simulation
                         break;
                     case "CurrentProgramSceneChanged":
                         program = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
+                        break;
+                    case "SceneTransitionStarted":
+                        transitionRunning = true;
+                        break;
+                    case "SceneTransitionEnded":
+                    case "SceneTransitionVideoEnded":
+                        transitionRunning = false;
                         break;
                     case "InputCreated":
                         var createdInput = Guid.Parse(data.GetProperty("inputUuid").GetString()!);
@@ -265,7 +276,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             Same(problems, "scenes", scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""), final.Scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""));
-            if (program != final.ProgramSceneUuid)
+            if (program != final.ProgramSceneUuid && !transitionRunning)
             {
                 problems.Add($"The events say that the program scene is {program}, and it is {final.ProgramSceneUuid}.");
             }

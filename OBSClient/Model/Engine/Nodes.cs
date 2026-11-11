@@ -1,5 +1,8 @@
 namespace OBSStudioClient.Model.Engine
 {
+    using OBSStudioClient.Classes;
+    using OBSStudioClient.Events;
+
     /// <summary>
     /// What OBS Studio thinks of a scene or an input. OBS counts references: what is removed while a scene item still uses it stays alive.
     /// </summary>
@@ -301,6 +304,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Whether the item is locked.</summary>
         public Cell<bool> Locked;
 
+        /// <summary>The transform of the item: where it is, how large, how it is cropped. It is only kept when the engine follows the transforms (<see cref="ObsHighVolume.Transforms"/>), and is null until a read or an event has said it.</summary>
+        public Cell<SceneItemTransform?> Transform;
+
         public ItemNode(SceneNode scene, int id, Guid sourceUuid, int index, long createdSeq, bool fromRead)
         {
             this.Scene = scene;
@@ -310,6 +316,7 @@ namespace OBSStudioClient.Model.Engine
             this.Index = fromRead ? Cell<int>.FromRead(index, createdSeq) : new Cell<int>(index, createdSeq);
             this.Enabled = new Cell<bool>(true, 0);
             this.Locked = new Cell<bool>(false, 0);
+            this.Transform = new Cell<SceneItemTransform?>(null, 0);
         }
 
         /// <summary>Gets the scene (or group) that contains the item.</summary>
@@ -329,6 +336,12 @@ namespace OBSStudioClient.Model.Engine
 
         /// <summary>Gets or sets whether the model told that the item exists (an Added change was made).</summary>
         public bool Announced { get; set; }
+
+        /// <summary>
+        /// Gets or sets the event that said that the item was selected in OBS Studio, when it came before the item was announced (a new item is selected at once, and its state is read after that): it is told when the
+        /// item is, so that an application never hears of an item that it was not told of.
+        /// </summary>
+        public SceneItemSelectedEventArgs? PendingSelected { get; set; }
 
         /// <summary>Gets the key of the item.</summary>
         public ItemKey Key => new(this.Scene.Uuid, this.Id);

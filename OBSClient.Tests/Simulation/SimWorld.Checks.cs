@@ -225,7 +225,7 @@ namespace OBSStudioClient.Tests.Simulation
         private static SimSceneSnapshot SnapshotOf(SimScene scene, int index)
         {
             var items = scene.Items
-                .Select(item => new SimItemSnapshot(item.Id, item.Source.Uuid, item.Source.Name, item.Index, item.Enabled, item.Locked, item.Source.IsScene))
+                .Select(item => new SimItemSnapshot(item.Id, item.Source.Uuid, item.Source.Name, item.Index, item.Enabled, item.Locked, item.Source.IsScene, SimJson.Serialize(TransformJson(item)), item.BlendMode))
                 .ToArray();
             return new SimSceneSnapshot(scene.Uuid, scene.Name, index, items);
         }

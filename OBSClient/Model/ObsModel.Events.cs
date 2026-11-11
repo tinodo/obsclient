@@ -71,6 +71,20 @@ namespace OBSStudioClient.Model
         /// </remarks>
         public event EventHandler<ScreenshotSavedEventArgs>? ScreenshotSaved;
 
+        /// <summary>
+        /// Occurs when a scene item is selected in OBS Studio (somebody clicked it in the list of scene items or in the preview, or OBS Studio selected one that was just made, which it does for every new scene item).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The model does not keep which scene item is selected: OBS Studio does not say when one is not selected any more, and there is no request that asks. It is what happened, told in the order in which it
+        /// happened. A scene item that was just made is selected at once, and the model tells of it after it has told (<see cref="Changed"/>) that the scene item exists.
+        /// </para>
+        /// <para>
+        /// It is raised like <see cref="CustomEvent"/>: in order, on <see cref="ObsModelOptions.NotificationContext"/>.
+        /// </para>
+        /// </remarks>
+        public event EventHandler<ObsSceneItemEventArgs>? SceneItemSelected;
+
         internal void RaiseCustomEvent(CustomEventEventArgs args)
         {
             this.RaiseEvent(this.CustomEvent, args, nameof(this.CustomEvent));
@@ -84,6 +98,11 @@ namespace OBSStudioClient.Model
         internal void RaiseScreenshotSaved(ScreenshotSavedEventArgs args)
         {
             this.RaiseEvent(this.ScreenshotSaved, args, nameof(this.ScreenshotSaved));
+        }
+
+        internal void RaiseSceneItemSelected(ObsSceneItemEventArgs args)
+        {
+            this.RaiseEvent(this.SceneItemSelected, args, nameof(this.SceneItemSelected));
         }
 
         internal void RaiseExitStarted()

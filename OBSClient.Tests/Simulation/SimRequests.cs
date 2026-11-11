@@ -27,6 +27,8 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneItemEnabled"] = static (self, request) => self.GetSceneItemEnabled(request),
             ["GetSceneItemLocked"] = static (self, request) => self.GetSceneItemLocked(request),
             ["GetSceneItemIndex"] = static (self, request) => self.GetSceneItemIndex(request),
+            ["GetSceneItemTransform"] = static (self, request) => self.GetSceneItemTransform(request),
+            ["GetSceneItemBlendMode"] = static (self, request) => self.GetSceneItemBlendMode(request),
             ["GetCurrentProgramScene"] = static (self, request) => self.GetCurrentProgramScene(request),
             ["GetCurrentPreviewScene"] = static (self, request) => self.GetCurrentPreviewScene(request),
             ["GetStudioModeEnabled"] = static (self, request) => self.GetStudioModeEnabled(request),
@@ -67,6 +69,9 @@ namespace OBSStudioClient.Tests.Simulation
             ["SetSceneItemEnabled"] = static (self, request) => self.SetSceneItemEnabled(request),
             ["SetSceneItemLocked"] = static (self, request) => self.SetSceneItemLocked(request),
             ["SetSceneItemIndex"] = static (self, request) => self.SetSceneItemIndex(request),
+            ["SetSceneItemTransform"] = static (self, request) => self.SetSceneItemTransform(request),
+            ["SetSceneItemBlendMode"] = static (self, request) => self.SetSceneItemBlendMode(request),
+            ["DuplicateSceneItem"] = static (self, request) => self.DuplicateSceneItem(request),
             ["GetSceneCollectionList"] = static (self, request) => self.GetSceneCollectionList(request),
             ["SetCurrentSceneCollection"] = static (self, request) => self.SetCurrentSceneCollection(request),
             ["CreateSceneCollection"] = static (self, request) => self.CreateSceneCollection(request),
@@ -279,6 +284,18 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var item = request.AcquireSceneItem();
             return item is null ? Failed(request) : SimResult.Ok(Obj(("sceneItemIndex", item.Index)));
+        }
+
+        private SimResult GetSceneItemTransform(SimRequest request)
+        {
+            var item = request.AcquireSceneItem();
+            return item is null ? Failed(request) : SimResult.Ok(Obj(("sceneItemTransform", SimWorld.TransformJson(item))));
+        }
+
+        private SimResult GetSceneItemBlendMode(SimRequest request)
+        {
+            var item = request.AcquireSceneItem();
+            return item is null ? Failed(request) : SimResult.Ok(Obj(("sceneItemBlendMode", item.BlendMode)));
         }
 
         private SimResult GetCurrentProgramScene(SimRequest request)
@@ -856,6 +873,252 @@ namespace OBSStudioClient.Tests.Simulation
 
             _world.SetItemIndex(item, (int)index);
             return SimResult.Ok();
+        }
+
+        // The members of the transform are checked one by one, in the order of RequestHandler_SceneItems.cpp of obs-websocket 5.7.6 (read from its source), with the ranges that it checks, and the first member that is not right ends the
+        // request with nothing changed. The rotation, the crop and the size of the bounds were also measured with OBS Studio 33.0.0 (LiveGeometryTests).
+        private static bool ReadTransform(SimRequest fields, SimTransformUpdate update, SimItem item)
+        {
+            const double Limit = 90001.0;
+            const double MaxAlignment = 4294967295.0;
+            var (sourceWidth, sourceHeight) = SimWorld.SourceSize(item.Source);
+
+            float Number(string key, out bool ok, double min = double.NegativeInfinity, double max = double.PositiveInfinity)
+            {
+                ok = fields.OptionalNumber(key, out var value, min, max);
+                return (float)value;
+            }
+
+            bool ok;
+            if (fields.Contains("positionX"))
+            {
+                update.PositionX = Number("positionX", out ok, -Limit, Limit);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("positionY"))
+            {
+                update.PositionY = Number("positionY", out ok, -Limit, Limit);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("rotation"))
+            {
+                update.Rotation = Number("rotation", out ok, -360, 360);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("scaleX"))
+            {
+                update.ScaleX = Number("scaleX", out ok);
+                if (!ok)
+                {
+                    return false;
+                }
+
+                var finalWidth = (float)sourceWidth * update.ScaleX.Value;
+                if (!(finalWidth > -Limit && finalWidth < Limit))
+                {
+                    return fields.Refuse(SimStatus.RequestFieldOutOfRange, "The field `scaleX` is too small or large for the current source resolution.");
+                }
+            }
+
+            if (fields.Contains("scaleY"))
+            {
+                update.ScaleY = Number("scaleY", out ok, -Limit, Limit);
+                if (!ok)
+                {
+                    return false;
+                }
+
+                var finalHeight = (float)sourceHeight * update.ScaleY.Value;
+                if (!(finalHeight > -Limit && finalHeight < Limit))
+                {
+                    return fields.Refuse(SimStatus.RequestFieldOutOfRange, "The field `scaleY` is too small or large for the current source resolution.");
+                }
+            }
+
+            if (fields.Contains("alignment"))
+            {
+                update.Alignment = (int)(uint)Number("alignment", out ok, 0, MaxAlignment);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("boundsType"))
+            {
+                if (!fields.OptionalString("boundsType", out var boundsType))
+                {
+                    return false;
+                }
+
+                if (!SimWorld.BoundsTypes.Contains(boundsType))
+                {
+                    return fields.Refuse(SimStatus.InvalidRequestField, "The field `boundsType` has an invalid value.");
+                }
+
+                update.BoundsType = boundsType;
+            }
+
+            if (fields.Contains("boundsAlignment"))
+            {
+                update.BoundsAlignment = (int)(uint)Number("boundsAlignment", out ok, 0, MaxAlignment);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("boundsWidth"))
+            {
+                update.BoundsWidth = Number("boundsWidth", out ok, 1, Limit);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("boundsHeight"))
+            {
+                update.BoundsHeight = Number("boundsHeight", out ok, 1, Limit);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("cropLeft"))
+            {
+                update.CropLeft = (int)Number("cropLeft", out ok, 0, 100000);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("cropRight"))
+            {
+                update.CropRight = (int)Number("cropRight", out ok, 0, 100000);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("cropTop"))
+            {
+                update.CropTop = (int)Number("cropTop", out ok, 0, 100000);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("cropBottom"))
+            {
+                update.CropBottom = (int)Number("cropBottom", out ok, 0, 100000);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            if (fields.Contains("cropToBounds"))
+            {
+                if (!fields.OptionalBoolean("cropToBounds", out var cropToBounds))
+                {
+                    return false;
+                }
+
+                update.CropToBounds = cropToBounds;
+            }
+
+            return true;
+        }
+
+        private SimResult SetSceneItemTransform(SimRequest request)
+        {
+            var item = request.AcquireSceneItem();
+            if (item is null || !request.ValidateBasic("sceneItemTransform") || !request.OptionalObject("sceneItemTransform", out var given, allowEmpty: false))
+            {
+                return Failed(request);
+            }
+
+            var fields = new SimRequest(_world, given);
+            var update = new SimTransformUpdate();
+            if (!ReadTransform(fields, update, item))
+            {
+                return SimResult.Fail(fields.Failure!);
+            }
+
+            // An object of members that this request does not know changes nothing, and is refused (read from the source of obs-websocket 5.7.6).
+            if (!update.HasInfo && !update.HasCrop)
+            {
+                return SimResult.Fail(SimStatus.CannotAct, "You have not provided any valid transform changes.");
+            }
+
+            _world.SetItemTransform(item, update);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetSceneItemBlendMode(SimRequest request)
+        {
+            var item = request.AcquireSceneItem();
+            if (item is null || !request.RequireString("sceneItemBlendMode", out var mode))
+            {
+                return Failed(request);
+            }
+
+            // Read from the source of obs-websocket 5.7.6: a name that is no blend mode is refused (the comment has no quotes around the name of the field there).
+            if (!SimWorld.BlendModes.Contains(mode))
+            {
+                return SimResult.Fail(SimStatus.InvalidRequestField, "The field sceneItemBlendMode has an invalid value.");
+            }
+
+            _world.SetItemBlendMode(item, mode);
+            return SimResult.Ok();
+        }
+
+        // Read from the source of obs-websocket 5.7.6: the destination is only read when the request has destinationSceneName, and then a UUID that is there wins over the name. A request with only
+        // destinationSceneUuid makes the copy in the scene of the original, which OBS Studio 33.0.0 did (measured, LiveGeometryTests).
+        private SimResult DuplicateSceneItem(SimRequest request)
+        {
+            var item = request.AcquireSceneItem();
+            if (item is null)
+            {
+                return Failed(request);
+            }
+
+            var destination = item.Scene;
+            if (request.Contains("destinationSceneName"))
+            {
+                var source = request.AcquireSource("destinationSceneName", "destinationSceneUuid");
+                if (source is null)
+                {
+                    return Failed(request);
+                }
+
+                if (source is not SimScene scene)
+                {
+                    return SimResult.Fail(SimStatus.InvalidResourceType, "The specified source is not a scene.");
+                }
+
+                destination = scene;
+            }
+
+            var copy = _world.DuplicateItem(item, destination);
+            return SimResult.Ok(Obj(("sceneItemId", copy.Id)));
         }
 
         private SimResult GetSceneCollectionList(SimRequest request)

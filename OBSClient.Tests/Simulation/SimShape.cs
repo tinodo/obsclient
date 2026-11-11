@@ -56,6 +56,7 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneItemEnableStateChanged"] = "SceneItems",
             ["SceneItemLockStateChanged"] = "SceneItems",
             ["SceneItemSelected"] = "SceneItems",
+            ["SceneItemTransformChanged"] = "SceneItemTransformChanged",
         };
 
         /// <summary>

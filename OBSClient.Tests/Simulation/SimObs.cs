@@ -70,6 +70,7 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneItemEnableStateChanged"] = static () => SimIntent.SceneItems,
             ["SceneItemLockStateChanged"] = static () => SimIntent.SceneItems,
             ["SceneItemSelected"] = static () => SimIntent.SceneItems,
+            ["SceneItemTransformChanged"] = static () => SimIntent.SceneItemTransform,
         };
 
         private readonly SimRequests _requests;

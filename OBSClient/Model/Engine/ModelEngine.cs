@@ -189,6 +189,12 @@ namespace OBSStudioClient.Model.Engine
         /// recording that cannot begin shows an error in its own window and sends no event after the first), so a step that lasts this long is checked: a start that is not running then is over.
         /// </summary>
         public TimeSpan OutputStepTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets what the engine follows of what OBS Studio sends very often (see <see cref="ObsHighVolume"/>): the events for it are acted on, and what a read says of it is kept. What is not asked for
+        /// is left out, and the host does not subscribe to it.
+        /// </summary>
+        public ObsHighVolume HighVolume { get; set; } = ObsHighVolume.None;
     }
 
     /// <summary>

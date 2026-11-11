@@ -1,7 +1,9 @@
 namespace OBSStudioClient.Model.Engine
 {
+    using OBSStudioClient.Classes;
+
     /// <summary>A scene item, as the model holds it.</summary>
-    internal sealed record EngineItem(int Id, Guid SourceUuid, int Index, bool Enabled, bool Locked);
+    internal sealed record EngineItem(int Id, Guid SourceUuid, int Index, bool Enabled, bool Locked, SceneItemTransform? Transform = null);
 
     /// <summary>A scene, as the model holds it.</summary>
     internal sealed record EngineScene(Guid Uuid, string Name, int Index, SourceState State, IReadOnlyList<EngineItem> Items);
@@ -64,7 +66,7 @@ namespace OBSStudioClient.Model.Engine
                     .Where(item => item.Known)
                     .OrderBy(item => item.Index.Value)
                     .ThenBy(item => item.Id)
-                    .Select(item => new EngineItem(item.Id, item.SourceUuid, item.Index.Value, item.Enabled.Value, item.Locked.Value))
+                    .Select(item => new EngineItem(item.Id, item.SourceUuid, item.Index.Value, item.Enabled.Value, item.Locked.Value, item.Transform.Value))
                     .ToArray();
             }
 

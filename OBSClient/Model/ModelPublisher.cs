@@ -45,6 +45,9 @@ namespace OBSStudioClient.Model
         // What happened in the pass and is no state of the model (a file was saved): told after the notices, in the order of arrival, and also while the model is read.
         private readonly List<ModelNotice> _events = new();
 
+        // The events of the pass that tell of something that happened, with their data, until what they are about is published.
+        private readonly List<(EventType Type, object Data)> _told = new();
+
         // Reused by every pass.
         private readonly List<(int Index, ObsScene Scene)> _liveScenes = new();
         private readonly List<ObsScene> _otherScenes = new();
@@ -101,6 +104,7 @@ namespace OBSStudioClient.Model
             var pass = ++this._pass;
 
             // Before anything is removed: the objects that the model corrected itself about are still known now.
+            this._told.Clear();
             foreach (var change in changes)
             {
                 if (change.Kind == ModelChangeKind.Repaired && this.FindSource(change.Subject) is { } source)
@@ -109,7 +113,7 @@ namespace OBSStudioClient.Model
                 }
                 else if (change.Kind == ModelChangeKind.Notification && change.OldValue is EventType eventType && change.NewValue is { } data)
                 {
-                    this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+                    this._told.Add((eventType, data));
                 }
             }
 
@@ -117,6 +121,13 @@ namespace OBSStudioClient.Model
             this.PublishItems(engine, pass);
             this.PublishFilters(engine, pass);
             this.RemoveVanished(pass);
+
+            // What happened is told once what it is about is published: a scene item that was selected as it was made is the one that this pass published.
+            foreach (var (eventType, data) in this._told)
+            {
+                this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+            }
+
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
             this.PublishTransitions(engine);
@@ -352,7 +363,7 @@ namespace OBSStudioClient.Model
                             continue;
                         }
 
-                        item = new ObsSceneItem(scene, source, itemNode.Id, itemNode.Index.Value, itemNode.Enabled.Value, itemNode.Locked.Value);
+                        item = new ObsSceneItem(scene, source, itemNode.Id, itemNode.Index.Value, itemNode.Enabled.Value, itemNode.Locked.Value, itemNode.Transform.Value);
                         this._items.Add(key, item);
                         this._added.Add(new ModelNotice(new ObsChangedEventArgs(ObsChangeKind.Added, item), null, null));
                     }
@@ -374,6 +385,12 @@ namespace OBSStudioClient.Model
                         if (item.SetLocked(itemNode.Locked.Value))
                         {
                             this.AddProperty(item, nameof(ObsSceneItem.IsLocked), locked, itemNode.Locked.Value, true);
+                        }
+
+                        var transform = item.Transform;
+                        if (item.SetTransform(itemNode.Transform.Value))
+                        {
+                            this.AddProperty(item, nameof(ObsSceneItem.Transform), transform, itemNode.Transform.Value, true);
                         }
                     }
 
@@ -791,6 +808,7 @@ namespace OBSStudioClient.Model
                 EventType.CustomEvent when data is CustomEventEventArgs custom => () => model.RaiseCustomEvent(custom),
                 EventType.VendorEvent when data is VendorEventEventArgs vendor => () => model.RaiseVendorEvent(vendor),
                 EventType.ScreenshotSaved when data is ScreenshotSavedEventArgs screenshot => () => model.RaiseScreenshotSaved(screenshot),
+                EventType.SceneItemSelected when data is SceneItemSelectedEventArgs selected && this._items.TryGetValue(new ItemKey(selected.SceneUuid, selected.SceneItemId), out var selectedItem) => () => model.RaiseSceneItemSelected(new ObsSceneItemEventArgs(selectedItem)),
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),

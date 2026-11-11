@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Tests.Model
 {
+    using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
     using OBSStudioClient.Tests.Simulation;
 
@@ -36,12 +37,30 @@ namespace OBSStudioClient.Tests.Model
         [InlineData("Hostile", 4, true, ShortRetention)]
         public void After_a_random_walk_the_model_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects, int retentionSeconds)
         {
+            AssertWalks(quirks, maxBatch, reconnects, retentionSeconds, ObsHighVolume.None);
+        }
+
+        // The same, for a model that follows the transforms of the scene items (ObsHighVolume.Transforms): it subscribes to their events as well, and what it holds of every item has to be what OBS Studio holds.
+        [Theory]
+        [InlineData("Ideal", 50, false)]
+        [InlineData("Ideal", 50, true)]
+        [InlineData("Real", 50, true)]
+        [InlineData("Real", 4, false)]
+        [InlineData("Hostile", 50, false)]
+        [InlineData("Hostile", 4, true)]
+        public void After_a_random_walk_the_model_that_follows_the_transforms_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects)
+        {
+            AssertWalks(quirks, maxBatch, reconnects, 0, ObsHighVolume.Transforms);
+        }
+
+        private static void AssertWalks(string quirks, int maxBatch, bool reconnects, int retentionSeconds, ObsHighVolume highVolume)
+        {
             var failures = new List<string>();
             var walks = 0;
             foreach (var seed in SeedRange(FirstSeed, Seeds))
             {
                 walks++;
-                var result = Run(seed, quirks, maxBatch, reconnects, retentionSeconds);
+                var result = Run(seed, quirks, maxBatch, reconnects, retentionSeconds, highVolume: highVolume);
                 if (result.Problem is not null)
                 {
                     failures.Add(result.Problem);
@@ -223,7 +242,7 @@ namespace OBSStudioClient.Tests.Model
             return db <= -100 ? 0 : Math.Pow(10, db / 20);
         }
 
-        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0, bool collections = true)
+        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0, bool collections = true, ObsHighVolume highVolume = ObsHighVolume.None)
         {
             var presets = quirks switch
             {
@@ -232,7 +251,7 @@ namespace OBSStudioClient.Tests.Model
                 "Hostile" => SimQuirks.Hostile,
                 _ => throw new ArgumentOutOfRangeException(nameof(quirks), quirks, null),
             };
-            var options = new ModelEngineOptions { MaxBatch = maxBatch };
+            var options = new ModelEngineOptions { MaxBatch = maxBatch, HighVolume = highVolume };
             if (retentionSeconds > 0)
             {
                 // Much shorter than the default, so that the walks (a minute or two of virtual time) let go of what they remember, and show that nothing needs more

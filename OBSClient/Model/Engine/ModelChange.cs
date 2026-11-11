@@ -71,6 +71,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The position of a scene item in its scene changed.</summary>
         ItemIndexChanged,
 
+        /// <summary>The transform of a scene item changed (only followed when asked for: see <c>ObsHighVolume.Transforms</c>). The old and the new transform are the old and the new value.</summary>
+        ItemTransformChanged,
+
         /// <summary>OBS removed a scene or input, and keeps it alive because scene items still use it.</summary>
         SourceDetached,
 

@@ -34,6 +34,22 @@ namespace OBSStudioClient.Model
         /// <summary>The oldest obs-websocket that the model works with: the first one that identifies scenes and inputs by UUID (OBS Studio 30.1).</summary>
         public static readonly Version RequiredWebSocketVersion = new(5, 4, 0);
 
+        /// <summary>
+        /// The events that the model needs for what the application asked it to follow of what OBS Studio sends very often (see <see cref="ObsHighVolume"/>).
+        /// </summary>
+        /// <param name="highVolume">What the model follows.</param>
+        /// <returns>The events to subscribe to.</returns>
+        public static EventSubscriptions SubscriptionsFor(ObsHighVolume highVolume)
+        {
+            var events = EventSubscriptions.None;
+            if (highVolume.HasFlag(ObsHighVolume.Transforms))
+            {
+                events |= EventSubscriptions.SceneItemTransformChanged;
+            }
+
+            return events;
+        }
+
         private static readonly TimeSpan VersionRetryDelay = TimeSpan.FromSeconds(1);
 
         // When the engine wants a read that it does not hand out (it should not happen), it is asked again after this long, not at once.
@@ -93,7 +109,7 @@ namespace OBSStudioClient.Model
             this._time = options.TimeProvider ?? TimeProvider.System;
             this._start = this._time.GetTimestamp();
             this._readTimeout = options.ReadTimeout;
-            this._engine = new ModelEngine(new ModelEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout });
+            this._engine = new ModelEngine(new ModelEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout, HighVolume = options.HighVolume });
             this._held = new ModelNoticeHold(options.MaxPendingNotifications);
             this._publisher = new ModelPublisher(model, options.IgnoreCase);
         }
@@ -341,7 +357,7 @@ namespace OBSStudioClient.Model
         // Called by the receive loop of the client: it only puts the item in the inbox. Events that the model does not need are not even queued.
         private void OnIngress(IngressItem item)
         {
-            if (item.Kind == IngressKind.Event && !ModelEngine.Handles(item.Event!.EventType))
+            if (item.Kind == IngressKind.Event && !this._engine.Wants(item.Event!.EventType))
             {
                 return;
             }

@@ -42,12 +42,39 @@ namespace OBSStudioClient.Model.Engine
         }
 
         /// <summary>
-        /// Gets whether the model needs an event of this type. The events that it does not need are not even passed to it.
+        /// Gets whether the model needs an event of this type, when the application asked to follow everything that OBS Studio sends very often (see <see cref="Wants"/> for what it needs for what it was
+        /// asked). The events that it does not need are not even passed to it.
         /// </summary>
         /// <param name="eventType">The type of the event.</param>
         public static bool Handles(EventType eventType)
         {
             return Handlers.ContainsKey(eventType);
+        }
+
+        /// <summary>
+        /// Gets whether the engine acts on an event of this type: it handles it, and when OBS Studio sends it very often (see <see cref="HighVolumeOf"/>) the application asked to follow what it is about.
+        /// The host does not pass the others to it, and it ignores them when it is.
+        /// </summary>
+        /// <param name="eventType">The type of the event.</param>
+        public bool Wants(EventType eventType)
+        {
+            return Handlers.ContainsKey(eventType) && (HighVolumeOf(eventType) is not { } part || this.Follows(part));
+        }
+
+        /// <summary>Gets the part of what OBS Studio sends very often that an event is about, or null for an event that is not sent very often.</summary>
+        /// <param name="eventType">The type of the event.</param>
+        public static ObsHighVolume? HighVolumeOf(EventType eventType)
+        {
+            return eventType switch
+            {
+                EventType.SceneItemTransformChanged => ObsHighVolume.Transforms,
+                _ => null,
+            };
+        }
+
+        private bool Follows(ObsHighVolume part)
+        {
+            return this._options.HighVolume.HasFlag(part);
         }
     }
 }

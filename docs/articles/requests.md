@@ -120,6 +120,17 @@ await client.SetSceneItemTransform("Gaming Scene", sceneItemId, move);
 
 A `SceneItemTransform` also converts to an update implicitly.
 
+OBS Studio refuses a rotation beyond 360 degrees, a crop below 0 and bounds below 1 with `RequestFieldOutOfRange`, and nothing of the update is applied (it checks every member first). An update that sets nothing is refused as well.
+
+**Copying a scene item into another scene:** `DuplicateSceneItem` takes the scene to copy into as a name or as a UUID, and obs-websocket 5.7.6 (OBS Studio 33.0.0) reads the destination **only when the request has its name**: with the UUID alone it makes the copy
+in the scene of the original, and answers with success. Give the destination by name:
+
+```csharp
+int copyId = await client.DuplicateSceneItem("Gaming Scene", sceneItemId, destinationScene: "Chatting Scene");   // by name
+```
+
+[`ObsSceneItem.DuplicateAsync`](xref:OBSStudioClient.Model.ObsSceneItem.DuplicateAsync(OBSStudioClient.Model.ObsScene,System.Threading.CancellationToken)) of the model gives both and does not depend on it.
+
 ## Errors
 
 | Exception | Meaning |

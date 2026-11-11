@@ -1,6 +1,8 @@
 namespace OBSStudioClient.Tests.Model
 {
     using System.Text.Json;
+    using OBSStudioClient.Classes;
+    using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
     using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
@@ -182,6 +184,9 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets the settings of the filters that have some set, by the UUID of their source and their name (an object that is written as JSON).</summary>
         public Dictionary<(Guid Source, string Name), object> FilterSettings { get; } = new();
 
+        /// <summary>Gets the transform of the scene items that have another than <see cref="DefaultTransform"/>, by the UUID of their scene and their id.</summary>
+        public Dictionary<(Guid Scene, int Id), SceneItemTransform> Transforms { get; } = new();
+
         public Guid AddScene(string name)
         {
             var uuid = Guid.NewGuid();
@@ -360,7 +365,7 @@ namespace OBSStudioClient.Tests.Model
                         : (600, null);
                 case ReadKind.Items:
                     return this.Items.TryGetValue(request.Target, out var items)
-                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(this.Item).ToArray() })
+                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(item => this.Item(request.Target, item)).ToArray() })
                         : (600, null);
                 case ReadKind.AudioMute:
                     return this.AudioAnswer(request.Target, input => new { inputMuted = input.Muted });
@@ -424,7 +429,7 @@ namespace OBSStudioClient.Tests.Model
             return (600, null);
         }
 
-        private object Item((int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
+        private object Item(Guid scene, (int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
         {
             return new
             {
@@ -435,32 +440,14 @@ namespace OBSStudioClient.Tests.Model
                 sceneItemId = item.Id,
                 sceneItemIndex = item.Index,
                 sceneItemLocked = item.Locked,
-                sceneItemTransform = new
-                {
-                    alignment = 5,
-                    boundsAlignment = 0,
-                    boundsHeight = 0.0,
-                    boundsType = "OBS_BOUNDS_NONE",
-                    boundsWidth = 0.0,
-                    cropBottom = 0,
-                    cropLeft = 0,
-                    cropRight = 0,
-                    cropToBounds = false,
-                    cropTop = 0,
-                    height = 1080.0,
-                    positionX = 0.0,
-                    positionY = 0.0,
-                    rotation = 0.0,
-                    scaleX = 1.0,
-                    scaleY = 1.0,
-                    sourceHeight = 1080.0,
-                    sourceWidth = 1920.0,
-                    width = 1920.0,
-                },
+                sceneItemTransform = this.Transforms.TryGetValue((scene, item.Id), out var transform) ? transform : DefaultTransform,
                 sourceName = item.SourceName,
                 sourceType = item.IsScene ? "OBS_SOURCE_TYPE_SCENE" : "OBS_SOURCE_TYPE_INPUT",
                 sourceUuid = item.Source,
             };
         }
+
+        /// <summary>The transform of a scene item that a test did not give one: what OBS Studio says of an item that shows a source of 1920 by 1080 that was just made.</summary>
+        public static SceneItemTransform DefaultTransform { get; } = new(5, 0, 0f, Bounds.OBS_BOUNDS_NONE, 0f, 0, 0, 0, 0, 1080f, 0f, 0f, 0f, 1f, 1f, 1080f, 1920f, 1920f) { CropToBounds = false };
     }
 }

@@ -204,6 +204,36 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>Changes the transform of a scene item, as the user does when it moves or resizes the item in the preview.</summary>
+        public void SetItemTransform(Guid sceneUuid, int itemId, SimTransformUpdate update)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetItemTransform(FindItem(sceneUuid, itemId), update);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the blend mode of a scene item.</summary>
+        public void SetItemBlendMode(Guid sceneUuid, int itemId, string mode)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetItemBlendMode(FindItem(sceneUuid, itemId), mode);
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a copy of a scene item on top of a scene (the scene of the item when it is not given), and returns the ID of the copy.</summary>
+        public int DuplicateItem(Guid sceneUuid, int itemId, Guid? destinationUuid = null)
+        {
+            return _obs.RunExternal(() =>
+            {
+                var item = FindItem(sceneUuid, itemId);
+                return _world.DuplicateItem(item, destinationUuid is { } destination ? FindScene(destination) : item.Scene).Id;
+            });
+        }
+
         /// <summary>Mutes or unmutes an input.</summary>
         public void SetMute(Guid inputUuid, bool muted)
         {

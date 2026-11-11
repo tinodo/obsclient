@@ -100,7 +100,7 @@ namespace OBSStudioClient.Tests.Simulation
         {
             foreach (var item in items)
             {
-                lines.Add(Item(item.Id, item.Index, item.IsScene, item.SourceUuid.ToString("D"), item.SourceName, item.Enabled, item.Locked));
+                lines.Add(Item(item.Id, item.Index, item.IsScene, item.SourceUuid.ToString("D"), item.SourceName, item.Enabled, item.Locked, item.Transform, item.BlendMode));
             }
         }
 
@@ -115,13 +115,15 @@ namespace OBSStudioClient.Tests.Simulation
                     item.GetProperty("sourceUuid").GetString()!,
                     item.GetProperty("sourceName").GetString()!,
                     item.GetProperty("sceneItemEnabled").GetBoolean(),
-                    item.GetProperty("sceneItemLocked").GetBoolean()));
+                    item.GetProperty("sceneItemLocked").GetBoolean(),
+                    SimJson.Serialize(System.Text.Json.Nodes.JsonNode.Parse(item.GetProperty("sceneItemTransform").GetRawText())!),
+                    item.GetProperty("sceneItemBlendMode").GetString()!));
             }
         }
 
-        private static string Item(int id, int index, bool isScene, string sourceUuid, string sourceName, bool enabled, bool locked)
+        private static string Item(int id, int index, bool isScene, string sourceUuid, string sourceName, bool enabled, bool locked, string transform, string blendMode)
         {
-            return $"  item {id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)} {(isScene ? "scene" : "input")} {sourceUuid} \"{sourceName}\" {(enabled ? "enabled" : "disabled")} {(locked ? "locked" : "unlocked")}";
+            return $"  item {id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)} {(isScene ? "scene" : "input")} {sourceUuid} \"{sourceName}\" {(enabled ? "enabled" : "disabled")} {(locked ? "locked" : "unlocked")} {blendMode} {transform}";
         }
     }
 }

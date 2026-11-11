@@ -1049,6 +1049,15 @@ namespace OBSStudioClient.Model.Engine
                 this.Emit(ModelChangeKind.ItemLockedChanged, item.Scene.Uuid, item.Id, null, oldLocked, item.Locked.Value);
             }
 
+            if (this.Follows(ObsHighVolume.Transforms) && entry.SceneItemTransform is { } transform)
+            {
+                var oldTransform = item.Transform.Value;
+                if (item.Transform.ApplyRead(transform, sent) && item.Announced)
+                {
+                    this.Emit(ModelChangeKind.ItemTransformChanged, item.Scene.Uuid, item.Id, null, oldTransform, transform);
+                }
+            }
+
             item.Known = true;
             this.TryAnnounce(item);
         }

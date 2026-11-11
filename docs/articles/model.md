@@ -96,6 +96,8 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | | `RenameAsync(name)`, `RemoveAsync()` | |
 | `ObsSceneItem` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
 | | `SetLockedAsync(bool)`, `SetIndexAsync(int)`, `RemoveAsync()` | |
+| | `SetTransformAsync(update)`, `SetBlendModeAsync(mode)` | position, size and crop, and the blend mode (see [Position, size and crop: transforms](#position-size-and-crop-transforms)) |
+| | `DuplicateAsync(destination)` | makes a copy of the scene item, in its scene or in another one |
 | `ObsScene`, `ObsInput` | `CreateFilterAsync(name, kind, settings)` | makes a filter, on top of the others (see [Filters](#filters)) |
 | `ObsFilter` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
 | | `RenameAsync(name)`, `SetIndexAsync(int)`, `RemoveAsync()` | |
@@ -361,6 +363,43 @@ What OBS Studio does, which the model follows (all checked with OBS Studio 33.0.
 - **A removed preview scene** is replaced by another scene, and the model reads which. **Do not remove the program scene while studio mode is on:** OBS Studio 33.0.0 then stopped answering the requests that need its window for seconds (up to half a minute was seen), and everything that waits for it waits too. Switch to another scene first.
 - **The model reads the current transition when it connects** (and the preview scene when studio mode is on), so a connect sends one or two requests more. The events of the transitions (`Transitions`) are part of what the model subscribes to.
 
+## Position, size and crop: transforms
+
+Where a scene item is, how large it is shown, how it is rotated, bounded and cropped is its **transform** ([`SceneItemTransform`](xref:OBSStudioClient.Classes.SceneItemTransform)). OBS Studio sends an event for every step of a drag
+in the preview (sixty a second), and every program that listens pays for it, so the model **does not follow the transforms unless you ask it to**:
+
+```csharp
+using var obs = new ObsModel(new ObsModelOptions { HighVolume = ObsHighVolume.Transforms });   // follow the transforms of all the scene items
+// ...
+var webcam = obs.Scenes["Gaming"].Items["Webcam"];
+Console.WriteLine(webcam.Transform);                                     // null without HighVolume; PropertyChanged and Changed tell when it changes
+
+await webcam.SetTransformAsync(webcam.Transform!.ToUpdate() with { PositionX = 100, ScaleX = 0.5f, ScaleY = 0.5f });   // returns when the model shows it
+await webcam.SetTransformAsync(new SceneItemTransformUpdate { CropLeft = 20 });          // only the members that are set are changed
+var current = await webcam.GetTransformAsync();                          // asks OBS Studio: works with and without HighVolume
+```
+
+| On `ObsSceneItem` | |
+| --- | --- |
+| `Transform` | the transform, as a copy that does not change (a change gives another object): `null` unless the model follows the transforms ([`ObsModelOptions.HighVolume`](xref:OBSStudioClient.Model.ObsModelOptions.HighVolume) with [`ObsHighVolume.Transforms`](xref:OBSStudioClient.Model.ObsHighVolume)). OBS Studio sends the transform again when something else about the item changes (a blend mode, a source that is the same size): the model tells only when it is not the one that it held |
+| `GetTransformAsync()` | asks OBS Studio for the transform, whatever the options are |
+| `SetTransformAsync(update)` | changes the members of the [`SceneItemTransformUpdate`](xref:OBSStudioClient.Classes.SceneItemTransformUpdate) that are set, and leaves the others as they are. It returns when the model shows the change if it follows the transforms, and when OBS Studio has answered if it does not. OBS Studio refuses a rotation beyond 360 degrees, a crop below 0 and bounds below 1 (`ObsResponseException`, and nothing is changed) |
+| `GetBlendModeAsync()`, `SetBlendModeAsync(mode)` | how the item is blended with what is behind it. It is asked and not kept: OBS Studio announces no change of it |
+| `DuplicateAsync(destination)` | makes a copy and returns it when the model shows it: on top of its scene, or of the `destination` scene. It has the transform, the crop and whether the item is shown, and not whether it is locked, nor the blend mode |
+
+`obs.SceneItemSelected` says that an item was selected in OBS Studio (also the one that OBS Studio selects when an item is made); it is something that happened, and the model does not keep which item is selected, because OBS Studio does not say when it is not.
+
+What OBS Studio does (checked with OBS Studio 33.0.0, obs-websocket 5.7.6):
+
+- **A crop and the size of a source are announced only for a scene that OBS Studio renders**: the program scene, the preview scene of studio mode, a scene that a projector shows. For another scene they are announced when it is rendered, so the transform that a model that follows
+  the transforms shows of an item in such a scene has the crop and the size from before until then. The position, the scale, the rotation, the alignment and the bounds are announced at once. `SetTransformAsync` and `DuplicateAsync` read the scene again and do not depend on it, and
+  `GetTransformAsync` says what OBS Studio holds.
+- **A change with a crop is two events** (the crop comes last), and the call waits until the model has all of it.
+- **The size of an item is the size of its source times the scale**, whatever the bounds are, and a change of the size of the source gives the items that show it a new transform.
+- **A copy is made in the scene that OBS Studio is given by name.** `DuplicateSceneItem` with only the UUID of the destination makes the copy in the scene of the original (obs-websocket reads the destination only when the request has its name), so the model gives both. With the plain client
+  give the destination by name.
+- **When several programs change one item at the same time**, events can come in another order than the changes were made (two of fifty changes sent at once were swapped): the model shows the last event, and `GetTransformAsync` says what OBS Studio holds.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -431,7 +470,7 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio and media), scene items, the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
+The model has scenes, inputs (with their settings, audio and media), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 
