@@ -3,7 +3,9 @@ namespace OBSStudioClient.Model
     using System.ComponentModel;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
+    using OBSStudioClient.Messages;
     using OBSStudioClient.Model.Engine;
+    using OBSStudioClient.Responses;
 
     /// <summary>
     /// The profiles of OBS Studio: which one is current, the names of all, and the calls that switch to one, make one and remove one.
@@ -11,9 +13,10 @@ namespace OBSStudioClient.Model
     /// <remarks>
     /// <para>
     /// It is the same object for as long as the <see cref="ObsModel"/> lives (<see cref="ObsModel.Profiles"/>), and says with <see cref="INotifyPropertyChanged"/> when <see cref="Current"/> and
-    /// <see cref="Names"/> change, also when the user (or another program) changes them in OBS Studio. A profile holds what OBS Studio keeps apart from the scenes: its video settings, its stream
-    /// service, the folder for recordings, and its other settings. Only the current profile can be read and changed, so switch to a profile before asking for or changing what it holds. What is in the
-    /// scenes belongs to the scene collection (<see cref="ObsModel.SceneCollections"/>), so a switch of the profile does not change anything else that the model shows.
+    /// <see cref="Names"/> change, also when the user (or another program) changes them in OBS Studio. A profile holds what OBS Studio keeps apart from the scenes: its video settings
+    /// (<see cref="ObsModel.GetVideoSettingsAsync"/>), its stream service (<see cref="ObsModel.GetStreamServiceAsync"/>), the folder for recordings (<see cref="ObsModel.GetRecordDirectoryAsync"/>), its other
+    /// settings (<see cref="GetParameterAsync"/>), and the data that programs keep in it (<see cref="ObsModel.GetPersistentDataAsync"/>). Only the current profile can be read and changed, so switch to a profile before asking for or changing
+    /// what it holds. What is in the scenes belongs to the scene collection (<see cref="ObsModel.SceneCollections"/>), so a switch of the profile does not change anything else that the model shows.
     /// </para>
     /// <para>
     /// What OBS Studio does (measured with OBS Studio 33.0.0, and read in its source): a switch to another profile is done when OBS Studio answers, and the events that say so come at the same
@@ -176,6 +179,79 @@ namespace OBSStudioClient.Model
                         : throw new ObsNotConfirmedException(description, $"the model still lists the profile '{name}': OBS Studio did not remove it"),
                     Refresh = [new RefreshTarget(ReadKind.Profiles)],
                     Map = (_, response) => this.Explain(response, name, description),
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Asks OBS Studio for a parameter of the configuration of the profile that is current: what it is now, and what OBS Studio gives it when nobody set it.
+        /// </summary>
+        /// <param name="category">The category (the section of the configuration file of the profile): <c>Video</c>, <c>SimpleOutput</c>, <c>AdvOut</c>, <c>Output</c>, ...</param>
+        /// <param name="name">The name of the parameter in its category: <c>BaseCX</c>, <c>FilePath</c>, ...</param>
+        /// <param name="cancellationToken">A token that ends the wait. A request that was not sent yet is not sent.</param>
+        /// <returns>The parameter. It has no value (<see cref="ObsProfileParameter.HasValue"/> is false) when nobody set it and OBS Studio has no default for it, and that is no error: OBS Studio does not say which parameters exist.</returns>
+        /// <exception cref="ArgumentException"><paramref name="category"/> or <paramref name="name"/> is empty.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call.</exception>
+        /// <exception cref="TimeoutException">OBS Studio did not answer in time (<see cref="ObsModelOptions.WriteTimeout"/>).</exception>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio keeps what it does not have a setting window for, and the settings that the model has a call for (<see cref="ObsModel.GetVideoSettingsAsync"/>), in the configuration of the profile; this reads
+        /// it as it is, as text, whatever it means (<c>Video</c>/<c>BaseCX</c> is <c>"1920"</c>). The category and the name are case sensitive (measured with OBS Studio 33.0.0). OBS Studio does not announce a change of a parameter, so the model does not keep
+        /// them: ask when you need one. Only the profile that is current can be asked. The request is made in its turn, after the changes that were asked for before it (see <see cref="ObsSceneItem.SetEnabledAsync"/>).
+        /// </para>
+        /// </remarks>
+        public Task<ObsProfileParameter> GetParameterAsync(string category, string name, CancellationToken cancellationToken = default)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(category);
+            ArgumentException.ThrowIfNullOrEmpty(name);
+            return this._model.Writer.ExecuteAsync<ObsProfileParameter>(
+                new WriteJob
+                {
+                    Description = $"asking for the profile parameter '{category}/{name}'",
+                    ReadOnly = true,
+                    BuildRequests = () => [new WriteRequest(RequestType.GetProfileParameter, GetProfileParameterRequestData.Create(category, name))],
+                    ReadResponses = responses =>
+                    {
+                        var response = (ProfileParameterResponse)responses[0].ResponseData!;
+                        return new ObsProfileParameter(category, name, response.ParameterValue, response.DefaultParameterValue);
+                    },
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Sets a parameter of the configuration of the profile that is current, or removes it, and returns when OBS Studio has answered.
+        /// </summary>
+        /// <param name="category">The category (the section of the configuration file of the profile): <c>Video</c>, <c>SimpleOutput</c>, <c>AdvOut</c>, <c>Output</c>, ...</param>
+        /// <param name="name">The name of the parameter in its category: <c>BaseCX</c>, <c>FilePath</c>, ...</param>
+        /// <param name="value">The value, as text; or null to remove the parameter, so that OBS Studio gives it its default again.</param>
+        /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
+        /// <returns>A task that completes when OBS Studio has answered that it made the change.</returns>
+        /// <exception cref="ArgumentException"><paramref name="category"/> or <paramref name="name"/> is empty.</exception>
+        /// <exception cref="ObsNotFoundException">The parameter is to be removed and it has no value: there is nothing to remove (<see cref="ObsNotFoundException.Kind"/> is "profile parameter"). Nothing was changed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio writes the parameter to the configuration of the profile that is current, and does not check the category, the name or the value: it is meant for the settings that OBS Studio reads itself, and
+        /// what it does with a value that it does not understand is up to it. A setting that the model has a call for is better changed with the call (<see cref="ObsModel.SetVideoSettingsAsync"/>), which also makes OBS Studio use it.
+        /// Only the profile that is current can be changed. The model does not keep the parameters, so the call has nothing to wait for but the answer of OBS Studio: ask what it holds with
+        /// <see cref="GetParameterAsync"/>. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes.
+        /// </para>
+        /// </remarks>
+        public Task SetParameterAsync(string category, string name, string? value, CancellationToken cancellationToken = default)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(category);
+            ArgumentException.ThrowIfNullOrEmpty(name);
+            return this._model.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = value is null ? $"removing the profile parameter '{category}/{name}'" : $"setting the profile parameter '{category}/{name}'",
+                    BuildRequests = () => [new WriteRequest(RequestType.SetProfileParameter, SetProfileParameterRequestData.Create(category, name, value))],
+                    Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound ? new ObsNotFoundException("profile parameter", $"{category}/{name}", []) : null,
                 },
                 cancellationToken);
         }

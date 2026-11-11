@@ -64,6 +64,13 @@ namespace OBSStudioClient.Tests.Simulation
         private static readonly string[] TransitionNames = ["Cut", "Fade", "Fade", "No such transition"];
         private static readonly int[] TransitionDurations = [49, 50, 300, 1000, 2500, 20000, 20001];
 
+        // The sizes of the video that the walks set (one below the least that OBS Studio takes is made by the walk), and the categories, the names and the slots of the configuration and of the persistent data.
+        private static readonly int[] VideoSizes = [8, 640, 1280, 1920, 3840, 4096];
+        private static readonly string[] ConfigCategories = ["Video", "Output", "SimpleOutput", "AdvOut", "walk"];
+        private static readonly string[] ConfigNames = ["BaseCX", "Mode", "FilePath", "RecFilePath", "a", "b"];
+        private static readonly string[] SlotNames = ["slot-a", "slot-b", "slot-c"];
+        private static readonly string DefaultFolder = SimObs.DefaultRecordDirectory;
+
         private readonly SimRandom _random;
         private readonly List<(string Name, int Weight, Action Run)> _operations = [];
         private readonly List<(int Weight, Func<(string Type, Dictionary<string, object?>? Data)> Make)> _requests = [];
@@ -696,7 +703,7 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => Input("GetInputAudioTracks", true));
             Request(1, () => Input("GetInputSettings"));
             Request(1, () => ("GetCurrentProgramScene", null));
-            Request(1, () => ("GetCurrentPreviewScene", null));
+            Request(2, () => ("GetCurrentPreviewScene", null));
             Request(1, () => ("GetStudioModeEnabled", null));
             Request(1, () => ("GetGroupList", null));
             Request(1, () => ("GetVersion", null));
@@ -708,6 +715,16 @@ namespace OBSStudioClient.Tests.Simulation
             Request(2, () => ("SetCurrentProfile", Data(("profileName", ProfileName()))));
             Request(2, () => ("CreateProfile", Data(("profileName", NewProfileName()))));
             Request(2, () => ("RemoveProfile", Data(("profileName", ProfileName()))));
+            Request(1, () => ("GetVideoSettings", null));
+            Request(2, () => SetVideoSettings());
+            Request(1, () => ("GetStreamServiceSettings", null));
+            Request(2, () => SetStreamServiceSettings());
+            Request(1, () => ("GetRecordDirectory", null));
+            Request(2, () => ("SetRecordDirectory", Data(("recordDirectory", _random.Chance(0.5) ? DefaultFolder : $"C:\\walk\\{Name(0.0)}"))));
+            Request(2, () => ("GetProfileParameter", Data(("parameterCategory", ConfigCategories[_random.Next(ConfigCategories.Length)]), ("parameterName", ConfigNames[_random.Next(ConfigNames.Length)]))));
+            Request(2, () => SetProfileParameter());
+            Request(1, () => ("GetPersistentData", Data(("realm", PersistentRealm()), ("slotName", SlotNames[_random.Next(SlotNames.Length)]))));
+            Request(2, () => SetPersistentData());
 
             Operation("client request", 54, () => Send(Pick()));
             Operation("client batch", 5, AskBatch);
@@ -770,6 +787,96 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var names = Sim.Profiles;
             return _random.Chance(0.1) ? names[_random.Next(names.Count)] : Name(0.0);
+        }
+
+        // SetVideoSettings: some of the three pairs, now and then only half of one (OBS Studio ignores it), and now and then a size that is below the least that it takes.
+        private (string Type, Dictionary<string, object?>? Data) SetVideoSettings()
+        {
+            int Size() => _random.Chance(0.05) ? _random.Next(1, 8) : VideoSizes[_random.Next(VideoSizes.Length)];
+            var data = new Dictionary<string, object?>();
+            if (_random.Chance(0.5))
+            {
+                data["baseWidth"] = Size();
+                data["baseHeight"] = Size();
+            }
+
+            if (_random.Chance(0.4))
+            {
+                data["outputWidth"] = Size();
+                data["outputHeight"] = Size();
+            }
+
+            if (_random.Chance(0.5) || data.Count == 0)
+            {
+                data["fpsNumerator"] = _random.Chance(0.5) ? 30 : 60000;
+                data["fpsDenominator"] = _random.Chance(0.5) ? 1 : 1001;
+            }
+
+            if (_random.Chance(0.05))
+            {
+                data.Remove(data.Keys.First());
+            }
+
+            return ("SetVideoSettings", data);
+        }
+
+        // SetStreamServiceSettings: a service that OBS Studio has (now and then one that it does not), with settings that are not empty (now and then they are).
+        private (string Type, Dictionary<string, object?>? Data) SetStreamServiceSettings()
+        {
+            var settings = new Dictionary<string, object?>();
+            if (!_random.Chance(0.05))
+            {
+                settings["server"] = $"rtmp://walk/{Name(0.0)}";
+                if (_random.Chance(0.5))
+                {
+                    settings["key"] = "key-" + _random.Next(100);
+                }
+
+                if (_random.Chance(0.2))
+                {
+                    settings["use_auth"] = null;
+                }
+            }
+
+            var type = _random.Chance(0.05) ? "no_such_service" : SimObs.ServiceTypes[_random.Next(SimObs.ServiceTypes.Count)];
+            return ("SetStreamServiceSettings", Data(("streamServiceType", type), ("streamServiceSettings", settings)));
+        }
+
+        // SetProfileParameter: a value, and now and then none (it removes the parameter, which only works for one that was set) or one that is no string.
+        private (string Type, Dictionary<string, object?>? Data) SetProfileParameter()
+        {
+            var data = Data(("parameterCategory", ConfigCategories[_random.Next(ConfigCategories.Length)]), ("parameterName", ConfigNames[_random.Next(ConfigNames.Length)]));
+            if (_random.Chance(0.2))
+            {
+                data["parameterValue"] = null;
+            }
+            else
+            {
+                data["parameterValue"] = _random.Chance(0.05) ? 42 : $"value-{_random.Next(5)}";
+            }
+
+            return ("SetProfileParameter", data);
+        }
+
+        // The realm of the persistent data: mostly one that OBS Studio has.
+        private string PersistentRealm()
+        {
+            return _random.Chance(0.05) ? "OBS_WEBSOCKET_DATA_REALM_BOGUS" : _random.Chance(0.5) ? "OBS_WEBSOCKET_DATA_REALM_GLOBAL" : "OBS_WEBSOCKET_DATA_REALM_PROFILE";
+        }
+
+        // SetPersistentData: a value of any kind that JSON has, and now and then null (OBS Studio takes it for a value that is missing).
+        private (string Type, Dictionary<string, object?>? Data) SetPersistentData()
+        {
+            object? value = _random.Next(6) switch
+            {
+                0 => $"text-{_random.Next(5)}",
+                1 => _random.Next(100),
+                2 => _random.Chance(0.5),
+                3 => new Dictionary<string, object?> { ["b"] = _random.Next(10), ["a"] = new[] { 1, 2 } },
+                4 => new[] { "x", "y" },
+                _ => _random.Chance(0.3) ? null : "kept",
+            };
+            return ("SetPersistentData", Data(("realm", PersistentRealm()), ("slotName", SlotNames[_random.Next(SlotNames.Length)]), ("slotValue", value)));
         }
 
         // A scene collection to point at: mostly one that is there, and now and then one that is not.

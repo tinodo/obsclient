@@ -84,6 +84,13 @@ namespace OBSStudioClient.Tests.Simulation
         internal static readonly IReadOnlySet<string> ExtraResponseMembersNotCaptured = new HashSet<string>(StringComparer.Ordinal) { "GetCurrentPreviewScene" };
 
         /// <summary>
+        /// The members that are null in a response whose request the capture does not hold at all, so that the capture cannot say that a real OBS Studio sends a null there, written as <c>request:path</c>.
+        /// <c>GetPersistentData</c> answers with <c>slotValue</c> null for a slot that nobody put anything in (the source of obs-websocket 5.7.6, and LiveProfileSettingsModelTests against OBS Studio 33.0.0). The capture has to be the one
+        /// that shows it as soon as it can: this is the way out for the answers that it lacks, and no more.
+        /// </summary>
+        internal static readonly IReadOnlySet<string> NullNotCaptured = new HashSet<string>(StringComparer.Ordinal) { "GetPersistentData:$.slotValue" };
+
+        /// <summary>
         /// The members of an event that a real OBS Studio sends, and that the protocol snapshot does not list. There are none that the
         /// simulation sends.
         /// </summary>
@@ -516,7 +523,8 @@ namespace OBSStudioClient.Tests.Simulation
         private static bool AllowsNull(string key, Dictionary<string, PathObservation>? real, string path)
         {
             return (real is not null && real.TryGetValue(path, out var observation) && observation.Types.Contains("null"))
-                || (ExtraTypes.TryGetValue(key, out var extra) && extra.Contains("null"));
+                || (ExtraTypes.TryGetValue(key, out var extra) && extra.Contains("null"))
+                || (real is null && NullNotCaptured.Contains(key));
         }
 
         // The members of the objects that the protocol only describes in prose: they have to be those of the capture, as the same kinds of value.

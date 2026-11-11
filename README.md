@@ -159,10 +159,11 @@ What it gives you:
 - **Made for the real OBS Studio.** It reconnects and reads again, follows a switch of the scene collection, and knows that OBS Studio keeps a removed scene or input alive for as long as a scene item shows it. It is checked against a simulation of OBS Studio that reproduces what the real one does that surprises, and in CI against a real one.
 - **Nothing hidden.** `obs.Client` is the `ObsClient`.
 
-**Not in the model yet:** the settings of a profile (the video settings, the stream service, the folder for recordings), the data that OBS Studio keeps for an application, and the rest of the protocol. Use `obs.Client` for those, in the same program, on the same connection; the model follows what they do:
+**Not in the model yet:** the canvases other than the main one, and request batches (the model makes its changes one at a time, in order). Use `obs.Client` for those, in the same program, on the same connection; the model follows what they do:
 
 ```csharp
-var video = await obs.Client.GetVideoSettings();         // not in the model yet: the protocol
+var canvases = await obs.Client.GetCanvasList();         // not in the model yet: the protocol
+var video = await obs.GetVideoSettingsAsync();           // the model: the settings of OBS Studio itself are in it
 await obs.Profiles.SetCurrentAsync("Gaming");            // the model: profiles and scene collections are in it
 await obs.Scenes["Gaming Scene"].SwitchToAsync();        // the model
 ```

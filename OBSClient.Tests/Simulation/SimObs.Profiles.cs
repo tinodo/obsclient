@@ -43,6 +43,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             _profileNames.Add(name);
+            AddProfileData(name);
             _currentProfile = name;
             var listed = Emit("ProfileListChanged", Obj(("profiles", ProfileList())), -1, TimeSpan.Zero);
             Emit("CurrentProfileChanged", Obj(("profileName", name)), listed, Quirks.ProfileActivationTime.Sample(Random));
@@ -56,6 +57,7 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
+            RemoveProfileData(name);
             Emit("ProfileListChanged", Obj(("profiles", ProfileList())), -1, TimeSpan.Zero);
         }
 
@@ -72,6 +74,7 @@ namespace OBSStudioClient.Tests.Simulation
             var next = _profileNames.Where(name => !string.Equals(name, _currentProfile, StringComparison.Ordinal)).Order(StringComparer.Ordinal).First();
             var changing = Emit("CurrentProfileChanging", Obj(("profileName", _currentProfile)), -1, TimeSpan.Zero);
             _profileNames.Remove(_currentProfile);
+            RemoveProfileData(_currentProfile);
             _currentProfile = next;
             Emit("CurrentProfileChanged", Obj(("profileName", next)), changing, TimeSpan.Zero);
         }

@@ -291,6 +291,7 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var problems = _world.FindProblems();
             FindProfileProblems(problems);
+            FindProfileDataProblems(problems);
             if (_events is not null)
             {
                 problems.Add("A change is still running.");

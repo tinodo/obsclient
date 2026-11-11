@@ -1,7 +1,7 @@
 namespace OBSStudioClient.Exceptions
 {
     /// <summary>
-    /// Represents an exception that is thrown when a scene, an input, a scene item, a profile or a scene collection with a given name does not exist in the model of an <see cref="Model.ObsModel"/>, or in OBS Studio.
+    /// Represents an exception that is thrown when a scene, an input, a scene item, a profile, a profile parameter or a scene collection with a given name does not exist in the model of an <see cref="Model.ObsModel"/>, or in OBS Studio.
     /// </summary>
     /// <remarks>
     /// Names are case sensitive, as they are in OBS Studio. The message says which names are close to the one that was asked for.
@@ -12,7 +12,7 @@ namespace OBSStudioClient.Exceptions
         /// <summary>
         /// Initializes a new instance of the <see cref="ObsNotFoundException"/> class.
         /// </summary>
-        /// <param name="kind">What was looked for: "scene", "input", "scene item", "profile" or "scene collection".</param>
+        /// <param name="kind">What was looked for: "scene", "input", "scene item", "profile", "profile parameter" or "scene collection".</param>
         /// <param name="requestedName">The name that was asked for.</param>
         /// <param name="suggestions">The names that are close to it, if there are any.</param>
         /// <param name="scope">Where it was looked for, for example "scene 'Gaming'", or null.</param>
@@ -25,7 +25,7 @@ namespace OBSStudioClient.Exceptions
         }
 
         /// <summary>
-        /// Gets what was looked for: "scene", "input", "scene item", "profile" or "scene collection".
+        /// Gets what was looked for: "scene", "input", "scene item", "profile", "profile parameter" or "scene collection".
         /// </summary>
         public string Kind { get; } = string.Empty;
 

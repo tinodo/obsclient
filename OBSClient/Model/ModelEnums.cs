@@ -5,7 +5,7 @@ namespace OBSStudioClient.Model
 
     /// <summary>
     /// Converts between what obs-websocket says (the enums and strings of the client) and what the model shows (<see cref="ObsMonitorType"/>, <see cref="ObsAudioTracks"/>,
-    /// <see cref="ObsDeinterlaceMode"/>, <see cref="ObsDeinterlaceFieldOrder"/> and <see cref="ObsMediaState"/>).
+    /// <see cref="ObsDeinterlaceMode"/>, <see cref="ObsDeinterlaceFieldOrder"/>, <see cref="ObsMediaState"/> and <see cref="ObsDataRealm"/>).
     /// </summary>
     internal static class ModelEnums
     {
@@ -87,6 +87,16 @@ namespace OBSStudioClient.Model
         public static string ToWire(ObsDeinterlaceFieldOrder order)
         {
             return order == ObsDeinterlaceFieldOrder.BottomFieldFirst ? FieldOrderBottom : FieldOrderTop;
+        }
+
+        public static Realm ToWire(ObsDataRealm realm)
+        {
+            return realm switch
+            {
+                ObsDataRealm.Global => Realm.OBS_WEBSOCKET_DATA_REALM_GLOBAL,
+                ObsDataRealm.Profile => Realm.OBS_WEBSOCKET_DATA_REALM_PROFILE,
+                _ => throw new ArgumentOutOfRangeException(nameof(realm), realm, "This is not a realm of persistent data: use ObsDataRealm.Global or ObsDataRealm.Profile."),
+            };
         }
 
         // The tracks as one bit for each: track 1 is bit 0.

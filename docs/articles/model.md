@@ -518,6 +518,47 @@ What OBS Studio does, which the model follows (checked with OBS Studio 33.0.0, a
   (see [The connection, and scene collections](#the-connection-and-scene-collections)). The call returns when the model is `Synchronized` with the new collection. OBS Studio answers `SetCurrentSceneCollection` when it has loaded the collection, so the call waits for the answer as long as `SynchronizationTimeout` when that is more than `WriteTimeout`.
 - **The model reads the two lists when it connects**, and again when it reads everything because OBS Studio switched its scene collection, so a connect sends two requests more.
 
+## The settings of OBS Studio itself
+
+A profile holds what OBS Studio keeps apart from the scenes, and the model has a call for each part that obs-websocket gives: the **video settings**, the **stream service**, the **folder for recordings**, the **parameters** of the profile (what OBS Studio keeps in the configuration file of the profile),
+and the **data that OBS Studio keeps for an application**. OBS Studio does not announce a change of any of them, so the model keeps none of them: **a call asks, or tells, and ends when OBS Studio has answered**. They are the settings of the profile that is current when the request is made,
+and the requests are made in the order of the calls: a read that you ask for before a switch of the profile is about the profile that was current then.
+
+```csharp
+var video = await obs.GetVideoSettingsAsync();                           // Video 1920x1080 canvas, 1280x720 output, 30 fps (30/1)
+await obs.SetVideoSettingsAsync(outputResolution: (1280, 720), frameRate: (60000, 1001));   // what is given changes, the rest stays
+
+await obs.SetStreamServiceAsync("rtmp_custom", new { server = "rtmp://live.example.com/app", key = secret });
+ObsStreamService service = await obs.GetStreamServiceAsync();            // the type and the settings: the stream key is among them
+
+await obs.SetRecordDirectoryAsync(@"D:\Recordings");
+ObsProfileParameter mode = await obs.Profiles.GetParameterAsync("Output", "Mode");   // mode.Value is "Simple" or "Advanced"
+
+await obs.SetPersistentDataAsync(ObsDataRealm.Global, "my-app", new { lastScene = "Gaming" });
+JsonElement? mine = await obs.GetPersistentDataAsync(ObsDataRealm.Global, "my-app");   // null for a slot that nobody used
+```
+
+| Call | |
+| --- | --- |
+| `GetVideoSettingsAsync()` | an [`ObsVideoSettings`](xref:OBSStudioClient.Model.ObsVideoSettings): the base (canvas) and the output resolution, and the frame rate as a fraction (`FpsNumerator` and `FpsDenominator`; `FramesPerSecond` divides them) |
+| `SetVideoSettingsAsync(baseResolution, outputResolution, frameRate)` | changes what is given (at least one of the three), with one request. A size is from 1 to 4096 pixels (OBS Studio takes 8 and more), and the frame rate is a numerator and a denominator, so that 59.94 is `(60000, 1001)` |
+| `GetStreamServiceAsync()` | an [`ObsStreamService`](xref:OBSStudioClient.Model.ObsStreamService): `Type` (`rtmp_common`, `rtmp_custom`, or the type of a plugin) and `Settings` (a JSON object). **The settings hold the stream key**: do not log them (`ToString()` does not show them) |
+| `SetStreamServiceAsync(type, settings)` | settings of the type that is current are laid over its own (a field that you leave out stays), another type makes a new service. The settings can not be empty |
+| `GetRecordDirectoryAsync()`, `SetRecordDirectoryAsync(path)` | the folder for recordings, of the output mode that the profile is in. Setting it sets the folder of both modes, and OBS Studio does not check that it exists |
+| `obs.Profiles.GetParameterAsync(category, name)` | an [`ObsProfileParameter`](xref:OBSStudioClient.Model.ObsProfileParameter): `Value` and `DefaultValue` (text), and `HasValue`. A parameter that nobody set and that has no default has no value, and that is no error |
+| `obs.Profiles.SetParameterAsync(category, name, value)` | writes a parameter to the configuration of the profile. `null` removes it; removing a parameter that has no value that was set throws an `ObsNotFoundException` (`Kind` is `profile parameter`) |
+| `GetPersistentDataAsync(realm, slot)`, `SetPersistentDataAsync(realm, slot, value)` | a slot that OBS Studio keeps for the programs that control it, in files of its own: for [`ObsDataRealm.Global`](xref:OBSStudioClient.Model.ObsDataRealm) the same for every profile, for `ObsDataRealm.Profile` the one of the profile that is current. A value of any kind that JSON has, **but not null** |
+
+What OBS Studio does, which the calls follow (checked with OBS Studio 33.0.0, and read in the source of obs-websocket 5.7.6):
+
+- **OBS Studio refuses a change while an output runs**: the video settings while an output is active (measured while recording), the folder for recordings while it records, and the stream service while it streams. The call throws an `ObsResponseException` with the code (`OutputRunning`) and the words of OBS Studio.
+  A refusal of a value says so the same way: a canvas of 4 by 4 is refused with `RequestFieldOutOfRange`.
+- **A parameter is only written to the configuration**: OBS Studio does not apply it to what it runs (`Video`/`BaseCX` written as a parameter did not change the canvas). `SetVideoSettingsAsync` changes what OBS Studio runs with, and writes the parameters of the video too. The category and the name of a parameter
+  are case sensitive, and a value is text whatever it means (`"1920"`).
+- **A profile that is made is a clean one**: its video settings, its service (`rtmp_common`, with no settings) and its folder are what OBS Studio gives a new profile, not a copy of the profile that was current. What a profile holds goes away with it.
+- **A null is not kept**: OBS Studio takes a null for a value that is missing, and refuses it ("Your request is missing the `slotValue` field"); the call refuses it before it sends anything. OBS Studio has no request that removes a slot: keep an empty value (an empty string, an empty object) to say that there is nothing.
+- **Nothing of it is in the model**, so `Changed` does not tell it: ask again when you need it, and after a switch of the profile. The model does not read any of it when it connects.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -590,12 +631,12 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), and the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them). The settings of a profile (the video settings, the stream service, the folder for recordings, its parameters), the data that OBS Studio keeps for an application, and the rest of
-the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
+The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them), and calls for the settings of OBS Studio itself and for the data that it keeps for an application (see [The settings of OBS Studio itself](#the-settings-of-obs-studio-itself)). What it does not cover yet: the canvases other than the main one, and request batches (the model makes its changes one at a time, in order; see [Request batches](batches.md)).
+Those are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 
 ```csharp
-var video = await obs.Client.GetVideoSettings();                   // not modelled yet: the plain client
+var canvases = await obs.Client.GetCanvasList();                   // not modelled yet: the plain client
 await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true); // and the model follows
 ```
 
