@@ -264,6 +264,10 @@ namespace OBSStudioClient.Model.Engine
         private Cell<NameList?> _profiles = new(null, 0);
         private Cell<NameList?> _collections = new(null, 0);
 
+        // The name of the scene collection that the scenes and the inputs of the model are of: the first answer to the list of the scene collections after a connection or a switch says it (see
+        // NoticeSwitch). An answer that names another collection later, without the events that say that OBS Studio changed it, is a switch that the model was not told of.
+        private string? _loadedCollection;
+
         // The canvases of OBS Studio (the main one, and those that plugins made). A scene collection saves its canvases, so they are those of the collection: a switch drops them, and they are read again
         // with the rest. OBS Studio keeps a canvas that it says it removed on its list until the last reference to it is released (it does not say so again), so the canvases that it said it removed are
         // left out of what a read lists (they do not come back: a canvas of a collection that is loaded again is another one, and a new connection or collection starts the set anew).

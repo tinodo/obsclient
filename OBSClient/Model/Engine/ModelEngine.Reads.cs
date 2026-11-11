@@ -24,6 +24,12 @@ namespace OBSStudioClient.Model.Engine
             this._seq = ticket.SentSeq;
             for (var i = 0; i < ticket.Requests.Count; i++)
             {
+                // An answer can say that OBS Studio changed its scene collection (see NoticeSwitch): the answers that follow it are of a collection that the model has left, and are read again.
+                if (ticket.Epoch != this._epoch)
+                {
+                    break;
+                }
+
                 var request = ticket.Requests[i];
                 if (IsAudioFollower(request.Kind))
                 {
@@ -847,7 +853,8 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
-        // The scene collections, as a read says them: which one is loaded, and the names of all. See ApplyProfilesResponse for a refusal.
+        // The scene collections, as a read says them: which one is loaded, and the names of all. See ApplyProfilesResponse for a refusal. A read that names another collection than the one that the model is of
+        // is a switch that the events did not tell of (see NoticeSwitch).
         private void ApplySceneCollectionsResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
         {
             var scope = this._collectionsScope;
@@ -855,7 +862,10 @@ namespace OBSStudioClient.Model.Engine
             {
                 scope.Attempts = 0;
                 this._collectionsRead = true;
-                this._collections.ApplyRead(new NameList(list.CurrentSceneCollectionName, list.SceneCollections), ticket.SentSeq);
+                var held = this._collections.Value;
+                var read = new NameList(list.CurrentSceneCollectionName, list.SceneCollections);
+                this._collections.ApplyRead(read, ticket.SentSeq);
+                this.NoticeSwitch(held, read);
             }
             else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
             {

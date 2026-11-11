@@ -129,10 +129,14 @@ namespace OBSStudioClient.Model
                         return [new WriteRequest(RequestType.CreateSceneCollection, new { sceneCollectionName = name })];
                     },
                     ExpectsSwitch = true,
-                    IsConfirmed = _ => this.Lists(name) && !string.Equals(this.Current, before, StringComparison.Ordinal) && this._model.State == ObsModelState.Synchronized,
-                    Finish = _ => this.Lists(name)
+                    IsConfirmed = _ => this.IsMadeAndRead(name, before),
+                    Finish = _ => this.IsMadeAndRead(name, before)
                         ? null
-                        : throw new ObsNotConfirmedException(description, $"the scene collection '{name}' is not in the model: OBS Studio did not make it"),
+                        : throw new ObsNotConfirmedException(
+                            description,
+                            this.Lists(name)
+                                ? $"the model lists the scene collection '{name}', but shows '{this.Current}' as the one that is loaded (or has not read it completely): OBS Studio did not load it, or loaded another one since"
+                                : $"the scene collection '{name}' is not in the model: OBS Studio did not make it"),
                     Refresh = [new RefreshTarget(ReadKind.SceneCollections)],
                     Map = (_, response) => this.Explain(response, name, description),
                 },
@@ -160,6 +164,12 @@ namespace OBSStudioClient.Model
         private bool IsLoadedAndRead(string name)
         {
             return string.Equals(this.Current, name, StringComparison.Ordinal) && this._model.State == ObsModelState.Synchronized;
+        }
+
+        // The collection that was made is listed, OBS Studio has loaded it (the collection that is loaded is another one than before the call), and the model has read it.
+        private bool IsMadeAndRead(string name, string? before)
+        {
+            return this.Lists(name) && !string.Equals(this.Current, before, StringComparison.Ordinal) && this._model.State == ObsModelState.Synchronized;
         }
 
         private bool Lists(string name)

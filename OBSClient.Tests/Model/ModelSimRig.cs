@@ -295,9 +295,22 @@ namespace OBSStudioClient.Tests.Model
             return this.Server.Run(sim => change(sim.External));
         }
 
-        public Task ConnectAsync(CancellationToken cancellationToken = default)
+        public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            return this.Model.ConnectAsync("127.0.0.1", this.Server.Port, cancellationToken: cancellationToken);
+            // The notifications of the first read are raised after ConnectAsync has returned, and the last of them is Resynchronized: a test that adds its handlers now is not told any of it (on a slow
+            // machine the notifications of the first read came into the handlers of tests that counted what they were told).
+            var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void FirstReadTold(object? sender, EventArgs e) => firstRead.TrySetResult();
+            this.Model.Resynchronized += FirstReadTold;
+            try
+            {
+                await this.Model.ConnectAsync("127.0.0.1", this.Server.Port, cancellationToken: cancellationToken);
+                await firstRead.Task.WithTimeoutAsync(TimeSpan.FromSeconds(30));
+            }
+            finally
+            {
+                this.Model.Resynchronized -= FirstReadTold;
+            }
         }
 
         /// <summary>Compares the model with the simulation now. Returns what differs, or null.</summary>

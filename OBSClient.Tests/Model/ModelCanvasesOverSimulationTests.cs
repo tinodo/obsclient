@@ -147,6 +147,9 @@ namespace OBSStudioClient.Tests.Model
             Assert.Same(main, canvases.Main);
             Assert.False(canvases.TryGet("Overlay", out _));
 
+            // The snapshot from before the rename is of the same canvas still (the collection is the same one).
+            Assert.NotNull(await made.GetVideoSettingsAsync().WithTimeoutAsync(Patience));
+
             rig.World(world => world.RemoveCanvas(overlay));
             await rig.ConvergedAsync("a canvas that a plugin removed", Patience);
 
@@ -222,6 +225,7 @@ namespace OBSStudioClient.Tests.Model
             rig.World(world => world.CreateCanvas("Scratch", SimCanvasFlags.Device));
             await rig.ConvergedAsync("two canvases", Patience);
             var held = rig.Model.Canvases["Overlay"];
+            var mainBefore = rig.Model.Canvases.Main!;
             Assert.NotNull(await held.GetVideoSettingsAsync().WithTimeoutAsync(Patience));
 
             await rig.Model.SceneCollections.CreateAsync("Podcast").WithTimeoutAsync(Patience);
@@ -230,6 +234,10 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(ObsModelState.Synchronized, rig.Model.State);
             Assert.Equal(["Main"], Names(rig.Model));
             Assert.Null(rig.Compare());
+
+            // The main canvas has the same UUID in every collection, and the snapshot of the first collection is not the canvas of the second.
+            Assert.NotSame(mainBefore, rig.Model.Canvases.Main);
+            await Assert.ThrowsAsync<ObsRemovedException>(() => mainBefore.GetVideoSettingsAsync().WithTimeoutAsync(Patience));
 
             await rig.Model.SceneCollections.SetCurrentAsync("Untitled").WithTimeoutAsync(Patience);
 
@@ -240,6 +248,10 @@ namespace OBSStudioClient.Tests.Model
             Assert.NotSame(held, loaded);
             Assert.Null(await loaded.GetVideoSettingsAsync().WithTimeoutAsync(Patience));
             Assert.Null(rig.Compare());
+
+            // The snapshot from before is of the canvas that was left, and not of the one with the same UUID that is loaded now.
+            var gone = await Assert.ThrowsAsync<ObsRemovedException>(() => held.GetVideoSettingsAsync().WithTimeoutAsync(Patience));
+            Assert.Contains("Overlay", gone.Message);
         }
 
         [Fact]

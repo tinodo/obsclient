@@ -39,6 +39,25 @@ namespace OBSStudioClient.Tests.Live
             }
         }
 
+        // A scene collection that a failed test left loaded would fail the checks of the tests after it, which are about their own behaviour: the one that was loaded is loaded again, with the plain client,
+        // which does not depend on the model being synchronized. OBS Studio has no request that removes the collection that the test made.
+        private static async Task RestoreCollectionAsync(ObsClient client, string collection)
+        {
+            try
+            {
+                if ((await client.GetSceneCollectionList()).CurrentSceneCollectionName != collection)
+                {
+                    await client.SetCurrentSceneCollection(collection);
+                    await Task.Delay(1000);
+                }
+            }
+            catch (ObsClientException exception)
+            {
+                // Nothing more can be done for it here.
+                _ = exception;
+            }
+        }
+
         [LiveUuidChangesFact]
         public async Task TheProfiles_AreShownAndFollowed_AndTheCallsReturnWhenTheModelShowsThem()
         {
@@ -112,39 +131,46 @@ namespace OBSStudioClient.Tests.Live
             var originalScenes = model.Scenes.Select(scene => scene.Name).ToArray();
             var held = model.Scenes.FirstOrDefault();
 
-            await model.SceneCollections.CreateAsync(made).WaitAsync(Wait);
-
-            // The call returned when the model was complete: the collection is the one that OBS Studio loaded, with the one scene that it makes, and what the application held is of the collection that is left.
-            Assert.Equal(ObsModelState.Synchronized, model.State);
-            Assert.Equal(made, model.SceneCollections.Current);
-            Assert.Contains(made, model.SceneCollections.Names);
-            Assert.Equal(["Scene"], model.Scenes.Select(scene => scene.Name).ToArray());
-            Assert.Equal(made, (await client.GetSceneCollectionList()).CurrentSceneCollectionName);
-            if (held is not null)
+            try
             {
-                Assert.Equal(ObsObjectState.Gone, held.State);
+                await model.SceneCollections.CreateAsync(made).WaitAsync(Wait);
+
+                // The call returned when the model was complete: the collection is the one that OBS Studio loaded, with the one scene that it makes, and what the application held is of the collection that is left.
+                Assert.Equal(ObsModelState.Synchronized, model.State);
+                Assert.Equal(made, model.SceneCollections.Current);
+                Assert.Contains(made, model.SceneCollections.Names);
+                Assert.Equal(["Scene"], model.Scenes.Select(scene => scene.Name).ToArray());
+                Assert.Equal(made, (await client.GetSceneCollectionList()).CurrentSceneCollectionName);
+                if (held is not null)
+                {
+                    Assert.Equal(ObsObjectState.Gone, held.State);
+                }
+
+                var taken = await Assert.ThrowsAsync<ObsNameInUseException>(() => model.SceneCollections.CreateAsync(made));
+                Assert.Equal(made, taken.Name);
+
+                await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
+                Assert.Equal(ObsModelState.Synchronized, model.State);
+                Assert.Equal(original, model.SceneCollections.Current);
+                Assert.Equal(originalScenes, model.Scenes.Select(scene => scene.Name).ToArray());
+
+                // Nothing happens when the collection is loaded already.
+                await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
+
+                // Someone else loads the other one: the model follows, and has read it when it says so.
+                await client.SetCurrentSceneCollection(made);
+                await Model.ModelRig.EventuallyAsync(() => model.SceneCollections.Current == made && model.State == ObsModelState.Synchronized, "the model to follow a switch of the collection", Wait);
+                await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
+                Assert.Equal(original, model.SceneCollections.Current);
+
+                var differences = await live.DifferencesAsync();
+                Assert.True(differences.Count == 0, string.Join("; ", differences));
+                Assert.Equal((await client.GetSceneCollectionList()).SceneCollections, model.SceneCollections.Names.ToArray());
             }
-
-            var taken = await Assert.ThrowsAsync<ObsNameInUseException>(() => model.SceneCollections.CreateAsync(made));
-            Assert.Equal(made, taken.Name);
-
-            await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
-            Assert.Equal(ObsModelState.Synchronized, model.State);
-            Assert.Equal(original, model.SceneCollections.Current);
-            Assert.Equal(originalScenes, model.Scenes.Select(scene => scene.Name).ToArray());
-
-            // Nothing happens when the collection is loaded already.
-            await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
-
-            // Someone else loads the other one: the model follows, and has read it when it says so.
-            await client.SetCurrentSceneCollection(made);
-            await Model.ModelRig.EventuallyAsync(() => model.SceneCollections.Current == made && model.State == ObsModelState.Synchronized, "the model to follow a switch of the collection", Wait);
-            await model.SceneCollections.SetCurrentAsync(original).WaitAsync(Wait);
-            Assert.Equal(original, model.SceneCollections.Current);
-
-            var differences = await live.DifferencesAsync();
-            Assert.True(differences.Count == 0, string.Join("; ", differences));
-            Assert.Equal((await client.GetSceneCollectionList()).SceneCollections, model.SceneCollections.Names.ToArray());
+            finally
+            {
+                await RestoreCollectionAsync(client, original);
+            }
         }
     }
 }

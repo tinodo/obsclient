@@ -216,6 +216,34 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task ASceneCollectionThatOBSStudioLoadsWithoutTheEventsThatSayIt_IsShownCompletely_WhenTheCallEnds()
+        {
+            await using var test = await StartAsync();
+            test.Answer("SetCurrentSceneCollection", data =>
+            {
+                var name = data!.Value.GetProperty("sceneCollectionName").GetString()!;
+                test.Rig.Responder.Change(world =>
+                {
+                    world.CurrentSceneCollection = name;
+                    world.Scenes.Clear();
+                    world.Items.Clear();
+                    world.Inputs.Clear();
+                    world.Program = null;
+                    world.AddScene("Fresh");
+                });
+
+                // The events that say that OBS Studio changed its collection never come: the model is told by the read that it asks for when they do not.
+                return (100, null);
+            });
+
+            await test.Model.SceneCollections.SetCurrentAsync("Other").WithTimeoutAsync(Timeout);
+
+            Assert.Equal("Other", test.Model.SceneCollections.Current);
+            Assert.Equal(ObsModelState.Synchronized, test.Model.State);
+            Assert.Equal(["Fresh"], test.Model.Scenes.Select(scene => scene.Name).ToArray());
+        }
+
+        [Fact]
         public async Task ASceneCollectionThatOBSStudioSaysItMade_AndThatTheModelDoesNotList_IsNotConfirmed()
         {
             await using var test = await StartAsync();
@@ -225,6 +253,25 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Contains("creating the scene collection 'New'", failure.Message);
             Assert.DoesNotContain("New", test.Model.SceneCollections.Names);
+        }
+
+        [Fact]
+        public async Task ASceneCollectionThatTheModelListsAndOBSStudioDidNotLoad_IsNotConfirmedEither()
+        {
+            await using var test = await StartAsync();
+            test.Answer("CreateSceneCollection", _ =>
+            {
+                // OBS Studio lists the collection, and the collection that is loaded is the one from before.
+                test.Rig.Responder.Change(world => world.SceneCollections.Add("New"));
+                return (100, null);
+            });
+
+            var failure = await Assert.ThrowsAsync<ObsNotConfirmedException>(() => test.Model.SceneCollections.CreateAsync("New").WithTimeoutAsync(Timeout));
+
+            Assert.Contains("creating the scene collection 'New'", failure.Message);
+            Assert.Contains("'Untitled' as the one that is loaded", failure.Message);
+            Assert.Contains("New", test.Model.SceneCollections.Names);
+            Assert.Equal("Untitled", test.Model.SceneCollections.Current);
         }
 
         [Fact]

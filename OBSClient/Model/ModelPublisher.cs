@@ -838,7 +838,7 @@ namespace OBSStudioClient.Model
         private void PublishCanvases(ModelEngine engine)
         {
             var canvases = this._model.Canvases;
-            if (canvases.Set(engine.Canvases, out var before, out var mainBefore))
+            if (canvases.Set(engine.Canvases, engine.Epoch, out var before, out var mainBefore))
             {
                 this.AddProperty(canvases, nameof(ObsCanvases.All), before, canvases.All, true);
                 if (!ReferenceEquals(mainBefore, canvases.Main))

@@ -21,7 +21,7 @@ namespace OBSStudioClient.Model
     /// </remarks>
     public sealed class ObsCanvases : INotifyPropertyChanged
     {
-        private static readonly State Empty = new(null, [], Array.AsReadOnly(Array.Empty<ObsCanvas>()));
+        private static readonly State Empty = new(null, 0, [], Array.AsReadOnly(Array.Empty<ObsCanvas>()));
 
         private readonly ObsModel _model;
         private State _state = Empty;
@@ -101,22 +101,31 @@ namespace OBSStudioClient.Model
             return canvas is not null;
         }
 
-        // What the model holds is brought in line here, and not through the view: the objects stay the same, so a canvas that did not change keeps its snapshot.
-        internal bool Set(CanvasList? list, out IReadOnlyList<ObsCanvas> before, out ObsCanvas? mainBefore)
+        // What the model holds is brought in line here, and not through the view: the objects stay the same, so a canvas that did not change keeps its snapshot, for as long as the scene collection is the same one.
+        // The snapshots of a collection that OBS Studio left are not kept, also when the collection that it loaded has a canvas that looks the same (the main canvas has the same UUID in every collection): they
+        // are of the canvas of the collection that is gone (see Holds).
+        internal bool Set(CanvasList? list, int epoch, out IReadOnlyList<ObsCanvas> before, out ObsCanvas? mainBefore)
         {
             var state = Volatile.Read(ref this._state);
             before = state.View;
             mainBefore = Array.Find(state.Items, canvas => canvas.IsMain);
-            if (state.List is null ? list is null : list is not null && state.List.Equals(list))
+            if (state.List is null ? list is null : list is not null && state.Epoch == epoch && state.List.Equals(list))
             {
                 return false;
             }
 
             var items = list is null
                 ? []
-                : list.Canvases.Select(info => Array.Find(state.Items, held => held.Uuid == info.Uuid && held.Name == info.Name && held.Flags == info.Flags) ?? new ObsCanvas(this._model, info.Name, info.Uuid, info.Flags)).ToArray();
-            Volatile.Write(ref this._state, list is null ? Empty : new State(list, items, Array.AsReadOnly(items)));
+                : list.Canvases.Select(info => Array.Find(state.Items, held => held.Epoch == epoch && held.Uuid == info.Uuid && held.Name == info.Name && held.Flags == info.Flags) ?? new ObsCanvas(this._model, info.Name, info.Uuid, info.Flags, epoch)).ToArray();
+            Volatile.Write(ref this._state, list is null ? Empty : new State(list, epoch, items, Array.AsReadOnly(items)));
             return true;
+        }
+
+        // Whether the canvas that a snapshot is of is still there: the model lists a canvas with its UUID, in the scene collection that the snapshot is of. A canvas that was renamed is another snapshot of the
+        // same canvas, and the one from before the rename is of it still; a canvas of a collection that is loaded again with the same UUID is another canvas, and the snapshot of the collection that was left is not of it.
+        internal bool Holds(ObsCanvas canvas)
+        {
+            return Array.Exists(Volatile.Read(ref this._state).Items, candidate => candidate.Uuid == canvas.Uuid && candidate.Epoch == canvas.Epoch);
         }
 
         internal void RaisePropertyChanged(string propertyName)
@@ -134,6 +143,6 @@ namespace OBSStudioClient.Model
             return $"canvas '{canvas.Name}' ({canvas.Uuid})";
         }
 
-        private sealed record State(CanvasList? List, ObsCanvas[] Items, IReadOnlyList<ObsCanvas> View);
+        private sealed record State(CanvasList? List, int Epoch, ObsCanvas[] Items, IReadOnlyList<ObsCanvas> View);
     }
 }

@@ -11,7 +11,9 @@ namespace OBSStudioClient.Model
     /// </summary>
     /// <remarks>
     /// <para>
-    /// An <see cref="ObsCanvas"/> is a snapshot, like <see cref="ObsTransition"/>: it does not change, and <see cref="ObsCanvases.All"/> holds another object for a canvas that was renamed. What the
+    /// An <see cref="ObsCanvas"/> is a snapshot, like <see cref="ObsTransition"/>: it does not change, and <see cref="ObsCanvases.All"/> holds another object for a canvas that was renamed (the one from before is of the same canvas still). A snapshot is
+    /// of the scene collection that was loaded when the model made it: once OBS Studio has loaded another collection (or loaded the same one again) the canvas that it is of is gone, also when the collection that is loaded now has a canvas with
+    /// the same <see cref="Uuid"/> (the main canvas has the same in every collection), and <see cref="GetVideoSettingsAsync"/> says so. What the
     /// model keeps of a canvas is what OBS Studio announces: its name, its UUID (which never changes) and its flags (which are set when it is made). Its video settings are not announced, so they are asked for
     /// when you need them (<see cref="GetVideoSettingsAsync"/>).
     /// </para>
@@ -24,12 +26,13 @@ namespace OBSStudioClient.Model
     {
         private readonly ObsModel _model;
 
-        internal ObsCanvas(ObsModel model, string name, Guid uuid, ObsCanvasFlags flags)
+        internal ObsCanvas(ObsModel model, string name, Guid uuid, ObsCanvasFlags flags, int epoch)
         {
             this._model = model;
             this.Name = name;
             this.Uuid = uuid;
             this.Flags = flags;
+            this.Epoch = epoch;
         }
 
         /// <summary>
@@ -51,6 +54,10 @@ namespace OBSStudioClient.Model
         /// Gets whether this is the main canvas.
         /// </summary>
         public bool IsMain => this.Flags.HasFlag(ObsCanvasFlags.Main);
+
+        // The number of the scene collection that the snapshot is of (ModelEngine.Epoch). A scene collection saves its canvases, so a canvas of a collection that OBS Studio left is gone for good, and a collection
+        // that is loaded again has its canvases anew, with the UUIDs that they had: the UUID does not say which of the two a snapshot is of, this does.
+        internal int Epoch { get; }
 
         /// <summary>
         /// Asks OBS Studio for the video settings of the canvas: its base resolution, its output resolution and its frame rate.
@@ -78,8 +85,9 @@ namespace OBSStudioClient.Model
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            // OBS Studio goes on listing a canvas that it removed for as long as something holds on to it, and says that it removed it only once (CanvasRemoved): the model does not list it then.
-            return answer.Found && this._model.Canvases.TryGet(uuid, out _) ? answer.Video : throw new ObsRemovedException($"canvas '{this.Name}'", ObsObjectState.Gone);
+            // OBS Studio goes on listing a canvas that it removed for as long as something holds on to it, and says that it removed it only once (CanvasRemoved): the model does not list it then. The canvas
+            // that the model lists has to be this one: the one of the scene collection that this snapshot is of, and not one that a collection that was loaded again has with the same UUID.
+            return answer.Found && this._model.Canvases.Holds(this) ? answer.Video : throw new ObsRemovedException($"canvas '{this.Name}'", ObsObjectState.Gone);
         }
 
         /// <inheritdoc/>

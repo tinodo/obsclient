@@ -48,6 +48,33 @@ namespace OBSStudioClient.Model.Engine
             this._previewScope.Dirty = false;
         }
 
+        // What an answer to the list of the scene collections says about the collection that is loaded. The first answer after a connection or a switch says which collection the scenes and the inputs of the
+        // model are of. An answer that names another collection later is a switch that the events did not tell of (they were lost, or came late): the model holds the collection that OBS Studio left, and
+        // what it holds is read as it is after the event that says that OBS Studio changed its collection (OnCollectionChanged), so that the model is not taken for complete (and a call that waits for the
+        // switch is not done) before it is of the collection that is loaded. A collection that was renamed is the same collection, and nothing is read again for it: its old name is not listed any more,
+        // and the name that it has now was not listed before.
+        private void NoticeSwitch(NameList? held, NameList read)
+        {
+            if (read.Current is not { } current)
+            {
+                return;
+            }
+
+            var loaded = this._loadedCollection;
+            this._loadedCollection = current;
+            if (loaded is null || string.Equals(loaded, current, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (!read.Contains(loaded) && held is not null && !held.Contains(current))
+            {
+                return;
+            }
+
+            this.OnCollectionChanged();
+        }
+
         // The model of the collection that OBS Studio has left is dropped, and the model is of the next collection: the reads that were taken for the old one are outdated.
         // It is also what a new connection does when the one before it ended in the middle of a switch (OnSessionStarted): OBS Studio has loaded a collection since, maybe the
         // one that the model holds (the same UUIDs), and its sources are new ones all the same.
@@ -55,6 +82,7 @@ namespace OBSStudioClient.Model.Engine
         {
             this._switching = false;
             this._epoch++;
+            this._loadedCollection = null;
             this._scenes.Clear();
             this._inputs.Clear();
             this._refs.Clear();

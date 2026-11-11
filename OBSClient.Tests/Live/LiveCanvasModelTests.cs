@@ -19,7 +19,7 @@ namespace OBSStudioClient.Tests.Live
 
         private static readonly Version CanvasesSince = new(5, 7, 0);
 
-        [LiveUuidFact]
+        [LiveUuidChangesFact]
         public async Task TheMainCanvas_IsShown_WithTheFlagsAndTheVideoThatOBSStudioSays()
         {
             await using var live = await LiveModel.ConnectAsync(output);
