@@ -323,7 +323,7 @@ namespace OBSStudioClient.Tests.Model
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
 
                 // What the model needs only when the application asks to follow it (see ObsHighVolume): the host does not pass it otherwise.
-                EventType.SceneItemTransformChanged,
+                EventType.SceneItemTransformChanged, EventType.InputActiveStateChanged, EventType.InputShowStateChanged,
 
                 // What happened and is no state of the model: the model tells the application, in the order of arrival (ModelChangeKind.Notification).
                 EventType.RecordFileChanged, EventType.ReplayBufferSaved, EventType.ScreenshotSaved, EventType.ExitStarted, EventType.CustomEvent, EventType.VendorEvent,
@@ -386,6 +386,8 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SceneItemSelected, h => h.Event("SceneItemSelected", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1 }, 128)),
                 (EventType.SceneItemTransformChanged, h => h.Event("SceneItemTransformChanged", new { sceneName = "Scene", sceneUuid = scene, sceneItemId = 1, sceneItemTransform = new { alignment = 5, boundsAlignment = 0, boundsHeight = 0.0, boundsType = "OBS_BOUNDS_NONE", boundsWidth = 0.0, cropBottom = 0, cropLeft = 0, cropRight = 0, cropToBounds = false, cropTop = 0, height = 1080.0, positionX = 100.0, positionY = 0.0, rotation = 0.0, scaleX = 1.0, scaleY = 1.0, sourceHeight = 1080.0, sourceWidth = 1920.0, width = 1920.0 } }, 524288)),
                 (EventType.StudioModeStateChanged, h => h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024)),
+                (EventType.InputActiveStateChanged, h => h.Event("InputActiveStateChanged", new { inputName = "Mic", inputUuid = mic, videoActive = true }, 1 << 17)),
+                (EventType.InputShowStateChanged, h => h.Event("InputShowStateChanged", new { inputName = "Mic", inputUuid = mic, videoShowing = true }, 1 << 18)),
                 (EventType.StreamStateChanged, h => h.Event("StreamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),
                 (EventType.RecordStateChanged, h => h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:\\Videos\\a.mkv" }, 64)),
                 (EventType.VirtualcamStateChanged, h => h.Event("VirtualcamStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED" }, 64)),

@@ -391,6 +391,7 @@ namespace OBSStudioClient.Tests.Model
                 "GetInputAudioTracks" => new ReadRequest(ReadKind.AudioTracks, OBSStudioClient.Enums.RequestType.GetInputAudioTracks, null, Target("inputUuid")),
                 "GetInputSettings" => new ReadRequest(ReadKind.InputSettings, OBSStudioClient.Enums.RequestType.GetInputSettings, null, Target("inputUuid")),
                 "GetMediaInputStatus" => new ReadRequest(ReadKind.MediaStatus, OBSStudioClient.Enums.RequestType.GetMediaInputStatus, null, Target("inputUuid")),
+                "GetSourceActive" => new ReadRequest(ReadKind.Activity, OBSStudioClient.Enums.RequestType.GetSourceActive, null, Target("sourceUuid")),
                 _ => null,
             };
             if (request is null)

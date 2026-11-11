@@ -46,7 +46,8 @@ namespace OBSStudioClient.Tests.Model
         // How much of what happened a report shows (OBSCLIENT_SIM_TRACE sets it, to see more of a walk that fails).
         private static readonly int TraceLines = int.TryParse(Environment.GetEnvironmentVariable("OBSCLIENT_SIM_TRACE"), out var lines) && lines > 0 ? lines : 150;
 
-        // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories, and those of the transforms of the scene items when the model follows them (ObsHighVolume.Transforms).
+        // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories, and those of the transforms of the scene items and of the activity of the inputs when the model follows
+        // them (ObsHighVolume.Transforms, ObsHighVolume.Activity).
         private static readonly int BaseSubscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs | SimIntent.Transitions | SimIntent.Ui;
 
         private readonly SimObs _sim;
@@ -100,9 +101,11 @@ namespace OBSStudioClient.Tests.Model
 
         public SimObs Sim => this._sim;
 
-        private int Subscribed => BaseSubscribed | (this.FollowsTransforms ? SimIntent.SceneItemTransform : 0);
+        private int Subscribed => BaseSubscribed | (this.FollowsTransforms ? SimIntent.SceneItemTransform : 0) | (this.FollowsActivity ? SimIntent.InputActive | SimIntent.InputShow : 0);
 
         private bool FollowsTransforms => this._options.HighVolume.HasFlag(ObsHighVolume.Transforms);
+
+        private bool FollowsActivity => this._options.HighVolume.HasFlag(ObsHighVolume.Activity);
 
         private TimeSpan Now => this._sim.Clock.Now;
 
@@ -192,17 +195,17 @@ namespace OBSStudioClient.Tests.Model
             this._sim.CheckInvariants();
             var truth = this._sim.Snapshot();
             var model = this._engine.Snapshot();
-            foreach (var line in Project(truth, this.FollowsTransforms))
+            foreach (var line in Project(truth, this._options.HighVolume))
             {
                 this.Record("truth " + line);
             }
 
-            foreach (var line in Project(model, this.FollowsTransforms))
+            foreach (var line in Project(model, this._options.HighVolume))
             {
                 this.Record("model " + line);
             }
 
-            var problems = Differences(truth, model, this.FollowsTransforms);
+            var problems = Differences(truth, model, this._options.HighVolume);
             problems.AddRange(this.Leaks(truth, model));
 
             // What the model holds has to be consistent with itself too: a source that OBS destroyed can be absent from every comparison below and still be held.
@@ -220,10 +223,10 @@ namespace OBSStudioClient.Tests.Model
             return problems.Count == 0 ? null : this.Describe(string.Join(Environment.NewLine, problems));
         }
 
-        private static List<string> Differences(SimSnapshot truth, EngineSnapshot model, bool transforms)
+        private static List<string> Differences(SimSnapshot truth, EngineSnapshot model, ObsHighVolume follows)
         {
-            var truthLines = Project(truth, transforms);
-            var modelLines = Project(model, transforms);
+            var truthLines = Project(truth, follows);
+            var modelLines = Project(model, follows);
             var problems = new List<string>();
             problems.AddRange(truthLines.Except(modelLines).Select(line => "only in OBS Studio: " + line));
             problems.AddRange(modelLines.Except(truthLines).Select(line => "only in the model:  " + line));
@@ -265,8 +268,10 @@ namespace OBSStudioClient.Tests.Model
                 && Math.Abs(model.VolumeMul - truth.VolumeMul) <= Math.Max(VolumeMulFloor, VolumeMulShare * Math.Max(truth.VolumeMul, model.VolumeMul));
         }
 
-        private static List<string> Project(SimSnapshot snapshot, bool transforms)
+        private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
             lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
             lines.Add(TransitionLine(snapshot.TransitionName, snapshot.TransitionDuration, snapshot.TransitionRunning));
@@ -289,15 +294,17 @@ namespace OBSStudioClient.Tests.Model
                 // anybody, and nothing tells it from one that was destroyed: it is not compared.
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState, activity ? ActivityText(input.Active, input.Showing) : null));
                 }
             }
 
             return lines;
         }
 
-        private static List<string> Project(EngineSnapshot snapshot, bool transforms)
+        private static List<string> Project(EngineSnapshot snapshot, ObsHighVolume follows)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + (snapshot.ProgramSceneUuid?.ToString("D") ?? "(none)") };
             lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
             lines.Add(TransitionLine(snapshot.Transition?.Name ?? "(none)", snapshot.Transition is { IsFixed: false } ? snapshot.TransitionDuration : null, snapshot.TransitionRunning));
@@ -321,7 +328,7 @@ namespace OBSStudioClient.Tests.Model
                 var detached = input.State == SourceState.Detached;
                 if (!detached || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}"), MediaWire.Of(input.MediaState)));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}"), MediaWire.Of(input.MediaState), activity ? (input.Active is { } active && input.Showing is { } showing ? ActivityText(active, showing) : "(no activity)") : null));
                 }
             }
 
@@ -348,9 +355,14 @@ namespace OBSStudioClient.Tests.Model
             return TransformTexts.Of(transform);
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media, string? activity)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(activity is null ? string.Empty : ", " + activity)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+        }
+
+        private static string ActivityText(bool active, bool showing)
+        {
+            return $"{(active ? "on the air" : "off the air")}, {(showing ? "shown" : "not shown")}";
         }
 
         private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)
@@ -1138,7 +1150,7 @@ namespace OBSStudioClient.Tests.Model
                 text.AppendLine("OBS Studio holds:");
                 text.AppendLine(this._sim.Snapshot().ToString());
                 text.AppendLine("The model holds:");
-                text.AppendLine(string.Join(Environment.NewLine, Project(this._engine.Snapshot(), this.FollowsTransforms).Select(line => "  " + line)));
+                text.AppendLine(string.Join(Environment.NewLine, Project(this._engine.Snapshot(), this._options.HighVolume).Select(line => "  " + line)));
             }
             catch (Exception exception)
             {

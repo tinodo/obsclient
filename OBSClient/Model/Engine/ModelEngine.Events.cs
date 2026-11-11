@@ -57,6 +57,8 @@ namespace OBSStudioClient.Model.Engine
 
             // What OBS Studio sends very often, and that is only acted on when the application asked for it (see Wants).
             [EventType.SceneItemTransformChanged] = On<SceneItemTransformChangedEventArgs>(static (engine, e) => engine.OnItemTransformChanged(e)),
+            [EventType.InputActiveStateChanged] = On<InputActiveStateChangedEventArgs>(static (engine, e) => engine.OnInputActiveChanged(e)),
+            [EventType.InputShowStateChanged] = On<InputShowStateChangedEventArgs>(static (engine, e) => engine.OnInputShowingChanged(e)),
             [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
             [EventType.StreamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Stream, e.OutputState)),
             [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnRecordState(e)),
@@ -472,6 +474,7 @@ namespace OBSStudioClient.Model.Engine
 
             // The event has the capabilities of the kind from obs-websocket 5.6.0; without them the input has audio until OBS says that it has not.
             var input = new InputNode(e.InputUuid, e.InputName, e.InputKind, e.UnversionedInputKind, e.InputKindCaps, this._seq, this._now, confirmed: false);
+            input.ActivityKnown = !this.Follows(ObsHighVolume.Activity);
             this._inputs[input.Uuid] = input;
             this._inputsScope.MarkDirty();
             input.SettingsScope.MarkDirty();
@@ -483,6 +486,11 @@ namespace OBSStudioClient.Model.Engine
             if (input.IsMedia)
             {
                 input.MediaScope.MarkDirty();
+            }
+
+            if (!input.ActivityKnown)
+            {
+                input.ActivityScope.MarkDirty();
             }
 
             this.TryAnnounce(input);
@@ -697,6 +705,40 @@ namespace OBSStudioClient.Model.Engine
                 }
             }
             else if (!this.Removed(uuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        // Whether an input is on the air, and whether it is shown (measured with OBS Studio 33.0.0, see LiveActivityTests): OBS Studio says it for inputs only, first whether it is shown and then whether it
+        // is on the air, and says nothing of an input that it destroys. An input that the model does not know yet is read with the list of inputs, which reads its activity.
+        private void OnInputActiveChanged(InputActiveStateChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Active.Value;
+                if (input.Active.ApplyEvent(e.VideoActive, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputActiveChanged, input.Uuid, 0, input.Name.Value, old, input.Active.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputShowingChanged(InputShowStateChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Showing.Value;
+                if (input.Showing.ApplyEvent(e.VideoShowing, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputShowingChanged, input.Uuid, 0, input.Name.Value, old, input.Showing.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
             {
                 this._inputsScope.MarkDirty();
             }

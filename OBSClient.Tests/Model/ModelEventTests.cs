@@ -46,10 +46,16 @@ namespace OBSStudioClient.Tests.Model
             await with.ConnectAsync().WithTimeoutAsync(Timeout);
             await using var following = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.Transforms });
             await following.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var watching = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.Activity });
+            await watching.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var everything = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.All });
+            await everything.ConnectAsync().WithTimeoutAsync(Timeout);
 
             Assert.Equal(EventSubscriptions.None, (EventSubscriptions)without.Server.EventSubscriptions!.Value & HighVolume);
             Assert.Equal(EventSubscriptions.InputVolumeMeters, (EventSubscriptions)with.Server.EventSubscriptions!.Value & HighVolume);
             Assert.Equal(EventSubscriptions.SceneItemTransformChanged, (EventSubscriptions)following.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged, (EventSubscriptions)watching.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(EventSubscriptions.SceneItemTransformChanged | EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged, (EventSubscriptions)everything.Server.EventSubscriptions!.Value & HighVolume);
             Assert.False(ModelHost.RequiredEvents.HasFlag(EventSubscriptions.Vendors));
         }
 

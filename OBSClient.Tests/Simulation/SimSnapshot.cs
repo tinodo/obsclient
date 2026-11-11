@@ -71,6 +71,8 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="MonitorType">The monitor type, as obs-websocket writes it.</param>
     /// <param name="Tracks">The audio tracks, one bit for each (63 for an input without audio).</param>
     /// <param name="MediaState">What the media of the input does, as obs-websocket writes it; null for an input that is no media input.</param>
+    /// <param name="Active">Whether the input is on the air (<c>videoActive</c>).</param>
+    /// <param name="Showing">Whether the input is shown, on the air or in the preview of studio mode (<c>videoShowing</c>).</param>
     internal sealed record SimInputSnapshot(
         Guid Uuid,
         string Name,
@@ -86,7 +88,9 @@ namespace OBSStudioClient.Tests.Simulation
         int SyncOffset = 0,
         string MonitorType = "OBS_MONITORING_TYPE_NONE",
         int Tracks = 63,
-        string? MediaState = null)
+        string? MediaState = null,
+        bool Active = false,
+        bool Showing = false)
     {
         public override string ToString()
         {
@@ -94,6 +98,7 @@ namespace OBSStudioClient.Tests.Simulation
                 + (HasAudio ? $", {(Muted ? "muted" : "unmuted")}, volume {VolumeMul.ToString("0.####", CultureInfo.InvariantCulture)} ({VolumeDb.ToString("0.##", CultureInfo.InvariantCulture)} dB)" : string.Empty)
                 + (HasAudio ? $", balance {Balance.ToString("R", CultureInfo.InvariantCulture)}, sync offset {SyncOffset.ToString(CultureInfo.InvariantCulture)} ms, {MonitorType}, tracks {Convert.ToString(Tracks, 2).PadLeft(6, '0')}" : string.Empty)
                 + (MediaState is null ? string.Empty : $", media {MediaState}")
+                + (Active ? ", on the air" : Showing ? ", shown" : string.Empty)
                 + (Settings == "{}" ? string.Empty : $", settings {Settings}")
                 + (Pinned ? ", pinned" : string.Empty)
                 + (Removed ? ", removed" : string.Empty);

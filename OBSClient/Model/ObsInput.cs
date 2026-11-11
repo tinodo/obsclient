@@ -17,6 +17,11 @@ namespace OBSStudioClient.Model
         private int _audioTracks = (int)ObsAudioTracks.All;
         private SettingsValue _settings = SettingsValue.Empty;
         private ObsMedia? _media;
+        private int _active = Unknown;
+        private int _showing = Unknown;
+
+        // What the activity is until the model has it: it is only kept when it follows it (ObsHighVolume.Activity).
+        private const int Unknown = -1;
 
         internal ObsInput(ObsModel model, Guid uuid, string name, ObsObjectState state, string kind, bool hasAudio)
             : base(model, uuid, name, state)
@@ -103,6 +108,61 @@ namespace OBSStudioClient.Model
         /// the model takes those for media inputs and no others.
         /// </remarks>
         public ObsMedia? Media => Volatile.Read(ref this._media);
+
+        /// <summary>
+        /// Gets whether the input is on the air: shown in the program output, because the scene that is on the air shows it (or a scene in it, and the scene item is not hidden), or because a transition between two scenes
+        /// shows it. It is null unless the model was asked to follow the activity (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.Activity"/>): OBS Studio sends an event for the inputs of a scene each
+        /// time that the program scene, a transition or a scene item that shows them changes, so the model does not ask for them unless they are wanted. To ask OBS Studio once, whatever the options are, use
+        /// <see cref="ObsSource.GetActivityAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The value is current. A scene that is put on the air with a transition puts its inputs on the air when the transition starts, and the scene that goes off the air takes its inputs off the air after the transition has
+        /// ended. An input that two scenes on the air show stays on the air when one of them goes. OBS Studio does not announce the activity of an input that it destroys, and says nothing of a scene (a scene in the model has no
+        /// activity: ask <see cref="ObsSource.GetActivityAsync"/>).
+        /// </para>
+        /// <para>
+        /// In studio mode what is on the air is a copy of the program scene that OBS Studio made when the scene went on the air (or when studio mode was switched on): what is done to the scene itself afterwards (hiding a scene
+        /// item, making an input) does not reach the copy, so the inputs stay as they were until the next scene goes on the air or studio mode is switched off (measured with OBS Studio 33.0.0). The inputs of the preview scene
+        /// are shown (<see cref="IsShowing"/>) and not on the air, unless the copy shows them as well.
+        /// </para>
+        /// </remarks>
+        public bool? IsActive => ToNullable(Volatile.Read(ref this._active));
+
+        /// <summary>
+        /// Gets whether the input is shown in the user interface of OBS Studio: on the air (<see cref="IsActive"/>), or in the preview of studio mode, or in a projector, or in the window of its properties. It is null unless the model
+        /// was asked to follow the activity (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.Activity"/>).
+        /// </summary>
+        public bool? IsShowing => ToNullable(Volatile.Read(ref this._showing));
+
+        private static bool? ToNullable(int value)
+        {
+            return value == Unknown ? null : value != 0;
+        }
+
+        internal bool SetActive(bool? value)
+        {
+            var wanted = value is null ? Unknown : (value.Value ? 1 : 0);
+            if (Volatile.Read(ref this._active) == wanted)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._active, wanted);
+            return true;
+        }
+
+        internal bool SetShowing(bool? value)
+        {
+            var wanted = value is null ? Unknown : (value.Value ? 1 : 0);
+            if (Volatile.Read(ref this._showing) == wanted)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._showing, wanted);
+            return true;
+        }
 
         // The playback is made once, when the model knows that the input is a media input and what it does.
         internal ObsMedia AttachMedia(ObsMediaState state)

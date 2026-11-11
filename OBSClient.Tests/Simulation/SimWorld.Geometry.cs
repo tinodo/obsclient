@@ -169,6 +169,7 @@ namespace OBSStudioClient.Tests.Simulation
                 Emit("SceneItemSelected", Obj(("sceneItemId", copy.Id), ("sceneName", destination.Name), ("sceneUuid", destination.UuidText)));
             }
 
+            UpdateActivity();
             return copy;
         }
 

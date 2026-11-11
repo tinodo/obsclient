@@ -71,6 +71,8 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneItemLockStateChanged"] = static () => SimIntent.SceneItems,
             ["SceneItemSelected"] = static () => SimIntent.SceneItems,
             ["SceneItemTransformChanged"] = static () => SimIntent.SceneItemTransform,
+            ["InputActiveStateChanged"] = static () => SimIntent.InputActive,
+            ["InputShowStateChanged"] = static () => SimIntent.InputShow,
         };
 
         private readonly SimRequests _requests;

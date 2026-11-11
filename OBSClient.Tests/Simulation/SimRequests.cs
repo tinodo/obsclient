@@ -46,6 +46,7 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetInputAudioMonitorType"] = static (self, request) => self.GetInputAudioMonitorType(request),
             ["GetInputAudioTracks"] = static (self, request) => self.GetInputAudioTracks(request),
             ["GetMediaInputStatus"] = static (self, request) => self.GetMediaInputStatus(request),
+            ["GetSourceActive"] = static (self, request) => self.GetSourceActive(request),
             ["SetMediaInputCursor"] = static (self, request) => self.SetMediaInputCursor(request),
             ["OffsetMediaInputCursor"] = static (self, request) => self.OffsetMediaInputCursor(request),
             ["TriggerMediaInputAction"] = static (self, request) => self.TriggerMediaInputAction(request),
@@ -479,6 +480,19 @@ namespace OBSStudioClient.Tests.Simulation
 
             _world.SetSettings(input, settings, overlay);
             return SimResult.Ok();
+        }
+
+        // Whether a source (an input or a scene) is on the air and whether it is shown (GetSourceActive).
+        private SimResult GetSourceActive(SimRequest request)
+        {
+            var source = request.AcquireSource("sourceName", "sourceUuid");
+            if (source is null)
+            {
+                return Failed(request);
+            }
+
+            var (active, showing) = _world.ActivityOf(source);
+            return SimResult.Ok(Obj(("videoActive", active), ("videoShowing", showing)));
         }
 
         // The state of the media of an input, and, while it plays or is paused, its length and its position (GetMediaInputStatus). An input that is no media input answers with the state none

@@ -48,6 +48,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetMediaInputStatus.</summary>
         MediaStatus,
 
+        /// <summary>GetSourceActive, for an input (only asked when the engine follows <see cref="ObsHighVolume.Activity"/>).</summary>
+        Activity,
+
         /// <summary>GetCurrentPreviewScene (only asked while studio mode is on).</summary>
         Preview,
 
@@ -598,6 +601,11 @@ namespace OBSStudioClient.Model.Engine
                 {
                     Take(input.MediaScope, new ReadRequest(ReadKind.MediaStatus, RequestType.GetMediaInputStatus, new { inputUuid = input.Uuid }, input.Uuid));
                 }
+
+                if (this.Follows(ObsHighVolume.Activity) && input.ActivityScope.IsReady(now))
+                {
+                    Take(input.ActivityScope, new ReadRequest(ReadKind.Activity, RequestType.GetSourceActive, new { sourceUuid = input.Uuid }, input.Uuid));
+                }
             }
 
             // The filters of every scene and input, scenes first.
@@ -724,6 +732,11 @@ namespace OBSStudioClient.Model.Engine
                 if (input.IsMedia)
                 {
                     yield return input.MediaScope;
+                }
+
+                if (this.Follows(ObsHighVolume.Activity))
+                {
+                    yield return input.ActivityScope;
                 }
             }
 

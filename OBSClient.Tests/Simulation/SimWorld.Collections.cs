@@ -101,6 +101,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             _program = scenes.First(scene => scene.Uuid == saved.ProgramSceneUuid);
+            InitializeActivity();
         }
 
         /// <summary>

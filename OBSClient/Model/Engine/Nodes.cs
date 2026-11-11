@@ -227,6 +227,12 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>What the media input does (only meaningful when <see cref="IsMedia"/>).</summary>
         public Cell<ObsMediaState> MediaState;
 
+        /// <summary>Whether the input is shown in the program (on the air). It is only kept when the engine follows the activity (<see cref="ObsHighVolume.Activity"/>), and is null until a read or an event has said it.</summary>
+        public Cell<bool?> Active;
+
+        /// <summary>Whether the input is shown in the user interface of OBS Studio: the program, the preview of studio mode, a projector. Kept like <see cref="Active"/>.</summary>
+        public Cell<bool?> Showing;
+
         public InputNode(Guid uuid, string name, string kind, string unversionedKind, uint? caps, long createdSeq, TimeSpan createdAt, bool confirmed)
             : base(uuid, name, createdSeq, createdAt, confirmed)
         {
@@ -242,6 +248,8 @@ namespace OBSStudioClient.Model.Engine
             this.Tracks = new Cell<int>((int)ObsAudioTracks.All, 0);
             this.Settings = new Cell<SettingsValue>(SettingsValue.Empty, 0);
             this.MediaState = new Cell<ObsMediaState>(ObsMediaState.None, 0);
+            this.Active = new Cell<bool?>(null, 0);
+            this.Showing = new Cell<bool?>(null, 0);
         }
 
         /// <summary>Gets or sets the kind of the input.</summary>
@@ -286,8 +294,14 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets or sets whether the media state was read (or OBS Studio refused for good to say it).</summary>
         public bool MediaKnown { get; set; }
 
+        /// <summary>Gets the state of the read of whether the input is on the air and shown (GetSourceActive).</summary>
+        public ScopeState ActivityScope { get; } = new();
+
+        /// <summary>Gets or sets whether the activity was read (or OBS Studio refused for good to say it), or does not need to be: the engine does not follow it.</summary>
+        public bool ActivityKnown { get; set; }
+
         /// <inheritdoc/>
-        public override bool IsComplete => (!this.HasAudio || this.AudioKnown) && this.SettingsKnown && (!this.IsMedia || this.MediaKnown);
+        public override bool IsComplete => (!this.HasAudio || this.AudioKnown) && this.SettingsKnown && (!this.IsMedia || this.MediaKnown) && this.ActivityKnown;
     }
 
     /// <summary>

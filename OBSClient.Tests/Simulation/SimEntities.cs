@@ -213,6 +213,12 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets or sets the number of pins that keep the input alive without a scene item.</summary>
         public int Pins { get; set; }
 
+        /// <summary>Gets or sets whether the input is on the air (<c>videoActive</c>), as OBS Studio last said it. See <see cref="SimWorld"/> (<c>UpdateActivity</c>) for how it follows what is on the air.</summary>
+        public bool Active { get; set; }
+
+        /// <summary>Gets or sets whether the input is shown, on the air or in the preview of studio mode (<c>videoShowing</c>), as OBS Studio last said it.</summary>
+        public bool Showing { get; set; }
+
         /// <inheritdoc />
         public override bool IsScene => false;
     }

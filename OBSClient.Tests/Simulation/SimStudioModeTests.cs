@@ -84,6 +84,27 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
+        public void SwitchingStudioModeOff_AnnouncesThePreviewSceneFirst_WhenItIsNotTheProgramScene()
+        {
+            // Measured with OBS Studio 33.0.0 (LiveActivityTests): the preview scene is the program scene for a moment, and then the scene that was the program scene is again.
+            var h = new SimHarness(Ideal);
+            var a = h.CreateScene("A");
+            StudioMode(h, true);
+            h.Ok("SetCurrentPreviewScene", new { sceneUuid = a.ToString() });
+            h.Settle();
+            h.ClearLog();
+
+            StudioMode(h, false);
+            h.Settle();
+
+            Assert.Equal(["CurrentProgramSceneChanged", "CurrentProgramSceneChanged", "StudioModeStateChanged"], h.EventNames());
+            var announced = h.Events("CurrentProgramSceneChanged");
+            Assert.Equal(a, announced[0].Uuid("sceneUuid"));
+            Assert.Equal(h.InitialScene, announced[1].Uuid("sceneUuid"));
+            Assert.Equal(h.InitialScene, h.Ok("GetCurrentProgramScene").Uuid("sceneUuid"));
+        }
+
+        [Fact]
         public void ThePreviewScene_IsSetByNameOrUuid_AndAnnouncedOnlyWhenItChanges()
         {
             var h = new SimHarness(Ideal);
@@ -158,6 +179,30 @@ namespace OBSStudioClient.Tests.Simulation
             Assert.Equal(a, h.Events("CurrentProgramSceneChanged").Single().Uuid("sceneUuid"));
             Assert.Equal(before, h.Ok("GetCurrentPreviewScene").Uuid("sceneUuid"));
             Assert.Equal(a, h.Ok("GetCurrentProgramScene").Uuid("sceneUuid"));
+        }
+
+        [Fact]
+        public void ASceneThatWasRemovedWhileTheTransitionRan_IsNotMadeThePreviewScene_WhenItEnds()
+        {
+            // ASSUMPTION: not measured. The scene that was on the air goes to the preview when the transition ends, unless it was removed meanwhile: the user interface does not list it any more, and it is
+            // not a scene that the next transition could put on the air.
+            var h = new SimHarness(Fade);
+            var a = h.CreateScene("A");
+            var before = h.InitialScene;
+            StudioMode(h, true);
+            h.Ok("SetCurrentPreviewScene", new { sceneUuid = a.ToString() });
+            h.Settle();
+            h.Ok("TriggerStudioModeTransition");
+            h.Run(100);
+            h.Ok("RemoveScene", new { sceneUuid = before.ToString() });
+            h.ClearLog();
+
+            h.Settle();
+
+            Assert.Equal(["SceneTransitionVideoEnded", "CurrentProgramSceneChanged", "SceneTransitionEnded"], h.EventNames());
+            Assert.Equal(a, h.Ok("GetCurrentPreviewScene").Uuid("sceneUuid"));
+            Assert.Equal(a, h.Ok("GetCurrentProgramScene").Uuid("sceneUuid"));
+            h.Sim.CheckInvariants();
         }
 
         [Fact]

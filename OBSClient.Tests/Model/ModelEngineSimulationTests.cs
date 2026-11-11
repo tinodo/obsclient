@@ -53,6 +53,21 @@ namespace OBSStudioClient.Tests.Model
             AssertWalks(quirks, maxBatch, reconnects, 0, ObsHighVolume.Transforms);
         }
 
+        // The same, for a model that follows whether the inputs are on the air and shown (ObsHighVolume.Activity), and for one that follows everything that is sent often (ObsHighVolume.All): it subscribes to the
+        // events of the activity, reads it for every input, and what it holds of every input has to be what OBS Studio holds, through the program scene, transitions, nested scenes and studio mode.
+        [Theory]
+        [InlineData("Ideal", 50, false, ObsHighVolume.Activity)]
+        [InlineData("Ideal", 50, true, ObsHighVolume.Activity)]
+        [InlineData("Real", 50, true, ObsHighVolume.Activity)]
+        [InlineData("Real", 4, false, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 50, false, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 4, true, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 50, true, ObsHighVolume.All)]
+        public void After_a_random_walk_the_model_that_follows_the_activity_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects, ObsHighVolume highVolume)
+        {
+            AssertWalks(quirks, maxBatch, reconnects, 0, highVolume);
+        }
+
         private static void AssertWalks(string quirks, int maxBatch, bool reconnects, int retentionSeconds, ObsHighVolume highVolume)
         {
             var failures = new List<string>();

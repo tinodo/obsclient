@@ -106,8 +106,14 @@ namespace OBSStudioClient.Tests.Simulation
         public static readonly int MediaInputs = Bit("MediaInputs");
         public static readonly int Ui = Bit("Ui");
 
-        /// <summary>Events of the high volume, which a connection only gets when it asks for them: the transform of a scene item.</summary>
+        /// <summary>Events of the high volume, which a connection only gets when it asks for them: the transform of a scene item, and whether an input is on the air and shown.</summary>
         public static readonly int SceneItemTransform = Bit("SceneItemTransformChanged");
+
+        /// <summary>The high-volume event that says whether an input is on the air.</summary>
+        public static readonly int InputActive = Bit("InputActiveStateChanged");
+
+        /// <summary>The high-volume event that says whether an input is shown.</summary>
+        public static readonly int InputShow = Bit("InputShowStateChanged");
 
         /// <summary>Gets the subscription of a connection that did not ask for one: every event except the high-volume ones.</summary>
         public static readonly int All = Bit("All");

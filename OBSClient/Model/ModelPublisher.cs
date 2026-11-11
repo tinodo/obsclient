@@ -236,6 +236,8 @@ namespace OBSStudioClient.Model
                     input.SetMonitorType(node.MonitorType.Value);
                     input.SetAudioTracks(node.Tracks.Value);
                     input.SetSettings(node.Settings.Value);
+                    input.SetActive(node.Active.Value);
+                    input.SetShowing(node.Showing.Value);
                     if (node.IsMedia && node.MediaKnown)
                     {
                         input.AttachMedia(node.MediaState.Value);
@@ -293,6 +295,18 @@ namespace OBSStudioClient.Model
                     if (input.SetSettings(node.Settings.Value))
                     {
                         this.AddProperty(input, nameof(ObsInput.Settings), settings, input.Settings, true);
+                    }
+
+                    var active = input.IsActive;
+                    if (input.SetActive(node.Active.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.IsActive), active, node.Active.Value, true);
+                    }
+
+                    var showing = input.IsShowing;
+                    if (input.SetShowing(node.Showing.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.IsShowing), showing, node.Showing.Value, true);
                     }
 
                     if (input.Media is { } media)

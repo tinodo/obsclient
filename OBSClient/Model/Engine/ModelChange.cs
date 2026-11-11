@@ -56,6 +56,12 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>What a media input does (its playback state) changed.</summary>
         InputMediaStateChanged,
 
+        /// <summary>Whether an input is on the air changed (only followed when asked for: see <c>ObsHighVolume.Activity</c>).</summary>
+        InputActiveChanged,
+
+        /// <summary>Whether an input is shown changed (only followed when asked for: see <c>ObsHighVolume.Activity</c>).</summary>
+        InputShowingChanged,
+
         /// <summary>A scene item appeared (it is complete).</summary>
         ItemAdded,
 

@@ -48,7 +48,7 @@ Everything that is a property is answered from the model, at once, and can be re
 | --- | --- |
 | [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | `Scenes`, `Inputs`, `ProgramScene`, `PreviewScene`, `IsStudioModeEnabled`, `Transitions`, `Outputs`, `State`, `IsStale`, `IsExiting`, `ObsVersion`, `WebSocketVersion`, `Platform`, `SupportedImageFormats`, `Client` |
 | [`ObsScene`](xref:OBSStudioClient.Model.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsPreview`, `IsGroup`, `Items`, `Filters`, `State` |
-| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it) |
+| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it); `IsActive` and `IsShowing` when the model is asked to follow them (see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Model.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
 | [`ObsFilters`](xref:OBSStudioClient.Model.ObsFilters) | the filters of a scene or an input, from the first: `Filters["Gain"]` by name, by position, `TryGet`, `Find`, `Contains` |
 | [`ObsFilter`](xref:OBSStudioClient.Model.ObsFilter) | `Source`, `Name`, `Kind`, `Index`, `IsEnabled`, `IsRemoved` |
@@ -400,6 +400,42 @@ What OBS Studio does (checked with OBS Studio 33.0.0, obs-websocket 5.7.6):
   give the destination by name.
 - **When several programs change one item at the same time**, events can come in another order than the changes were made (two of fifty changes sent at once were swapped): the model shows the last event, and `GetTransformAsync` says what OBS Studio holds.
 
+## Is an input on the air? Activity
+
+Whether an input is **on the air** (it is in the output that goes to the stream and the recording) and whether it is **shown** (on the air, or in the preview of studio mode, a projector, or the window of its properties) is its **activity**.
+OBS Studio sends an event for every input that a change reaches: a program scene that changes, a transition, a scene item that is hidden, a scene that is nested in another. Every program that listens pays for it, so the model **does not follow the activity unless you ask it to**:
+
+```csharp
+using var obs = new ObsModel(new ObsModelOptions { HighVolume = ObsHighVolume.Activity });   // follow whether the inputs are on the air
+// ...
+var webcam = obs.Inputs["Webcam"];
+Console.WriteLine($"{webcam.IsActive} {webcam.IsShowing}");        // null without HighVolume; PropertyChanged and Changed tell when it changes
+var asked = await webcam.GetActivityAsync();                       // asks OBS Studio: works with and without HighVolume, and for scenes too
+```
+
+[`ObsHighVolume.All`](xref:OBSStudioClient.Model.ObsHighVolume) follows everything that is sent often (the transforms of the scene items and the activity of the inputs).
+
+| On `ObsInput` | |
+| --- | --- |
+| `IsActive` | `true` while the input is on the air; `null` unless the model follows the activity ([`ObsModelOptions.HighVolume`](xref:OBSStudioClient.Model.ObsModelOptions.HighVolume) with [`ObsHighVolume.Activity`](xref:OBSStudioClient.Model.ObsHighVolume)) |
+| `IsShowing` | `true` while the input is shown: on the air, or in the preview scene, a projector or the window of its properties; `null` unless the model follows the activity |
+| `GetActivityAsync()` | asks OBS Studio (`GetSourceActive`), whatever the options are; also on scenes (the model keeps no activity for a scene: OBS Studio announces none) |
+
+With the activity the model reads it for every input when it connects (the reads go in the batches of the model, one request for each input), and for every input that is made. A model that does not follow the activity sends none of that.
+
+What OBS Studio does (checked with OBS Studio 33.0.0, obs-websocket 5.7.6):
+
+- **An input is on the air when the program scene shows it**, directly or in a scene that it nests, as long as the scene items that lead to it are enabled. Hiding the item of a nested scene takes its inputs off the air; an input that is reached in two ways stays on the air when one of them ends.
+- **A scene that goes on the air puts its inputs on the air when the transition starts, and the scene that goes off the air takes its inputs off the air after the transition has ended.** A fade keeps the inputs of both scenes on the air while it runs. `SwitchToAsync()` returns while the transition runs
+  (see [Studio mode, the preview scene and transitions](#studio-mode-the-preview-scene-and-transitions)), so the inputs of the old scene are still on the air then.
+- **Studio mode shows the preview scene, and does not put it on the air.** The inputs of the preview scene are shown (`IsShowing`) and not on the air, unless the program scene shows them too. The Transition button puts the inputs of the preview scene on the air when the transition starts, and the inputs of the scene that was on the air
+  go off the air when it has ended: they stay shown, because that scene is the preview scene then.
+- **In studio mode what is on the air is a copy of the program scene**, made when the scene went on the air (or when studio mode was switched on). What you do to the scene itself, such as hiding a scene item or making an input in it, does not reach the copy: the input of a hidden item stays on the air, an input that is made is shown in the preview
+  and not on the air. They change when the next scene goes on the air, or when studio mode is switched off and the scene itself is on the air again.
+- **The events come in no fixed order.** An input is told that it is shown and that it is on the air in either order, and relative to the other events of the same change (the scene item that was made, the end of a transition) anywhere. The model does not depend on it, and `Changed` tells each of the two properties by itself.
+- **An input that OBS Studio destroys is not told to go off the air**, and neither is one that is removed: there is no event, and the model shows an input that was removed as removed. A scene that is removed while it is on the air puts the scene that takes its place on the air.
+- **The model reads the activity again after a connection that was lost came back**, and tells what changed while it was down once for each property, as for any other value (see [Hearing about changes](#hearing-about-changes)).
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -466,11 +502,12 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 | `ConfirmationTimeout` | 1 s | how long a change waits for the event that shows it before the model is read again |
 | `NotificationContext` | none | where the notifications run (for example the UI thread) |
 | `MaxPendingNotifications` | 10,000 | how many notifications may wait for slow handlers; beyond that new ones are dropped until the handlers catch up, and then every object raises `PropertyChanged` with an empty name and `Resynchronized` is raised (the model itself is always current) |
-| `AdditionalEvents` | none | event subscriptions for your own handlers on `obs.Client`, on top of the ones that the model needs; `VendorEvent` needs `Vendors` here. The events that arrive very often (the volume meters of the inputs, the active and showing state of inputs, a changed transform of a scene item) are never subscribed to for the model |
+| `AdditionalEvents` | none | event subscriptions for your own handlers on `obs.Client`, on top of the ones that the model needs; `VendorEvent` needs `Vendors` here. The events that arrive very often (the volume meters of the inputs, the active and showing state of inputs, a changed transform of a scene item) are not subscribed to for the model unless `HighVolume` asks for them |
+| `HighVolume` | none | what the model follows of what OBS Studio sends very often: `Transforms` (the transform of every scene item, see [Position, size and crop: transforms](#position-size-and-crop-transforms)), `Activity` (whether the inputs are on the air and shown, see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)), or `All` |
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio and media), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
+The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 

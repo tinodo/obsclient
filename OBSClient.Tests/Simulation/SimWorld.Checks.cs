@@ -31,7 +31,9 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Kind.HasAudio ? input.SyncOffset : 0,
                     input.Kind.HasAudio ? input.MonitorType : "OBS_MONITORING_TYPE_NONE",
                     input.Kind.HasAudio ? input.Tracks : 63,
-                    input.Kind.IsMedia ? input.MediaState : null))
+                    input.Kind.IsMedia ? input.MediaState : null,
+                    input.Active,
+                    input.Showing))
                 .ToArray();
             return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, _studioMode ? _preview?.Uuid : null, _studioMode, TransitionName, TransitionDurationMilliseconds, TransitionRunning);
         }
@@ -192,6 +194,7 @@ namespace OBSStudioClient.Tests.Simulation
                 problems.Add("The running transition was cancelled.");
             }
 
+            problems.AddRange(FindActivityProblems());
             return problems;
         }
 

@@ -133,6 +133,8 @@ namespace OBSStudioClient.Model.Engine
                     return this._inputs.TryGetValue(request.Target, out var settingsOf) ? settingsOf.SettingsScope : null;
                 case ReadKind.MediaStatus:
                     return this._inputs.TryGetValue(request.Target, out var mediaOf) ? mediaOf.MediaScope : null;
+                case ReadKind.Activity:
+                    return this._inputs.TryGetValue(request.Target, out var activityOf) ? activityOf.ActivityScope : null;
                 default:
                     return this._inputs.TryGetValue(request.Target, out var input) ? input.AudioScope : null;
             }
@@ -183,6 +185,7 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 ReadKind.InputSettings => this._inputs.TryGetValue(target, out var settingsOf) ? settingsOf.SettingsScope : null,
                 ReadKind.MediaStatus => this._inputs.TryGetValue(target, out var mediaOf) && mediaOf.IsMedia ? mediaOf.MediaScope : null,
+                ReadKind.Activity => this.Follows(ObsHighVolume.Activity) && this._inputs.TryGetValue(target, out var activityOf) ? activityOf.ActivityScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
         }
@@ -296,6 +299,9 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.MediaStatus:
                     this.ApplyMediaStatusResponse(ticket, request, response, ok, notFound);
+                    break;
+                case ReadKind.Activity:
+                    this.ApplyActivityResponse(ticket, request, response, ok, notFound);
                     break;
             }
         }
@@ -656,6 +662,55 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
+        // Whether an input is on the air and shown, as a read says it (only asked when the engine follows the activity). What the events say is applied as they arrive (see OnInputActiveStateChanged): the cells see to a
+        // read that was sent before such an event not overriding it, and one that was sent after it showing what it did.
+        private void ApplyActivityResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok, bool notFound)
+        {
+            if (!this._inputs.TryGetValue(request.Target, out var input))
+            {
+                return;
+            }
+
+            var scope = input.ActivityScope;
+            if (ok && response!.ResponseData is SourceActiveResponse activity)
+            {
+                scope.Attempts = 0;
+                var oldActive = input.Active.Value;
+                var oldShowing = input.Showing.Value;
+                var activeChanged = input.Active.ApplyRead(activity.VideoActive, ticket.SentSeq);
+                var showingChanged = input.Showing.ApplyRead(activity.VideoShowing, ticket.SentSeq);
+                input.ActivityKnown = true;
+                if (activeChanged && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputActiveChanged, input.Uuid, 0, input.Name.Value, oldActive, input.Active.Value);
+                }
+
+                if (showingChanged && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputShowingChanged, input.Uuid, 0, input.Name.Value, oldShowing, input.Showing.Value);
+                }
+
+                this.TryAnnounce(input);
+            }
+            else if (notFound)
+            {
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the activity is read again after a wait for as long as the input is there.
+                this._inputsScope.MarkDirty();
+                this.Retry(scope);
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                // OBS Studio refuses the request for good (a simulation that does not know it): there is nothing to read, and the activity stays what the events say.
+                scope.Attempts = 0;
+                input.ActivityKnown = true;
+                this.TryAnnounce(input);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
         // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again.
         private void ApplyPreviewResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
         {
@@ -927,11 +982,17 @@ namespace OBSStudioClient.Model.Engine
                         input.MediaScope.MarkDirty();
                     }
 
+                    if (!input.ActivityKnown && !input.RemovalUnresolved && !input.ActivityScope.Dirty && !input.ActivityScope.InFlight)
+                    {
+                        input.ActivityScope.MarkDirty();
+                    }
+
                     this.TryAnnounce(input);
                 }
                 else
                 {
                     var created = new InputNode(uuid, entry.InputName, entry.InputKind, entry.UnversionedInputKind, entry.InputKindCaps, sent, ticket.SentAt, confirmed: true);
+                    created.ActivityKnown = !this.Follows(ObsHighVolume.Activity);
                     this._inputs[uuid] = created;
                     if (this._removedUnknown.Contains(uuid))
                     {
@@ -953,6 +1014,11 @@ namespace OBSStudioClient.Model.Engine
                     if (created.IsMedia)
                     {
                         created.MediaScope.MarkDirty();
+                    }
+
+                    if (!created.ActivityKnown)
+                    {
+                        created.ActivityScope.MarkDirty();
                     }
 
                     this.TryAnnounce(created);

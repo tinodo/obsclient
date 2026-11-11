@@ -660,7 +660,7 @@ namespace OBSStudioClient.Tests.Simulation
             Request(2, () => Item("SetSceneItemBlendMode", ("sceneItemBlendMode", _random.Chance(0.05) ? "OBS_BLEND_BOGUS" : SimWorld.BlendModes[_random.Next(SimWorld.BlendModes.Length)])));
             Request(2, () => DuplicateSceneItem());
             Request(2, () => Input("SetInputMute", true, ("inputMuted", _random.Chance(0.5))));
-            Request(1, () => Input("ToggleInputMute", true));
+            Request(2, () => Input("ToggleInputMute", true));
             Request(2, () => SetInputVolume());
             Request(2, () => SetInputSettings());
             Request(1, () => Input("SetInputAudioBalance", true, ("inputAudioBalance", Balances[_random.Next(Balances.Length)])));
@@ -671,6 +671,7 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => MediaInput("SetMediaInputCursor", ("mediaCursor", MediaCursors[_random.Next(MediaCursors.Length)])));
             Request(1, () => MediaInput("OffsetMediaInputCursor", ("mediaCursorOffset", MediaOffsets[_random.Next(MediaOffsets.Length)])));
             Request(1, () => MediaInput("GetMediaInputStatus"));
+            Request(2, () => Source("GetSourceActive"));
             Request(2, () => ("SetStudioModeEnabled", Data(("studioModeEnabled", _random.Chance(0.5)))));
             Request(3, () => Scene("SetCurrentPreviewScene"));
             Request(3, () => ("TriggerStudioModeTransition", null));
@@ -823,6 +824,14 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var data = Data(more);
             Put(data, "inputName", "inputUuid", PickInput(audio));
+            return (type, data);
+        }
+
+        // A request about a source that is an input or a scene.
+        private (string Type, Dictionary<string, object?>? Data) Source(string type, params (string Key, object? Value)[] more)
+        {
+            var data = Data(more);
+            Put(data, "sourceName", "sourceUuid", PickSource());
             return (type, data);
         }
 

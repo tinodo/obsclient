@@ -79,7 +79,7 @@ namespace OBSStudioClient.Tests.Model
             Assert.True(h.Engine.Wants(EventType.SceneItemTransformChanged));
             Assert.Equal(ObsHighVolume.Transforms, ModelEngine.HighVolumeOf(EventType.SceneItemTransformChanged));
             Assert.All(
-                Enum.GetValues<EventType>().Where(type => type != EventType.SceneItemTransformChanged && ModelEngine.Handles(type)),
+                Enum.GetValues<EventType>().Where(type => type != EventType.SceneItemTransformChanged && type is not (EventType.InputActiveStateChanged or EventType.InputShowStateChanged) && ModelEngine.Handles(type)),
                 type => Assert.Null(ModelEngine.HighVolumeOf(type)));
             Assert.True(new EngineHarness().Engine.Wants(EventType.SceneItemSelected));
         }

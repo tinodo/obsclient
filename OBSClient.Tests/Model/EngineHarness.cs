@@ -187,6 +187,9 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets the transform of the scene items that have another than <see cref="DefaultTransform"/>, by the UUID of their scene and their id.</summary>
         public Dictionary<(Guid Scene, int Id), SceneItemTransform> Transforms { get; } = new();
 
+        /// <summary>Gets whether the inputs are on the air and whether they are shown, by UUID, as <c>GetSourceActive</c> says it; an input that is not in it is neither.</summary>
+        public Dictionary<Guid, (bool Active, bool Showing)> Activity { get; } = new();
+
         public Guid AddScene(string name)
         {
             var uuid = Guid.NewGuid();
@@ -391,6 +394,14 @@ namespace OBSStudioClient.Tests.Model
                             mediaState = this.MediaStates.GetValueOrDefault(request.Target, "OBS_MEDIA_STATE_NONE"),
                             mediaDuration = this.MediaTimes.TryGetValue(request.Target, out var times) ? (long?)times.Duration : null,
                             mediaCursor = this.MediaTimes.TryGetValue(request.Target, out var cursor) ? (long?)cursor.Cursor : null,
+                        })
+                        : (600, null);
+                case ReadKind.Activity:
+                    return this.Inputs.Any(input => input.Uuid == request.Target)
+                        ? (100, new
+                        {
+                            videoActive = this.Activity.TryGetValue(request.Target, out var activity) && activity.Active,
+                            videoShowing = activity.Showing,
                         })
                         : (600, null);
                 default:

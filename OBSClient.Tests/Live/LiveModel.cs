@@ -304,6 +304,12 @@ namespace OBSStudioClient.Tests.Live
                         var status = await this.Client.GetMediaInputStatus(reference);
                         Compare(problems, $"the media of '{shown.Name}'", [ModelEnums.ToModel(status.MediaState).ToString()], [media.State.ToString()]);
                     }
+
+                    if (model.HighVolume.HasFlag(ObsHighVolume.Activity))
+                    {
+                        var activity = await this.Client.GetSourceActive(SourceRef.FromUuid(shown.Uuid));
+                        Compare(problems, $"the activity of '{shown.Name}'", [$"on the air {activity.VideoActive}, shown {activity.VideoShowing}"], [$"on the air {shown.IsActive}, shown {shown.IsShowing}"]);
+                    }
                 }
                 catch (ObsResponseException exception)
                 {

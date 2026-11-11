@@ -68,6 +68,7 @@ namespace OBSStudioClient.Model.Engine
             return eventType switch
             {
                 EventType.SceneItemTransformChanged => ObsHighVolume.Transforms,
+                EventType.InputActiveStateChanged or EventType.InputShowStateChanged => ObsHighVolume.Activity,
                 _ => null,
             };
         }

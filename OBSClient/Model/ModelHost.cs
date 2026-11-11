@@ -47,6 +47,11 @@ namespace OBSStudioClient.Model
                 events |= EventSubscriptions.SceneItemTransformChanged;
             }
 
+            if (highVolume.HasFlag(ObsHighVolume.Activity))
+            {
+                events |= EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged;
+            }
+
             return events;
         }
 
