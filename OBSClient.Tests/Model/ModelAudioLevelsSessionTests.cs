@@ -178,11 +178,21 @@ namespace OBSStudioClient.Tests.Model
             var notifier = new ModelNotifier(context, NullLogger.Instance, 100, () => { });
             var raised = 0;
             var levels = new ModelAudioLevels(() => this._inputs, notifier, _ => Interlocked.Increment(ref raised));
+
+            // The notifier counts the notification as no longer waiting a moment before it says that it dropped it: it is the producer being told that lets the next levels queue another one.
+            var dropped = 0;
+            var producerIsTold = notifier.Dropped!;
+            notifier.Dropped = () =>
+            {
+                producerIsTold();
+                Interlocked.Increment(ref dropped);
+            };
             levels.Observe(this.Session(IngressKind.SessionStarted, 1));
 
             // The notification is queued, and the context refuses it: nothing will run it, so nothing may wait for it.
             levels.Observe(this.Meters(1, 0.5f));
-            await ModelRig.EventuallyAsync(() => notifier.WaitingCount == 0, "the context to refuse the notification");
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref dropped) == 1, "the context to refuse the notification");
+            Assert.Equal(0, notifier.WaitingCount);
 
             context.Failing = false;
             levels.Observe(this.Meters(1, 0.6f));

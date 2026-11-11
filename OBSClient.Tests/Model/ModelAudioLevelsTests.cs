@@ -225,18 +225,20 @@ namespace OBSStudioClient.Tests.Model
         {
             var options = Listening();
             options.MaxPendingNotifications = 5;
-            await using var test = await StartAsync(options: options);
-            var seen = new ConcurrentQueue<float>();
             var resynchronized = 0;
+            await using var test = await CallFixture.StartAsync(options, beforeConnect: model => model.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized));
+            var seen = new ConcurrentQueue<float>();
             using var gate = new ManualResetEventSlim();
             var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            test.Model.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
             test.Model.AudioLevels += (_, e) =>
             {
                 seen.Enqueue(e.Levels[0].Channels[0].Magnitude);
                 blocked.TrySetResult();
                 gate.Wait(Timeout);
             };
+
+            // The first read is announced after the connection is made: what is counted below is what comes after it.
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "the first read to be announced");
 
             // The first message holds the handler; far more than the queue holds come while it waits.
             await SendAsync(test, Entry(test.Mic, [0.001f, 0f, 0f]));
@@ -250,7 +252,7 @@ namespace OBSStudioClient.Tests.Model
             gate.Set();
             await ModelRig.EventuallyAsync(() => seen.Contains(0.4f), "the newest levels to be raised");
 
-            Assert.Equal(0, Volatile.Read(ref resynchronized));
+            Assert.Equal(1, Volatile.Read(ref resynchronized));
             Assert.True(seen.Count <= 3, $"The handler was raised {seen.Count} times for 400 messages that came while it waited.");
             Assert.Equal(0.001f, seen.First());
             Assert.Equal(0.4f, seen.Last());

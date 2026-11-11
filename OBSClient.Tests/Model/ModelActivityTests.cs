@@ -174,11 +174,14 @@ namespace OBSStudioClient.Tests.Model
         {
             var options = Following();
             options.AutoReconnect = true;
-            await using var test = await CallFixture.StartAsync(options, world => world.Activity[Uuid(world, "Camera")] = (true, true));
+            var resynchronized = 0;
+            await using var test = await CallFixture.StartAsync(
+                options,
+                world => world.Activity[Uuid(world, "Camera")] = (true, true),
+                model => model.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized));
             var camera = test.Camera;
             Assert.True(camera.IsActive);
             var properties = new List<string>();
-            var resynchronized = 0;
             camera.PropertyChanged += (_, e) =>
             {
                 lock (properties)
@@ -186,14 +189,16 @@ namespace OBSStudioClient.Tests.Model
                     properties.Add(e.PropertyName!);
                 }
             };
-            test.Model.Resynchronized += (_, _) => Interlocked.Increment(ref resynchronized);
+
+            // The first read is announced after the connection is made, and it is not the read that this test is about.
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "the first read to be announced", Timeout);
 
             // The scene that shows the camera went off the air while the connection was down, and the model reconnects by itself.
             test.Rig.Responder.Change(world => world.Activity[camera.Uuid] = (false, false));
             test.Rig.Responder.AbortConnection();
 
             // While the model is read again nobody is told one by one: each property is told once when it is complete, and Resynchronized comes after them.
-            await ModelRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 1, "the model to be read again", Timeout);
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref resynchronized) == 2, "the model to be read again", Timeout);
             Assert.False(camera.IsActive);
             Assert.False(camera.IsShowing);
             lock (properties)

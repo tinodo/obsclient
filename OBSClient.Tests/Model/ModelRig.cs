@@ -470,7 +470,7 @@ namespace OBSStudioClient.Tests.Model
             return rig;
         }
 
-        public static async Task<ModelRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsModelOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null)
+        public static async Task<ModelRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsModelOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null, Action<ObsModel>? beforeConnect = null)
         {
             var rig = Create(setup, options, loggerFactory);
             try
@@ -485,6 +485,8 @@ namespace OBSStudioClient.Tests.Model
                     rig.Responder.ObsVersion = obsVersion;
                 }
 
+                // What a test subscribes to before the connection is made: the notifications of the first read are raised after ConnectAsync has returned.
+                beforeConnect?.Invoke(rig.Model);
                 await rig.Model.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
             }
             catch

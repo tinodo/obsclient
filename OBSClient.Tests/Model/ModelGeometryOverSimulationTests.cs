@@ -154,7 +154,9 @@ namespace OBSStudioClient.Tests.Model
             await rig.ConvergedAsync("a transform that was changed in one member", Patience);
 
             var asked = await webcam.GetTransformAsync().WithTimeoutAsync(Patience);
-            Assert.Equal(webcam.Transform, asked);
+
+            // The events of the earlier changes can still be on their way (Hostile delays them behind later responses), and say what the transform was then: the model shows what OBS Studio says as soon as they have come.
+            await ModelRig.EventuallyAsync(() => Equals(webcam.Transform, asked), "the model to show the transform that OBS Studio says", Patience);
         }
 
         [Fact]
