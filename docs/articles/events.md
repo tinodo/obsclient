@@ -80,6 +80,9 @@ client.InputVolumeMeters += (_, e) =>
 `InputVolumeMeters` is a stream of samples of the levels of every input, so the client raises at most one every 100 milliseconds and
 skips the ones in between. The other three events each describe a change of one input or scene item, so none of them is skipped.
 
+With `ObsModel` you do not subscribe to them yourself: [`ObsModelOptions.HighVolume`](model.md#settings) says which of them the model follows
+(the transform of every scene item, whether each input is on the air, and the levels of the audio, see [How loud is it? Audio levels](model.md#how-loud-is-it-audio-levels)), and the model keeps what they say in its objects.
+
 ## Rules for handlers
 
 - **Handlers run one at a time, in the order in which the events arrived**, on a thread of the thread pool that is not the thread

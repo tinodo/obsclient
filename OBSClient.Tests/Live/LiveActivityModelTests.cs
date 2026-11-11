@@ -64,7 +64,10 @@ namespace OBSStudioClient.Tests.Live
                 await b.SwitchToAsync();
                 await live.AssertModelEqualsObsAsync("after the program scene became B");
                 Assert.True(ib.IsActive);
-                Assert.False(ia.IsActive);
+
+                // The inputs of the scene that went off the air are taken off it a moment after the transition has ended: OBS Studio and the model can both still say that they are on it.
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ia.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the old scene did not go off the air.");
+                await live.AssertModelEqualsObsAsync("after the input of the old scene went off the air");
 
                 // C shows ic and the scene A, which shows ia.
                 await c.SwitchToAsync();
@@ -119,7 +122,8 @@ namespace OBSStudioClient.Tests.Live
                 await model.Transitions.TriggerAsync();
                 await live.AssertModelEqualsObsAsync("after the transition of studio mode");
                 Assert.True(ib.IsActive);
-                Assert.False(ia.IsActive);
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ia.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the scene that was on the air did not go off it.");
+                await live.AssertModelEqualsObsAsync("after the input of the old scene went off the air");
                 Assert.True(ia.IsShowing);
 
                 // The program scene is the preview scene as well, and what is done to the scene is not done to what is on the air (the copy), while the preview shows the scene itself.
@@ -161,7 +165,8 @@ namespace OBSStudioClient.Tests.Live
                 Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ia.IsActive == true && ib.IsActive == true, TimeSpan.FromSeconds(10)), "The inputs of both scenes were not on the air while the fade ran.");
                 await live.AssertModelEqualsObsAsync("after the fade to A");
                 Assert.True(ia.IsActive);
-                Assert.False(ib.IsActive);
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ib.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the scene that faded out did not go off the air.");
+                await live.AssertModelEqualsObsAsync("after the input of the old scene went off the air, after the fade");
 
                 // Removals: an input that OBS Studio destroys is not announced, and the program scene that is removed puts the scene that takes its place on the air.
                 await client.SetCurrentSceneTransition("Cut");
