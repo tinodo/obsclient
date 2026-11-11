@@ -48,7 +48,7 @@ Everything that is a property is answered from the model, at once, and can be re
 | --- | --- |
 | [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | `Scenes`, `Inputs`, `ProgramScene`, `IsStudioModeEnabled`, `Outputs`, `State`, `IsStale`, `IsExiting`, `ObsVersion`, `WebSocketVersion`, `Platform`, `SupportedImageFormats`, `Client` |
 | [`ObsScene`](xref:OBSStudioClient.Model.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsGroup`, `Items`, `Filters`, `State` |
-| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it) |
+| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Model.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
 | [`ObsFilters`](xref:OBSStudioClient.Model.ObsFilters) | the filters of a scene or an input, from the first: `Filters["Gain"]` by name, by position, `TryGet`, `Find`, `Contains` |
 | [`ObsFilter`](xref:OBSStudioClient.Model.ObsFilter) | `Source`, `Name`, `Kind`, `Index`, `IsEnabled`, `IsRemoved` |
@@ -86,6 +86,8 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | | `RenameAsync(name)`, `RemoveAsync()` | |
 | `ObsInput` | `SetMutedAsync(bool)`, `ToggleMuteAsync()` | |
 | | `SetVolumeDbAsync(double)`, `SetVolumeMulAsync(double)` | |
+| | `SetSettingsAsync(settings, overlay)` | changes the settings of the input (see [Input settings, audio and kinds](#input-settings-audio-and-kinds)) |
+| | `SetAudioBalanceAsync(float)`, `SetSyncOffsetAsync(TimeSpan)`, `SetMonitorTypeAsync(type)`, `SetAudioTracksAsync(tracks)` | the audio details of the input |
 | | `SetEnabledInAllScenesAsync(bool)` | shows or hides every scene item that shows the input |
 | | `RenameAsync(name)`, `RemoveAsync()` | |
 | `ObsSceneItem` | `SetEnabledAsync(bool)`, `ToggleEnabledAsync()` | |
@@ -166,11 +168,17 @@ changes, so a question that you ask after a change is asked after it.
 | | `BroadcastCustomEventAsync(data)` | sends a custom event to every client of OBS Studio, this model too (see [Things that happen](#things-that-happen)) |
 | | `CallVendorRequestAsync(vendor, request, data)` | calls a request that a plugin or a script registered |
 | | `GetMonitorsAsync()`, `OpenVideoMixProjectorAsync(mix, monitor, geometry)` | the monitors that OBS Studio sees, and a projector of the preview, the program or the multiview |
+| | `GetInputKindsAsync(unversioned)`, `GetFilterKindsAsync()` | the kinds of inputs and of filters that OBS Studio has |
+| | `GetDefaultInputSettingsAsync(kind)`, `GetDefaultFilterSettingsAsync(kind)` | the settings that a new input or filter of a kind starts with |
+| | `GetSpecialInputsAsync()` | the inputs that OBS Studio uses for the desktop audio and the microphones, as [`ObsSpecialInputs`](xref:OBSStudioClient.Model.ObsSpecialInputs) |
 | `ObsScene`, `ObsInput` | `GetActivityAsync()` | whether it is on the air (`VideoActive`), and whether it is shown anywhere (`VideoShowing`) |
 | | `GetScreenshotAsync(format, width, height, quality)` | a picture of it, as an [`ObsScreenshot`](xref:OBSStudioClient.Model.ObsScreenshot): the bytes, `ToDataUri()`, `SaveAsync(path)` |
 | | `SaveScreenshotAsync(path, format, ...)` | has OBS Studio write the picture to a file, on its own computer |
 | | `OpenProjectorAsync(monitor, geometry)`, `TriggerHotkeyAsync(name)` | a projector of it; a hotkey that it has |
 | `ObsInput` | `OpenPropertiesDialogAsync()`, `OpenFiltersDialogAsync()`, `OpenInteractDialogAsync()` | opens that window in OBS Studio, for the person at its computer |
+| | `GetPropertyItemsAsync(name)`, `PressPropertyButtonAsync(name)` | the choices of a dropdown of its properties window; presses a button of it |
+| | `GetDeinterlaceModeAsync()`, `SetDeinterlaceModeAsync(mode)`, `GetDeinterlaceFieldOrderAsync()`, `SetDeinterlaceFieldOrderAsync(order)` | how an input that has its own video (a media source, a capture device) is deinterlaced |
+| `ObsFilter` | `GetSettingsAsync()`, `SetSettingsAsync(settings, overlay)` | the settings of a filter: not kept in the model (see [Filters](#filters)) |
 | `ObsOutputs` | `GetAllAsync()`, `Named(name)` | every output that OBS Studio has, the outputs that plugins add included; and one of them by its name |
 | [`ObsNamedOutput`](xref:OBSStudioClient.Model.ObsNamedOutput) | `StartAsync()`, `StopAsync()`, `ToggleAsync()`, `GetStatusAsync()`, `GetSettingsAsync()`, `SetSettingsAsync(settings)` | an output that is addressed by its name |
 | `ObsStreamOutput` | `SendCaptionAsync(text)`, `GetStatisticsAsync()` | a caption over the stream; the figures of the stream: duration, bytes, congestion, skipped frames |
@@ -220,10 +228,51 @@ await gain.RemoveAsync();
   The exception: a filter that is renamed while there is no connection to hear it is a new object when the connection is back (the old one is `IsRemoved`).
 - **A change that you ask for right after a rename names the filter by its new name**, also when the model does not show the new name yet.
 - `IsEnabled`, `Name`, `Index` and the list itself are current: OBS Studio announces every change of them (`PropertyChanged`, and `obs.Changed` with `Added` and `Removed` for filters).
-- **The settings of a filter are not in the model.** OBS Studio sends no event for most changes of them, so the model would show old values for ever. Ask OBS Studio when you need them, with the plain client:
-  `await obs.Client.GetSourceFilter(mic.Uuid, "Noise Gate")` and `obs.Client.SetSourceFilterSettings(...)`. Settings that you pass to `CreateFilterAsync` start the filter with them.
+- **The settings of a filter are not in the model**, and OBS Studio is the reason. The protocol has an event for a change of them (`SourceFilterSettingsChanged`), and OBS Studio does not send it: libobs tells of the
+  updates of public sources, and a filter is a private one (a test with OBS Studio 33.0.0 saw no event, for a filter of a scene, of an input or of audio). A copy in the model would go out of date without a sign, so there is none.
+  Ask when you need them, and change them when you want: `await gate.GetSettingsAsync()` is what OBS Studio holds at that moment, and `await gate.SetSettingsAsync(new { open_threshold = -30 })` returns when OBS Studio has made the
+  change (nothing in the model shows it, so there is nothing else to wait for). Settings that you pass to `CreateFilterAsync` start the filter with them, and `GetDefaultFilterSettingsAsync(kind)` says what the defaults of a kind are.
 - The filters of a source that was announced a moment ago can be read a moment later: `await obs.WaitUntilSettledAsync()` waits for them (and for the rest of the model).
 - `RenameAsync` and `CreateFilterAsync` throw an [`ObsNameInUseException`](xref:OBSStudioClient.Exceptions.ObsNameInUseException) when the source has a filter with that name already.
+
+## Input settings, audio and kinds
+
+An input has **settings**: what you set in its properties window (the color and the size of a color source, the text of a text source, the file of a media source). The model keeps them, and they are current: OBS Studio announces every change.
+
+```csharp
+var title = obs.Inputs["Title"];
+Console.WriteLine(title.Settings.GetProperty("text").GetString());        // a JsonElement; no request is sent
+await title.SetSettingsAsync(new { text = "Hello" });                     // lays the given fields over the ones that it has
+await title.SetSettingsAsync(new { text = "Hello" }, overlay: false);     // or: back to the defaults of the kind first, so that these fields are all it has
+var defaults = await obs.GetDefaultInputSettingsAsync(title.Kind);        // what a new input of the kind starts with
+```
+
+- **`Settings` has what was set**, and leaves out what still has the default of the kind: ask `GetDefaultInputSettingsAsync(kind)` for those (`GetInputKindsAsync()` lists the kinds). It is a snapshot: a change makes a new `JsonElement`, and one that you hold does not change.
+  What the fields are called depends on the kind: look at the `Settings` of an input that is set up as you want, and send what you see.
+- **OBS Studio does not check settings.** It keeps every field that it is given, also one that the kind does not know, and a value of the wrong kind makes the input do what it does with a value that it cannot use. A field that is an object replaces the
+  object that was there **as a whole**, not field by field, and a field that is `null` is **ignored**: it keeps what it was (both were checked with OBS Studio 33.0.0). `SetSettingsAsync` returns when the model shows the given fields.
+- **The choices of a dropdown** in the properties window of an input are asked for: `await camera.GetPropertyItemsAsync("device_id")` returns an [`ObsPropertyItem`](xref:OBSStudioClient.Model.ObsPropertyItem) for each (`Name`, `Value`, `IsEnabled`), and the `Value`
+  is what to set the setting to. `PressPropertyButtonAsync("refreshnocache")` presses a button of it. OBS Studio answers `ResourceNotFound` for a property that the input does not have, and `InvalidResourceType` for one that is not a list or not a button.
+
+**Audio.** An input with audio (`HasAudio`) has more than a mute and a volume: `AudioBalance` (0 is all left, 0.5 the middle, 1 all right), `SyncOffset` (a `TimeSpan`, from -950 ms to 20 s), `MonitorType` and `AudioTracks`. A new input has
+the middle, no offset, no monitoring and all six tracks. They are properties like the others, current and with `PropertyChanged`, and they are changed with `SetAudioBalanceAsync`, `SetSyncOffsetAsync`, `SetMonitorTypeAsync` and `SetAudioTracksAsync`.
+
+```csharp
+await mic.SetAudioBalanceAsync(0.25f);                                    // a little to the left
+await mic.SetSyncOffsetAsync(TimeSpan.FromMilliseconds(150));             // delay it, to match the video
+await mic.SetAudioTracksAsync(ObsAudioTracks.Track1 | ObsAudioTracks.Track3);    // exactly these tracks
+await mic.SetAudioTracksAsync(mic.AudioTracks | ObsAudioTracks.Track6);          // one more, and the others stay
+```
+
+- A value that OBS Studio does not take (a balance beyond 0 to 1, an offset beyond -950 ms to 20 s) is an `ArgumentOutOfRangeException` at once, and nothing is sent. The audio calls of an input without audio are an `InvalidOperationException`.
+- **OBS Studio 33 has no "monitor only".** Its libobs replaced the three monitor types by a switch that is on or off, and turns `ObsMonitorType.MonitorOnly` into `MonitorAndOutput`: after `SetMonitorTypeAsync(MonitorOnly)` the input holds
+  `MonitorAndOutput` (checked with OBS Studio 33.0.0). The call returns after the model has been read again, with `MonitorType` showing what OBS Studio holds, and no exception: compare it with what you asked for if that matters. A computer that cannot monitor refuses with `InvalidResourceState`.
+
+**Deinterlacing** is asked, and not kept in the model: `await camera.GetDeinterlaceModeAsync()` and `SetDeinterlaceModeAsync(ObsDeinterlaceMode.Yadif2x)`, with `GetDeinterlaceFieldOrderAsync()` and `SetDeinterlaceFieldOrderAsync(...)` for the order of the fields. It is for the inputs
+that have their own video (a media source, a capture device): OBS Studio refuses another input with `InvalidResourceState` (*"The specified input is not async."*). It needs obs-websocket 5.6.0 or newer.
+
+**The audio devices.** `await obs.GetSpecialInputsAsync()` says which inputs OBS Studio uses for the desktop audio (`Desktop1`, `Desktop2`) and the microphones (`Mic1` to `Mic4`), as the `ObsInput` objects of the model. A slot that is not set up, or whose input the
+model does not have, is `null`.
 
 ## Hearing about changes
 
@@ -294,7 +343,7 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs, scene items, the program scene, the audio of inputs, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, media inputs and the rest of
+The model has scenes, inputs (with their settings and audio), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, media inputs and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 

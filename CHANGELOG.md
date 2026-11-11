@@ -272,6 +272,19 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   - **What OBS Studio says about itself**: `obs.ObsVersion`, `obs.WebSocketVersion`, `obs.Platform` and `obs.SupportedImageFormats`. A request that the obs-websocket of that OBS Studio does not have (splitting a
     recording and chapters need 5.5.0) is refused with a message that says so.
   - `obs.Outputs.Stream` has the type `ObsStreamOutput` (a subclass of `ObsOutput`) and no longer `ObsOutput`: code that was compiled against rc.3 has to be compiled again. `ObsModel` is provisional.
+- **`ObsModel` has the settings of inputs, the details of their audio, and the calls around them** *(after rc.3; the second step of making `ObsModel` complete, which goes on until 4.0.0)*.
+  - **The settings of an input**: `input.Settings` (a `JsonElement`: what was set, without the defaults of the kind; current, because OBS Studio announces every change) and
+    `input.SetSettingsAsync(settings, overlay)`, which returns when the model shows them. `CreateInputAsync(name, kind, settings)` starts an input with them. Checked with OBS Studio 33.0.0: a field that is an object
+    replaces the object that was there as a whole, and a null field is ignored.
+  - **The audio of an input**: `AudioBalance`, `SyncOffset` (a `TimeSpan`), `MonitorType` (`ObsMonitorType`) and `AudioTracks` (`ObsAudioTracks`, flags), current like the volume, with `SetAudioBalanceAsync`, `SetSyncOffsetAsync`,
+    `SetMonitorTypeAsync` and `SetAudioTracksAsync`. A value that OBS Studio does not take is an `ArgumentOutOfRangeException` before anything is sent. OBS Studio 33 has no "monitor only": it holds
+    `MonitorAndOutput` when it is asked for `MonitorOnly`, and the property shows what it holds.
+  - **Asked, and not kept in the model** (each call takes its turn in the line of the changes): `input.GetPropertyItemsAsync(name)` (the choices of a dropdown of the properties window, as `ObsPropertyItem`s) and
+    `input.PressPropertyButtonAsync(name)`; `GetDeinterlaceModeAsync()`, `SetDeinterlaceModeAsync(mode)`, `GetDeinterlaceFieldOrderAsync()` and `SetDeinterlaceFieldOrderAsync(order)` (`ObsDeinterlaceMode`,
+    `ObsDeinterlaceFieldOrder`; for inputs that have their own video); on the model `GetInputKindsAsync(unversioned)`, `GetFilterKindsAsync()`, `GetDefaultInputSettingsAsync(kind)`,
+    `GetDefaultFilterSettingsAsync(kind)` and `GetSpecialInputsAsync()` (the desktop audio and the microphones, as `ObsInput` objects: `ObsSpecialInputs`).
+  - **The settings of a filter are asked, and not kept**: `filter.GetSettingsAsync()` and `filter.SetSettingsAsync(settings, overlay)`, and `CreateFilterAsync` takes settings. The protocol has an event for a change of
+    them, and OBS Studio does not send it (OBS Studio 33.0.0 sent none for any kind of filter: libobs tells of the updates of public sources only, and a filter is a private one), so a copy in the model would go out of date without a sign.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

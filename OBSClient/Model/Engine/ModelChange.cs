@@ -38,6 +38,21 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The volume of an input changed.</summary>
         InputVolumeChanged,
 
+        /// <summary>The settings of an input changed.</summary>
+        InputSettingsChanged,
+
+        /// <summary>The audio balance of an input changed.</summary>
+        InputAudioBalanceChanged,
+
+        /// <summary>The sync offset of an input changed.</summary>
+        InputSyncOffsetChanged,
+
+        /// <summary>The monitor type of an input changed.</summary>
+        InputMonitorTypeChanged,
+
+        /// <summary>The audio tracks of an input changed.</summary>
+        InputTracksChanged,
+
         /// <summary>A scene item appeared (it is complete).</summary>
         ItemAdded,
 

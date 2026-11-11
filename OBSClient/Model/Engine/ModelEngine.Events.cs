@@ -26,6 +26,11 @@ namespace OBSStudioClient.Model.Engine
             [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e) => engine.OnInputNameChanged(e)),
             [EventType.InputMuteStateChanged] = On<InputMuteStateChangedEventArgs>(static (engine, e) => engine.OnInputMuteChanged(e)),
             [EventType.InputVolumeChanged] = On<InputVolumeChangedEventArgs>(static (engine, e) => engine.OnInputVolumeChanged(e)),
+            [EventType.InputSettingsChanged] = On<InputSettingsChangedEventArgs>(static (engine, e) => engine.OnInputSettingsChanged(e)),
+            [EventType.InputAudioBalanceChanged] = On<InputAudioBalanceChangedEventArgs>(static (engine, e) => engine.OnInputBalanceChanged(e)),
+            [EventType.InputAudioSyncOffsetChanged] = On<InputAudioSyncOffsetChangedEventArgs>(static (engine, e) => engine.OnInputSyncOffsetChanged(e)),
+            [EventType.InputAudioMonitorTypeChanged] = On<InputAudioMonitorTypeChangedEventArgs>(static (engine, e) => engine.OnInputMonitorTypeChanged(e)),
+            [EventType.InputAudioTracksChanged] = On<InputAudioTracksChangedEventArgs>(static (engine, e) => engine.OnInputTracksChanged(e)),
             [EventType.SceneItemCreated] = On<SceneItemCreatedEventArgs>(static (engine, e) => engine.OnItemCreated(e)),
             [EventType.SceneItemRemoved] = On<SceneItemRemovedEventArgs>(static (engine, e) => engine.OnItemRemoved(e)),
             [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e) => engine.OnItemsReindexed(e)),
@@ -350,6 +355,7 @@ namespace OBSStudioClient.Model.Engine
             var input = new InputNode(e.InputUuid, e.InputName, e.InputKind, e.UnversionedInputKind, e.InputKindCaps, this._seq, this._now, confirmed: false);
             this._inputs[input.Uuid] = input;
             this._inputsScope.MarkDirty();
+            input.SettingsScope.MarkDirty();
             if (input.HasAudio)
             {
                 input.AudioScope.MarkDirty();
@@ -423,6 +429,87 @@ namespace OBSStudioClient.Model.Engine
                 if ((mulChanged || dbChanged) && input.Announced)
                 {
                     this.Emit(ModelChangeKind.InputVolumeChanged, input.Uuid, 0, input.Name.Value, old, input.VolumeDb.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        // The settings that an event says are all the settings of the input (and not what changed): OBS Studio says the object that it holds, without the defaults, as a read does.
+        private void OnInputSettingsChanged(InputSettingsChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Settings.Value;
+                if (input.Settings.ApplyEvent(SettingsValue.From(e.InputSettings), this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputSettingsChanged, input.Uuid, 0, input.Name.Value, old, input.Settings.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputBalanceChanged(InputAudioBalanceChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.AudioBalance.Value;
+                if (input.AudioBalance.ApplyEvent(e.InputAudioBalance, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputAudioBalanceChanged, input.Uuid, 0, input.Name.Value, old, input.AudioBalance.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputSyncOffsetChanged(InputAudioSyncOffsetChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.SyncOffset.Value;
+                if (input.SyncOffset.ApplyEvent(e.InputAudioSyncOffset, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputSyncOffsetChanged, input.Uuid, 0, input.Name.Value, old, input.SyncOffset.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputMonitorTypeChanged(InputAudioMonitorTypeChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.MonitorType.Value;
+                if (input.MonitorType.ApplyEvent(ModelEnums.ToModel(e.MonitorType), this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputMonitorTypeChanged, input.Uuid, 0, input.Name.Value, old, input.MonitorType.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputTracksChanged(InputAudioTracksChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Tracks.Value;
+                if (input.Tracks.ApplyEvent(ModelEnums.ToMask(e.InputAudioTracks), this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputTracksChanged, input.Uuid, 0, input.Name.Value, old, input.Tracks.Value);
                 }
             }
             else if (!this.Removed(e.InputUuid))

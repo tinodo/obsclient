@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Model
 {
+    using System.Text.Json;
     using OBSStudioClient.Enums;
     using OBSStudioClient.Exceptions;
     using OBSStudioClient.Responses;
@@ -184,6 +185,81 @@ namespace OBSStudioClient.Model
                     BuildRequests = () => [new WriteRequest(RequestType.RemoveSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.Name })],
                     IsConfirmed = _ => this.IsRemoved,
                     Refresh = [new RefreshTarget(ReadKind.Filters, this.Source.Uuid)],
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Asks OBS Studio for the settings of the filter.
+        /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait. A request that was not sent yet is not sent.</param>
+        /// <returns>The settings: a JSON object with the values that were set, as OBS Studio says them (<c>{"gamma":0.5}</c> for a color correction filter). It is a snapshot of the moment of the answer.</returns>
+        /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call.</exception>
+        /// <exception cref="TimeoutException">OBS Studio did not answer in time (<see cref="ObsModelOptions.WriteTimeout"/>).</exception>
+        /// <exception cref="ObsResponseException">OBS Studio refused the request.</exception>
+        /// <remarks>
+        /// <para>
+        /// The settings of a filter are not kept in the model, as those of an input are: OBS Studio does not announce a change of them (the protocol has an event for it, <c>SourceFilterSettingsChanged</c>,
+        /// and OBS Studio 33.0.0 did not send it for any filter in a test: libobs tells of the updates of public sources only, and a filter is a private source), so what the model kept would go out of date
+        /// without a sign. This asks OBS Studio, in its turn, after the changes that were asked for before it, so it shows a change that you made with <see cref="SetSettingsAsync"/>.
+        /// </para>
+        /// <para>
+        /// OBS Studio says the settings that were set, and leaves out the ones that still have the default of the filter kind: ask <see cref="ObsModel.GetDefaultFilterSettingsAsync"/> for the defaults of a kind.
+        /// A filter that has no settings set has an empty object.
+        /// </para>
+        /// </remarks>
+        public Task<JsonElement> GetSettingsAsync(CancellationToken cancellationToken = default)
+        {
+            return this.Source.Model.Writer.ExecuteAsync<JsonElement>(
+                new WriteJob
+                {
+                    Description = $"asking for the settings of {this.Subject()}",
+                    Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
+                    ReadOnly = true,
+                    Check = this.CheckWritable,
+                    BuildRequests = () => [new WriteRequest(RequestType.GetSourceFilter, new { sourceUuid = this.Source.Uuid, filterName = this.Name })],
+                    ReadResponses = static responses => SettingsValue.From(((SourceFilterResponse)responses[0].ResponseData!).FilterSettings).Element,
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Changes the settings of the filter, and returns when OBS Studio has made the change.
+        /// </summary>
+        /// <param name="settings">The settings to change: an object (for example <c>new { gamma = 0.5 }</c>), a dictionary, or a <see cref="System.Text.Json.JsonElement"/>. What the fields are called and what they mean depends on the kind of the filter.</param>
+        /// <param name="overlay">True to change the settings that are given and leave the others as they are; false to take all the settings of the filter back to their defaults first, so that the filter has the given settings and no others.</param>
+        /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
+        /// <returns>A task that completes when OBS Studio has answered that it made the change.</returns>
+        /// <exception cref="ArgumentException"><paramref name="settings"/> is not an object, or can not be written as JSON.</exception>
+        /// <exception cref="ObsRemovedException">The filter was removed, or its source was destroyed (the filters of a source that OBS Studio removed and keeps alive can still be changed).</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsResponseException">OBS Studio refused the change.</exception>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio does not check the settings (see <see cref="ObsInput.SetSettingsAsync"/>): it keeps every field that it is given, and a field that is an object replaces the object that was there as a
+        /// whole. A field that is null is ignored. The change is sent with the name that the filter has when its turn has come, so a rename that you asked for before it does not send it to another filter.
+        /// See <see cref="SetEnabledAsync"/> for the order of changes.
+        /// </para>
+        /// <para>
+        /// Nothing in the model shows the settings of a filter, so the call has nothing to wait for but the answer of OBS Studio: ask what it holds with <see cref="GetSettingsAsync"/>.
+        /// </para>
+        /// </remarks>
+        public Task SetSettingsAsync(object settings, bool overlay = true, CancellationToken cancellationToken = default)
+        {
+            var given = ModelJson.AsObject(settings, nameof(settings), "the settings of a filter", "new { gamma = 0.5 }");
+            return this.Source.Model.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = $"changing the settings of {this.Subject()}",
+                    Subject = this.Subject(),
+                    SubjectGone = () => this.IsRemoved,
+                    Check = this.CheckWritable,
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSourceFilterSettings, new { sourceUuid = this.Source.Uuid, filterName = this.Name, filterSettings = given, overlay })],
                 },
                 cancellationToken);
         }

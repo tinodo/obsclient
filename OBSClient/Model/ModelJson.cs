@@ -37,7 +37,7 @@ namespace OBSStudioClient.Model
 
             if (element.ValueKind != JsonValueKind.Object)
             {
-                throw new ArgumentException($"{Capitalize(what)} is an object: the fields and their values, for example {example}.", parameter);
+                throw new ArgumentException($"{Capitalize(what)} must be an object: the fields and their values, for example {example}.", parameter);
             }
 
             return element;

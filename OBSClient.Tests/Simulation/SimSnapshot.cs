@@ -63,12 +63,33 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="VolumeDb">The volume of the input, in dB (-100 for a multiplier of zero).</param>
     /// <param name="Pinned">Whether the input is pinned: kept alive without a scene item.</param>
     /// <param name="Removed">Whether the input was removed but is still alive, because a scene item or a pin refers to it.</param>
-    internal sealed record SimInputSnapshot(Guid Uuid, string Name, string Kind, bool HasAudio, bool Muted, double VolumeMul, double VolumeDb, bool Pinned, bool Removed)
+    /// <param name="Settings">The settings of the input, as obs-websocket writes them (without the defaults), the fields sorted.</param>
+    /// <param name="Balance">The balance of the audio (0.5 for an input without audio).</param>
+    /// <param name="SyncOffset">The sync offset of the audio, in milliseconds (0 for an input without audio).</param>
+    /// <param name="MonitorType">The monitor type, as obs-websocket writes it.</param>
+    /// <param name="Tracks">The audio tracks, one bit for each (63 for an input without audio).</param>
+    internal sealed record SimInputSnapshot(
+        Guid Uuid,
+        string Name,
+        string Kind,
+        bool HasAudio,
+        bool Muted,
+        double VolumeMul,
+        double VolumeDb,
+        bool Pinned,
+        bool Removed,
+        string Settings = "{}",
+        float Balance = 0.5f,
+        int SyncOffset = 0,
+        string MonitorType = "OBS_MONITORING_TYPE_NONE",
+        int Tracks = 63)
     {
         public override string ToString()
         {
             return $"\"{Name}\" {Kind} {SimSnapshot.Short(Uuid)}"
                 + (HasAudio ? $", {(Muted ? "muted" : "unmuted")}, volume {VolumeMul.ToString("0.####", CultureInfo.InvariantCulture)} ({VolumeDb.ToString("0.##", CultureInfo.InvariantCulture)} dB)" : string.Empty)
+                + (HasAudio ? $", balance {Balance.ToString("R", CultureInfo.InvariantCulture)}, sync offset {SyncOffset.ToString(CultureInfo.InvariantCulture)} ms, {MonitorType}, tracks {Convert.ToString(Tracks, 2).PadLeft(6, '0')}" : string.Empty)
+                + (Settings == "{}" ? string.Empty : $", settings {Settings}")
                 + (Pinned ? ", pinned" : string.Empty)
                 + (Removed ? ", removed" : string.Empty);
         }

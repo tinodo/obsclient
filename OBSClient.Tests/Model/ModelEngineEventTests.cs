@@ -53,7 +53,8 @@ namespace OBSStudioClient.Tests.Model
         {
             var h = Started();
 
-            h.Event("InputSettingsChanged", new { inputName = "x", inputUuid = Guid.NewGuid(), inputSettings = new { } }, 8);
+            // The events that OBS Studio sends many times a second are not subscribed to by default, and the model does not use them.
+            h.Event("InputActiveStateChanged", new { inputName = "x", inputUuid = Guid.NewGuid(), videoActive = true }, 8);
 
             Assert.Empty(h.Engine.TakeChanges());
             Assert.Empty(NextRead(h));
@@ -311,6 +312,7 @@ namespace OBSStudioClient.Tests.Model
             [
                 EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged,
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
+                EventType.InputSettingsChanged, EventType.InputAudioBalanceChanged, EventType.InputAudioSyncOffsetChanged, EventType.InputAudioTracksChanged, EventType.InputAudioMonitorTypeChanged,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
@@ -346,6 +348,11 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.InputNameChanged, h => h.Event("InputNameChanged", new { inputUuid = mic, oldInputName = "Mic", inputName = "Microphone" }, 8)),
                 (EventType.InputMuteStateChanged, h => h.Event("InputMuteStateChanged", new { inputName = "Mic", inputUuid = mic, inputMuted = true }, 8)),
                 (EventType.InputVolumeChanged, h => h.Event("InputVolumeChanged", new { inputName = "Mic", inputUuid = mic, inputVolumeMul = 0.5, inputVolumeDb = -6.02 }, 8)),
+                (EventType.InputSettingsChanged, h => h.Event("InputSettingsChanged", new { inputName = "Mic", inputUuid = mic, inputSettings = new { device_id = "default" } }, 8)),
+                (EventType.InputAudioBalanceChanged, h => h.Event("InputAudioBalanceChanged", new { inputName = "Mic", inputUuid = mic, inputAudioBalance = 0.25 }, 8)),
+                (EventType.InputAudioSyncOffsetChanged, h => h.Event("InputAudioSyncOffsetChanged", new { inputName = "Mic", inputUuid = mic, inputAudioSyncOffset = 150 }, 8)),
+                (EventType.InputAudioTracksChanged, h => h.Event("InputAudioTracksChanged", new { inputName = "Mic", inputUuid = mic, inputAudioTracks = new Dictionary<string, bool> { ["1"] = true, ["2"] = false, ["3"] = true, ["4"] = true, ["5"] = true, ["6"] = true } }, 8)),
+                (EventType.InputAudioMonitorTypeChanged, h => h.Event("InputAudioMonitorTypeChanged", new { inputName = "Mic", inputUuid = mic, monitorType = "OBS_MONITORING_TYPE_MONITOR_ONLY" }, 8)),
                 (EventType.SceneItemCreated, h => h.Event("SceneItemCreated", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 9, sceneItemIndex = 1 }, 128)),
                 (EventType.SceneItemRemoved, h => h.Event("SceneItemRemoved", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 1 }, 128)),
                 (EventType.SceneItemListReindexed, h => h.Event("SceneItemListReindexed", new { sceneName = "Scene", sceneUuid = scene, sceneItems = new[] { new { sceneItemId = 1, sceneItemIndex = 7 } } }, 128)),

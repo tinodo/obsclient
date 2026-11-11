@@ -62,6 +62,7 @@ namespace OBSStudioClient.Tests.Simulation
         public const int NotReady = 207;
         public const int MissingRequestField = 300;
         public const int MissingRequestData = 301;
+        public const int InvalidRequestField = 400;
         public const int InvalidRequestFieldType = 401;
         public const int RequestFieldOutOfRange = 402;
         public const int RequestFieldEmpty = 403;

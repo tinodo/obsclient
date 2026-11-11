@@ -24,11 +24,26 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetSceneItemList, or GetGroupSceneItemList for a group.</summary>
         Items,
 
-        /// <summary>GetInputMute.</summary>
+        /// <summary>GetInputMute: the first request of the audio state of an input, which is read with six requests: mute, volume, balance, sync offset, monitor type and tracks.</summary>
         AudioMute,
 
         /// <summary>GetInputVolume (always right after GetInputMute of the same input).</summary>
         AudioVolume,
+
+        /// <summary>GetInputAudioBalance (always the third request of the audio state).</summary>
+        AudioBalance,
+
+        /// <summary>GetInputAudioSyncOffset (always the fourth request of the audio state).</summary>
+        AudioSyncOffset,
+
+        /// <summary>GetInputAudioMonitorType (always the fifth request of the audio state).</summary>
+        AudioMonitorType,
+
+        /// <summary>GetInputAudioTracks (always the sixth request of the audio state).</summary>
+        AudioTracks,
+
+        /// <summary>GetInputSettings.</summary>
+        InputSettings,
 
         /// <summary>GetStreamStatus.</summary>
         Stream,
@@ -128,7 +143,10 @@ namespace OBSStudioClient.Model.Engine
         /// </summary>
         public TimeSpan CreationGrace { get; set; } = TimeSpan.FromSeconds(10);
 
-        /// <summary>Gets or sets the number of requests in one read. It cannot be less than 2: an audio state is read with two requests.</summary>
+        /// <summary>
+        /// Gets or sets the number of requests in one read. It cannot be less than 2. A part of the model that is read with more requests than that (the audio state of an input has
+        /// six) is read alone, in a read of its own.
+        /// </summary>
         public int MaxBatch { get; set; } = 50;
 
         /// <summary>Gets or sets how long the engine waits before it checks the list of inputs after an input lost its last scene item.</summary>
@@ -439,10 +457,11 @@ namespace OBSStudioClient.Model.Engine
             var requests = new List<ReadRequest>();
             var max = this._options.MaxBatch;
 
-            // Takes the requests of a part when they fit in what is left of the batch; a part that does not fit waits for the next one.
+            // Takes the requests of a part when they fit in what is left of the batch; a part that does not fit waits for the next one. A part that is bigger than a whole batch is
+            // read alone.
             bool Take(ScopeState scope, params ReadRequest[] taken)
             {
-                if (requests.Count + taken.Length > max)
+                if (requests.Count + taken.Length > max && !(requests.Count == 0 && taken.Length > max))
                 {
                     return false;
                 }
@@ -511,10 +530,12 @@ namespace OBSStudioClient.Model.Engine
 
                 if (input.HasAudio && input.AudioScope.IsReady(now))
                 {
-                    Take(
-                        input.AudioScope,
-                        new ReadRequest(ReadKind.AudioMute, RequestType.GetInputMute, new { inputUuid = input.Uuid }, input.Uuid),
-                        new ReadRequest(ReadKind.AudioVolume, RequestType.GetInputVolume, new { inputUuid = input.Uuid }, input.Uuid));
+                    Take(input.AudioScope, AudioRequests(input.Uuid));
+                }
+
+                if (input.SettingsScope.IsReady(now))
+                {
+                    Take(input.SettingsScope, new ReadRequest(ReadKind.InputSettings, RequestType.GetInputSettings, new { inputUuid = input.Uuid }, input.Uuid));
                 }
             }
 
@@ -628,13 +649,15 @@ namespace OBSStudioClient.Model.Engine
                 yield return scene.ItemsScope;
             }
 
-            // The audio state of an input without audio is never read, so it has nothing to wait for.
+            // The audio state of an input without audio is never read, so it has nothing to wait for. The settings of every input are read.
             foreach (var input in this._inputs.Values)
             {
                 if (input.HasAudio)
                 {
                     yield return input.AudioScope;
                 }
+
+                yield return input.SettingsScope;
             }
 
             // Every scene and input has filters to read.

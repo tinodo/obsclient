@@ -149,6 +149,24 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets or sets whether the list of inputs leaves out the capabilities of the kinds, as obs-websocket before 5.6.0 does.</summary>
         public bool OmitInputKindCaps { get; set; }
 
+        /// <summary>Gets the settings of the inputs that have some set, by UUID (an object that is written as JSON); an input that is not in it has none.</summary>
+        public Dictionary<Guid, object> InputSettings { get; } = new();
+
+        /// <summary>Gets the audio balance of the inputs that have another than the middle (0.5), by UUID.</summary>
+        public Dictionary<Guid, float> AudioBalances { get; } = new();
+
+        /// <summary>Gets the sync offset, in milliseconds, of the inputs that have one, by UUID.</summary>
+        public Dictionary<Guid, int> SyncOffsets { get; } = new();
+
+        /// <summary>Gets the monitor type of the inputs that have another than none, by UUID, as obs-websocket writes it.</summary>
+        public Dictionary<Guid, string> MonitorTypes { get; } = new();
+
+        /// <summary>Gets the audio tracks of the inputs that are not on all six, by UUID, as a bit for each track.</summary>
+        public Dictionary<Guid, int> Tracks { get; } = new();
+
+        /// <summary>Gets the settings of the filters that have some set, by the UUID of their source and their name (an object that is written as JSON).</summary>
+        public Dictionary<(Guid Source, string Name), object> FilterSettings { get; } = new();
+
         public Guid AddScene(string name)
         {
             var uuid = Guid.NewGuid();
@@ -300,7 +318,7 @@ namespace OBSStudioClient.Tests.Model
                         ? (100, new
                         {
                             filters = (this.Filters.TryGetValue(request.Target, out var filters) ? filters : [])
-                                .Select((filter, position) => new { filterEnabled = filter.Enabled, filterIndex = position, filterKind = filter.Kind, filterName = filter.Name, filterSettings = new { } })
+                                .Select((filter, position) => new { filterEnabled = filter.Enabled, filterIndex = position, filterKind = filter.Kind, filterName = filter.Name, filterSettings = this.FilterSettings.TryGetValue((request.Target, filter.Name), out var filterSettings) ? filterSettings : new { } })
                                 .ToArray(),
                         })
                         : (600, null);
@@ -310,9 +328,30 @@ namespace OBSStudioClient.Tests.Model
                         : (600, null);
                 case ReadKind.AudioMute:
                     return this.AudioAnswer(request.Target, input => new { inputMuted = input.Muted });
-                default:
+                case ReadKind.AudioVolume:
                     return this.AudioAnswer(request.Target, input => new { inputVolumeMul = input.VolumeMul, inputVolumeDb = 0.0 });
+                case ReadKind.AudioBalance:
+                    return this.AudioAnswer(request.Target, input => new { inputAudioBalance = this.AudioBalances.GetValueOrDefault(input.Uuid, 0.5f) });
+                case ReadKind.AudioSyncOffset:
+                    return this.AudioAnswer(request.Target, input => new { inputAudioSyncOffset = this.SyncOffsets.GetValueOrDefault(input.Uuid, 0) });
+                case ReadKind.AudioMonitorType:
+                    return this.AudioAnswer(request.Target, input => new { monitorType = this.MonitorTypes.GetValueOrDefault(input.Uuid, "OBS_MONITORING_TYPE_NONE") });
+                case ReadKind.AudioTracks:
+                    return this.AudioAnswer(request.Target, input => new { inputAudioTracks = TracksOf(this.Tracks.GetValueOrDefault(input.Uuid, 63)) });
+                case ReadKind.InputSettings:
+                    var found = this.Inputs.Where(input => input.Uuid == request.Target).Select(input => ((Guid, string, string, uint, bool, double)?)input).FirstOrDefault();
+                    return found is { } settingsOf
+                        ? (100, new { inputKind = settingsOf.Item3, inputSettings = this.InputSettings.TryGetValue(request.Target, out var settings) ? settings : new { } })
+                        : (600, null);
+                default:
+                    throw new InvalidOperationException($"The fake world does not know the read {request.Kind}.");
             }
+        }
+
+        // The state of the six tracks, from a bit for each: track 1 is bit 0.
+        private static Dictionary<string, bool> TracksOf(int mask)
+        {
+            return Enumerable.Range(1, 6).ToDictionary(track => track.ToString(System.Globalization.CultureInfo.InvariantCulture), track => (mask & (1 << (track - 1))) != 0);
         }
 
         private ObsOutputStatus OutputStatus(ObsOutputKind kind)

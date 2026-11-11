@@ -218,6 +218,11 @@ namespace OBSStudioClient.Model
                     input.SetMuted(node.Muted.Value);
                     input.SetVolumeMul(node.VolumeMul.Value);
                     input.SetVolumeDb(node.VolumeDb.Value);
+                    input.SetAudioBalance(node.AudioBalance.Value);
+                    input.SetSyncOffset(node.SyncOffset.Value);
+                    input.SetMonitorType(node.MonitorType.Value);
+                    input.SetAudioTracks(node.Tracks.Value);
+                    input.SetSettings(node.Settings.Value);
                     this._inputs.Add(node.Uuid, input);
                     this._added.Add(new ModelNotice(new ObsChangedEventArgs(ObsChangeKind.Added, input), null, null));
                 }
@@ -240,6 +245,36 @@ namespace OBSStudioClient.Model
                     if (input.SetVolumeDb(node.VolumeDb.Value))
                     {
                         this.AddProperty(input, nameof(ObsInput.VolumeDb), db, node.VolumeDb.Value, true);
+                    }
+
+                    var balance = input.AudioBalance;
+                    if (input.SetAudioBalance(node.AudioBalance.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.AudioBalance), balance, node.AudioBalance.Value, true);
+                    }
+
+                    var offset = input.SyncOffset;
+                    if (input.SetSyncOffset(node.SyncOffset.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.SyncOffset), offset, input.SyncOffset, true);
+                    }
+
+                    var monitor = input.MonitorType;
+                    if (input.SetMonitorType(node.MonitorType.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.MonitorType), monitor, node.MonitorType.Value, true);
+                    }
+
+                    var tracks = input.AudioTracks;
+                    if (input.SetAudioTracks(node.Tracks.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.AudioTracks), tracks, input.AudioTracks, true);
+                    }
+
+                    var settings = input.Settings;
+                    if (input.SetSettings(node.Settings.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.Settings), settings, input.Settings, true);
                     }
                 }
 

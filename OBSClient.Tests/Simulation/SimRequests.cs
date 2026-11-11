@@ -33,6 +33,15 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetInputMute"] = static (self, request) => self.GetInputMute(request),
             ["GetInputVolume"] = static (self, request) => self.GetInputVolume(request),
             ["GetInputSettings"] = static (self, request) => self.GetInputSettings(request),
+            ["GetInputAudioBalance"] = static (self, request) => self.GetInputAudioBalance(request),
+            ["GetInputAudioSyncOffset"] = static (self, request) => self.GetInputAudioSyncOffset(request),
+            ["GetInputAudioMonitorType"] = static (self, request) => self.GetInputAudioMonitorType(request),
+            ["GetInputAudioTracks"] = static (self, request) => self.GetInputAudioTracks(request),
+            ["SetInputSettings"] = static (self, request) => self.SetInputSettings(request),
+            ["SetInputAudioBalance"] = static (self, request) => self.SetInputAudioBalance(request),
+            ["SetInputAudioSyncOffset"] = static (self, request) => self.SetInputAudioSyncOffset(request),
+            ["SetInputAudioMonitorType"] = static (self, request) => self.SetInputAudioMonitorType(request),
+            ["SetInputAudioTracks"] = static (self, request) => self.SetInputAudioTracks(request),
             ["CreateScene"] = static (self, request) => self.CreateScene(request),
             ["RemoveScene"] = static (self, request) => self.RemoveScene(request),
             ["SetSceneName"] = static (self, request) => self.SetSceneName(request),
@@ -315,6 +324,148 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             return SimResult.Ok(Obj(("inputKind", input.Kind.Id), ("inputSettings", input.Settings.DeepClone())));
+        }
+
+        private SimResult GetInputAudioBalance(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioBalance", (double)input.Balance)));
+        }
+
+        private SimResult GetInputAudioSyncOffset(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioSyncOffset", input.SyncOffset)));
+        }
+
+        private SimResult GetInputAudioMonitorType(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("monitorType", input.MonitorType)));
+        }
+
+        private SimResult GetInputAudioTracks(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioTracks", SimWorld.TracksJson(input.Tracks))));
+        }
+
+        private SimResult SetInputSettings(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.ValidateBasic("inputSettings") || !request.OptionalObject("inputSettings", out var settings, allowEmpty: true))
+            {
+                return Failed(request);
+            }
+
+            var overlay = true;
+            if (request.Contains("overlay") && !request.OptionalBoolean("overlay", out overlay))
+            {
+                return Failed(request);
+            }
+
+            _world.SetSettings(input, settings, overlay);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioBalance(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("inputAudioBalance", out var balance, 0.0, 1.0))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            _world.SetBalance(input, (float)balance);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioSyncOffset(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("inputAudioSyncOffset", out var offset, -950, 20000))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            _world.SetSyncOffset(input, (int)offset);
+            return SimResult.Ok();
+        }
+
+        private static readonly string[] MonitorTypes = ["OBS_MONITORING_TYPE_NONE", "OBS_MONITORING_TYPE_MONITOR_ONLY", "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT"];
+
+        private SimResult SetInputAudioMonitorType(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireString("monitorType", out var type))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            if (!MonitorTypes.Contains(type))
+            {
+                return SimResult.Fail(SimStatus.InvalidRequestField, $"Unknown monitor type: {type}");
+            }
+
+            _world.SetMonitorType(input, type);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioTracks(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.ValidateBasic("inputAudioTracks") || !request.OptionalObject("inputAudioTracks", out var given, allowEmpty: false))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            var tracks = input.Tracks;
+            for (var track = 1; track <= 6; track++)
+            {
+                var name = track.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!given.TryGetPropertyValue(name, out var value) || value is null)
+                {
+                    continue;
+                }
+
+                if (value.GetValueKind() is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
+                {
+                    return SimResult.Fail(SimStatus.InvalidRequestFieldType, "The value of one of your tracks is not a boolean.");
+                }
+
+                tracks = value.GetValue<bool>() ? tracks | (1 << (track - 1)) : tracks & ~(1 << (track - 1));
+            }
+
+            _world.SetTracks(input, tracks);
+            return SimResult.Ok();
         }
 
         private SimResult CreateScene(SimRequest request)

@@ -122,14 +122,26 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the kind of the input.</summary>
         public SimInputKind Kind { get; }
 
-        /// <summary>Gets the settings that were given to the input (without the defaults).</summary>
-        public JsonObject Settings { get; }
+        /// <summary>Gets or sets the settings that were given to the input (without the defaults), with the fields in the order of obs-websocket's JSON (sorted).</summary>
+        public JsonObject Settings { get; set; }
 
         /// <summary>Gets or sets a value indicating whether the input is muted.</summary>
         public bool Muted { get; set; }
 
         /// <summary>Gets or sets the volume of the input, as OBS Studio keeps it: a single precision multiplier.</summary>
         public float Volume { get; set; } = 1f;
+
+        /// <summary>Gets or sets the balance of the audio: from 0 (all left) to 1 (all right); 0.5 is the middle.</summary>
+        public float Balance { get; set; } = 0.5f;
+
+        /// <summary>Gets or sets the sync offset of the audio, in milliseconds.</summary>
+        public int SyncOffset { get; set; }
+
+        /// <summary>Gets or sets the monitor type, as obs-websocket writes it.</summary>
+        public string MonitorType { get; set; } = "OBS_MONITORING_TYPE_NONE";
+
+        /// <summary>Gets or sets the audio tracks that the input is mixed into: one bit for each track, track 1 is bit 0. A new input is on all six.</summary>
+        public int Tracks { get; set; } = 63;
 
         /// <summary>Gets or sets the number of pins that keep the input alive without a scene item.</summary>
         public int Pins { get; set; }

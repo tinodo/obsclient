@@ -1,5 +1,7 @@
 namespace OBSStudioClient.Tests.Simulation
 {
+    using System.Text.Json.Nodes;
+
     /// <summary>
     /// The changes of someone else: the user interface of OBS Studio, or another websocket client. Each is made at <see cref="SimObs.Clock"/>,
     /// announces itself with the same events and the same latencies as a request does, and is not answered. It is the same change as the
@@ -223,6 +225,56 @@ namespace OBSStudioClient.Tests.Simulation
                 }
 
                 _world.SetVolume(FindInput(inputUuid), SimWorld.DbToMul(db));
+                return 0;
+            });
+        }
+
+        /// <summary>Changes the settings of an input, as its properties window does: the given fields are laid over the ones that it has.</summary>
+        public void SetSettings(Guid inputUuid, JsonObject given)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetSettings(FindInput(inputUuid), given, overlay: true);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the balance of the audio of an input (from 0 to 1).</summary>
+        public void SetBalance(Guid inputUuid, float balance)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetBalance(FindInput(inputUuid), balance);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the sync offset of the audio of an input, in milliseconds.</summary>
+        public void SetSyncOffset(Guid inputUuid, int milliseconds)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetSyncOffset(FindInput(inputUuid), milliseconds);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the monitor type of an input.</summary>
+        public void SetMonitorType(Guid inputUuid, string monitorType)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetMonitorType(FindInput(inputUuid), monitorType);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the audio tracks of an input, one bit for each.</summary>
+        public void SetTracks(Guid inputUuid, int tracks)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetTracks(FindInput(inputUuid), tracks);
                 return 0;
             });
         }

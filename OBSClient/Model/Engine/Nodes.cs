@@ -203,6 +203,21 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The volume of the input, in decibel.</summary>
         public Cell<float> VolumeDb;
 
+        /// <summary>The balance of the audio between left and right: 0 is all left, 0.5 the middle, 1 all right.</summary>
+        public Cell<float> AudioBalance;
+
+        /// <summary>The sync offset of the audio, in milliseconds.</summary>
+        public Cell<int> SyncOffset;
+
+        /// <summary>What OBS Studio does with the audio of the input on the monitoring device.</summary>
+        public Cell<ObsMonitorType> MonitorType;
+
+        /// <summary>The audio tracks that the input is mixed into, as one bit for each track (see <see cref="ObsAudioTracks"/>).</summary>
+        public Cell<int> Tracks;
+
+        /// <summary>The settings of the input, without the defaults of its kind.</summary>
+        public Cell<SettingsValue> Settings;
+
         public InputNode(Guid uuid, string name, string kind, string unversionedKind, uint? caps, long createdSeq, TimeSpan createdAt, bool confirmed)
             : base(uuid, name, createdSeq, createdAt, confirmed)
         {
@@ -212,6 +227,11 @@ namespace OBSStudioClient.Model.Engine
             this.Muted = new Cell<bool>(false, 0);
             this.VolumeMul = new Cell<float>(1f, 0);
             this.VolumeDb = new Cell<float>(0f, 0);
+            this.AudioBalance = new Cell<float>(0.5f, 0);
+            this.SyncOffset = new Cell<int>(0, 0);
+            this.MonitorType = new Cell<ObsMonitorType>(ObsMonitorType.Off, 0);
+            this.Tracks = new Cell<int>((int)ObsAudioTracks.All, 0);
+            this.Settings = new Cell<SettingsValue>(SettingsValue.Empty, 0);
         }
 
         /// <summary>Gets or sets the kind of the input.</summary>
@@ -232,14 +252,20 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets whether the input has audio: its capabilities say so or, when OBS does not send them, until OBS says that it has not.</summary>
         public bool HasAudio => this.Caps is { } caps ? (caps & AudioCapability) != 0 : !this.NoAudio;
 
-        /// <summary>Gets the state of the read of the audio state (mute and volume).</summary>
+        /// <summary>Gets the state of the read of the audio state (mute, volume, balance, sync offset, monitor type and tracks: one read of several requests).</summary>
         public ScopeState AudioScope { get; } = new();
 
         /// <summary>Gets or sets whether the audio state was read.</summary>
         public bool AudioKnown { get; set; }
 
+        /// <summary>Gets the state of the read of the settings.</summary>
+        public ScopeState SettingsScope { get; } = new();
+
+        /// <summary>Gets or sets whether the settings were read (or OBS Studio refused for good to say them: what a simulation that does not know the request does).</summary>
+        public bool SettingsKnown { get; set; }
+
         /// <inheritdoc/>
-        public override bool IsComplete => !this.HasAudio || this.AudioKnown;
+        public override bool IsComplete => (!this.HasAudio || this.AudioKnown) && this.SettingsKnown;
     }
 
     /// <summary>

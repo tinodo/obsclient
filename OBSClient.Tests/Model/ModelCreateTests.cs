@@ -690,7 +690,7 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Equal("settings", token.ParamName);
             Assert.Contains("Pass it by name (cancellationToken: token)", token.Message);
-            Assert.Contains("are an object", number.Message);
+            Assert.Contains("must be an object", number.Message);
             Assert.Equal("settings", unwritable.ParamName);
             Assert.Contains("can not be written as JSON", unwritable.Message);
             Assert.NotNull(unwritable.InnerException);

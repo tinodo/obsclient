@@ -239,10 +239,15 @@ namespace OBSStudioClient.Model.Engine
                     if (input.State != SourceState.Gone && !input.RemovalUnresolved)
                     {
                         // It survived: a scene item uses it, or the judgment leaves the verdict to something else (the time that it settles). It exists, so its audio state
-                        // is read, and it is announced when that is known. Nothing else asks for that: the removal was unresolved, so the list of inputs did not.
+                        // and its settings are read, and it is announced when they are known. Nothing else asks for that: the removal was unresolved, so the list of inputs did not.
                         if (input.HasAudio && !input.AudioKnown)
                         {
                             input.AudioScope.MarkDirty();
+                        }
+
+                        if (!input.SettingsKnown)
+                        {
+                            input.SettingsScope.MarkDirty();
                         }
 
                         this.TryAnnounce(input);

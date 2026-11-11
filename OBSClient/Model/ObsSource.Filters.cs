@@ -36,7 +36,7 @@ namespace OBSStudioClient.Model
             };
             if (settings is not null)
             {
-                data["filterSettings"] = FilterSettingsAsObject(settings);
+                data["filterSettings"] = ModelJson.AsObject(settings, nameof(settings), "the settings of a filter", "new { gamma = 0.5 }");
             }
 
             var description = $"creating filter '{name}' on {this.Label}";
@@ -70,32 +70,6 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists ? ObsFilter.NameInUse(this, description, name) : null,
                 },
                 cancellationToken);
-        }
-
-        private static JsonElement FilterSettingsAsObject(object settings)
-        {
-            // The parameter is an object so that new { gamma = 0.5 } can be passed: a token that was meant for cancellationToken would be taken for settings, and this is what the call says then.
-            if (settings is CancellationToken)
-            {
-                throw new ArgumentException("A CancellationToken was passed as the settings of the filter. Pass it by name (cancellationToken: token) when the settings are left out.", nameof(settings));
-            }
-
-            JsonElement element;
-            try
-            {
-                element = JsonSerializer.SerializeToElement(settings, settings.GetType());
-            }
-            catch (Exception ex) when (ex is NotSupportedException or JsonException or InvalidOperationException)
-            {
-                throw new ArgumentException($"The settings of a filter can not be written as JSON: {ex.Message}", nameof(settings), ex);
-            }
-
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                throw new ArgumentException("The settings of a filter are an object: the fields of its kind and their values, for example new { gamma = 0.5 }.", nameof(settings));
-            }
-
-            return element;
         }
     }
 }

@@ -32,7 +32,7 @@ namespace OBSStudioClient.Tests.Simulation
 
             foreach (var input in initial.Inputs)
             {
-                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed };
+                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks };
             }
 
             var program = initial.ProgramSceneUuid;
@@ -96,7 +96,7 @@ namespace OBSStudioClient.Tests.Simulation
                         break;
                     case "InputCreated":
                         var createdInput = Guid.Parse(data.GetProperty("inputUuid").GetString()!);
-                        if (!inputs.TryAdd(createdInput, new Input(createdInput, data.GetProperty("inputName").GetString()!, data.GetProperty("inputKind").GetString()!)))
+                        if (!inputs.TryAdd(createdInput, new Input(createdInput, data.GetProperty("inputName").GetString()!, data.GetProperty("inputKind").GetString()!) { Settings = Canonical(data.GetProperty("inputSettings")) }))
                         {
                             problems.Add($"{at}: the input {createdInput} was announced as created, and it is there already.");
                         }
@@ -154,6 +154,21 @@ namespace OBSStudioClient.Tests.Simulation
                         else
                         {
                             problems.Add($"{at}: the volume of the input {data.GetProperty("inputUuid").GetString()} changed, and it is not there.");
+                        }
+
+                        break;
+                    case "InputSettingsChanged":
+                    case "InputAudioBalanceChanged":
+                    case "InputAudioSyncOffsetChanged":
+                    case "InputAudioMonitorTypeChanged":
+                    case "InputAudioTracksChanged":
+                        if (inputs.TryGetValue(Guid.Parse(data.GetProperty("inputUuid").GetString()!), out var changedInput))
+                        {
+                            Apply(changedInput, type, data);
+                        }
+                        else
+                        {
+                            problems.Add($"{at}: the input {data.GetProperty("inputUuid").GetString()} was changed ({type}), and it is not there.");
                         }
 
                         break;
@@ -250,8 +265,8 @@ namespace OBSStudioClient.Tests.Simulation
             Same(
                 problems,
                 "inputs",
-                inputs.Values.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.Mul)}"),
-                final.Inputs.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.VolumeMul)}"));
+                inputs.Values.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(Describe),
+                final.Inputs.Where(input => !input.Removed).OrderBy(input => input.Uuid).Select(Describe));
 
             // OBS goes on announcing the mute state and the volume of a removed input that it keeps alive, and what the events say of it has to be right too.
             // No event tells that OBS destroyed a removed input, so which ones are compared is what the final state still holds.
@@ -260,15 +275,57 @@ namespace OBSStudioClient.Tests.Simulation
                 problems,
                 "removed inputs that OBS Studio still holds",
                 retained.Select(input => inputs.TryGetValue(input.Uuid, out var replayedInput) && replayedInput.Removed
-                    ? $"{replayedInput.Uuid:D} \"{replayedInput.Name}\" {replayedInput.Kind}{Audio(replayedInput.Kind, replayedInput.Muted, replayedInput.Mul)}"
+                    ? Describe(replayedInput)
                     : $"{input.Uuid:D} (not announced as removed)"),
-                retained.Select(input => $"{input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input.Kind, input.Muted, input.VolumeMul)}"));
+                retained.Select(Describe));
             return problems;
         }
 
-        private static string Audio(string kind, bool muted, double mul)
+        // What an event of an input says: the settings (all of them), or one of the details of its audio.
+        private static void Apply(Input input, string type, JsonElement data)
         {
-            return SimInputKinds.Find(kind)!.HasAudio ? $" {(muted ? "muted" : "unmuted")} mul={mul.ToString("R", CultureInfo.InvariantCulture)}" : string.Empty;
+            switch (type)
+            {
+                case "InputSettingsChanged":
+                    input.Settings = Canonical(data.GetProperty("inputSettings"));
+                    break;
+                case "InputAudioBalanceChanged":
+                    input.Balance = (float)data.GetProperty("inputAudioBalance").GetDouble();
+                    break;
+                case "InputAudioSyncOffsetChanged":
+                    input.SyncOffset = data.GetProperty("inputAudioSyncOffset").GetInt32();
+                    break;
+                case "InputAudioMonitorTypeChanged":
+                    input.Monitor = data.GetProperty("monitorType").GetString()!;
+                    break;
+                default:
+                    var tracks = data.GetProperty("inputAudioTracks");
+                    input.Tracks = Enumerable.Range(1, 6).Sum(track => tracks.GetProperty(track.ToString(CultureInfo.InvariantCulture)).GetBoolean() ? 1 << (track - 1) : 0);
+                    break;
+            }
+        }
+
+        private static string Canonical(JsonElement settings)
+        {
+            return SimJson.Serialize(System.Text.Json.Nodes.JsonNode.Parse(settings.GetRawText())!);
+        }
+
+        private static string Describe(Input input)
+        {
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.Mul, input.Balance, input.SyncOffset, input.Monitor, input.Tracks, input.Settings);
+        }
+
+        private static string Describe(SimInputSnapshot input)
+        {
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.VolumeMul, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks, input.Settings);
+        }
+
+        private static string Describe(Guid uuid, string name, string kind, bool muted, double mul, float balance, int offset, string monitor, int tracks, string settings)
+        {
+            var audio = SimInputKinds.Find(kind)!.HasAudio
+                ? $" {(muted ? "muted" : "unmuted")} mul={mul.ToString("R", CultureInfo.InvariantCulture)} balance={balance.ToString("R", CultureInfo.InvariantCulture)} offset={offset.ToString(CultureInfo.InvariantCulture)} monitor={monitor} tracks={tracks.ToString(CultureInfo.InvariantCulture)}"
+                : string.Empty;
+            return $"{uuid:D} \"{name}\" {kind}{audio} settings={settings}";
         }
 
         private static Scene? Find(List<Scene> scenes, string uuid, List<string> problems, string at)
@@ -325,6 +382,16 @@ namespace OBSStudioClient.Tests.Simulation
             public bool Removed { get; set; }
 
             public double Mul { get; set; } = 1.0;
+
+            public string Settings { get; set; } = "{}";
+
+            public float Balance { get; set; } = 0.5f;
+
+            public int SyncOffset { get; set; }
+
+            public string Monitor { get; set; } = "OBS_MONITORING_TYPE_NONE";
+
+            public int Tracks { get; set; } = 63;
         }
     }
 }

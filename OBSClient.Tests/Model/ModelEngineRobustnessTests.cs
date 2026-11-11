@@ -431,7 +431,8 @@ namespace OBSStudioClient.Tests.Model
 
             while (h.Take() is { } ticket)
             {
-                Assert.True(ticket.Requests.Count <= 2, $"A read has {ticket.Requests.Count} requests.");
+                // A part that needs more requests than the limit (the audio state of an input has six) is read alone.
+                Assert.True(ticket.Requests.Count <= 2 || (ticket.Requests.Count == 6 && ticket.Requests[0].Kind == ReadKind.AudioMute), $"A read has {ticket.Requests.Count} requests.");
                 h.Complete(ticket);
             }
 
@@ -441,7 +442,7 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
-        public void ALimitThatCannotHoldAnAudioState_IsRefused()
+        public void ALimitOfLessThanTwo_IsRefused()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new ModelEngine(new ModelEngineOptions { MaxBatch = 1 }));
         }

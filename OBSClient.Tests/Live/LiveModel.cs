@@ -271,6 +271,33 @@ namespace OBSStudioClient.Tests.Live
 
             this.StillListedRemovedInputs = stillListed;
 
+            // The settings of every input, and the details of the audio of the ones that have audio.
+            foreach (var shown in model.Inputs)
+            {
+                var reference = InputRef.FromUuid(shown.Uuid);
+                try
+                {
+                    var settings = await this.Client.GetInputSettings(reference);
+                    Compare(problems, $"the settings of '{shown.Name}'", [Canonical(settings.InputSettings)], [Canonical(shown.Settings)]);
+                    if (shown.HasAudio)
+                    {
+                        var balance = await this.Client.GetInputAudioBalance(reference);
+                        var offset = await this.Client.GetInputAudioSyncOffset(reference);
+                        var monitor = await this.Client.GetInputAudioMonitorType(reference);
+                        var tracks = await this.Client.GetInputAudioTracks(reference);
+                        Compare(
+                            problems,
+                            $"the audio details of '{shown.Name}'",
+                            [$"balance {balance:R}, sync offset {offset} ms, monitor {ModelEnums.ToModel(monitor)}, tracks {(ObsAudioTracks)ModelEnums.ToMask(tracks)}"],
+                            [$"balance {shown.AudioBalance:R}, sync offset {(int)shown.SyncOffset.TotalMilliseconds} ms, monitor {shown.MonitorType}, tracks {shown.AudioTracks}"]);
+                    }
+                }
+                catch (ObsResponseException exception)
+                {
+                    problems.Add($"the settings or the audio of '{shown.Name}' could not be read: {exception.Message}");
+                }
+            }
+
             foreach (var shown in model.Inputs)
             {
                 if (!inputs.Any(input => input.InputUuid == shown.Uuid))
@@ -356,6 +383,22 @@ namespace OBSStudioClient.Tests.Live
             {
                 problems.Add($"{what}: OBS Studio has [{string.Join(" | ", expected)}], the model has [{string.Join(" | ", actual)}]");
             }
+        }
+
+        /// <summary>Writes the settings that OBS Studio said (the fields of the object) with the fields in order: what is compared is what the fields are, and not how they are written.</summary>
+        /// <param name="settings">The settings.</param>
+        /// <returns>The JSON.</returns>
+        internal static string Canonical(IReadOnlyDictionary<string, object>? settings)
+        {
+            return Canonical(OBSStudioClient.Model.Engine.SettingsValue.From(settings).Element);
+        }
+
+        /// <summary>Writes the settings that the model shows with the fields in order.</summary>
+        /// <param name="settings">The settings.</param>
+        /// <returns>The JSON.</returns>
+        internal static string Canonical(System.Text.Json.JsonElement settings)
+        {
+            return Simulation.SimJson.Serialize(Simulation.SimJson.Sorted(System.Text.Json.Nodes.JsonNode.Parse(settings.GetRawText()))!);
         }
 
         private static Version ParseVersion(string text)

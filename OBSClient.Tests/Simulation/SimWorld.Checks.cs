@@ -25,7 +25,12 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Kind.HasAudio ? input.Volume : 1.0,
                     input.Kind.HasAudio ? MulToDb(input.Volume) : 0.0,
                     input.Pins > 0,
-                    input.Removed))
+                    input.Removed,
+                    SimJson.Serialize(input.Settings),
+                    input.Kind.HasAudio ? input.Balance : 0.5f,
+                    input.Kind.HasAudio ? input.SyncOffset : 0,
+                    input.Kind.HasAudio ? input.MonitorType : "OBS_MONITORING_TYPE_NONE",
+                    input.Kind.HasAudio ? input.Tracks : 63))
                 .ToArray();
             return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, null, false);
         }

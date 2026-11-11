@@ -443,6 +443,116 @@ namespace OBSStudioClient.Tests.Simulation
                 ("inputVolumeMul", (double)mul)));
         }
 
+        /// <summary>
+        /// Changes the settings of an input (SetInputSettings): the given fields are laid over the settings that it has, or the settings are taken back to nothing first (the defaults come from the
+        /// kind) and the given fields are all it has. The event says all the settings, and comes for every call, also when nothing changed: libobs signals every call of obs_source_update (two equal calls
+        /// made one event each, measured with OBS Studio 33.0.0; a source with video applies an update in its next tick, so calls in one tick make one event).
+        /// </summary>
+        public void SetSettings(SimInput input, JsonObject given, bool overlay)
+        {
+            // Measured with OBS Studio 33.0.0: a field that is an object replaces the object that was there, as a whole (the other fields of that object are gone), and a field that is null is ignored (the
+            // field keeps what it was). obs-websocket makes the settings of the request with JsonToObsData, which skips a null at any depth.
+            var merged = overlay ? (JsonObject)input.Settings.DeepClone() : new JsonObject();
+            foreach (var (name, value) in given)
+            {
+                if (WithoutNulls(value?.DeepClone()) is { } kept)
+                {
+                    merged[name] = kept;
+                }
+            }
+
+            input.Settings = (JsonObject)Sorted(merged)!;
+            Emit("InputSettingsChanged", Obj(("inputName", input.Name), ("inputSettings", input.Settings.DeepClone()), ("inputUuid", input.UuidText)));
+        }
+
+        // The node without its fields that are null, at any depth; null for a node that is null.
+        private static JsonNode? WithoutNulls(JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject fields:
+                    foreach (var name in fields.Where(field => field.Value is null).Select(field => field.Key).ToArray())
+                    {
+                        fields.Remove(name);
+                    }
+
+                    foreach (var field in fields)
+                    {
+                        WithoutNulls(field.Value);
+                    }
+
+                    return fields;
+                case JsonArray items:
+                    foreach (var item in items)
+                    {
+                        WithoutNulls(item);
+                    }
+
+                    return items;
+                default:
+                    return node;
+            }
+        }
+
+        /// <summary>Sets the balance of the audio of an input (SetInputAudioBalance). obs_source_set_balance_value signals every call.</summary>
+        public void SetBalance(SimInput input, float balance)
+        {
+            EnsureAudio(input);
+            input.Balance = balance;
+            Emit("InputAudioBalanceChanged", Obj(("inputAudioBalance", (double)balance), ("inputName", input.Name), ("inputUuid", input.UuidText)));
+        }
+
+        /// <summary>Sets the sync offset of the audio of an input, in milliseconds (SetInputAudioSyncOffset). obs_source_set_sync_offset signals every call.</summary>
+        public void SetSyncOffset(SimInput input, int milliseconds)
+        {
+            EnsureAudio(input);
+            input.SyncOffset = milliseconds;
+            Emit("InputAudioSyncOffsetChanged", Obj(("inputAudioSyncOffset", milliseconds), ("inputName", input.Name), ("inputUuid", input.UuidText)));
+        }
+
+        /// <summary>
+        /// Sets the monitor type of an input (SetInputAudioMonitorType). OBS Studio 33.0.0 has a switch that is on or off, and turns every type but none into monitor and output (measured: the input held
+        /// OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT after it was told OBS_MONITORING_TYPE_MONITOR_ONLY: libobs keeps obs_source_set_monitoring_type for compatibility, and it only says whether monitoring is on).
+        /// Nothing is announced when the type that is held does not change (measured: two equal requests, one event).
+        /// </summary>
+        public void SetMonitorType(SimInput input, string monitorType)
+        {
+            EnsureAudio(input);
+            var held = monitorType == "OBS_MONITORING_TYPE_NONE" ? monitorType : "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT";
+            if (input.MonitorType == held)
+            {
+                return;
+            }
+
+            input.MonitorType = held;
+            Emit("InputAudioMonitorTypeChanged", Obj(("inputName", input.Name), ("inputUuid", input.UuidText), ("monitorType", held)));
+        }
+
+        /// <summary>Sets the audio tracks of an input, one bit for each (SetInputAudioTracks). Nothing is announced when they do not change (measured with OBS Studio 33.0.0: two equal requests, one event).</summary>
+        public void SetTracks(SimInput input, int tracks)
+        {
+            EnsureAudio(input);
+            if (input.Tracks == tracks)
+            {
+                return;
+            }
+
+            input.Tracks = tracks;
+            Emit("InputAudioTracksChanged", Obj(("inputAudioTracks", TracksJson(tracks)), ("inputName", input.Name), ("inputUuid", input.UuidText)));
+        }
+
+        /// <summary>Writes the audio tracks as obs-websocket does: an object with the numbers 1 to 6 as the names of the fields and a boolean for each.</summary>
+        public static JsonObject TracksJson(int tracks)
+        {
+            var json = new JsonObject();
+            for (var track = 1; track <= 6; track++)
+            {
+                json[track.ToString(System.Globalization.CultureInfo.InvariantCulture)] = (tracks & (1 << (track - 1))) != 0;
+            }
+
+            return json;
+        }
+
         /// <summary>Switches the program scene (SetCurrentProgramScene): at once for everything that reads it, and with a transition for the events (fact 25).</summary>
         public void SwitchProgram(SimScene scene)
         {

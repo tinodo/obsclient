@@ -1,5 +1,7 @@
 namespace OBSStudioClient.Model
 {
+    using System.Text.Json;
+
     /// <summary>
     /// Describes one change of the model of OBS Studio that an <see cref="ObsModel"/> keeps.
     /// </summary>
@@ -57,7 +59,7 @@ namespace OBSStudioClient.Model
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";
         }
 
-        // A list is shown by what is in it: the name of its type tells nothing.
+        // A list is shown by what is in it: the name of its type tells nothing. The settings of an input or a filter are shown as the JSON that they are, cut off when it is long.
         private static string Show(object? value)
         {
             return value switch
@@ -67,8 +69,15 @@ namespace OBSStudioClient.Model
                 IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
                 IEnumerable<ObsFilter> filters => $"[{string.Join(", ", filters.Select(filter => filter.Name))}]",
                 IEnumerable<string> texts => $"[{string.Join(", ", texts)}]",
+                JsonElement { ValueKind: JsonValueKind.Undefined } => "(nothing)",
+                JsonElement json => Shorten(json.GetRawText()),
                 _ => value.ToString() ?? string.Empty,
             };
+        }
+
+        private static string Shorten(string text)
+        {
+            return text.Length <= 120 ? text : string.Concat(text.AsSpan(0, 117), "...");
         }
     }
 }

@@ -383,6 +383,11 @@ namespace OBSStudioClient.Tests.Model
                 "GetGroupSceneItemList" => new ReadRequest(ReadKind.Items, OBSStudioClient.Enums.RequestType.GetGroupSceneItemList, null, Target("sceneUuid")),
                 "GetInputMute" => new ReadRequest(ReadKind.AudioMute, OBSStudioClient.Enums.RequestType.GetInputMute, null, Target("inputUuid")),
                 "GetInputVolume" => new ReadRequest(ReadKind.AudioVolume, OBSStudioClient.Enums.RequestType.GetInputVolume, null, Target("inputUuid")),
+                "GetInputAudioBalance" => new ReadRequest(ReadKind.AudioBalance, OBSStudioClient.Enums.RequestType.GetInputAudioBalance, null, Target("inputUuid")),
+                "GetInputAudioSyncOffset" => new ReadRequest(ReadKind.AudioSyncOffset, OBSStudioClient.Enums.RequestType.GetInputAudioSyncOffset, null, Target("inputUuid")),
+                "GetInputAudioMonitorType" => new ReadRequest(ReadKind.AudioMonitorType, OBSStudioClient.Enums.RequestType.GetInputAudioMonitorType, null, Target("inputUuid")),
+                "GetInputAudioTracks" => new ReadRequest(ReadKind.AudioTracks, OBSStudioClient.Enums.RequestType.GetInputAudioTracks, null, Target("inputUuid")),
+                "GetInputSettings" => new ReadRequest(ReadKind.InputSettings, OBSStudioClient.Enums.RequestType.GetInputSettings, null, Target("inputUuid")),
                 _ => null,
             };
             if (request is null)
