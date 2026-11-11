@@ -164,6 +164,12 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets the audio tracks of the inputs that are not on all six, by UUID, as a bit for each track.</summary>
         public Dictionary<Guid, int> Tracks { get; } = new();
 
+        /// <summary>Gets what the media inputs that are not in the state none do, by UUID, as obs-websocket writes it (<c>OBS_MEDIA_STATE_PLAYING</c>).</summary>
+        public Dictionary<Guid, string> MediaStates { get; } = new();
+
+        /// <summary>Gets the length and the position, in milliseconds, of the media inputs that play or are paused, by UUID; the others say neither (null).</summary>
+        public Dictionary<Guid, (long Duration, long Cursor)> MediaTimes { get; } = new();
+
         /// <summary>Gets the settings of the filters that have some set, by the UUID of their source and their name (an object that is written as JSON).</summary>
         public Dictionary<(Guid Source, string Name), object> FilterSettings { get; } = new();
 
@@ -342,6 +348,15 @@ namespace OBSStudioClient.Tests.Model
                     var found = this.Inputs.Where(input => input.Uuid == request.Target).Select(input => ((Guid, string, string, uint, bool, double)?)input).FirstOrDefault();
                     return found is { } settingsOf
                         ? (100, new { inputKind = settingsOf.Item3, inputSettings = this.InputSettings.TryGetValue(request.Target, out var settings) ? settings : new { } })
+                        : (600, null);
+                case ReadKind.MediaStatus:
+                    return this.Inputs.Any(input => input.Uuid == request.Target)
+                        ? (100, new
+                        {
+                            mediaState = this.MediaStates.GetValueOrDefault(request.Target, "OBS_MEDIA_STATE_NONE"),
+                            mediaDuration = this.MediaTimes.TryGetValue(request.Target, out var times) ? (long?)times.Duration : null,
+                            mediaCursor = this.MediaTimes.TryGetValue(request.Target, out var cursor) ? (long?)cursor.Cursor : null,
+                        })
                         : (600, null);
                 default:
                     throw new InvalidOperationException($"The fake world does not know the read {request.Kind}.");

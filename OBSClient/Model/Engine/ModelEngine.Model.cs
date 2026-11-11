@@ -250,6 +250,11 @@ namespace OBSStudioClient.Model.Engine
                             input.SettingsScope.MarkDirty();
                         }
 
+                        if (input.IsMedia && !input.MediaKnown)
+                        {
+                            input.MediaScope.MarkDirty();
+                        }
+
                         this.TryAnnounce(input);
                     }
                 }

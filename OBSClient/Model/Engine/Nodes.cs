@@ -194,6 +194,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The capability flag of an input kind that says that its inputs have audio (OBS_SOURCE_AUDIO).</summary>
         public const uint AudioCapability = 2;
 
+        /// <summary>The capability flag of an input kind that says that its inputs play media that can be controlled (OBS_SOURCE_CONTROLLABLE_MEDIA).</summary>
+        public const uint MediaCapability = 1u << 13;
+
         /// <summary>Whether the input is muted.</summary>
         public Cell<bool> Muted;
 
@@ -218,6 +221,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The settings of the input, without the defaults of its kind.</summary>
         public Cell<SettingsValue> Settings;
 
+        /// <summary>What the media input does (only meaningful when <see cref="IsMedia"/>).</summary>
+        public Cell<ObsMediaState> MediaState;
+
         public InputNode(Guid uuid, string name, string kind, string unversionedKind, uint? caps, long createdSeq, TimeSpan createdAt, bool confirmed)
             : base(uuid, name, createdSeq, createdAt, confirmed)
         {
@@ -232,6 +238,7 @@ namespace OBSStudioClient.Model.Engine
             this.MonitorType = new Cell<ObsMonitorType>(ObsMonitorType.Off, 0);
             this.Tracks = new Cell<int>((int)ObsAudioTracks.All, 0);
             this.Settings = new Cell<SettingsValue>(SettingsValue.Empty, 0);
+            this.MediaState = new Cell<ObsMediaState>(ObsMediaState.None, 0);
         }
 
         /// <summary>Gets or sets the kind of the input.</summary>
@@ -252,6 +259,12 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets whether the input has audio: its capabilities say so or, when OBS does not send them, until OBS says that it has not.</summary>
         public bool HasAudio => this.Caps is { } caps ? (caps & AudioCapability) != 0 : !this.NoAudio;
 
+        /// <summary>
+        /// Gets whether the input plays media that can be controlled (play, pause, seek): its capabilities say so or, when OBS does not send them (obs-websocket before 5.6.0), its kind is
+        /// one of the two kinds of OBS Studio that do (the media source and the VLC video source). OBS does not refuse the status of an input that is not a media input, so it can not be asked.
+        /// </summary>
+        public bool IsMedia => this.Caps is { } caps ? (caps & MediaCapability) != 0 : this.UnversionedKind is "ffmpeg_source" or "vlc_source";
+
         /// <summary>Gets the state of the read of the audio state (mute, volume, balance, sync offset, monitor type and tracks: one read of several requests).</summary>
         public ScopeState AudioScope { get; } = new();
 
@@ -264,8 +277,14 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets or sets whether the settings were read (or OBS Studio refused for good to say them: what a simulation that does not know the request does).</summary>
         public bool SettingsKnown { get; set; }
 
+        /// <summary>Gets the state of the read of the media status (GetMediaInputStatus).</summary>
+        public ScopeState MediaScope { get; } = new();
+
+        /// <summary>Gets or sets whether the media state was read (or OBS Studio refused for good to say it).</summary>
+        public bool MediaKnown { get; set; }
+
         /// <inheritdoc/>
-        public override bool IsComplete => (!this.HasAudio || this.AudioKnown) && this.SettingsKnown;
+        public override bool IsComplete => (!this.HasAudio || this.AudioKnown) && this.SettingsKnown && (!this.IsMedia || this.MediaKnown);
     }
 
     /// <summary>

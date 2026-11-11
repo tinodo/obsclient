@@ -46,6 +46,20 @@ namespace OBSStudioClient.Tests.Simulation
         private static readonly int[] SyncOffsets = [-950, -100, 0, 150, 20000, 25000];
         private static readonly string[] MonitorTypeNames = ["OBS_MONITORING_TYPE_NONE", "OBS_MONITORING_TYPE_MONITOR_ONLY", "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT"];
 
+        // The actions that a client or someone else asks of a media input (and one that OBS Studio does not have), and the positions and the offsets that the walks use: one before the start, which obs-websocket refuses.
+        private static readonly string[] MediaActionNames =
+        [
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS",
+        ];
+
+        private static readonly int[] MediaCursors = [-5, 0, 1000, 30000, 999999];
+        private static readonly int[] MediaOffsets = [-60000, -1000, 500, 5000];
+
         private readonly SimRandom _random;
         private readonly List<(string Name, int Weight, Action Run)> _operations = [];
         private readonly List<(int Weight, Func<(string Type, Dictionary<string, object?>? Data)> Make)> _requests = [];
@@ -461,10 +475,10 @@ namespace OBSStudioClient.Tests.Simulation
             return (Name(), _random.NextGuid());
         }
 
-        // An input to point at; with audio when asked, if there is one.
-        private (string Name, Guid Uuid) PickInput(bool audio = false, bool tidy = false)
+        // An input to point at; with audio or media when asked, if there is one.
+        private (string Name, Guid Uuid) PickInput(bool audio = false, bool tidy = false, bool media = false)
         {
-            var candidates = audio ? _state.Inputs.Where(input => input.HasAudio).ToArray() : _state.Inputs.ToArray();
+            var candidates = _state.Inputs.Where(input => (!audio || input.HasAudio) && (!media || input.MediaState is not null)).ToArray();
             if (!_random.Chance(tidy ? 0.08 : 0.15) && candidates.Length > 0)
             {
                 var input = candidates[_random.Next(candidates.Length)];
@@ -646,6 +660,10 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => Input("SetInputAudioSyncOffset", true, ("inputAudioSyncOffset", SyncOffsets[_random.Next(SyncOffsets.Length)])));
             Request(1, () => Input("SetInputAudioMonitorType", true, ("monitorType", _random.Chance(0.05) ? "OBS_MONITORING_TYPE_BOGUS" : MonitorTypeNames[_random.Next(MonitorTypeNames.Length)])));
             Request(1, () => SetInputAudioTracks());
+            Request(2, () => MediaInput("TriggerMediaInputAction", ("mediaAction", _random.Chance(0.03) ? "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_BOGUS" : MediaActionNames[_random.Next(MediaActionNames.Length)])));
+            Request(1, () => MediaInput("SetMediaInputCursor", ("mediaCursor", MediaCursors[_random.Next(MediaCursors.Length)])));
+            Request(1, () => MediaInput("OffsetMediaInputCursor", ("mediaCursorOffset", MediaOffsets[_random.Next(MediaOffsets.Length)])));
+            Request(1, () => MediaInput("GetMediaInputStatus"));
             Request(1, () => Scene("GetSceneItemList"));
             Request(1, () => ("GetSceneList", null));
             Request(1, () => ("GetInputList", _random.Chance(0.3) ? Data(("inputKind", SimInputKinds.All[_random.Next(SimInputKinds.All.Count)].Id)) : null));
@@ -676,6 +694,7 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("client batch with variables", 2, AskVariableBatch);
             Operation("client garbage", 2, AskGarbage);
             Operation("client rename of a removed scene", 2, RenameRemovedScene);
+            Operation("client play and move of a media input", 3, PlayAndMove);
             Operation("remove a scene that is nested", 2, RemoveNestedScene);
             Operation("make a loop of scenes", 2, MakeLoop);
 
@@ -700,6 +719,8 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SetSyncOffset", 1, () => Do(() => Sim.External.SetSyncOffset(PickInput(audio: true, tidy: true).Uuid, SyncOffsets[_random.Next(5)]), "SetSyncOffset"));
             Operation("external SetMonitorType", 1, () => Do(() => Sim.External.SetMonitorType(PickInput(audio: true, tidy: true).Uuid, MonitorTypeNames[_random.Next(MonitorTypeNames.Length)]), "SetMonitorType"));
             Operation("external SetTracks", 1, () => Do(() => Sim.External.SetTracks(PickInput(audio: true, tidy: true).Uuid, _random.Next(64)), "SetTracks"));
+            Operation("external TriggerMedia", 2, () => Do(() => Sim.External.TriggerMedia(PickInput(tidy: true, media: true).Uuid, MediaActionNames[_random.Next(MediaActionNames.Length)]), "TriggerMedia"));
+            Operation("external EndMedia", 1, () => Do(() => Sim.External.EndMedia(PickInput(tidy: true, media: true).Uuid), "EndMedia"));
             Operation("external SwitchProgramScene", 3, () => Do(() => Sim.External.SwitchProgramScene(PickScene(tidy: true).Uuid), "SwitchProgramScene"));
             Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
             Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
@@ -779,6 +800,14 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var data = Data(more);
             Put(data, "inputName", "inputUuid", PickInput(audio));
+            return (type, data);
+        }
+
+        // A request about the media of an input: mostly one that plays media.
+        private (string Type, Dictionary<string, object?>? Data) MediaInput(string type, params (string Key, object? Value)[] more)
+        {
+            var data = Data(more);
+            Put(data, "inputName", "inputUuid", PickInput(media: true));
             return (type, data);
         }
 
@@ -1011,6 +1040,27 @@ namespace OBSStudioClient.Tests.Simulation
 
             var scene = _state.DetachedScenes[_random.Next(_state.DetachedScenes.Count)];
             Send(("SetSceneName", Data(("sceneUuid", scene.Uuid.ToString("D")), ("newSceneName", Name()))));
+        }
+
+        // A client plays a media input and moves it right after: a move is only answered with success while the media plays or is paused, which a walk seldom arranges by chance.
+        private void PlayAndMove()
+        {
+            var target = PickInput(media: true);
+            var play = Data(("mediaAction", "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY"));
+            Put(play, "inputName", "inputUuid", target);
+            Send(("TriggerMediaInputAction", play));
+            if (_random.Chance(0.5))
+            {
+                var seek = Data(("mediaCursor", MediaCursors[_random.Next(1, MediaCursors.Length)]));
+                Put(seek, "inputName", "inputUuid", target);
+                Send(("SetMediaInputCursor", seek));
+            }
+            else
+            {
+                var skip = Data(("mediaCursorOffset", MediaOffsets[_random.Next(MediaOffsets.Length)]));
+                Put(skip, "inputName", "inputUuid", target);
+                Send(("OffsetMediaInputCursor", skip));
+            }
         }
 
         // Removes a scene that is an item of another scene, which then stays alive, detached from the list of scenes (fact 7).

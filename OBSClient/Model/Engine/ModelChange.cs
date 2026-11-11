@@ -53,6 +53,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The audio tracks of an input changed.</summary>
         InputTracksChanged,
 
+        /// <summary>What a media input does (its playback state) changed.</summary>
+        InputMediaStateChanged,
+
         /// <summary>A scene item appeared (it is complete).</summary>
         ItemAdded,
 

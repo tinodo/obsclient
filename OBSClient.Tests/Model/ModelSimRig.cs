@@ -83,7 +83,7 @@ namespace OBSStudioClient.Tests.Model
             {
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings)));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
                 }
             }
 
@@ -173,7 +173,8 @@ namespace OBSStudioClient.Tests.Model
                     input.IsMuted,
                     !liveInputUuids.Contains(input.Uuid),
                     AudioDetails(input.HasAudio, input.AudioBalance, (int)input.SyncOffset.TotalMilliseconds, ModelEnums.ToWire(input.MonitorType).ToString(), (int)input.AudioTracks),
-                    Canonical(input.Settings.GetRawText())));
+                    Canonical(input.Settings.GetRawText()),
+                    MediaWire.Of(input.Media?.State)));
             }
 
             disagreements = found;
@@ -190,9 +191,9 @@ namespace OBSStudioClient.Tests.Model
             return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}";
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings)
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
         }
 
         private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)

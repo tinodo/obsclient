@@ -127,6 +127,8 @@ namespace OBSStudioClient.Model.Engine
                     return this._scenes.TryGetValue(request.Target, out var scene) ? scene.ItemsScope : null;
                 case ReadKind.InputSettings:
                     return this._inputs.TryGetValue(request.Target, out var settingsOf) ? settingsOf.SettingsScope : null;
+                case ReadKind.MediaStatus:
+                    return this._inputs.TryGetValue(request.Target, out var mediaOf) ? mediaOf.MediaScope : null;
                 default:
                     return this._inputs.TryGetValue(request.Target, out var input) ? input.AudioScope : null;
             }
@@ -161,7 +163,7 @@ namespace OBSStudioClient.Model.Engine
         }
 
         // The part of the model that a refresh of the given kind and target is about, or null when the model has nothing to read for it: the scene or the input is not in the
-        // model, or the input has no audio.
+        // model, or the input has no audio (or is not a media input, for the media status).
         private ScopeState? RefreshScope(ReadKind kind, Guid target)
         {
             return kind switch
@@ -174,6 +176,7 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 ReadKind.InputSettings => this._inputs.TryGetValue(target, out var settingsOf) ? settingsOf.SettingsScope : null,
+                ReadKind.MediaStatus => this._inputs.TryGetValue(target, out var mediaOf) && mediaOf.IsMedia ? mediaOf.MediaScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
         }
@@ -276,6 +279,9 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.InputSettings:
                     this.ApplyInputSettingsResponse(ticket, request, response, ok, notFound);
+                    break;
+                case ReadKind.MediaStatus:
+                    this.ApplyMediaStatusResponse(ticket, request, response, ok, notFound);
                     break;
             }
         }
@@ -593,6 +599,49 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
+        // The state of a media input, as a read says it. What the events say about it is applied as they arrive (see ApplyMediaEvent): a read that was sent before such an event does not
+        // override it, and one that was sent after it shows what it did (the cell sees to that). A state that OBS Studio does not announce (opening, buffering, an error) is only known
+        // from a read.
+        private void ApplyMediaStatusResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok, bool notFound)
+        {
+            if (!this._inputs.TryGetValue(request.Target, out var input))
+            {
+                return;
+            }
+
+            var scope = input.MediaScope;
+            if (ok && response!.ResponseData is MediaInputStatusResponse status)
+            {
+                scope.Attempts = 0;
+                var old = input.MediaState.Value;
+                var changed = input.MediaState.ApplyRead(ModelEnums.ToModel(status.MediaState), ticket.SentSeq);
+                input.MediaKnown = true;
+                if (changed && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputMediaStateChanged, input.Uuid, 0, input.Name.Value, old, input.MediaState.Value);
+                }
+
+                this.TryAnnounce(input);
+            }
+            else if (notFound)
+            {
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the state is read again after a wait for as long as the input is there.
+                this._inputsScope.MarkDirty();
+                this.Retry(scope);
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                // OBS Studio refuses the request for good (a simulation that does not know it): there is no state to read, and the state stays what the events say.
+                scope.Attempts = 0;
+                input.MediaKnown = true;
+                this.TryAnnounce(input);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
         private void ApplyScenes(SceneListResponse response, ReadTicket ticket)
         {
             var sent = ticket.SentSeq;
@@ -776,6 +825,11 @@ namespace OBSStudioClient.Model.Engine
                         input.SettingsScope.MarkDirty();
                     }
 
+                    if (input.IsMedia && !input.MediaKnown && !input.RemovalUnresolved && !input.MediaScope.Dirty && !input.MediaScope.InFlight)
+                    {
+                        input.MediaScope.MarkDirty();
+                    }
+
                     this.TryAnnounce(input);
                 }
                 else
@@ -797,6 +851,11 @@ namespace OBSStudioClient.Model.Engine
                     if (created.HasAudio)
                     {
                         created.AudioScope.MarkDirty();
+                    }
+
+                    if (created.IsMedia)
+                    {
+                        created.MediaScope.MarkDirty();
                     }
 
                     this.TryAnnounce(created);

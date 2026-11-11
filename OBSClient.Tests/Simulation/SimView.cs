@@ -28,7 +28,7 @@ namespace OBSStudioClient.Tests.Simulation
 
             foreach (var input in snapshot.Inputs)
             {
-                lines.Add($"input {input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input)} settings={input.Settings}");
+                lines.Add($"input {input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input)}{(input.MediaState is null ? string.Empty : " media=" + input.MediaState)} settings={input.Settings}");
             }
 
             return lines;
@@ -44,7 +44,7 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>
         /// Asks what a client can ask for, and writes it as <see cref="Of"/> does: the scenes of <c>GetSceneList</c> with the items of
         /// <c>GetSceneItemList</c>, the inputs of <c>GetInputList</c> with their settings (<c>GetInputSettings</c>) and, for those that have audio, <c>GetInputMute</c>,
-        /// <c>GetInputVolume</c>, <c>GetInputAudioBalance</c>, <c>GetInputAudioSyncOffset</c>, <c>GetInputAudioMonitorType</c> and <c>GetInputAudioTracks</c>. A scene that was
+        /// <c>GetInputVolume</c>, <c>GetInputAudioBalance</c>, <c>GetInputAudioSyncOffset</c>, <c>GetInputAudioMonitorType</c> and <c>GetInputAudioTracks</c>, and, for those that play media, <c>GetMediaInputStatus</c>. A scene that was
         /// removed is not in the list of scenes, so those that are detached are asked for by the UUID that the snapshot gives.
         /// </summary>
         /// <param name="detached">The scenes that were removed and are still alive.</param>
@@ -83,8 +83,14 @@ namespace OBSStudioClient.Tests.Simulation
                     audio = $" {(muted ? "muted" : "unmuted")} mul={mul.ToString("R", CultureInfo.InvariantCulture)} balance={balance.ToString("R", CultureInfo.InvariantCulture)} offset={offset.ToString(CultureInfo.InvariantCulture)} monitor={monitor} tracks={mask.ToString(CultureInfo.InvariantCulture)}";
                 }
 
+                var media = string.Empty;
+                if ((input.GetProperty("inputKindCaps").GetInt32() & SimInputKind.MediaCap) != 0)
+                {
+                    media = " media=" + ask("GetMediaInputStatus", new { inputUuid = uuid }).GetProperty("mediaState").GetString();
+                }
+
                 var settings = SimJson.Serialize(System.Text.Json.Nodes.JsonNode.Parse(ask("GetInputSettings", new { inputUuid = uuid }).GetProperty("inputSettings").GetRawText())!);
-                lines.Add($"input {uuid} \"{input.GetProperty("inputName").GetString()}\" {input.GetProperty("inputKind").GetString()}{audio} settings={settings}");
+                lines.Add($"input {uuid} \"{input.GetProperty("inputName").GetString()}\" {input.GetProperty("inputKind").GetString()}{audio}{media} settings={settings}");
             }
 
             return lines;

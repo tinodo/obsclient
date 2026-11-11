@@ -45,7 +45,7 @@ namespace OBSStudioClient.Tests.Model
         private static readonly int TraceLines = int.TryParse(Environment.GetEnvironmentVariable("OBSCLIENT_SIM_TRACE"), out var lines) && lines > 0 ? lines : 150;
 
         // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories.
-        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config;
+        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs;
 
         private readonly SimObs _sim;
         private readonly ModelEngine _engine;
@@ -281,7 +281,7 @@ namespace OBSStudioClient.Tests.Model
                 // anybody, and nothing tells it from one that was destroyed: it is not compared.
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings)));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
                 }
             }
 
@@ -311,7 +311,7 @@ namespace OBSStudioClient.Tests.Model
                 var detached = input.State == SourceState.Detached;
                 if (!detached || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}")));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}"), MediaWire.Of(input.MediaState)));
                 }
             }
 
@@ -328,9 +328,9 @@ namespace OBSStudioClient.Tests.Model
             return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}";
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings)
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
         }
 
         private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)
@@ -892,6 +892,31 @@ namespace OBSStudioClient.Tests.Model
                             var tracks = this._random.Next(0, 64);
                             this.Act($"set the audio tracks of input \"{input.Name}\" {Short(input.Uuid)} to {tracks.ToString(CultureInfo.InvariantCulture)}", () => this._sim.External.SetTracks(input.Uuid, tracks));
                             break;
+                    }
+                }
+            });
+            this.Add("act on the media of an input", 2, truth =>
+            {
+                var inputs = truth.Inputs.Where(input => input.MediaState is not null).ToArray();
+                if (inputs.Length > 0)
+                {
+                    var input = this.Pick(inputs);
+                    if (this._random.Chance(0.2))
+                    {
+                        this.Act($"end the media of input \"{input.Name}\" {Short(input.Uuid)}", () => this._sim.External.EndMedia(input.Uuid));
+                    }
+                    else
+                    {
+                        var action = this.Pick(new[]
+                        {
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY",
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT",
+                            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS",
+                        });
+                        this.Act($"trigger {action} on the media of input \"{input.Name}\" {Short(input.Uuid)}", () => this._sim.External.TriggerMedia(input.Uuid, action));
                     }
                 }
             });

@@ -94,8 +94,8 @@ await obs.ConnectAsync("localhost", 4455, "secret");
 await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
 ```
 
-What the model has: scenes, inputs (with their settings and audio), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer).
-What it does not have yet: the control of studio mode and of the preview scene, transitions, profiles, scene collections and media inputs. Use `obs.Client` for those.
+What the model has: scenes, inputs (with their settings, audio and media), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer).
+What it does not have yet: the control of studio mode and of the preview scene, transitions, profiles and scene collections. Use `obs.Client` for those.
 [Controlling OBS Studio by name](model.md) has all of it.
 
 ## The same job, both ways

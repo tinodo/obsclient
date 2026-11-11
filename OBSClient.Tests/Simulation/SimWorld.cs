@@ -553,6 +553,82 @@ namespace OBSStudioClient.Tests.Simulation
             return json;
         }
 
+        /// <summary>How long the media of every media input is, in milliseconds.</summary>
+        public const int MediaDuration = 60000;
+
+        /// <summary>
+        /// Tells the media of an input to play, pause, stop or restart (TriggerMediaInputAction), as OBS Studio 33.0.0 does with a media source (measured: LiveMediaTests). A play, also of a media that plays
+        /// already, announces that the playback started and then that play was triggered; a pause, a stop and a restart announce that they were triggered, and a restart says nothing of a start. A pause of a
+        /// media that does not play opens it and holds it at the beginning. Next and previous do nothing for a media source (it has no playlist), and say nothing. An input that is no media input
+        /// answers all of them with success and does nothing (measured with a color source).
+        /// </summary>
+        public void TriggerMedia(SimInput input, string action)
+        {
+            if (!input.Kind.IsMedia)
+            {
+                return;
+            }
+
+            var opened = input.MediaState is "OBS_MEDIA_STATE_PLAYING" or "OBS_MEDIA_STATE_PAUSED";
+            switch (action)
+            {
+                case "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY":
+                    input.MediaCursor = opened ? input.MediaCursor : 0;
+                    input.MediaState = "OBS_MEDIA_STATE_PLAYING";
+                    Emit("MediaInputPlaybackStarted", Obj(("inputName", input.Name), ("inputUuid", input.UuidText)));
+                    EmitMediaAction(input, action);
+                    break;
+                case "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE":
+                    input.MediaCursor = opened ? input.MediaCursor : 0;
+                    input.MediaState = "OBS_MEDIA_STATE_PAUSED";
+                    EmitMediaAction(input, action);
+                    break;
+                case "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP":
+                    input.MediaCursor = 0;
+                    input.MediaState = "OBS_MEDIA_STATE_STOPPED";
+                    EmitMediaAction(input, action);
+                    break;
+                case "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART":
+                    input.MediaCursor = 0;
+                    input.MediaState = "OBS_MEDIA_STATE_PLAYING";
+                    EmitMediaAction(input, action);
+                    break;
+            }
+        }
+
+        /// <summary>The media of an input played to its end (or could not be opened), which OBS Studio announces. It happens by itself in OBS Studio; here someone else makes it happen.</summary>
+        public void EndMedia(SimInput input)
+        {
+            if (!input.Kind.IsMedia || input.MediaState == "OBS_MEDIA_STATE_ENDED")
+            {
+                return;
+            }
+
+            input.MediaCursor = 0;
+            input.MediaState = "OBS_MEDIA_STATE_ENDED";
+            Emit("MediaInputPlaybackEnded", Obj(("inputName", input.Name), ("inputUuid", input.UuidText)));
+        }
+
+        /// <summary>
+        /// Moves the media of an input to a position, or by an offset (SetMediaInputCursor, OffsetMediaInputCursor): only while it plays or is paused. obs-websocket does not check the position against the
+        /// length, and an offset does not go before the beginning. Nothing is announced.
+        /// </summary>
+        public void MoveMedia(SimInput input, long amount, bool relative)
+        {
+            if (input.MediaState is not ("OBS_MEDIA_STATE_PLAYING" or "OBS_MEDIA_STATE_PAUSED"))
+            {
+                throw new SimFailure(SimStatus.InvalidResourceState, "The media input must be playing or paused in order to set the cursor position.");
+            }
+
+            var target = relative ? input.MediaCursor + amount : amount;
+            input.MediaCursor = (int)Math.Clamp(target, 0, int.MaxValue);
+        }
+
+        private void EmitMediaAction(SimInput input, string action)
+        {
+            Emit("MediaInputActionTriggered", Obj(("inputName", input.Name), ("inputUuid", input.UuidText), ("mediaAction", action)));
+        }
+
         /// <summary>Switches the program scene (SetCurrentProgramScene): at once for everything that reads it, and with a transition for the events (fact 25).</summary>
         public void SwitchProgram(SimScene scene)
         {

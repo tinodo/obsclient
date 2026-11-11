@@ -31,6 +31,9 @@ namespace OBSStudioClient.Model.Engine
             [EventType.InputAudioSyncOffsetChanged] = On<InputAudioSyncOffsetChangedEventArgs>(static (engine, e) => engine.OnInputSyncOffsetChanged(e)),
             [EventType.InputAudioMonitorTypeChanged] = On<InputAudioMonitorTypeChangedEventArgs>(static (engine, e) => engine.OnInputMonitorTypeChanged(e)),
             [EventType.InputAudioTracksChanged] = On<InputAudioTracksChangedEventArgs>(static (engine, e) => engine.OnInputTracksChanged(e)),
+            [EventType.MediaInputPlaybackStarted] = On<InputNameEventArgs>(static (engine, e) => engine.OnMediaPlaybackStarted(e)),
+            [EventType.MediaInputPlaybackEnded] = On<InputNameEventArgs>(static (engine, e) => engine.OnMediaPlaybackEnded(e)),
+            [EventType.MediaInputActionTriggered] = On<MediaInputActionTriggeredEventArgs>(static (engine, e) => engine.OnMediaAction(e)),
             [EventType.SceneItemCreated] = On<SceneItemCreatedEventArgs>(static (engine, e) => engine.OnItemCreated(e)),
             [EventType.SceneItemRemoved] = On<SceneItemRemovedEventArgs>(static (engine, e) => engine.OnItemRemoved(e)),
             [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e) => engine.OnItemsReindexed(e)),
@@ -361,6 +364,11 @@ namespace OBSStudioClient.Model.Engine
                 input.AudioScope.MarkDirty();
             }
 
+            if (input.IsMedia)
+            {
+                input.MediaScope.MarkDirty();
+            }
+
             this.TryAnnounce(input);
         }
 
@@ -513,6 +521,66 @@ namespace OBSStudioClient.Model.Engine
                 }
             }
             else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        // What the events about media say that the media does (measured with OBS Studio 33.0.0, see LiveMediaTests): it plays when OBS Studio says that it started, and when it was told to play or to
+        // restart (a restart, and the playback that starts when the source is shown, come without a started event); it is paused or stopped when it was told so; it ended when OBS Studio says
+        // so. A media input that is not on the program output does not move, but says the same.
+        private void OnMediaPlaybackStarted(InputNameEventArgs e)
+        {
+            this.ApplyMediaEvent(e.InputUuid, ObsMediaState.Playing);
+        }
+
+        private void OnMediaPlaybackEnded(InputNameEventArgs e)
+        {
+            this.ApplyMediaEvent(e.InputUuid, ObsMediaState.Ended);
+        }
+
+        private void OnMediaAction(MediaInputActionTriggeredEventArgs e)
+        {
+            switch (e.MediaAction)
+            {
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY:
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART:
+                    this.ApplyMediaEvent(e.InputUuid, ObsMediaState.Playing);
+                    break;
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE:
+                    this.ApplyMediaEvent(e.InputUuid, ObsMediaState.Paused);
+                    break;
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP:
+                    this.ApplyMediaEvent(e.InputUuid, ObsMediaState.Stopped);
+                    break;
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT:
+                case ObsMediaInputAction.OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS:
+                    // Another item of a playlist plays (a media source of OBS Studio has no such action, and sends no event): what that makes of the state is read.
+                    if (this._inputs.TryGetValue(e.InputUuid, out var input) && input.IsMedia)
+                    {
+                        input.MediaScope.MarkDirty();
+                    }
+
+                    break;
+            }
+        }
+
+        private void ApplyMediaEvent(Guid uuid, ObsMediaState state)
+        {
+            if (this._inputs.TryGetValue(uuid, out var input))
+            {
+                if (!input.IsMedia)
+                {
+                    return;
+                }
+
+                var old = input.MediaState.Value;
+                if (input.MediaState.ApplyEvent(state, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputMediaStateChanged, input.Uuid, 0, input.Name.Value, old, input.MediaState.Value);
+                }
+            }
+            else if (!this.Removed(uuid))
             {
                 this._inputsScope.MarkDirty();
             }

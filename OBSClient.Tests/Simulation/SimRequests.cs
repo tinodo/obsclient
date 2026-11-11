@@ -37,6 +37,10 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetInputAudioSyncOffset"] = static (self, request) => self.GetInputAudioSyncOffset(request),
             ["GetInputAudioMonitorType"] = static (self, request) => self.GetInputAudioMonitorType(request),
             ["GetInputAudioTracks"] = static (self, request) => self.GetInputAudioTracks(request),
+            ["GetMediaInputStatus"] = static (self, request) => self.GetMediaInputStatus(request),
+            ["SetMediaInputCursor"] = static (self, request) => self.SetMediaInputCursor(request),
+            ["OffsetMediaInputCursor"] = static (self, request) => self.OffsetMediaInputCursor(request),
+            ["TriggerMediaInputAction"] = static (self, request) => self.TriggerMediaInputAction(request),
             ["SetInputSettings"] = static (self, request) => self.SetInputSettings(request),
             ["SetInputAudioBalance"] = static (self, request) => self.SetInputAudioBalance(request),
             ["SetInputAudioSyncOffset"] = static (self, request) => self.SetInputAudioSyncOffset(request),
@@ -389,6 +393,74 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             _world.SetSettings(input, settings, overlay);
+            return SimResult.Ok();
+        }
+
+        // The state of the media of an input, and, while it plays or is paused, its length and its position (GetMediaInputStatus). An input that is no media input answers with the state none
+        // (measured with a color source), and so does a media input that was not opened.
+        private SimResult GetMediaInputStatus(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            var timed = input.MediaState is "OBS_MEDIA_STATE_PLAYING" or "OBS_MEDIA_STATE_PAUSED";
+            return SimResult.Ok(Obj(
+                ("mediaCursor", timed ? input.MediaCursor : null),
+                ("mediaDuration", timed ? SimWorld.MediaDuration : null),
+                ("mediaState", input.MediaState)));
+        }
+
+        private SimResult SetMediaInputCursor(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("mediaCursor", out var cursor, 0))
+            {
+                return Failed(request);
+            }
+
+            _world.MoveMedia(input, (long)cursor, relative: false);
+            return SimResult.Ok();
+        }
+
+        private SimResult OffsetMediaInputCursor(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("mediaCursorOffset", out var offset))
+            {
+                return Failed(request);
+            }
+
+            _world.MoveMedia(input, (long)offset, relative: true);
+            return SimResult.Ok();
+        }
+
+        private static readonly string[] MediaActions =
+        [
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS",
+        ];
+
+        private SimResult TriggerMediaInputAction(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireString("mediaAction", out var action))
+            {
+                return Failed(request);
+            }
+
+            if (!MediaActions.Contains(action))
+            {
+                return SimResult.Fail(SimStatus.InvalidRequestField, "You have specified an invalid media input action.");
+            }
+
+            _world.TriggerMedia(input, action);
             return SimResult.Ok();
         }
 

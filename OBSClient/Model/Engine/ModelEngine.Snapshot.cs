@@ -20,7 +20,8 @@ namespace OBSStudioClient.Model.Engine
         float AudioBalance = 0.5f,
         int SyncOffset = 0,
         ObsMonitorType MonitorType = ObsMonitorType.Off,
-        int Tracks = (int)ObsAudioTracks.All);
+        int Tracks = (int)ObsAudioTracks.All,
+        ObsMediaState? MediaState = null);
 
     /// <summary>A filter of a scene or an input, as the model holds it.</summary>
     internal sealed record EngineFilter(long Id, string Name, string Kind, int Index, bool Enabled);
@@ -86,7 +87,8 @@ namespace OBSStudioClient.Model.Engine
                     input.AudioBalance.Value,
                     input.SyncOffset.Value,
                     input.MonitorType.Value,
-                    input.Tracks.Value))
+                    input.Tracks.Value,
+                    input.IsMedia ? input.MediaState.Value : null))
                 .ToArray();
             return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
         }

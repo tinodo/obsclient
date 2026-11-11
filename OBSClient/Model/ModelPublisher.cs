@@ -223,6 +223,11 @@ namespace OBSStudioClient.Model
                     input.SetMonitorType(node.MonitorType.Value);
                     input.SetAudioTracks(node.Tracks.Value);
                     input.SetSettings(node.Settings.Value);
+                    if (node.IsMedia && node.MediaKnown)
+                    {
+                        input.AttachMedia(node.MediaState.Value);
+                    }
+
                     this._inputs.Add(node.Uuid, input);
                     this._added.Add(new ModelNotice(new ObsChangedEventArgs(ObsChangeKind.Added, input), null, null));
                 }
@@ -275,6 +280,21 @@ namespace OBSStudioClient.Model
                     if (input.SetSettings(node.Settings.Value))
                     {
                         this.AddProperty(input, nameof(ObsInput.Settings), settings, input.Settings, true);
+                    }
+
+                    if (input.Media is { } media)
+                    {
+                        var mediaState = media.State;
+                        if (media.SetState(node.MediaState.Value))
+                        {
+                            this.AddProperty(media, nameof(ObsMedia.State), mediaState, media.State, true);
+                        }
+                    }
+                    else if (node.IsMedia && node.MediaKnown)
+                    {
+                        // The input turned out to be a media input after the model announced it (a list of inputs said so).
+                        var attached = input.AttachMedia(node.MediaState.Value);
+                        this.AddProperty(input, nameof(ObsInput.Media), null, attached, true);
                     }
                 }
 

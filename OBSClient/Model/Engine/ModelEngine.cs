@@ -45,6 +45,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetInputSettings.</summary>
         InputSettings,
 
+        /// <summary>GetMediaInputStatus.</summary>
+        MediaStatus,
+
         /// <summary>GetStreamStatus.</summary>
         Stream,
 
@@ -537,6 +540,11 @@ namespace OBSStudioClient.Model.Engine
                 {
                     Take(input.SettingsScope, new ReadRequest(ReadKind.InputSettings, RequestType.GetInputSettings, new { inputUuid = input.Uuid }, input.Uuid));
                 }
+
+                if (input.IsMedia && input.MediaScope.IsReady(now))
+                {
+                    Take(input.MediaScope, new ReadRequest(ReadKind.MediaStatus, RequestType.GetMediaInputStatus, new { inputUuid = input.Uuid }, input.Uuid));
+                }
             }
 
             // The filters of every scene and input, scenes first.
@@ -649,7 +657,7 @@ namespace OBSStudioClient.Model.Engine
                 yield return scene.ItemsScope;
             }
 
-            // The audio state of an input without audio is never read, so it has nothing to wait for. The settings of every input are read.
+            // The audio state of an input without audio is never read, so it has nothing to wait for; nor has the media status of an input that is not a media input. The settings of every input are read.
             foreach (var input in this._inputs.Values)
             {
                 if (input.HasAudio)
@@ -658,6 +666,10 @@ namespace OBSStudioClient.Model.Engine
                 }
 
                 yield return input.SettingsScope;
+                if (input.IsMedia)
+                {
+                    yield return input.MediaScope;
+                }
             }
 
             // Every scene and input has filters to read.

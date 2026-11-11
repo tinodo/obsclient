@@ -274,6 +274,44 @@ that have their own video (a media source, a capture device): OBS Studio refuses
 **The audio devices.** `await obs.GetSpecialInputsAsync()` says which inputs OBS Studio uses for the desktop audio (`Desktop1`, `Desktop2`) and the microphones (`Mic1` to `Mic4`), as the `ObsInput` objects of the model. A slot that is not set up, or whose input the
 model does not have, is `null`.
 
+## Media inputs
+
+An input that plays a file or a stream (a media source, a VLC video source) has a **media**: `input.Media` is an [`ObsMedia`](xref:OBSStudioClient.Model.ObsMedia) for it, and `null` for every other input. It stays the same object for as long as the input exists.
+
+```csharp
+var intro = obs.Inputs["Intro"].Media;                  // null when "Intro" is no media input
+Console.WriteLine(intro.State);                         // Playing, Paused, Stopped, Ended ...: from memory, no request is sent
+
+await intro.PlayAsync();                                // returns when the model shows Playing
+await intro.PauseAsync();
+var asked = await intro.TogglePlayPauseAsync();         // plays what is not playing and pauses what plays: returns the state that it asked for
+await intro.SeekAsync(TimeSpan.FromSeconds(30));
+await intro.SkipAsync(TimeSpan.FromSeconds(-10));
+
+ObsMediaStatus status = await intro.GetStatusAsync();   // asks OBS Studio: the state, the length and the position
+Console.WriteLine($"{status.Position} of {status.Duration}");
+```
+
+| | |
+| --- | --- |
+| `State` | what the media is doing: `Playing`, `Paused`, `Stopped`, `Ended`, or `None` (OBS Studio has not opened it). Current, because OBS Studio announces when a playback starts and ends and when it is told to play, pause, stop or restart. `PropertyChanged` and `Changed` say it (the entity of the change is the `ObsMedia`) |
+| `PlayAsync()`, `PauseAsync()`, `StopAsync()`, `RestartAsync()` | return when the model shows `Playing`, `Paused`, `Stopped` and `Playing`. A paused media goes on; one that was stopped or ended plays from the start, and so does a restart |
+| `TogglePlayPauseAsync()` | OBS Studio has no toggle, so the model asks what the media does in the turn of the change, when the changes that were asked for before it are answered: two toggles one after the other make two toggles, whatever `State` shows in between |
+| `NextAsync()`, `PreviousAsync()` | the next and the previous item of the playlist of a VLC source. A single file has none: OBS Studio says that it did it, and nothing changes. The calls return when OBS Studio has answered |
+| `SeekAsync(position)`, `SkipAsync(offset)` | move the media to a position, or by an offset (whole milliseconds, which is what OBS Studio takes). They return when OBS Studio has answered. They are refused with `InvalidResourceState` when the media neither plays nor is paused |
+| `GetStatusAsync()` | asks OBS Studio, in the turn of the changes: the state (including `Opening`, `Buffering` and `Error`, which are never announced), the length and the position (`null` when OBS Studio does not say: it only knows while the media plays or is paused). The answer is a snapshot, and is not applied to `State` |
+
+The length and the position are **not kept in the model**: they move all the time, and OBS Studio sends no event for them. Ask `GetStatusAsync()` when you need them.
+
+What OBS Studio does, which the model follows (all checked with OBS Studio 33.0.0, with the media source):
+
+- **A media source whose scene is not on the program output is not opened.** With the default setting ("restart playback when the source becomes active") its state is `None`, a play or a pause opens it, and it does not move: its position stays where it was.
+  When the scene is shown the media plays from the start (`Playing`), and when the scene is no longer shown it ends (`Ended`), unless the setting of the source says otherwise. A source that does not restart when it is shown is opened and plays as soon as it is made.
+- **A change of the position is carried out for a media that plays and is shown**, and it plays on from there; a position beyond the end ends the media (`Ended`). A media that is not shown takes the change and does not move. A media that is paused takes it too, and then says position zero and plays from the start.
+- **`Ended` is also what OBS Studio says for a file that it cannot open** (and a play of it then answers that it plays, with a length of zero), and `Opening`, `Buffering` and `Error` only show in `GetStatusAsync()`.
+- **Which inputs have a media.** The model goes by what OBS Studio says an input can do (obs-websocket 5.6.0 and newer), and by the kind (`ffmpeg_source` and `vlc_source`) when it does not say. It reads the state of each media input once when it reads the inputs, so a connect sends one request more for each of them.
+- An input that was removed has no calls: they throw an `ObsRemovedException`, as for any other removed object.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -343,7 +381,7 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings and audio), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, media inputs and the rest of
+The model has scenes, inputs (with their settings, audio and media), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 

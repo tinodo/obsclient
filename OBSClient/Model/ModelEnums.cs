@@ -5,7 +5,7 @@ namespace OBSStudioClient.Model
 
     /// <summary>
     /// Converts between what obs-websocket says (the enums and strings of the client) and what the model shows (<see cref="ObsMonitorType"/>, <see cref="ObsAudioTracks"/>,
-    /// <see cref="ObsDeinterlaceMode"/> and <see cref="ObsDeinterlaceFieldOrder"/>).
+    /// <see cref="ObsDeinterlaceMode"/>, <see cref="ObsDeinterlaceFieldOrder"/> and <see cref="ObsMediaState"/>).
     /// </summary>
     internal static class ModelEnums
     {
@@ -67,6 +67,21 @@ namespace OBSStudioClient.Model
         public static ObsDeinterlaceFieldOrder ToModelFieldOrder(string order)
         {
             return string.Equals(order, FieldOrderBottom, StringComparison.Ordinal) ? ObsDeinterlaceFieldOrder.BottomFieldFirst : ObsDeinterlaceFieldOrder.TopFieldFirst;
+        }
+
+        public static ObsMediaState ToModel(MediaState state)
+        {
+            return state switch
+            {
+                MediaState.OBS_MEDIA_STATE_PLAYING => ObsMediaState.Playing,
+                MediaState.OBS_MEDIA_STATE_OPENING => ObsMediaState.Opening,
+                MediaState.OBS_MEDIA_STATE_BUFFERING => ObsMediaState.Buffering,
+                MediaState.OBS_MEDIA_STATE_PAUSED => ObsMediaState.Paused,
+                MediaState.OBS_MEDIA_STATE_STOPPED => ObsMediaState.Stopped,
+                MediaState.OBS_MEDIA_STATE_ENDED => ObsMediaState.Ended,
+                MediaState.OBS_MEDIA_STATE_ERROR => ObsMediaState.Error,
+                _ => ObsMediaState.None,
+            };
         }
 
         public static string ToWire(ObsDeinterlaceFieldOrder order)

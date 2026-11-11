@@ -291,10 +291,16 @@ namespace OBSStudioClient.Tests.Live
                             [$"balance {balance:R}, sync offset {offset} ms, monitor {ModelEnums.ToModel(monitor)}, tracks {(ObsAudioTracks)ModelEnums.ToMask(tracks)}"],
                             [$"balance {shown.AudioBalance:R}, sync offset {(int)shown.SyncOffset.TotalMilliseconds} ms, monitor {shown.MonitorType}, tracks {shown.AudioTracks}"]);
                     }
+
+                    if (shown.Media is { } media)
+                    {
+                        var status = await this.Client.GetMediaInputStatus(reference);
+                        Compare(problems, $"the media of '{shown.Name}'", [ModelEnums.ToModel(status.MediaState).ToString()], [media.State.ToString()]);
+                    }
                 }
                 catch (ObsResponseException exception)
                 {
-                    problems.Add($"the settings or the audio of '{shown.Name}' could not be read: {exception.Message}");
+                    problems.Add($"the settings, the audio or the media of '{shown.Name}' could not be read: {exception.Message}");
                 }
             }
 

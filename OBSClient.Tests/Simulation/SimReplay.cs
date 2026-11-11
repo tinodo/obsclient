@@ -32,7 +32,7 @@ namespace OBSStudioClient.Tests.Simulation
 
             foreach (var input in initial.Inputs)
             {
-                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks };
+                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks, Media = input.MediaState };
             }
 
             var program = initial.ProgramSceneUuid;
@@ -162,6 +162,9 @@ namespace OBSStudioClient.Tests.Simulation
                     case "InputAudioSyncOffsetChanged":
                     case "InputAudioMonitorTypeChanged":
                     case "InputAudioTracksChanged":
+                    case "MediaInputPlaybackStarted":
+                    case "MediaInputPlaybackEnded":
+                    case "MediaInputActionTriggered":
                         if (inputs.TryGetValue(Guid.Parse(data.GetProperty("inputUuid").GetString()!), out var changedInput))
                         {
                             Apply(changedInput, type, data);
@@ -281,7 +284,7 @@ namespace OBSStudioClient.Tests.Simulation
             return problems;
         }
 
-        // What an event of an input says: the settings (all of them), or one of the details of its audio.
+        // What an event of an input says: the settings (all of them), one of the details of its audio, or what its media does.
         private static void Apply(Input input, string type, JsonElement data)
         {
             switch (type)
@@ -298,6 +301,22 @@ namespace OBSStudioClient.Tests.Simulation
                 case "InputAudioMonitorTypeChanged":
                     input.Monitor = data.GetProperty("monitorType").GetString()!;
                     break;
+                case "MediaInputPlaybackStarted":
+                    input.Media = "OBS_MEDIA_STATE_PLAYING";
+                    break;
+                case "MediaInputPlaybackEnded":
+                    input.Media = "OBS_MEDIA_STATE_ENDED";
+                    break;
+                case "MediaInputActionTriggered":
+                    // The way that the model reads these events (next and previous say nothing about the state; the model reads it then).
+                    input.Media = data.GetProperty("mediaAction").GetString() switch
+                    {
+                        "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY" or "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART" => "OBS_MEDIA_STATE_PLAYING",
+                        "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE" => "OBS_MEDIA_STATE_PAUSED",
+                        "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP" => "OBS_MEDIA_STATE_STOPPED",
+                        _ => input.Media,
+                    };
+                    break;
                 default:
                     var tracks = data.GetProperty("inputAudioTracks");
                     input.Tracks = Enumerable.Range(1, 6).Sum(track => tracks.GetProperty(track.ToString(CultureInfo.InvariantCulture)).GetBoolean() ? 1 << (track - 1) : 0);
@@ -312,20 +331,20 @@ namespace OBSStudioClient.Tests.Simulation
 
         private static string Describe(Input input)
         {
-            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.Mul, input.Balance, input.SyncOffset, input.Monitor, input.Tracks, input.Settings);
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.Mul, input.Balance, input.SyncOffset, input.Monitor, input.Tracks, input.Settings, input.Media);
         }
 
         private static string Describe(SimInputSnapshot input)
         {
-            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.VolumeMul, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks, input.Settings);
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.VolumeMul, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks, input.Settings, input.MediaState);
         }
 
-        private static string Describe(Guid uuid, string name, string kind, bool muted, double mul, float balance, int offset, string monitor, int tracks, string settings)
+        private static string Describe(Guid uuid, string name, string kind, bool muted, double mul, float balance, int offset, string monitor, int tracks, string settings, string? media)
         {
             var audio = SimInputKinds.Find(kind)!.HasAudio
                 ? $" {(muted ? "muted" : "unmuted")} mul={mul.ToString("R", CultureInfo.InvariantCulture)} balance={balance.ToString("R", CultureInfo.InvariantCulture)} offset={offset.ToString(CultureInfo.InvariantCulture)} monitor={monitor} tracks={tracks.ToString(CultureInfo.InvariantCulture)}"
                 : string.Empty;
-            return $"{uuid:D} \"{name}\" {kind}{audio} settings={settings}";
+            return $"{uuid:D} \"{name}\" {kind}{audio}{(media is null ? string.Empty : " media=" + media)} settings={settings}";
         }
 
         private static Scene? Find(List<Scene> scenes, string uuid, List<string> problems, string at)
@@ -392,6 +411,9 @@ namespace OBSStudioClient.Tests.Simulation
             public string Monitor { get; set; } = "OBS_MONITORING_TYPE_NONE";
 
             public int Tracks { get; set; } = 63;
+
+            // What the media of the input does; null for an input that plays no media. A new media input has not been opened.
+            public string? Media { get; set; } = SimInputKinds.Find(kind)!.IsMedia ? "OBS_MEDIA_STATE_NONE" : null;
         }
     }
 }

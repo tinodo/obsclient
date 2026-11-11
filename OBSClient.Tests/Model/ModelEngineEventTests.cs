@@ -313,6 +313,7 @@ namespace OBSStudioClient.Tests.Model
                 EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged,
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
                 EventType.InputSettingsChanged, EventType.InputAudioBalanceChanged, EventType.InputAudioSyncOffsetChanged, EventType.InputAudioTracksChanged, EventType.InputAudioMonitorTypeChanged,
+                EventType.MediaInputPlaybackStarted, EventType.MediaInputPlaybackEnded, EventType.MediaInputActionTriggered,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
@@ -336,6 +337,7 @@ namespace OBSStudioClient.Tests.Model
             var other = Guid.NewGuid();
             var mic = Guid.NewGuid();
             var camera = Guid.NewGuid();
+            var clip = Guid.NewGuid();
             var cases = new (EventType Type, Action<EngineHarness> Send)[]
             {
                 (EventType.SceneCreated, h => EngineEvents.SceneCreated(h, other, "Other")),
@@ -353,6 +355,9 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.InputAudioSyncOffsetChanged, h => h.Event("InputAudioSyncOffsetChanged", new { inputName = "Mic", inputUuid = mic, inputAudioSyncOffset = 150 }, 8)),
                 (EventType.InputAudioTracksChanged, h => h.Event("InputAudioTracksChanged", new { inputName = "Mic", inputUuid = mic, inputAudioTracks = new Dictionary<string, bool> { ["1"] = true, ["2"] = false, ["3"] = true, ["4"] = true, ["5"] = true, ["6"] = true } }, 8)),
                 (EventType.InputAudioMonitorTypeChanged, h => h.Event("InputAudioMonitorTypeChanged", new { inputName = "Mic", inputUuid = mic, monitorType = "OBS_MONITORING_TYPE_MONITOR_ONLY" }, 8)),
+                (EventType.MediaInputPlaybackStarted, h => h.Event("MediaInputPlaybackStarted", new { inputName = "Clip", inputUuid = clip }, 256)),
+                (EventType.MediaInputPlaybackEnded, h => h.Event("MediaInputPlaybackEnded", new { inputName = "Clip", inputUuid = clip }, 256)),
+                (EventType.MediaInputActionTriggered, h => h.Event("MediaInputActionTriggered", new { inputName = "Clip", inputUuid = clip, mediaAction = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE" }, 256)),
                 (EventType.SceneItemCreated, h => h.Event("SceneItemCreated", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 9, sceneItemIndex = 1 }, 128)),
                 (EventType.SceneItemRemoved, h => h.Event("SceneItemRemoved", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 1 }, 128)),
                 (EventType.SceneItemListReindexed, h => h.Event("SceneItemListReindexed", new { sceneName = "Scene", sceneUuid = scene, sceneItems = new[] { new { sceneItemId = 1, sceneItemIndex = 7 } } }, 128)),
@@ -387,6 +392,7 @@ namespace OBSStudioClient.Tests.Model
                     world.Scenes.Add((scene, "Scene"));
                     world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
                     world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
+                    world.Inputs.Add((clip, "Clip", "ffmpeg_source", 8327, false, 1.0));
                     world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
                     world.AddFilter(scene, "Blur");
                     world.AddFilter(scene, "Tint");

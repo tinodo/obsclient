@@ -279,6 +279,26 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>Plays, pauses, stops or restarts the media of an input, as its controls (or a hotkey) do; the action is the name of an <c>ObsMediaInputAction</c>.</summary>
+        public void TriggerMedia(Guid inputUuid, string action)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.TriggerMedia(FindInput(inputUuid), action);
+                return 0;
+            });
+        }
+
+        /// <summary>The media of an input plays to its end, or fails to open, and OBS Studio announces that it ended.</summary>
+        public void EndMedia(Guid inputUuid)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.EndMedia(FindInput(inputUuid));
+                return 0;
+            });
+        }
+
         /// <summary>Switches the program scene, with a transition if there is one.</summary>
         public void SwitchProgramScene(Guid sceneUuid)
         {

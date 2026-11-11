@@ -918,6 +918,9 @@ namespace OBSStudioClient.Model
                     case ObsFilter filter:
                         filter.RaisePropertyChanged(property);
                         break;
+                    case ObsMedia media:
+                        media.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;
@@ -1014,6 +1017,7 @@ namespace OBSStudioClient.Model
                 foreach (var input in inputs)
                 {
                     input.RaisePropertyChanged(string.Empty);
+                    input.Media?.RaisePropertyChanged(string.Empty);
                     RaiseFilters(input);
                 }
             }

@@ -16,6 +16,7 @@ namespace OBSStudioClient.Model
         private int _monitorType;
         private int _audioTracks = (int)ObsAudioTracks.All;
         private SettingsValue _settings = SettingsValue.Empty;
+        private ObsMedia? _media;
 
         internal ObsInput(ObsModel model, Guid uuid, string name, ObsObjectState state, string kind, bool hasAudio)
             : base(model, uuid, name, state)
@@ -92,6 +93,24 @@ namespace OBSStudioClient.Model
         /// announces every change of it. Only meaningful when <see cref="HasAudio"/>.
         /// </summary>
         public ObsAudioTracks AudioTracks => (ObsAudioTracks)Volatile.Read(ref this._audioTracks);
+
+        /// <summary>
+        /// Gets the playback of the input when it plays media that can be controlled (a media source, a VLC video source): its state, and the calls that play, pause, stop and seek it. It is null
+        /// for an input that is no media input (a camera, a color source, a browser source), and it is the same object for as long as the input exists.
+        /// </summary>
+        /// <remarks>
+        /// OBS Studio says which kinds of input are media inputs (from obs-websocket 5.6.0); an OBS Studio that does not say it has two media kinds, <c>ffmpeg_source</c> and <c>vlc_source</c>, and
+        /// the model takes those for media inputs and no others.
+        /// </remarks>
+        public ObsMedia? Media => Volatile.Read(ref this._media);
+
+        // The playback is made once, when the model knows that the input is a media input and what it does.
+        internal ObsMedia AttachMedia(ObsMediaState state)
+        {
+            var media = new ObsMedia(this, state);
+            Volatile.Write(ref this._media, media);
+            return media;
+        }
 
         // The values are written by one thread only, the one that runs the model, and read by any.
         internal bool SetMuted(bool muted)

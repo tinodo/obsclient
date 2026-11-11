@@ -285,6 +285,16 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     `GetDefaultFilterSettingsAsync(kind)` and `GetSpecialInputsAsync()` (the desktop audio and the microphones, as `ObsInput` objects: `ObsSpecialInputs`).
   - **The settings of a filter are asked, and not kept**: `filter.GetSettingsAsync()` and `filter.SetSettingsAsync(settings, overlay)`, and `CreateFilterAsync` takes settings. The protocol has an event for a change of
     them, and OBS Studio does not send it (OBS Studio 33.0.0 sent none for any kind of filter: libobs tells of the updates of public sources only, and a filter is a private one), so a copy in the model would go out of date without a sign.
+- **`ObsModel` has media inputs: what a media is doing, and the calls that play, pause, stop, restart and move it** *(after rc.3; the third step of making `ObsModel` complete, which goes on until 4.0.0)*.
+  - **`input.Media`** is an `ObsMedia` for an input that is a media input (a media source, a VLC video source), and `null` for any other input. Its `State` (`ObsMediaState`: `None`, `Playing`, `Opening`, `Buffering`,
+    `Paused`, `Stopped`, `Ended`, `Error`) is current, because OBS Studio announces when a playback starts and ends and when it is told to play, pause, stop or restart; `PropertyChanged` and `Changed` say it. The length and
+    the position are not kept (they move all the time, and OBS Studio sends no event for them): `GetStatusAsync()` asks for them (an `ObsMediaStatus`), and for the states that no event announces.
+  - **The calls** (each takes its turn in the line of the changes): `PlayAsync()`, `PauseAsync()`, `StopAsync()` and `RestartAsync()` return when the model shows the new state; `TogglePlayPauseAsync()` returns the state
+    that it asked for (OBS Studio has no toggle, so the model decides in the turn of the change); `NextAsync()` and `PreviousAsync()` (the playlist of a VLC source); `SeekAsync(position)` and `SkipAsync(offset)`.
+  - **Checked with OBS Studio 33.0.0** (the article has the details): a media source whose scene is not on the program output is not opened (state `None`) and does not move; showing the scene plays it from the start,
+    and when it is no longer shown it ends. A change of the position is carried out for a media that plays and is shown, a position beyond the end ends the media, and a media that neither plays nor is paused refuses
+    a change of its position with `InvalidResourceState`.
+  - The model subscribes to the media input events now (`EventSubscriptions.MediaInputs`), and reads the state of each media input once, when it reads the inputs: a connect sends one request more for each media input.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

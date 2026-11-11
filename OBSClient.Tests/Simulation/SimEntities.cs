@@ -143,6 +143,12 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets or sets the audio tracks that the input is mixed into: one bit for each track, track 1 is bit 0. A new input is on all six.</summary>
         public int Tracks { get; set; } = 63;
 
+        /// <summary>Gets or sets what the media of the input does, as obs-websocket writes it. Only a media input moves from none: a media input that is not shown does not open its file until it is played.</summary>
+        public string MediaState { get; set; } = "OBS_MEDIA_STATE_NONE";
+
+        /// <summary>Gets or sets where the media is, in milliseconds. The simulation does not move it by itself: a media input that is not shown does not move either (measured with OBS Studio 33.0.0).</summary>
+        public int MediaCursor { get; set; }
+
         /// <summary>Gets or sets the number of pins that keep the input alive without a scene item.</summary>
         public int Pins { get; set; }
 
