@@ -11,13 +11,15 @@ namespace OBSStudioClient.Model
             ObsNamedCollection<ObsInput> inputs,
             ObsScene[] allScenes,
             ObsScene? programScene,
-            bool studioMode)
+            bool studioMode,
+            ObsScene? previewScene = null)
         {
             this.Scenes = scenes;
             this.Inputs = inputs;
             this.AllScenes = allScenes;
             this.ProgramScene = programScene;
             this.StudioMode = studioMode;
+            this.PreviewScene = previewScene;
         }
 
         /// <summary>Gets the scenes in the list of scenes of OBS Studio (not the groups, and not the scenes that were removed but are kept alive).</summary>
@@ -34,5 +36,8 @@ namespace OBSStudioClient.Model
 
         /// <summary>Gets whether studio mode is on.</summary>
         public bool StudioMode { get; }
+
+        /// <summary>Gets the preview scene, or null while studio mode is off (or it is not known yet).</summary>
+        public ObsScene? PreviewScene { get; }
     }
 }

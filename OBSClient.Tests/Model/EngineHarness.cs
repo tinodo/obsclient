@@ -137,6 +137,15 @@ namespace OBSStudioClient.Tests.Model
 
         public bool StudioMode { get; set; }
 
+        /// <summary>Gets or sets the preview scene while studio mode is on; the program scene when it is null (OBS Studio makes the program scene the preview scene when it switches studio mode on).</summary>
+        public Guid? Preview { get; set; }
+
+        /// <summary>Gets or sets the current scene transition: OBS Studio has a cut and a fade to begin with, and the fade is the current one.</summary>
+        public (string Name, Guid Uuid, string Kind, bool IsFixed, bool IsConfigurable)? Transition { get; set; } = ("Fade", new Guid("b40ea4bd-c1de-492b-9083-5055b9bfb0fe"), "fade_transition", false, false);
+
+        /// <summary>Gets or sets how long the transitions take, in milliseconds; a fixed transition does not say it.</summary>
+        public int TransitionDuration { get; set; } = 300;
+
         /// <summary>Gets what the outputs of OBS Studio are doing; an output that is not in it is stopped.</summary>
         public Dictionary<ObsOutputKind, ObsOutputStatus> Outputs { get; } = new();
 
@@ -309,6 +318,27 @@ namespace OBSStudioClient.Tests.Model
                     return (100, new { sceneName = program.Name, sceneUuid = program.Uuid });
                 case ReadKind.StudioMode:
                     return (100, new { studioModeEnabled = this.StudioMode });
+                case ReadKind.Preview:
+                    if (!this.StudioMode)
+                    {
+                        return (506, null);
+                    }
+
+                    var preview = this.Scenes.First(s => s.Uuid == (this.Preview ?? this.Program));
+                    return (100, new { sceneName = preview.Name, sceneUuid = preview.Uuid });
+                case ReadKind.Transition:
+                    return this.Transition is { } transition
+                        ? (100, new
+                        {
+                            transitionConfigurable = transition.IsConfigurable,
+                            transitionDuration = transition.IsFixed ? null : (int?)this.TransitionDuration,
+                            transitionFixed = transition.IsFixed,
+                            transitionKind = transition.Kind,
+                            transitionName = transition.Name,
+                            transitionSettings = transition.IsConfigurable ? (object)new { } : null,
+                            transitionUuid = transition.Uuid,
+                        })
+                        : (600, null);
                 case ReadKind.Stream:
                     var streamStatus = this.OutputStatus(ObsOutputKind.Stream);
                     return (100, new { outputActive = IsRunning(streamStatus), outputReconnecting = streamStatus == ObsOutputStatus.Reconnecting, outputTimecode = "00:00:00.000", outputDuration = 0L, outputCongestion = 0.0, outputBytes = 0L, outputSkippedFrames = 0L, outputTotalFrames = 0L });

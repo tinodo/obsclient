@@ -119,6 +119,7 @@ namespace OBSStudioClient.Model
             this.RemoveVanished(pass);
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
+            this.PublishTransitions(engine);
             this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
@@ -670,13 +671,64 @@ namespace OBSStudioClient.Model
                 this.AddProperty(this._model, nameof(ObsModel.IsStudioModeEnabled), old.StudioMode, studioMode, true);
             }
 
-            if (!scenesChanged && !inputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode)
+            // The preview scene, as the program scene: shown when it is published.
+            var preview = old.PreviewScene;
+            if (engine.PreviewSceneUuid is { } previewUuid)
+            {
+                if (this._scenes.TryGetValue(previewUuid, out var wantedPreview) && wantedPreview.Pass == pass)
+                {
+                    preview = wantedPreview;
+                }
+            }
+            else
+            {
+                preview = null;
+            }
+
+            if (!ReferenceEquals(preview, old.PreviewScene))
+            {
+                this.AddProperty(this._model, nameof(ObsModel.PreviewScene), old.PreviewScene, preview, true);
+                if (old.PreviewScene is { } previousPreview)
+                {
+                    this._changed.Add(new ModelNotice(null, previousPreview, nameof(ObsScene.IsPreview)));
+                }
+
+                if (preview is not null)
+                {
+                    this._changed.Add(new ModelNotice(null, preview, nameof(ObsScene.IsPreview)));
+                }
+            }
+
+            if (!scenesChanged && !inputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode && ReferenceEquals(preview, old.PreviewScene))
             {
                 return old;
             }
 
-            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode);
+            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode, preview);
             return this._view;
+        }
+
+        // The transitions are an object of the model that stays the same, so it is brought in line here and not through the view: a change is the PropertyChanged event of the object, and a record for
+        // ObsModel.Changed.
+        private void PublishTransitions(ModelEngine engine)
+        {
+            var transitions = this._model.Transitions;
+            if (transitions.SetCurrent(engine.Transition, out var before))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.Current), before, transitions.Current, true);
+            }
+
+            if (transitions.SetDuration(engine.TransitionDuration, out var durationBefore))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.Duration), durationBefore, transitions.Duration, true);
+            }
+
+            if (transitions.SetRunning(engine.TransitionRunning, out var runningBefore))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.IsRunning), runningBefore, engine.TransitionRunning, true);
+            }
+
+            transitions.SetStarts(engine.TransitionStarts);
         }
 
         // The outputs are objects of the model that stay the same, so they are brought in line here and not through the view: a change of the status is the PropertyChanged event of the output
@@ -742,6 +794,9 @@ namespace OBSStudioClient.Model
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),
+                EventType.SceneTransitionStarted when data is TransitionNameEventArgs started => () => model.Transitions.RaiseStarted(started),
+                EventType.SceneTransitionEnded when data is TransitionNameEventArgs ended => () => model.Transitions.RaiseEnded(ended),
+                EventType.SceneTransitionVideoEnded when data is TransitionNameEventArgs videoEnded => () => model.Transitions.RaiseVideoEnded(videoEnded),
                 _ => static () => { },
             };
         }

@@ -107,8 +107,11 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="DetachedScenes">The scenes that were removed but are alive, because they are an item of another scene.</param>
     /// <param name="Inputs">Every input that is alive, in the order in which they were created.</param>
     /// <param name="ProgramSceneUuid">The UUID of the program scene.</param>
-    /// <param name="PreviewSceneUuid">The UUID of the preview scene, which is null: studio mode is not simulated.</param>
-    /// <param name="StudioMode">Whether studio mode is enabled, which it is not.</param>
+    /// <param name="PreviewSceneUuid">The UUID of the preview scene, which there is while studio mode is on.</param>
+    /// <param name="StudioMode">Whether studio mode is enabled.</param>
+    /// <param name="TransitionName">The name of the current scene transition.</param>
+    /// <param name="TransitionDuration">The duration of the transitions in milliseconds when the current transition says one (the cut does not).</param>
+    /// <param name="TransitionRunning">Whether a transition is running.</param>
     internal sealed record SimSnapshot(
         string CollectionName,
         IReadOnlyList<SimSceneSnapshot> Scenes,
@@ -116,7 +119,10 @@ namespace OBSStudioClient.Tests.Simulation
         IReadOnlyList<SimInputSnapshot> Inputs,
         Guid ProgramSceneUuid,
         Guid? PreviewSceneUuid,
-        bool StudioMode)
+        bool StudioMode,
+        string TransitionName = "Cut",
+        int? TransitionDuration = null,
+        bool TransitionRunning = false)
     {
         public bool Equals(SimSnapshot? other)
         {
@@ -125,6 +131,9 @@ namespace OBSStudioClient.Tests.Simulation
                 && ProgramSceneUuid == other.ProgramSceneUuid
                 && PreviewSceneUuid == other.PreviewSceneUuid
                 && StudioMode == other.StudioMode
+                && TransitionName == other.TransitionName
+                && TransitionDuration == other.TransitionDuration
+                && TransitionRunning == other.TransitionRunning
                 && Scenes.SequenceEqual(other.Scenes)
                 && DetachedScenes.SequenceEqual(other.DetachedScenes)
                 && Inputs.SequenceEqual(other.Inputs);
@@ -139,9 +148,11 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var text = new StringBuilder();
             var program = Scenes.FirstOrDefault(scene => scene.Uuid == ProgramSceneUuid);
+            var preview = PreviewSceneUuid is { } previewUuid ? Scenes.FirstOrDefault(scene => scene.Uuid == previewUuid) : null;
             text.Append("collection \"").Append(CollectionName).Append("\", program scene ")
                 .Append(program is null ? "(none)" : $"\"{program.Name}\" {Short(ProgramSceneUuid)}")
-                .Append(StudioMode ? ", studio mode on" : ", studio mode off").AppendLine();
+                .Append(StudioMode ? ", studio mode on, preview scene " + (preview is null ? "(none)" : $"\"{preview.Name}\" {Short(preview.Uuid)}") : ", studio mode off")
+                .Append(", transition ").Append(TransitionName).Append(TransitionDuration is { } duration ? $" {duration} ms" : string.Empty).Append(TransitionRunning ? " (running)" : string.Empty).AppendLine();
             text.AppendLine("scenes:");
             foreach (var scene in Scenes)
             {

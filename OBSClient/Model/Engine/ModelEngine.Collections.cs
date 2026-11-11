@@ -44,6 +44,8 @@ namespace OBSStudioClient.Model.Engine
                 scope.NotBefore = TimeSpan.Zero;
                 scope.Dirty = true;
             }
+
+            this._previewScope.Dirty = false;
         }
 
         // The model of the collection that OBS Studio has left is dropped, and the model is of the next collection: the reads that were taken for the old one are outdated.
@@ -62,7 +64,13 @@ namespace OBSStudioClient.Model.Engine
             this._readReleased.Clear();
             this._unresolved.Clear();
             this._programUuid = new Cell<Guid?>(null, 0);
-            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
+
+            // The preview scene and the transitions are those of the collection: the new one has its own. What the engine knew about a transition that was running is not true any more.
+            this._previewUuid = new Cell<Guid?>(null, 0);
+            this._transition = new Cell<TransitionInfo?>(null, 0);
+            this._transitionDuration = new Cell<int?>(null, 0);
+            this._transitionRunning = new Cell<bool>(false, 0);
+            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = false;
             this._lastCleanup = this._now;
         }
     }

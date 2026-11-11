@@ -45,7 +45,7 @@ namespace OBSStudioClient.Tests.Model
         private static readonly int TraceLines = int.TryParse(Environment.GetEnvironmentVariable("OBSCLIENT_SIM_TRACE"), out var lines) && lines > 0 ? lines : 150;
 
         // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories.
-        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs;
+        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs | SimIntent.Transitions | SimIntent.Ui;
 
         private readonly SimObs _sim;
         private readonly ModelEngine _engine;
@@ -262,6 +262,8 @@ namespace OBSStudioClient.Tests.Model
         private static List<string> Project(SimSnapshot snapshot)
         {
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
+            lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
+            lines.Add(TransitionLine(snapshot.TransitionName, snapshot.TransitionDuration, snapshot.TransitionRunning));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -291,6 +293,8 @@ namespace OBSStudioClient.Tests.Model
         private static List<string> Project(EngineSnapshot snapshot)
         {
             var lines = new List<string> { "program scene " + (snapshot.ProgramSceneUuid?.ToString("D") ?? "(none)") };
+            lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
+            lines.Add(TransitionLine(snapshot.Transition?.Name ?? "(none)", snapshot.Transition is { IsFixed: false } ? snapshot.TransitionDuration : null, snapshot.TransitionRunning));
             var referenced = ReferencedSources(snapshot);
             foreach (var scene in snapshot.Scenes)
             {
@@ -316,6 +320,11 @@ namespace OBSStudioClient.Tests.Model
             }
 
             return lines;
+        }
+
+        private static string TransitionLine(string name, int? duration, bool running)
+        {
+            return $"transition {name}{(duration is { } milliseconds ? " " + milliseconds.ToString(CultureInfo.InvariantCulture) + " ms" : string.Empty)}{(running ? ", running" : string.Empty)}";
         }
 
         private static HashSet<Guid> ReferencedSources(EngineSnapshot snapshot)
@@ -927,6 +936,36 @@ namespace OBSStudioClient.Tests.Model
                     var scene = this.Pick(truth.Scenes);
                     this.Act($"switch the program scene to \"{scene.Name}\" {Short(scene.Uuid)}", () => this._sim.External.SwitchProgramScene(scene.Uuid));
                 }
+            });
+            this.Add("switch studio mode", 2, truth =>
+            {
+                var enabled = !truth.StudioMode;
+                this.Act($"switch studio mode {(enabled ? "on" : "off")}", () => this._sim.External.SetStudioMode(enabled));
+            });
+            this.Add("switch the preview scene", 3, truth =>
+            {
+                if (truth.StudioMode && truth.Scenes.Count > 0)
+                {
+                    var scene = this.Pick(truth.Scenes);
+                    this.Act($"switch the preview scene to \"{scene.Name}\" {Short(scene.Uuid)}", () => this._sim.External.SwitchPreviewScene(scene.Uuid));
+                }
+            });
+            this.Add("trigger the transition of studio mode", 3, truth =>
+            {
+                if (truth.StudioMode)
+                {
+                    this.Act("trigger the transition of studio mode", () => this._sim.External.TriggerTransition());
+                }
+            });
+            this.Add("choose the transition", 2, _ =>
+            {
+                var name = this.Pick(new[] { "Cut", "Fade" });
+                this.Act($"make {name} the current transition", () => this._sim.External.SetTransition(name));
+            });
+            this.Add("set the duration of the transitions", 2, _ =>
+            {
+                var milliseconds = this._random.Next(50, 2500);
+                this.Act($"set the duration of the transitions to {milliseconds.ToString(CultureInfo.InvariantCulture)} ms", () => this._sim.External.SetTransitionDuration(milliseconds));
             });
             this.Add("a moment passes", 14, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(1, 120))), OperationKind.Time);
             this.Add("a while passes", 3, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(300, 3000))), OperationKind.Time);

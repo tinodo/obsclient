@@ -94,8 +94,8 @@ await obs.ConnectAsync("localhost", 4455, "secret");
 await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
 ```
 
-What the model has: scenes, inputs (with their settings, audio and media), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer).
-What it does not have yet: the control of studio mode and of the preview scene, transitions, profiles and scene collections. Use `obs.Client` for those.
+What the model has: scenes, inputs (with their settings, audio and media), scene items, the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer).
+What it does not have yet: profiles and scene collections. Use `obs.Client` for those.
 [Controlling OBS Studio by name](model.md) has all of it.
 
 ## The same job, both ways
@@ -228,7 +228,7 @@ follows what it did:
 
 ```csharp
 // Not in the model yet: the protocol.
-await obs.Client.SetCurrentSceneTransition("Fade");
+var profiles = await obs.Client.GetProfileList();
 
 // The model: the call returns when the model shows the change.
 await obs.Scenes["Gaming Scene"].SwitchToAsync();

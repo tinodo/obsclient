@@ -13,6 +13,21 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets the UUID of the program scene, or null while it is not known.</summary>
         public Guid? ProgramSceneUuid => this._programUuid.Value;
 
+        /// <summary>Gets the UUID of the preview scene, or null while studio mode is off (or it is not known yet).</summary>
+        public Guid? PreviewSceneUuid => this._previewUuid.Value;
+
+        /// <summary>Gets the current scene transition, or null while it is not known (or the scene collection has none).</summary>
+        public TransitionInfo? Transition => this._transition.Value;
+
+        /// <summary>Gets the duration that OBS Studio gives a transition that has one, in milliseconds, or null until OBS Studio has said.</summary>
+        public int? TransitionDuration => this._transitionDuration.Value;
+
+        /// <summary>Gets whether a transition is running: from the event that says that it started to the one that says that its video ended.</summary>
+        public bool TransitionRunning => this._transitionRunning.Value;
+
+        /// <summary>Gets how many transitions the events said started, since the engine was made.</summary>
+        public long TransitionStarts => this._transitionStarts;
+
         /// <summary>Gets whether studio mode is on.</summary>
         public bool StudioModeEnabled => this._studioMode.Value;
 

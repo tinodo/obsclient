@@ -36,6 +36,10 @@ namespace OBSStudioClient.Model.Engine
     /// <param name="StudioMode">Whether studio mode is on.</param>
     /// <param name="State">The state of the connection of the engine.</param>
     /// <param name="Incomplete">The number of things that the model holds but does not know completely.</param>
+    /// <param name="PreviewSceneUuid">The UUID of the preview scene: null while studio mode is off.</param>
+    /// <param name="Transition">The current scene transition.</param>
+    /// <param name="TransitionDuration">The duration of the transitions that have one, in milliseconds, when OBS Studio has said.</param>
+    /// <param name="TransitionRunning">Whether a transition is running.</param>
     internal sealed record EngineSnapshot(
         IReadOnlyList<EngineScene> Scenes,
         IReadOnlyList<EngineScene> DetachedScenes,
@@ -43,7 +47,11 @@ namespace OBSStudioClient.Model.Engine
         Guid? ProgramSceneUuid,
         bool StudioMode,
         ModelEngineState State,
-        int Incomplete);
+        int Incomplete,
+        Guid? PreviewSceneUuid = null,
+        TransitionInfo? Transition = null,
+        int? TransitionDuration = null,
+        bool TransitionRunning = false);
 
     internal sealed partial class ModelEngine
     {
@@ -90,7 +98,7 @@ namespace OBSStudioClient.Model.Engine
                     input.Tracks.Value,
                     input.IsMedia ? input.MediaState.Value : null))
                 .ToArray();
-            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
+            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork(), this._previewUuid.Value, this._transition.Value, this._transitionDuration.Value, this._transitionRunning.Value);
         }
 
         /// <summary>Returns the filters that the model holds of a scene or an input, from the first, as plain values; none when the model does not hold the source.</summary>

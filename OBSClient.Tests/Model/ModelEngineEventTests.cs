@@ -310,7 +310,8 @@ namespace OBSStudioClient.Tests.Model
             // that need not be here costs a message for nothing. The list is also the table that the engine dispatches from, so it cannot differ from what it does.
             EventType[] needed =
             [
-                EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged,
+                EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged, EventType.CurrentPreviewSceneChanged,
+                EventType.CurrentSceneTransitionChanged, EventType.CurrentSceneTransitionDurationChanged, EventType.SceneTransitionStarted, EventType.SceneTransitionEnded, EventType.SceneTransitionVideoEnded,
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
                 EventType.InputSettingsChanged, EventType.InputAudioBalanceChanged, EventType.InputAudioSyncOffsetChanged, EventType.InputAudioTracksChanged, EventType.InputAudioMonitorTypeChanged,
                 EventType.MediaInputPlaybackStarted, EventType.MediaInputPlaybackEnded, EventType.MediaInputActionTriggered,
@@ -345,6 +346,21 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SceneNameChanged, h => h.Event("SceneNameChanged", new { sceneUuid = scene, oldSceneName = "Scene", sceneName = "Renamed" }, 4)),
                 (EventType.SceneListChanged, h => h.Event("SceneListChanged", new { scenes = new[] { new { sceneName = "Scene", sceneUuid = scene, sceneIndex = 0 }, new { sceneName = "Other", sceneUuid = other, sceneIndex = 1 } } }, 4)),
                 (EventType.CurrentProgramSceneChanged, h => h.Event("CurrentProgramSceneChanged", new { sceneName = "Scene", sceneUuid = scene }, 4)),
+
+                // There is a preview scene to read while studio mode is on.
+                (EventType.CurrentPreviewSceneChanged, h =>
+                {
+                    h.World.StudioMode = true;
+                    h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1024);
+                    h.Settle();
+                    h.Engine.TakeChanges();
+                    h.Event("CurrentPreviewSceneChanged", new { sceneName = "Scene", sceneUuid = scene }, 4);
+                }),
+                (EventType.CurrentSceneTransitionChanged, h => h.Event("CurrentSceneTransitionChanged", new { transitionName = "Cut", transitionUuid = Guid.NewGuid() }, 16)),
+                (EventType.CurrentSceneTransitionDurationChanged, h => h.Event("CurrentSceneTransitionDurationChanged", new { transitionDuration = 500 }, 16)),
+                (EventType.SceneTransitionStarted, h => h.Event("SceneTransitionStarted", new { transitionName = "Fade", transitionUuid = Guid.NewGuid() }, 16)),
+                (EventType.SceneTransitionEnded, h => h.Event("SceneTransitionEnded", new { transitionName = "Fade", transitionUuid = Guid.NewGuid() }, 16)),
+                (EventType.SceneTransitionVideoEnded, h => h.Event("SceneTransitionVideoEnded", new { transitionName = "Fade", transitionUuid = Guid.NewGuid() }, 16)),
                 (EventType.InputCreated, h => h.Event("InputCreated", new { inputName = "New", inputUuid = Guid.NewGuid(), inputKind = "color_source_v3", unversionedInputKind = "color_source", inputSettings = new { }, defaultInputSettings = new { } }, 8)),
                 (EventType.InputRemoved, h => h.Event("InputRemoved", new { inputName = "Mic", inputUuid = mic }, 8)),
                 (EventType.InputNameChanged, h => h.Event("InputNameChanged", new { inputUuid = mic, oldInputName = "Mic", inputName = "Microphone" }, 8)),

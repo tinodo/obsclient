@@ -36,6 +36,10 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             var program = initial.ProgramSceneUuid;
+            var studio = initial.StudioMode;
+            var preview = initial.PreviewSceneUuid;
+            var transition = initial.TransitionName;
+            int? duration = initial.TransitionDuration;
             var number = 0;
             foreach (var message in messages)
             {
@@ -90,6 +94,21 @@ namespace OBSStudioClient.Tests.Simulation
                             renamed.Name = data.GetProperty("sceneName").GetString()!;
                         }
 
+                        break;
+                    case "StudioModeStateChanged":
+                        studio = data.GetProperty("studioModeEnabled").GetBoolean();
+
+                        // OBS Studio makes the program scene the preview scene when it switches studio mode on, and does not say so.
+                        preview = studio ? program : null;
+                        break;
+                    case "CurrentPreviewSceneChanged":
+                        preview = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
+                        break;
+                    case "CurrentSceneTransitionChanged":
+                        transition = data.GetProperty("transitionName").GetString()!;
+                        break;
+                    case "CurrentSceneTransitionDurationChanged":
+                        duration = data.GetProperty("transitionDuration").GetInt32();
                         break;
                     case "CurrentProgramSceneChanged":
                         program = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
@@ -249,6 +268,27 @@ namespace OBSStudioClient.Tests.Simulation
             if (program != final.ProgramSceneUuid)
             {
                 problems.Add($"The events say that the program scene is {program}, and it is {final.ProgramSceneUuid}.");
+            }
+
+            if (studio != final.StudioMode)
+            {
+                problems.Add($"The events say that studio mode is {(studio ? "on" : "off")}, and it is {(final.StudioMode ? "on" : "off")}.");
+            }
+
+            if (studio && preview != final.PreviewSceneUuid)
+            {
+                problems.Add($"The events say that the preview scene is {preview}, and it is {final.PreviewSceneUuid}.");
+            }
+
+            if (transition != final.TransitionName)
+            {
+                problems.Add($"The events say that the current transition is {transition}, and it is {final.TransitionName}.");
+            }
+
+            // The duration is the same for every transition and only the one that has one says it: when the events never said it, it is not known here.
+            if (duration is { } replayedDuration && final.TransitionDuration is { } finalDuration && replayedDuration != finalDuration)
+            {
+                problems.Add($"The events say that the transitions take {replayedDuration} ms, and they take {finalDuration} ms.");
             }
 
             foreach (var scene in final.Scenes)

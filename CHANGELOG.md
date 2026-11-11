@@ -295,6 +295,21 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     and when it is no longer shown it ends. A change of the position is carried out for a media that plays and is shown, a position beyond the end ends the media, and a media that neither plays nor is paused refuses
     a change of its position with `InvalidResourceState`.
   - The model subscribes to the media input events now (`EventSubscriptions.MediaInputs`), and reads the state of each media input once, when it reads the inputs: a connect sends one request more for each media input.
+- **`ObsModel` has studio mode, the preview scene and the scene transitions** *(after rc.3; the fourth step of making `ObsModel` complete, which goes on until 4.0.0)*.
+  - **Studio mode and the preview scene**: `SetStudioModeEnabledAsync(bool)` (`IsStudioModeEnabled` was there already), `obs.PreviewScene` (`null` while studio mode is off), `scene.IsPreview` and `scene.SwitchToPreviewAsync()`.
+    OBS Studio makes the program scene the preview scene when studio mode is switched on and sends no event for it, so the model reads it then (and when it connects with studio mode on).
+  - **`obs.Transitions`** (`ObsTransitions`) has `Current` (an `ObsTransition`: `Name`, `Uuid`, `Kind`, `IsFixed`, `IsConfigurable`), `Duration` and `IsRunning` as properties of the model (`PropertyChanged` and `Changed` say them), and the
+    events `Started`, `Ended` and `VideoEnded`. Its calls: `SetCurrentAsync(name)` and `SetDurationAsync(duration)` (return when the model shows the change), `TriggerAsync()` (the Transition button; returns when the transition has started),
+    `GetAllAsync()`, `GetKindsAsync()`, `GetSettingsAsync()`, `SetSettingsAsync(settings, overlay)`, `GetProgressAsync()` and `SetTBarPositionAsync(position, release)`. The list of transitions, their settings, the position and
+    the overrides are asked and not kept, because OBS Studio does not announce a change of them. A scene can bring a transition of its own: `scene.GetTransitionOverrideAsync()` (an `ObsTransitionOverride`),
+    `SetTransitionOverrideAsync(name, duration)` and `ClearTransitionOverrideAsync()`.
+  - **The program scene is the new scene from the start of a transition.** OBS Studio answers a question about the program scene with the scene that it goes to at once, and sends the event that says so when the transition has
+    ended (seconds later for a long one). The model reads the program scene when a transition starts, so `obs.ProgramScene` shows the new scene from the start, and `scene.SwitchToAsync()` returns then, while `Transitions.IsRunning`
+    is still true; before, it returned when the event came or, for a transition longer than `ConfirmationTimeout`, after the model had read the program scene because the event did not come in time.
+  - **Checked with OBS Studio 33.0.0** (the article has the details): the Transition button puts the preview scene on the air at once and swaps the two scenes when the transition has ended; a trigger while a transition runs does
+    nothing, except in the first moment of a transition; the duration belongs to the transitions and is taken while a cut is current; a scene that has a transition of its own is shown with it and `Current` does not change.
+    **Removing the program scene while studio mode is on makes OBS Studio stop answering for seconds**: switch to another scene first.
+  - The model subscribes to the transition events now (`EventSubscriptions.Transitions`), and reads the current transition when it connects, and the preview scene while studio mode is on: a connect sends one or two requests more.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

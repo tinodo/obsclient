@@ -46,14 +46,15 @@ Everything that is a property is answered from the model, at once, and can be re
 
 | Object | What you can read |
 | --- | --- |
-| [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | `Scenes`, `Inputs`, `ProgramScene`, `IsStudioModeEnabled`, `Outputs`, `State`, `IsStale`, `IsExiting`, `ObsVersion`, `WebSocketVersion`, `Platform`, `SupportedImageFormats`, `Client` |
-| [`ObsScene`](xref:OBSStudioClient.Model.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsGroup`, `Items`, `Filters`, `State` |
+| [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | `Scenes`, `Inputs`, `ProgramScene`, `PreviewScene`, `IsStudioModeEnabled`, `Transitions`, `Outputs`, `State`, `IsStale`, `IsExiting`, `ObsVersion`, `WebSocketVersion`, `Platform`, `SupportedImageFormats`, `Client` |
+| [`ObsScene`](xref:OBSStudioClient.Model.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsPreview`, `IsGroup`, `Items`, `Filters`, `State` |
 | [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Model.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
 | [`ObsFilters`](xref:OBSStudioClient.Model.ObsFilters) | the filters of a scene or an input, from the first: `Filters["Gain"]` by name, by position, `TryGet`, `Find`, `Contains` |
 | [`ObsFilter`](xref:OBSStudioClient.Model.ObsFilter) | `Source`, `Name`, `Kind`, `Index`, `IsEnabled`, `IsRemoved` |
 | [`ObsOutputs`](xref:OBSStudioClient.Model.ObsOutputs) | `Stream`, `Record`, `VirtualCamera`, `ReplayBuffer`; also the four as a list, and by [`ObsOutputKind`](xref:OBSStudioClient.Model.ObsOutputKind) |
 | [`ObsOutput`](xref:OBSStudioClient.Model.ObsOutput) | `Kind`, `Name`, `Status` ([`ObsOutputStatus`](xref:OBSStudioClient.Model.ObsOutputStatus)), `IsActive`; the recording ([`ObsRecordOutput`](xref:OBSStudioClient.Model.ObsRecordOutput)) also has `IsPaused` and `CurrentFile`, and the replay buffer ([`ObsReplayBufferOutput`](xref:OBSStudioClient.Model.ObsReplayBufferOutput)) `LastSavedPath` |
+| [`ObsTransitions`](xref:OBSStudioClient.Model.ObsTransitions) | `Current` ([`ObsTransition`](xref:OBSStudioClient.Model.ObsTransition): `Name`, `Uuid`, `Kind`, `IsFixed`, `IsConfigurable`), `Duration`, `IsRunning` (see [Studio mode, the preview scene and transitions](#studio-mode-the-preview-scene-and-transitions)) |
 
 ## Names
 
@@ -80,7 +81,10 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | On | Method | What it does |
 | --- | --- | --- |
 | `ObsModel` | `CreateSceneAsync(name)` | makes a scene |
+| | `SetStudioModeEnabledAsync(bool)` | switches studio mode on or off (see [Studio mode, the preview scene and transitions](#studio-mode-the-preview-scene-and-transitions)) |
 | `ObsScene` | `SwitchToAsync()` | puts the scene on the air |
+| | `SwitchToPreviewAsync()` | makes the scene the preview scene of studio mode |
+| | `SetTransitionOverrideAsync(name, duration)`, `ClearTransitionOverrideAsync()` | gives the scene a transition and a duration of its own, or takes them away |
 | | `CreateInputAsync(name, kind, settings)` | makes an input, and a scene item that shows it in this scene |
 | | `AddAsync(source)` | adds a scene item that shows an input or a scene |
 | | `RenameAsync(name)`, `RemoveAsync()` | |
@@ -98,6 +102,8 @@ Changes are methods on the objects. They are made **one at a time, in the order 
 | `ObsOutput` | `StartAsync()`, `StopAsync()`, `ToggleAsync()` | return when OBS Studio has **begun** (see [Outputs](#outputs)) |
 | `ObsRecordOutput` | `PauseAsync()`, `ResumeAsync()`, `TogglePauseAsync()` | |
 | `ObsReplayBufferOutput` | `SaveAsync()` | OBS Studio writes the file a moment later |
+| `ObsTransitions` | `SetCurrentAsync(name)`, `SetDurationAsync(duration)` | choose the transition, and how long the transitions take |
+| | `TriggerAsync()` | the Transition button of studio mode: returns when the transition has started |
 
 Every method takes a `CancellationToken`. A token that ends before the request is sent keeps it from being sent; one that was sent is not undone.
 
@@ -312,6 +318,49 @@ What OBS Studio does, which the model follows (all checked with OBS Studio 33.0.
 - **Which inputs have a media.** The model goes by what OBS Studio says an input can do (obs-websocket 5.6.0 and newer), and by the kind (`ffmpeg_source` and `vlc_source`) when it does not say. It reads the state of each media input once when it reads the inputs, so a connect sends one request more for each of them.
 - An input that was removed has no calls: they throw an `ObsRemovedException`, as for any other removed object.
 
+## Studio mode, the preview scene and transitions
+
+With **studio mode** on there is a **preview scene** next to the program scene: you choose in the preview what goes on the air next, and trigger a transition that puts it on the air. `obs.IsStudioModeEnabled` says whether it is on,
+`obs.PreviewScene` is the preview scene (`null` while studio mode is off), and `scene.IsPreview` says it from the side of the scene. The scene transitions are in [`obs.Transitions`](xref:OBSStudioClient.Model.ObsTransitions), which is the same object for as long as the model lives.
+
+```csharp
+await obs.SetStudioModeEnabledAsync(true);                // returns when the model shows it
+await obs.Scenes["Interview"].SwitchToPreviewAsync();     // choose what comes next
+await obs.Transitions.TriggerAsync();                     // the Transition button: returns when the transition has started
+
+Console.WriteLine(obs.Transitions.Current);               // the current transition: Fade, 300 ms
+await obs.Transitions.SetCurrentAsync("Cut");             // by the name that OBS Studio shows
+await obs.Transitions.SetDurationAsync(TimeSpan.FromSeconds(1));
+obs.Transitions.VideoEnded += (_, e) => Console.WriteLine($"{e.TransitionName} is over");
+```
+
+| On `obs.Transitions` | |
+| --- | --- |
+| `Current` | the current transition ([`ObsTransition`](xref:OBSStudioClient.Model.ObsTransition): `Name`, `Uuid`, `Kind`, `IsFixed` for a cut, which takes no time, `IsConfigurable` for one that has settings); `null` when there is none. `PropertyChanged` and `Changed` say it |
+| `Duration` | how long the transitions take (a `TimeSpan?`). It is the same for all of them, and `null` until OBS Studio has said: it does not say while the current transition is a cut, until it is told or the duration changes |
+| `IsRunning` | whether a transition is running: from the moment that OBS Studio says that it started until it says that its video ended. A transition that was running when the model connected is not known to run |
+| `Started`, `Ended`, `VideoEnded` | .NET events, raised like the ones in [Things that happen](#things-that-happen). `VideoEnded` is the end of the transition for every kind of transition; `Ended` is the same moment, except for a stinger, which says `Ended` when it reaches its cut point and goes on until `VideoEnded` |
+| `SetCurrentAsync(name)`, `SetDurationAsync(duration)` | return when the model shows the change. A transition that OBS Studio does not have is refused with `ResourceNotFound`; a duration from 50 ms to 20 seconds is what OBS Studio takes (`ArgumentOutOfRangeException` before anything is sent) |
+| `TriggerAsync()` | the Transition button: the preview scene goes on the air. It returns when the model shows that a transition has started, not when it has ended, and is refused with `StudioModeNotActive` while studio mode is off |
+| `GetAllAsync()`, `GetKindsAsync()` | ask OBS Studio for the transitions it has, and for the kinds it can make (the list is not kept: OBS Studio does not announce a change of it). obs-websocket cannot make a transition: the user does that in the window of OBS Studio |
+| `GetSettingsAsync()`, `SetSettingsAsync(settings, overlay)` | the settings of the current transition, as a JSON object. A cut and a fade have none: OBS Studio refuses a change with `ResourceNotConfigurable` |
+| `GetProgressAsync()` | how far the transition that runs has come, from 0.0 to 1.0 (1.0 when none runs): it moves all the time, so it is asked and not kept |
+| `SetTBarPositionAsync(position, release)` | moves the T-bar of studio mode, which moves a transition by hand. obs-websocket says that it will be replaced, and the T-bar has a direction of its own: use `TriggerAsync()` to switch from the preview scene to the program scene |
+
+A scene can bring a **transition of its own**: `await scene.SetTransitionOverrideAsync("Fade", TimeSpan.FromSeconds(2))`, `await scene.GetTransitionOverrideAsync()` (an [`ObsTransitionOverride`](xref:OBSStudioClient.Model.ObsTransitionOverride): `Name`, `Duration` and `IsSet`) and
+`await scene.ClearTransitionOverrideAsync()`. The name and the duration are independent (a scene can have only a duration), and both `null` takes the override away. When OBS Studio switches to the scene it uses the override, and `Current` does not change for it.
+
+What OBS Studio does, which the model follows (all checked with OBS Studio 33.0.0):
+
+- **The program scene is the new scene from the start of a transition.** OBS Studio answers a question about the program scene with the scene that it goes to at once, and sends the event that says so when the transition has ended, which can be seconds later. The model reads the program scene when a
+  transition starts, so `obs.ProgramScene` and `scene.IsProgram` show the new scene from the start, as a question to OBS Studio does, and `SwitchToAsync()` returns then: **while `Transitions.IsRunning` is still true**. Wait for it to become false (or for `VideoEnded`) when you need the scene to be completely on the air.
+- **Studio mode on** makes the program scene the preview scene, and OBS Studio sends no event for that: the model reads it, so `PreviewScene` follows `IsStudioModeEnabled` a moment later. **Studio mode off** takes the preview scene away.
+- **The Transition button** puts the preview scene on the air at once as far as a question goes, and when the transition has ended the preview scene is the scene that was on the air. A trigger while a transition runs does nothing, except in the first moment of a transition (while its position is still 0), when it starts
+  another: the first one then ends without its video ending, which the model takes for the end of it.
+- **The duration belongs to the transitions, not to the current one.** OBS Studio takes it while a cut is the current transition too (the fade has it afterwards), and sends an event only when it changed.
+- **A removed preview scene** is replaced by another scene, and the model reads which. **Do not remove the program scene while studio mode is on:** OBS Studio 33.0.0 then stopped answering the requests that need its window for seconds (up to half a minute was seen), and everything that waits for it waits too. Switch to another scene first.
+- **The model reads the current transition when it connects** (and the preview scene when studio mode is on), so a connect sends one or two requests more. The events of the transitions (`Transitions`) are part of what the model subscribes to.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -336,6 +385,7 @@ one at a time, like the notifications above (on `NotificationContext` when you s
 | `ExitStarted` | `ObsModel` | OBS Studio begins to shut down. `IsExiting` is true from then until the model is connected to an OBS Studio that was started again: it tells a closed OBS Studio from a lost connection |
 | `FileChanged` | `ObsRecordOutput` | the recording goes on in a new file |
 | `Saved` | `ObsReplayBufferOutput` | the replay buffer was saved to a file |
+| `Started`, `Ended`, `VideoEnded` | `ObsTransitions` | a scene transition started, ended, and its video ended (see [Studio mode, the preview scene and transitions](#studio-mode-the-preview-scene-and-transitions)); `e.TransitionName` and `e.TransitionUuid` say which |
 
 A handler that throws is logged, and does not keep the other handlers, or the next notification, from running. The same events are available on the plain client (`obs.Client.CustomEvent`, `RecordFileChanged`, ...), which raises them from a dispatcher of its own.
 
@@ -381,12 +431,12 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio and media), scene items, the program scene, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Transitions and the control of studio mode (the model only reads whether it is on), profiles and scene collections, and the rest of
+The model has scenes, inputs (with their settings, audio and media), scene items, the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 
 ```csharp
-await obs.Client.SetCurrentSceneTransition("Fade");              // not modelled yet: the plain client
+var profiles = await obs.Client.GetProfileList();                  // not modelled yet: the plain client
 await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true); // and the model follows
 ```
 

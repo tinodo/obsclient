@@ -33,7 +33,7 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Kind.HasAudio ? input.Tracks : 63,
                     input.Kind.IsMedia ? input.MediaState : null))
                 .ToArray();
-            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, null, false);
+            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, _studioMode ? _preview?.Uuid : null, _studioMode, TransitionName, TransitionDurationMilliseconds, TransitionRunning);
         }
 
         /// <summary>

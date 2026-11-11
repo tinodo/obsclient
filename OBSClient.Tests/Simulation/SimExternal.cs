@@ -309,6 +309,56 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>Switches studio mode on or off, as its button does.</summary>
+        public void SetStudioMode(bool enabled)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetStudioMode(enabled);
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a scene the preview scene, as a click on it does while studio mode is on.</summary>
+        public void SwitchPreviewScene(Guid sceneUuid)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SwitchPreview(FindScene(sceneUuid));
+                return 0;
+            });
+        }
+
+        /// <summary>Triggers the transition of studio mode, as its button does.</summary>
+        public void TriggerTransition()
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.TriggerTransition();
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a transition the current one, as its dropdown does.</summary>
+        public void SetTransition(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetCurrentTransition(name);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets how long the transitions take, as its box does.</summary>
+        public void SetTransitionDuration(int milliseconds)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetTransitionDuration(milliseconds);
+                return 0;
+            });
+        }
+
         private static void RequireName(string name)
         {
             // The user interface of OBS Studio does not accept an empty name, and obs-websocket answers 403.

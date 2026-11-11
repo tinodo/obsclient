@@ -361,7 +361,7 @@ namespace OBSStudioClient.Tests.Model
             switch (whenTheTimeIsUp)
             {
                 case "an event":
-                    h.Event("StudioModeStateChanged", new { studioModeEnabled = true }, 1 << 10);
+                    h.Event("StudioModeStateChanged", new { studioModeEnabled = false }, 1 << 10);
                     break;
                 case "the answer to a read":
                     h.Complete(sent!, Answer);

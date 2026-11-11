@@ -7,6 +7,12 @@ namespace OBSStudioClient.Model.Engine
 
     internal sealed partial class ModelEngine
     {
+        // The kind of a transition that plays a video, and says that it reached its cut point (SceneTransitionEnded) before the video is over (SceneTransitionVideoEnded).
+        private const string StingerKind = "obs_stinger_transition";
+
+        // How many times in a row OBS Studio has to refuse to say the current transition for the model to believe that there is none.
+        private const int RefusalsBeforeNoTransition = 2;
+
         // The events that the model acts on, and what it does with each of them. The list that Handles answers from is this table, so that an event that the engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<ModelEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<ModelEngine, EventMessage>>
@@ -21,6 +27,14 @@ namespace OBSStudioClient.Model.Engine
 
             // Never taken from the payload: the event comes at the end of a transition, and a read says what the program scene is now.
             [EventType.CurrentProgramSceneChanged] = static (engine, _) => engine._programScope.MarkDirty(),
+
+            // The same for the preview scene (the swap after a transition comes with the event of the end of it, and turning studio mode on has no event for it at all).
+            [EventType.CurrentPreviewSceneChanged] = static (engine, _) => engine._previewScope.MarkDirty(),
+            [EventType.CurrentSceneTransitionChanged] = static (engine, _) => engine._transitionScope.MarkDirty(),
+            [EventType.CurrentSceneTransitionDurationChanged] = On<TransitionDurationEventArgs>(static (engine, e) => engine.OnTransitionDurationChanged(e)),
+            [EventType.SceneTransitionStarted] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionStarted(e)),
+            [EventType.SceneTransitionEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionEnded(e)),
+            [EventType.SceneTransitionVideoEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionVideoEnded(e)),
             [EventType.InputCreated] = On<InputCreatedEventArgs>(static (engine, e) => engine.OnInputCreated(e)),
             [EventType.InputRemoved] = On<InputNameEventArgs>(static (engine, e) => engine.OnInputRemoved(e)),
             [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e) => engine.OnInputNameChanged(e)),
@@ -186,6 +200,87 @@ namespace OBSStudioClient.Model.Engine
             if (this._studioMode.ApplyEvent(e.StudioModeEnabled, this._seq))
             {
                 this.Emit(ModelChangeKind.StudioModeChanged, Guid.Empty, 0, null, !e.StudioModeEnabled, e.StudioModeEnabled);
+            }
+
+            this.StudioModeApplied();
+        }
+
+        // Studio mode is known to be on or off now (an event said so, or a read did). There is a preview scene to know while it is on, and OBS Studio does not say which when it turns studio mode on:
+        // it is read (and again on a new connection, which has to read what the one before knew). While studio mode is off there is none.
+        private void StudioModeApplied()
+        {
+            if (this._studioMode.Value)
+            {
+                if (!this._previewRead || this._previewUuid.Value is null)
+                {
+                    this._previewRead = false;
+                    this._previewScope.MarkDirty();
+                }
+            }
+            else if (this._previewUuid.Value is not null || !this._previewRead)
+            {
+                this.ClearPreview();
+            }
+        }
+
+        // There is no preview scene: studio mode is off.
+        private void ClearPreview()
+        {
+            this._previewScope.Dirty = false;
+            this._previewScope.Attempts = 0;
+            this._previewRead = true;
+            var old = this._previewUuid.Value;
+            if (this._previewUuid.ApplyDerived(null, this._seq))
+            {
+                this.Emit(ModelChangeKind.PreviewSceneChanged, Guid.Empty, 0, null, old, null);
+            }
+        }
+
+        // A transition started. The program scene that OBS Studio answers with is the one that it goes to, from this moment (the event that says that it is the program scene comes when
+        // the transition has ended, and a transition can take seconds): so it is read now, and the model shows it from the start of the transition, as a call that asks OBS Studio does.
+        private void OnTransitionStarted(TransitionNameEventArgs e)
+        {
+            this._transitionStarts++;
+            this.SetTransitionRunning(true);
+            this._programScope.MarkDirty();
+            this.Notify(EventType.SceneTransitionStarted, e);
+        }
+
+        // The video of a transition is over, which is the end of it (a stinger says that it has reached its cut point first, with SceneTransitionEnded).
+        private void OnTransitionVideoEnded(TransitionNameEventArgs e)
+        {
+            this.SetTransitionRunning(false);
+            this.Notify(EventType.SceneTransitionVideoEnded, e);
+        }
+
+        // A transition ended. For every transition but a stinger that is the end of it as well: one that the next transition cancels ends without saying that its video did. A stinger says here that it has
+        // reached its cut point, and plays on until its video ends.
+        private void OnTransitionEnded(TransitionNameEventArgs e)
+        {
+            var current = this._transition.Value;
+            if (current is null || current.Kind != StingerKind || current.Uuid != e.TransitionUuid)
+            {
+                this.SetTransitionRunning(false);
+            }
+
+            this.Notify(EventType.SceneTransitionEnded, e);
+        }
+
+        private void SetTransitionRunning(bool running)
+        {
+            var old = this._transitionRunning.Value;
+            if (this._transitionRunning.ApplyEvent(running, this._seq))
+            {
+                this.Emit(ModelChangeKind.TransitionRunningChanged, Guid.Empty, 0, null, old, running);
+            }
+        }
+
+        private void OnTransitionDurationChanged(TransitionDurationEventArgs e)
+        {
+            var old = this._transitionDuration.Value;
+            if (this._transitionDuration.ApplyEvent(e.TransitionDuration, this._seq))
+            {
+                this.Emit(ModelChangeKind.TransitionDurationChanged, Guid.Empty, 0, null, old, e.TransitionDuration);
             }
         }
 

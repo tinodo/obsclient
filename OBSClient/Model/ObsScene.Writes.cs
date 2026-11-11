@@ -58,6 +58,131 @@ namespace OBSStudioClient.Model
         }
 
         /// <summary>
+        /// Makes the scene the preview scene of studio mode (the one that becomes the program scene when the transition is triggered), and returns when the model shows it.
+        /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
+        /// <returns>A task that completes when <see cref="IsPreview"/> is true, or when the model has been read again after the events did not show it.</returns>
+        /// <exception cref="InvalidOperationException">The scene is a group (<see cref="IsGroup"/>): a group is not a scene that can be shown.</exception>
+        /// <exception cref="ObsRemovedException">The scene was removed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsNotConfirmedException">OBS Studio made the change, and the model does not show it: the events did not show it in time, and the model could not be read again in time. Do not send the change again.</exception>
+        /// <exception cref="ObsResponseException">OBS Studio refused the change: studio mode is off (<see cref="ObsResponseException.ErrorCode"/> is <see cref="RequestStatusCode.StudioModeNotActive"/>).</exception>
+        /// <remarks>
+        /// OBS Studio keeps a preview scene only while studio mode is on (<see cref="ObsModel.SetStudioModeEnabledAsync"/>), and refuses the request while it is off. It sends no event when the scene is the
+        /// preview scene already. See <see cref="ObsSceneItem.SetEnabledAsync"/> for the order of changes and the wait.
+        /// </remarks>
+        public Task SwitchToPreviewAsync(CancellationToken cancellationToken = default)
+        {
+            return this.Model.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = $"making scene '{this.Name}' the preview scene",
+                    Subject = $"scene '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
+                    Check = this.CheckCanBePreview,
+                    BuildRequests = () => [new WriteRequest(RequestType.SetCurrentPreviewScene, new { sceneUuid = this.Uuid })],
+                    IsConfirmed = _ => this.IsRemoved || this.IsPreview,
+                    Refresh = [new RefreshTarget(ReadKind.Preview)],
+                },
+                cancellationToken);
+        }
+
+        private void CheckCanBePreview()
+        {
+            if (this.State != ObsObjectState.Live)
+            {
+                throw new ObsRemovedException(this.Label, this.State);
+            }
+
+            if (this.IsGroup)
+            {
+                throw new InvalidOperationException($"The group '{this.Name}' can not be the preview scene.");
+            }
+        }
+
+        /// <summary>
+        /// Asks OBS Studio which transition, and how long, the scene brings with it.
+        /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait. A request that was not sent yet is not sent.</param>
+        /// <returns>The override of the scene: <see cref="ObsTransitionOverride.IsSet"/> is false when the scene has none.</returns>
+        /// <exception cref="ObsRemovedException">The scene was destroyed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call.</exception>
+        /// <exception cref="TimeoutException">OBS Studio did not answer in time (<see cref="ObsModelOptions.WriteTimeout"/>).</exception>
+        /// <remarks>
+        /// When OBS Studio switches to a scene that has an override it uses that transition and duration instead of the current ones (<see cref="ObsTransitions.Current"/>, which does not change for it). OBS Studio
+        /// does not announce a change of an override, so it is not kept in the model: this asks. The request is made in its turn, after the changes that were asked for before it.
+        /// </remarks>
+        public Task<ObsTransitionOverride> GetTransitionOverrideAsync(CancellationToken cancellationToken = default)
+        {
+            return this.Model.Writer.ExecuteAsync<ObsTransitionOverride>(
+                new WriteJob
+                {
+                    Description = $"asking for the scene transition of scene '{this.Name}'",
+                    Subject = $"scene '{this.Name}'",
+                    ReadOnly = true,
+                    Check = this.CheckNotDestroyed,
+                    BuildRequests = () => [new WriteRequest(RequestType.GetSceneSceneTransitionOverride, new { sceneUuid = this.Uuid })],
+                    ReadResponses = static responses =>
+                    {
+                        var answer = (SceneTransitionResponse)responses[0].ResponseData!;
+                        return new ObsTransitionOverride(answer.TransitionName, answer.TransitionDuration is { } duration ? TimeSpan.FromMilliseconds(duration) : null);
+                    },
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Gives the scene a transition and a duration of its own, or takes them away, and returns when OBS Studio has made the change.
+        /// </summary>
+        /// <param name="transitionName">The name of the transition to use for the scene (<see cref="ObsTransitions.GetAllAsync"/> lists them), or null to use the current one.</param>
+        /// <param name="duration">The duration to use for the scene, from 50 ms to 20 seconds, or null to use the one that is set for the transitions.</param>
+        /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
+        /// <returns>A task that completes when OBS Studio has answered that it made the change.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="duration"/> is less than 50 ms or more than 20 seconds. Nothing was sent.</exception>
+        /// <exception cref="ObsRemovedException">The scene was destroyed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <exception cref="ObsResponseException">OBS Studio refused the change: it has no transition of that name (<see cref="ObsResponseException.ErrorCode"/> is <see cref="RequestStatusCode.ResourceNotFound"/>).</exception>
+        /// <remarks>
+        /// Both null takes the override away. The two are independent: with only a duration the scene uses the current transition for that long (measured with OBS Studio 33.0.0). Nothing in the model shows
+        /// the override, so the call has nothing to wait for but the answer of OBS Studio: ask what it holds with <see cref="GetTransitionOverrideAsync"/>.
+        /// </remarks>
+        public Task SetTransitionOverrideAsync(string? transitionName, TimeSpan? duration = null, CancellationToken cancellationToken = default)
+        {
+            int? milliseconds = duration is { } given ? ObsTransitions.ToMilliseconds(given, nameof(duration)) : null;
+            return this.Model.Writer.ExecuteAsync<object?>(
+                new WriteJob
+                {
+                    Description = $"setting the scene transition of scene '{this.Name}'",
+                    Subject = $"scene '{this.Name}'",
+                    SubjectGone = () => this.IsRemoved,
+                    Check = this.CheckNotDestroyed,
+                    BuildRequests = () => [new WriteRequest(RequestType.SetSceneSceneTransitionOverride, new { sceneUuid = this.Uuid, transitionName, transitionDuration = milliseconds })],
+                    Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && !this.IsRemoved ? new ObsResponseException(response.RequestStatus) : null,
+                },
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Takes the transition and the duration of the scene away: the scene uses the current ones again.
+        /// </summary>
+        /// <param name="cancellationToken">A token that ends the wait. A change that was not sent yet is not sent.</param>
+        /// <returns>A task that completes when OBS Studio has answered that it made the change.</returns>
+        /// <exception cref="ObsRemovedException">The scene was destroyed.</exception>
+        /// <exception cref="ObsNotConnectedException">There is no connection to OBS Studio. Nothing was changed.</exception>
+        /// <exception cref="ObsNotReadyException">OBS Studio is changing its scene collection, or did so after the call. Nothing was changed.</exception>
+        /// <exception cref="ObsUnknownOutcomeException">OBS Studio did not answer in time, or the connection ended: it is not known whether it made the change.</exception>
+        /// <remarks>It is <see cref="SetTransitionOverrideAsync"/> with nothing.</remarks>
+        public Task ClearTransitionOverrideAsync(CancellationToken cancellationToken = default)
+        {
+            return this.SetTransitionOverrideAsync(null, null, cancellationToken);
+        }
+
+        /// <summary>
         /// Makes an input in the scene (and a scene item that shows it), and returns the input when the model shows both.
         /// </summary>
         /// <param name="name">The name of the new input: it can not be the name of another input or of a scene.</param>

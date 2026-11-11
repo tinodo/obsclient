@@ -30,6 +30,12 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetCurrentProgramScene"] = static (self, request) => self.GetCurrentProgramScene(request),
             ["GetCurrentPreviewScene"] = static (self, request) => self.GetCurrentPreviewScene(request),
             ["GetStudioModeEnabled"] = static (self, request) => self.GetStudioModeEnabled(request),
+            ["SetStudioModeEnabled"] = static (self, request) => self.SetStudioModeEnabled(request),
+            ["SetCurrentPreviewScene"] = static (self, request) => self.SetCurrentPreviewScene(request),
+            ["TriggerStudioModeTransition"] = static (self, request) => self.TriggerStudioModeTransition(request),
+            ["GetCurrentSceneTransition"] = static (self, request) => self.GetCurrentSceneTransition(request),
+            ["SetCurrentSceneTransition"] = static (self, request) => self.SetCurrentSceneTransition(request),
+            ["SetCurrentSceneTransitionDuration"] = static (self, request) => self.SetCurrentSceneTransitionDuration(request),
             ["GetInputMute"] = static (self, request) => self.GetInputMute(request),
             ["GetInputVolume"] = static (self, request) => self.GetInputVolume(request),
             ["GetInputSettings"] = static (self, request) => self.GetInputSettings(request),
@@ -160,10 +166,11 @@ namespace OBSStudioClient.Tests.Simulation
                 return Failed(request);
             }
 
-            // The program scene is read at once, and the list of scenes lags (facts 2 and 4). There is no preview scene without studio mode.
+            // The program scene is read at once, and the list of scenes lags (facts 2 and 4). There is a preview scene with studio mode on.
+            var preview = _world.StudioMode ? _world.Preview : null;
             return SimResult.Ok(Obj(
-                ("currentPreviewSceneName", null),
-                ("currentPreviewSceneUuid", null),
+                ("currentPreviewSceneName", preview?.Name),
+                ("currentPreviewSceneUuid", preview?.UuidText),
                 ("currentProgramSceneName", _world.Program.Name),
                 ("currentProgramSceneUuid", _world.Program.UuidText),
                 ("scenes", _world.SceneListJson(forEvent: false))));
@@ -286,13 +293,74 @@ namespace OBSStudioClient.Tests.Simulation
 
         private SimResult GetCurrentPreviewScene(SimRequest request)
         {
-            // Studio mode is not simulated, so there is never a preview scene.
-            return SimResult.Fail(SimStatus.StudioModeNotActive);
+            // OBS Studio refuses while studio mode is off (506), with no comment (measured with OBS Studio 33.0.0).
+            if (!_world.StudioMode)
+            {
+                return SimResult.Fail(SimStatus.StudioModeNotActive);
+            }
+
+            return SimResult.Ok(_world.PreviewSceneAnswerJson());
         }
 
         private SimResult GetStudioModeEnabled(SimRequest request)
         {
-            return SimResult.Ok(Obj(("studioModeEnabled", false)));
+            return SimResult.Ok(Obj(("studioModeEnabled", _world.StudioMode)));
+        }
+
+        private SimResult SetStudioModeEnabled(SimRequest request)
+        {
+            if (!request.RequireBoolean("studioModeEnabled", out var enabled))
+            {
+                return Failed(request);
+            }
+
+            _world.SetStudioMode(enabled);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetCurrentPreviewScene(SimRequest request)
+        {
+            var scene = request.AcquireScene();
+            if (scene is null)
+            {
+                return Failed(request);
+            }
+
+            _world.SwitchPreview(scene);
+            return SimResult.Ok();
+        }
+
+        private SimResult TriggerStudioModeTransition(SimRequest request)
+        {
+            _world.TriggerTransition();
+            return SimResult.Ok();
+        }
+
+        private SimResult GetCurrentSceneTransition(SimRequest request)
+        {
+            return SimResult.Ok(_world.CurrentTransitionJson());
+        }
+
+        private SimResult SetCurrentSceneTransition(SimRequest request)
+        {
+            if (!request.RequireString("transitionName", out var name))
+            {
+                return Failed(request);
+            }
+
+            _world.SetCurrentTransition(name);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetCurrentSceneTransitionDuration(SimRequest request)
+        {
+            if (!request.RequireNumber("transitionDuration", out var duration, 50, 20000))
+            {
+                return Failed(request);
+            }
+
+            _world.SetTransitionDuration((int)duration);
+            return SimResult.Ok();
         }
 
         private SimResult GetInputMute(SimRequest request)

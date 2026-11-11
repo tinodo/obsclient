@@ -87,7 +87,7 @@ namespace OBSStudioClient.Tests.Model
         public void The_walks_with_a_short_retention_let_go_of_what_they_remember()
         {
             var letGo = 0L;
-            for (var seed = 1; seed <= 20; seed++)
+            for (var seed = 1; seed <= 30; seed++)
             {
                 // Without changes of the scene collection: a switch lets the model forget what it remembers, all at once, before the retention does.
                 var result = Run(seed, "Hostile", 4, reconnects: true, ShortRetention, collections: false);
@@ -95,8 +95,9 @@ namespace OBSStudioClient.Tests.Model
                 letGo += result.LetGo;
             }
 
-            // If nothing was let go of, the walks that use a short retention would prove nothing about it.
-            Assert.True(letGo > 200, $"Only {letGo} things were let go of.");
+            // If nothing was let go of, the walks that use a short retention would prove nothing about it. A walk lasts about a minute of virtual time and the retention is 25 seconds, so only
+            // what was removed early in a walk is let go of in it: the count follows the share of the operations that remove something or let time pass.
+            Assert.True(letGo > 100, $"Only {letGo} things were let go of.");
         }
 
         [Fact]

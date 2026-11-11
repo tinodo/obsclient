@@ -142,6 +142,7 @@ namespace OBSStudioClient.Model
             this._ownsClient = ownsClient;
             this._logger = logger ?? NullLogger.Instance;
             this.Outputs = new ObsOutputs(this);
+            this.Transitions = new ObsTransitions(this);
             this._notifier = new ModelNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new ModelHost(this, client, this._options, this._logger, this._notifier);
             this._writer = new ModelWriter(client, this._host, this._options, this._logger);
@@ -259,12 +260,26 @@ namespace OBSStudioClient.Model
         /// <summary>
         /// Gets the program scene: the scene that is on the air. It is null until it is known.
         /// </summary>
+        /// <remarks>
+        /// While a transition runs (<see cref="ObsTransitions.IsRunning"/>) it is the scene that OBS Studio switches to: it says so as soon as the transition starts, and the scene is on the air when the transition has ended.
+        /// </remarks>
         public ObsScene? ProgramScene => this._view.ProgramScene;
 
         /// <summary>
-        /// Gets whether studio mode is on.
+        /// Gets the preview scene: the scene that studio mode shows next to the program scene, and that becomes the program scene when the transition is triggered
+        /// (<see cref="ObsTransitions.TriggerAsync"/>). It is null while studio mode is off (<see cref="IsStudioModeEnabled"/>).
+        /// </summary>
+        public ObsScene? PreviewScene => this._view.PreviewScene;
+
+        /// <summary>
+        /// Gets whether studio mode is on. <see cref="SetStudioModeEnabledAsync"/> switches it.
         /// </summary>
         public bool IsStudioModeEnabled => this._view.StudioMode;
+
+        /// <summary>
+        /// Gets the scene transitions: the current one, how long it takes, whether one is running, and the calls that change them. It is the same object for as long as the <see cref="ObsModel"/> lives.
+        /// </summary>
+        public ObsTransitions Transitions { get; }
 
         /// <summary>
         /// Gets the outputs: the stream, the recording, the virtual camera and the replay buffer. They are the same objects for as long as the <see cref="ObsModel"/> lives.
@@ -923,6 +938,9 @@ namespace OBSStudioClient.Model
                     case ObsMedia media:
                         media.RaisePropertyChanged(property);
                         break;
+                    case ObsTransitions transitions:
+                        transitions.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;
@@ -993,6 +1011,8 @@ namespace OBSStudioClient.Model
             {
                 output.RaisePropertyChanged(string.Empty);
             }
+
+            this.Transitions.RaisePropertyChanged(string.Empty);
 
             if (!onlyModel)
             {

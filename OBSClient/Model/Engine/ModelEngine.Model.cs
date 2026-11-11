@@ -381,10 +381,7 @@ namespace OBSStudioClient.Model.Engine
                 this.ReleaseItem(item, doubtful: decidedByRead);
             }
 
-            if (this._programUuid.Value == scene.Uuid)
-            {
-                this._programScope.MarkDirty();
-            }
+            this.ReadProgramAndPreviewAfterRemoval(scene);
 
             if (scene.Announced)
             {
@@ -425,14 +422,25 @@ namespace OBSStudioClient.Model.Engine
                 this.CloseSceneGap(scene);
             }
 
+            this.ReadProgramAndPreviewAfterRemoval(scene);
+
+            if (scene.Announced)
+            {
+                this.Emit(ModelChangeKind.SourceDetached, scene.Uuid, 0, scene.Name.Value);
+            }
+        }
+
+        // The program scene and the preview scene are replaced by OBS Studio when they are removed (it announces the one that it picks for the preview, and the program scene is read).
+        private void ReadProgramAndPreviewAfterRemoval(SceneNode scene)
+        {
             if (this._programUuid.Value == scene.Uuid)
             {
                 this._programScope.MarkDirty();
             }
 
-            if (scene.Announced)
+            if (this._previewUuid.Value == scene.Uuid)
             {
-                this.Emit(ModelChangeKind.SourceDetached, scene.Uuid, 0, scene.Name.Value);
+                this._previewScope.MarkDirty();
             }
         }
 
@@ -504,10 +512,7 @@ namespace OBSStudioClient.Model.Engine
                 this.CloseSceneGap(scene);
             }
 
-            if (this._programUuid.Value == scene.Uuid)
-            {
-                this._programScope.MarkDirty();
-            }
+            this.ReadProgramAndPreviewAfterRemoval(scene);
 
             // A scene that was Detached already was announced as a detached scene then.
             if (!detachedBefore && scene.Announced)

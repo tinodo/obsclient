@@ -104,6 +104,7 @@ namespace OBSStudioClient.Tests.Simulation
         public static readonly int Transitions = Bit("Transitions");
         public static readonly int SceneItems = Bit("SceneItems");
         public static readonly int MediaInputs = Bit("MediaInputs");
+        public static readonly int Ui = Bit("Ui");
 
         /// <summary>Gets the subscription of a connection that did not ask for one: every event except the high-volume ones.</summary>
         public static readonly int All = Bit("All");

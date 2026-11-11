@@ -159,7 +159,7 @@ namespace OBSStudioClient.Tests.Simulation
     /// <summary>A request that OBS Studio answers with a status that is not a success. It is thrown by the simulation of a change and caught by whoever asked for it.</summary>
     internal sealed class SimFailure : Exception
     {
-        public SimFailure(int code, string comment)
+        public SimFailure(int code, string? comment = null)
             : base(comment)
         {
             Code = code;
@@ -169,8 +169,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the code of the status of the request.</summary>
         public int Code { get; }
 
-        /// <summary>Gets the comment of the status of the request.</summary>
-        public string Comment { get; }
+        /// <summary>Gets the comment of the status of the request, which is null when OBS Studio gives none (it does not for a request that needs studio mode).</summary>
+        public string? Comment { get; }
 
         public static SimFailure NotFound(string comment) => new(SimStatus.ResourceNotFound, comment);
 

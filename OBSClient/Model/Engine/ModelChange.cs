@@ -80,6 +80,18 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Studio mode was switched on or off.</summary>
         StudioModeChanged,
 
+        /// <summary>The preview scene changed (or there is none any more: studio mode was switched off).</summary>
+        PreviewSceneChanged,
+
+        /// <summary>The current scene transition changed.</summary>
+        TransitionChanged,
+
+        /// <summary>The duration of the scene transitions changed.</summary>
+        TransitionDurationChanged,
+
+        /// <summary>A scene transition started or ended.</summary>
+        TransitionRunningChanged,
+
         /// <summary>An output (the stream, the recording, the virtual camera, the replay buffer) changed what it is doing; the text says which.</summary>
         OutputChanged,
 

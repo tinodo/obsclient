@@ -204,6 +204,8 @@ namespace OBSStudioClient.Tests.Live
                 problems.Add($"the program scene is '{program.SceneName}' in OBS Studio and '{model.ProgramScene?.Name}' in the model");
             }
 
+            await this.CompareStudioModeAndTransitionsAsync(problems);
+
             // The scene items of every scene, with what they show.
             foreach (var scene in modelScenes)
             {
@@ -315,10 +317,63 @@ namespace OBSStudioClient.Tests.Live
             return problems;
         }
 
-        /// <summary>Waits until the model equals what OBS Studio holds, and fails with the differences when it does not in time.</summary>
+        // Studio mode, the preview scene and the current transition: what OBS Studio says with the plain client, and what the model shows. A transition runs while its position (the cursor) is not 1.
+        private async Task CompareStudioModeAndTransitionsAsync(List<string> problems)
+        {
+            var model = this.Model;
+            var studio = await this.Client.GetStudioModeEnabled();
+            if (model.IsStudioModeEnabled != studio)
+            {
+                problems.Add($"studio mode is {(studio ? "on" : "off")} in OBS Studio and {(model.IsStudioModeEnabled ? "on" : "off")} in the model");
+            }
+
+            (Guid Uuid, string Name)? preview = null;
+            if (studio)
+            {
+                try
+                {
+                    var asked = await this.Client.GetCurrentPreviewScene();
+                    preview = (asked.SceneUuid, asked.SceneName);
+                }
+                catch (ObsResponseException exception) when (exception.ErrorCode == RequestStatusCode.StudioModeNotActive)
+                {
+                    // Switched off since the question before: the next comparison says.
+                }
+            }
+
+            if (model.PreviewScene?.Uuid != preview?.Uuid)
+            {
+                problems.Add($"the preview scene is '{preview?.Name}' in OBS Studio and '{model.PreviewScene?.Name}' in the model");
+            }
+
+            var transition = await this.Client.GetCurrentSceneTransition();
+            var current = model.Transitions.Current;
+            Compare(
+                problems,
+                "the current scene transition",
+                [$"{transition.TransitionUuid:D} '{transition.TransitionName}' {transition.TransitionKind}, fixed {transition.TransitionFixed}, configurable {transition.TransitionConfigurable}"],
+                current is null ? [] : [$"{current.Uuid:D} '{current.Name}' {current.Kind}, fixed {current.IsFixed}, configurable {current.IsConfigurable}"]);
+            if (transition.TransitionDuration is { } milliseconds && model.Transitions.Duration != TimeSpan.FromMilliseconds(Math.Round(milliseconds)))
+            {
+                problems.Add($"the duration of the scene transitions is {milliseconds} ms in OBS Studio and {model.Transitions.Duration?.TotalMilliseconds.ToString() ?? "unknown"} ms in the model");
+            }
+
+            var running = await this.Client.GetCurrentSceneTransitionCursor() < 1.0;
+            if (model.Transitions.IsRunning != running)
+            {
+                problems.Add($"a scene transition {(running ? "runs" : "does not run")} in OBS Studio and {(model.Transitions.IsRunning ? "runs" : "does not run")} in the model");
+            }
+        }
+
+        /// <summary>Waits until the model equals what OBS Studio holds and OBS Studio is idle, and fails with the differences when it does not in time.</summary>
         /// <param name="when">Where the test is, for the message: "after the input was made".</param>
         /// <param name="timeout">How long to wait; <see cref="EqualTimeout"/> when null.</param>
         /// <returns>A task that completes when they are equal.</returns>
+        /// <remarks>
+        /// The model shows the scene that is switched to from the start of a transition (it reads it then), so it equals OBS Studio while the transition still runs. A transition keeps the scenes that
+        /// it goes from and to rendered, and OBS Studio takes the scene items of what is removed out of them on its next frame: what a test does next to those scenes races with that. So the wait is
+        /// for the end of the transition too.
+        /// </remarks>
         public async Task AssertModelEqualsObsAsync(string when, TimeSpan? timeout = null)
         {
             var deadline = DateTime.UtcNow + (timeout ?? EqualTimeout);
@@ -326,7 +381,7 @@ namespace OBSStudioClient.Tests.Live
             while (true)
             {
                 problems = await this.DifferencesAsync();
-                if (problems.Count == 0 || DateTime.UtcNow >= deadline)
+                if ((problems.Count == 0 && await this.Client.GetCurrentSceneTransitionCursor() >= 1.0) || DateTime.UtcNow >= deadline)
                 {
                     break;
                 }
@@ -342,6 +397,21 @@ namespace OBSStudioClient.Tests.Live
         {
             try
             {
+                // A test that switched studio mode on puts it back; one that failed halfway must not leave it on for the next, because OBS Studio stops answering for seconds when the program scene is removed
+                // in studio mode, which is what the clean-up below does.
+                try
+                {
+                    if (await this.Client.GetStudioModeEnabled())
+                    {
+                        await this.Client.SetStudioModeEnabled(false);
+                        await Task.Delay(300);
+                    }
+                }
+                catch (ObsClientException)
+                {
+                    // Nothing more can be done for it here.
+                }
+
                 // What a test made is removed with the plain client (the names carry the prefix), and the scene that was on the program output is put back.
                 await this.Raw.RemoveLeftoversAsync();
                 try

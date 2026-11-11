@@ -60,6 +60,10 @@ namespace OBSStudioClient.Tests.Simulation
         private static readonly int[] MediaCursors = [-5, 0, 1000, 30000, 999999];
         private static readonly int[] MediaOffsets = [-60000, -1000, 500, 5000];
 
+        // The transitions that OBS Studio has by default (and one that it does not have), and the durations that the walks use: one below and one above what obs-websocket accepts.
+        private static readonly string[] TransitionNames = ["Cut", "Fade", "Fade", "No such transition"];
+        private static readonly int[] TransitionDurations = [49, 50, 300, 1000, 2500, 20000, 20001];
+
         private readonly SimRandom _random;
         private readonly List<(string Name, int Weight, Action Run)> _operations = [];
         private readonly List<(int Weight, Func<(string Type, Dictionary<string, object?>? Data)> Make)> _requests = [];
@@ -664,6 +668,12 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => MediaInput("SetMediaInputCursor", ("mediaCursor", MediaCursors[_random.Next(MediaCursors.Length)])));
             Request(1, () => MediaInput("OffsetMediaInputCursor", ("mediaCursorOffset", MediaOffsets[_random.Next(MediaOffsets.Length)])));
             Request(1, () => MediaInput("GetMediaInputStatus"));
+            Request(2, () => ("SetStudioModeEnabled", Data(("studioModeEnabled", _random.Chance(0.5)))));
+            Request(3, () => Scene("SetCurrentPreviewScene"));
+            Request(3, () => ("TriggerStudioModeTransition", null));
+            Request(2, () => ("SetCurrentSceneTransition", Data(("transitionName", TransitionNames[_random.Next(TransitionNames.Length)]))));
+            Request(2, () => ("SetCurrentSceneTransitionDuration", Data(("transitionDuration", TransitionDurations[_random.Next(TransitionDurations.Length)]))));
+            Request(1, () => ("GetCurrentSceneTransition", null));
             Request(1, () => Scene("GetSceneItemList"));
             Request(1, () => ("GetSceneList", null));
             Request(1, () => ("GetInputList", _random.Chance(0.3) ? Data(("inputKind", SimInputKinds.All[_random.Next(SimInputKinds.All.Count)].Id)) : null));
@@ -722,6 +732,11 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external TriggerMedia", 2, () => Do(() => Sim.External.TriggerMedia(PickInput(tidy: true, media: true).Uuid, MediaActionNames[_random.Next(MediaActionNames.Length)]), "TriggerMedia"));
             Operation("external EndMedia", 1, () => Do(() => Sim.External.EndMedia(PickInput(tidy: true, media: true).Uuid), "EndMedia"));
             Operation("external SwitchProgramScene", 3, () => Do(() => Sim.External.SwitchProgramScene(PickScene(tidy: true).Uuid), "SwitchProgramScene"));
+            Operation("external SetStudioMode", 1, () => Do(() => Sim.External.SetStudioMode(_random.Chance(0.5)), "SetStudioMode"));
+            Operation("external SwitchPreviewScene", 2, () => Do(() => Sim.External.SwitchPreviewScene(PickScene(tidy: true).Uuid), "SwitchPreviewScene"));
+            Operation("external TriggerTransition", 2, () => Do(() => Sim.External.TriggerTransition(), "TriggerTransition"));
+            Operation("external SetTransition", 1, () => Do(() => Sim.External.SetTransition(TransitionNames[_random.Next(2)]), "SetTransition"));
+            Operation("external SetTransitionDuration", 1, () => Do(() => Sim.External.SetTransitionDuration(TransitionDurations[_random.Next(1, TransitionDurations.Length - 1)]), "SetTransitionDuration"));
             Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
             Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
         }
