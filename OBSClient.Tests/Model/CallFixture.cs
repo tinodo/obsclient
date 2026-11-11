@@ -101,6 +101,15 @@ namespace OBSStudioClient.Tests.Model
             }
         }
 
+        // Stops answering a type of request as the test said, so that the world answers it again.
+        public void StopAnswering(string type)
+        {
+            lock (this._lock)
+            {
+                this._answers.Remove(type);
+            }
+        }
+
         public ValueTask DisposeAsync()
         {
             return this.Rig.DisposeAsync();

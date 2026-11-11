@@ -522,6 +522,91 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal([$"added {id}", $"selected {id}"], order.ToArray());
         }
 
+        // A new item that is made and selected while OBS Studio is not ready to give the settings of its input: the model has read the item, and cannot tell of it until the input is complete.
+        private static async Task<int> MakeAnItemThatWaitsAsync(CallFixture test, string name)
+        {
+            test.Answer("GetInputSettings", 207);
+            var created = Guid.Empty;
+            var id = 0;
+            test.Rig.Responder.Change(world =>
+            {
+                created = world.AddInput(name);
+                id = world.AddItem(test.GamingUuid, created, name);
+            });
+            var reads = Reads(test);
+            await test.Rig.Responder.SendEventAsync("InputCreated", new { inputName = name, inputUuid = created, inputKind = "color_source_v3", unversionedInputKind = "color_source", inputKindCaps = 32777, inputSettings = new { }, defaultInputSettings = new { } }, 8);
+            await test.Rig.Responder.SendEventAsync("SceneItemCreated", new { sceneName = "Gaming", sceneUuid = test.GamingUuid, sourceName = name, sourceUuid = created, sceneItemId = id, sceneItemIndex = 2 }, SceneItemEvents);
+            await test.Rig.Responder.SendEventAsync("SceneItemSelected", new { sceneName = "Gaming", sceneUuid = test.GamingUuid, sceneItemId = id }, SceneItemEvents);
+            await ModelRig.EventuallyAsync(() => Reads(test) > reads, "the item to be read");
+            await Task.Delay(300);
+            return id;
+        }
+
+        [Fact]
+        public async Task ASelection_OfANewItemThatTheModelCannotTellOfYet_IsToldOf_WhenTheItemIs()
+        {
+            await using var test = await StartAsync(follow: false);
+            var order = new List<string>();
+            test.Model.Changed += (_, e) =>
+            {
+                if (e.Kind == ObsChangeKind.Added && e.Entity is ObsSceneItem added)
+                {
+                    lock (order)
+                    {
+                        order.Add($"added {added.Id}");
+                    }
+                }
+            };
+            test.Model.SceneItemSelected += (_, e) =>
+            {
+                lock (order)
+                {
+                    order.Add($"selected {e.Item.Id}");
+                }
+            };
+
+            var id = await MakeAnItemThatWaitsAsync(test, "Logo");
+            lock (order)
+            {
+                Assert.Empty(order);
+            }
+
+            test.StopAnswering("GetInputSettings");
+            await ModelRig.EventuallyAsync(() => { lock (order) { return order.Count == 2; } }, "the item to be told of and selected", TimeSpan.FromSeconds(15));
+
+            Assert.Equal([$"added {id}", $"selected {id}"], order.ToArray());
+        }
+
+        [Fact]
+        public async Task TheSelections_AreToldOf_InTheOrderOfArrival_AlsoWhenTheFirstOneWaitsForItsItem()
+        {
+            await using var test = await StartAsync(follow: false);
+            var selected = new List<int>();
+            test.Model.SceneItemSelected += (_, e) =>
+            {
+                lock (selected)
+                {
+                    selected.Add(e.Item.Id);
+                }
+            };
+            var known = test.Gaming.Items[1];
+
+            var id = await MakeAnItemThatWaitsAsync(test, "Logo");
+
+            // An item that the application knows is selected after the new one: it does not overtake it.
+            await test.Rig.Responder.SendEventAsync("SceneItemSelected", new { sceneName = "Gaming", sceneUuid = test.GamingUuid, sceneItemId = known.Id }, SceneItemEvents);
+            await Task.Delay(300);
+            lock (selected)
+            {
+                Assert.Empty(selected);
+            }
+
+            test.StopAnswering("GetInputSettings");
+            await ModelRig.EventuallyAsync(() => { lock (selected) { return selected.Count == 2; } }, "both selections to be told", TimeSpan.FromSeconds(15));
+
+            Assert.Equal([id, known.Id], selected.ToArray());
+        }
+
         [Fact]
         public async Task AnItemThatIsSelected_ButTheModelDoesNotHaveIt_IsNotToldOf()
         {

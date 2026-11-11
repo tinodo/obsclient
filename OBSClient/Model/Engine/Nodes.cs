@@ -351,12 +351,6 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets or sets whether the model told that the item exists (an Added change was made).</summary>
         public bool Announced { get; set; }
 
-        /// <summary>
-        /// Gets or sets the event that said that the item was selected in OBS Studio, when it came before the item was announced (a new item is selected at once, and its state is read after that): it is told when the
-        /// item is, so that an application never hears of an item that it was not told of.
-        /// </summary>
-        public SceneItemSelectedEventArgs? PendingSelected { get; set; }
-
         /// <summary>Gets the key of the item.</summary>
         public ItemKey Key => new(this.Scene.Uuid, this.Id);
     }

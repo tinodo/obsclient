@@ -599,11 +599,6 @@ namespace OBSStudioClient.Model.Engine
             {
                 item.Announced = true;
                 this.Emit(ModelChangeKind.ItemAdded, item.Scene.Uuid, item.Id);
-                if (item.PendingSelected is { } selected)
-                {
-                    item.PendingSelected = null;
-                    this.Notify(EventType.SceneItemSelected, selected);
-                }
             }
         }
 

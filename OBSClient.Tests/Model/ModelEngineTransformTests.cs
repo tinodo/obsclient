@@ -271,29 +271,26 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
-        public void AnItemThatIsSelectedBeforeItIsAnnounced_IsToldOf_WhenItIs_AndOnlyOnce()
+        public void AnItemThatIsSelectedBeforeItIsAnnounced_IsPassedOn_AtOnce_AndOnlyOnce()
         {
             var h = Started(follow: false, out var scene, out _);
             var source = h.World.AddInput("Logo", "image_source", 8);
             var id = h.World.AddItem(scene, source, "Logo");
 
-            // A new item is selected at once, and the model reads its state after that.
+            // A new item is selected at once, and the model reads its state after that. What is published holds the selection back until the application has been told of the item (ModelPublisher), so
+            // the engine says what happened as it happens, also for an item that it has not announced yet.
             EngineEvents.ItemCreated(h, scene, "Gaming", id, 1, source, "Logo");
             h.Event("SceneItemSelected", new { sceneName = "Gaming", sceneUuid = scene, sceneItemId = id }, SceneItemEvents);
-            Assert.DoesNotContain(h.Engine.TakeChanges(), change => change.Kind == ModelChangeKind.Notification);
+            var told = Assert.Single(h.Engine.TakeChanges(), change => change.Kind == ModelChangeKind.Notification);
+            Assert.Equal(EventType.SceneItemSelected, (EventType)told.OldValue!);
+            Assert.Equal(id, Assert.IsType<SceneItemSelectedEventArgs>(told.NewValue).SceneItemId);
+            Assert.True(h.Engine.HasItem(scene, id));
 
             h.SettleWithTime();
 
             var changes = h.Engine.TakeChanges();
-            var announced = Array.FindIndex(changes.ToArray(), change => change.Kind == ModelChangeKind.ItemAdded && change.ItemId == id);
-            var selected = changes.Where(change => change.Kind == ModelChangeKind.Notification).ToArray();
-            Assert.True(announced >= 0);
-            var told = Assert.Single(selected);
-            Assert.Equal(EventType.SceneItemSelected, (EventType)told.OldValue!);
-            Assert.True(Array.IndexOf(changes.ToArray(), told) > announced, "The item is told of before the application knows that it exists.");
-            Assert.Equal(id, Assert.IsType<SceneItemSelectedEventArgs>(told.NewValue).SceneItemId);
-
-            h.Engine.TakeChanges();
+            Assert.Contains(changes, change => change.Kind == ModelChangeKind.ItemAdded && change.ItemId == id);
+            Assert.DoesNotContain(changes, change => change.Kind == ModelChangeKind.Notification);
             h.Settle();
             Assert.DoesNotContain(h.Engine.TakeChanges(), change => change.Kind == ModelChangeKind.Notification);
         }

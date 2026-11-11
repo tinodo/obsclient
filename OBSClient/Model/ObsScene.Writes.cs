@@ -159,10 +159,10 @@ namespace OBSStudioClient.Model
                 {
                     Description = $"setting the scene transition of scene '{this.Name}'",
                     Subject = $"scene '{this.Name}'",
-                    SubjectGone = () => this.IsRemoved,
+                    SubjectGone = () => this.State == ObsObjectState.Gone,
                     Check = this.CheckNotDestroyed,
                     BuildRequests = () => [new WriteRequest(RequestType.SetSceneSceneTransitionOverride, new { sceneUuid = this.Uuid, transitionName, transitionDuration = milliseconds })],
-                    Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && !this.IsRemoved ? new ObsResponseException(response.RequestStatus) : null,
+                    Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceNotFound && this.State != ObsObjectState.Gone ? new ObsResponseException(response.RequestStatus) : null,
                 },
                 cancellationToken);
         }

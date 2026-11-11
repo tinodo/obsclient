@@ -555,6 +555,21 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task ATransitionForAScene_ThatOBSStudioDoesNotHave_IsAnObsResponseException_AlsoForARemovedSceneThatIsKeptAlive()
+        {
+            await using var test = await StartAsync(world => world.AddItem(UuidOf(world, "Gaming"), UuidOf(world, "Other"), "Other", isScene: true));
+            var other = test.Model.Scenes["Other"];
+            await SendAsync(test, "SceneRemoved", new { sceneName = "Other", sceneUuid = other.Uuid, isGroup = false }, Scenes);
+            await ModelRig.EventuallyAsync(() => other.State == ObsObjectState.Detached, "the scene to be removed and kept alive for the scene item that shows it");
+            test.Answer("SetSceneSceneTransitionOverride", 600, "No scene transition was found by that name.");
+
+            var refusal = await Assert.ThrowsAsync<ObsResponseException>(() => other.SetTransitionOverrideAsync("Spin").WithTimeoutAsync(Timeout));
+
+            Assert.Equal(RequestStatusCode.ResourceNotFound, refusal.ErrorCode);
+            Assert.Equal(ObsObjectState.Detached, other.State);
+        }
+
+        [Fact]
         public async Task TheTransitionOfARemovedScene_CanNotBeAskedForOrSet()
         {
             await using var test = await StartAsync();

@@ -879,21 +879,13 @@ namespace OBSStudioClient.Model.Engine
         }
 
         // An item was selected in OBS Studio. The model does not keep which one is (OBS Studio says nothing when it is not selected any more), so it is something that happened: the application is told, in
-        // the order of arrival. An item that was just made is selected at once, before its state is read and the application knows of it: it is told when it is.
+        // the order of arrival. An item that was just made is selected at once, before its state is read and before the application can know of it: the engine says what happened, and what is published
+        // holds a selection back until the application has been told of its item (see ModelPublisher), so that it is told in order and never lost.
         private void OnItemSelected(SceneItemSelectedEventArgs e)
         {
-            if (!this.TryGetItem(e.SceneUuid, e.SceneItemId, out var item))
-            {
-                return;
-            }
-
-            if (item.Announced)
+            if (this.TryGetItem(e.SceneUuid, e.SceneItemId, out _))
             {
                 this.Notify(EventType.SceneItemSelected, e);
-            }
-            else
-            {
-                item.PendingSelected = e;
             }
         }
 

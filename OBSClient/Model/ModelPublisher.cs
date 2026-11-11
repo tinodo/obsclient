@@ -27,6 +27,9 @@ namespace OBSStudioClient.Model
     /// </remarks>
     internal sealed class ModelPublisher
     {
+        // The most selections that wait for their scene item: a selection of an item that never appears does not hold the later ones back for ever.
+        private const int MaxWaitingSelections = 1000;
+
         private readonly ObsModel _model;
         private readonly bool _ignoreCase;
         private readonly Dictionary<Guid, ObsScene> _scenes = new();
@@ -47,6 +50,11 @@ namespace OBSStudioClient.Model
 
         // The events of the pass that tell of something that happened, with their data, until what they are about is published.
         private readonly List<(EventType Type, object Data)> _told = new();
+
+        // The selections of scene items that were not told yet, in the order of arrival, and the ones that are still waiting after a pass. An item that is made is selected at once, and the application is told of the
+        // selection after it was told of the item, which can be some passes later: the item appears when its source does.
+        private readonly List<SceneItemSelectedEventArgs> _selected = new();
+        private readonly List<SceneItemSelectedEventArgs> _stillWaiting = new();
 
         // Reused by every pass.
         private readonly List<(int Index, ObsScene Scene)> _liveScenes = new();
@@ -124,10 +132,7 @@ namespace OBSStudioClient.Model
             this.RemoveVanished(pass);
 
             // What happened is told once what it is about is published: a scene item that was selected as it was made is the one that this pass published.
-            foreach (var (eventType, data) in this._told)
-            {
-                this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
-            }
+            this.TellWhatHappened(engine);
 
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
@@ -858,6 +863,51 @@ namespace OBSStudioClient.Model
             }
         }
 
+        // Tells what happened in the pass, in the order of arrival: first the selections that waited from the passes before, which are older than anything in this one. A selection waits when its scene item is
+        // in the model and the application has not been told of it yet (it appears when its source does), and the selections after it wait with it, so that they are told in order. A selection of an item that
+        // is gone (it was removed, or the scene collection was left) is not told.
+        private void TellWhatHappened(ModelEngine engine)
+        {
+            this._stillWaiting.Clear();
+            var held = false;
+            foreach (var selected in this._selected)
+            {
+                this.TellSelection(engine, selected, ref held);
+            }
+
+            foreach (var (eventType, data) in this._told)
+            {
+                if (eventType == EventType.SceneItemSelected && data is SceneItemSelectedEventArgs selected)
+                {
+                    this.TellSelection(engine, selected, ref held);
+                }
+                else
+                {
+                    this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+                }
+            }
+
+            this._selected.Clear();
+            for (var i = Math.Max(0, this._stillWaiting.Count - MaxWaitingSelections); i < this._stillWaiting.Count; i++)
+            {
+                this._selected.Add(this._stillWaiting[i]);
+            }
+        }
+
+        private void TellSelection(ModelEngine engine, SceneItemSelectedEventArgs selected, ref bool held)
+        {
+            if (!held && this._items.TryGetValue(new ItemKey(selected.SceneUuid, selected.SceneItemId), out var item))
+            {
+                var model = this._model;
+                this._events.Add(new ModelNotice(null, null, null, () => model.RaiseSceneItemSelected(new ObsSceneItemEventArgs(item))));
+            }
+            else if (engine.HasItem(selected.SceneUuid, selected.SceneItemId))
+            {
+                held = true;
+                this._stillWaiting.Add(selected);
+            }
+        }
+
         // What tells the application of something that happened: the event of the model, or of the output that it is about. It is raised later, by the notifier.
         private Action RaiseOf(EventType eventType, object data)
         {
@@ -867,7 +917,6 @@ namespace OBSStudioClient.Model
                 EventType.CustomEvent when data is CustomEventEventArgs custom => () => model.RaiseCustomEvent(custom),
                 EventType.VendorEvent when data is VendorEventEventArgs vendor => () => model.RaiseVendorEvent(vendor),
                 EventType.ScreenshotSaved when data is ScreenshotSavedEventArgs screenshot => () => model.RaiseScreenshotSaved(screenshot),
-                EventType.SceneItemSelected when data is SceneItemSelectedEventArgs selected && this._items.TryGetValue(new ItemKey(selected.SceneUuid, selected.SceneItemId), out var selectedItem) => () => model.RaiseSceneItemSelected(new ObsSceneItemEventArgs(selectedItem)),
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),
