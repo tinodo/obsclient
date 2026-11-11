@@ -704,6 +704,10 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => ("GetSceneCollectionList", null));
             Request(1, () => ("SetCurrentSceneCollection", Data(("sceneCollectionName", CollectionName()))));
             Request(1, () => ("CreateSceneCollection", Data(("sceneCollectionName", NewCollectionName()))));
+            Request(1, () => ("GetProfileList", null));
+            Request(2, () => ("SetCurrentProfile", Data(("profileName", ProfileName()))));
+            Request(2, () => ("CreateProfile", Data(("profileName", NewProfileName()))));
+            Request(2, () => ("RemoveProfile", Data(("profileName", ProfileName()))));
 
             Operation("client request", 54, () => Send(Pick()));
             Operation("client batch", 5, AskBatch);
@@ -749,6 +753,23 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external MeterTick", 2, () => Do(() => Sim.External.MeterTick(), "MeterTick"));
             Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
             Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
+            Operation("external SwitchProfile", 2, () => Do(() => Sim.External.SwitchProfile(ProfileName()), "SwitchProfile"));
+            Operation("external CreateProfile", 2, () => Do(() => Sim.External.CreateProfile(NewProfileName()), "CreateProfile"));
+            Operation("external RemoveProfile", 2, () => Do(() => Sim.External.RemoveProfile(ProfileName()), "RemoveProfile"));
+        }
+
+        // A profile to point at: mostly one that is there, and now and then one that is not.
+        private string ProfileName()
+        {
+            var names = Sim.Profiles;
+            return _random.Chance(0.9) ? names[_random.Next(names.Count)] : Name(0.1);
+        }
+
+        // A name for a profile that is to be made: a new one, and now and then the name of one that is there.
+        private string NewProfileName()
+        {
+            var names = Sim.Profiles;
+            return _random.Chance(0.1) ? names[_random.Next(names.Count)] : Name(0.0);
         }
 
         // A scene collection to point at: mostly one that is there, and now and then one that is not.

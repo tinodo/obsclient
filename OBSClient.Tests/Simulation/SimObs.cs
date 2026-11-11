@@ -30,7 +30,7 @@ namespace OBSStudioClient.Tests.Simulation
     /// var truth = sim.Snapshot();                                           // what the model has to equal now
     /// </code>
     /// </example>
-    internal sealed class SimObs
+    internal sealed partial class SimObs
     {
         // What obs-websocket answers with, in the comment of the status, while it is not ready (WebSocketServer::ProcessMessage).
         private const string NotReadyComment = "OBS is not ready to perform the request.";
@@ -39,6 +39,9 @@ namespace OBSStudioClient.Tests.Simulation
         {
             ["CurrentSceneCollectionChanging"] = static () => SimIntent.Config,
             ["CurrentSceneCollectionChanged"] = static () => SimIntent.Config,
+            ["CurrentProfileChanging"] = static () => SimIntent.Config,
+            ["CurrentProfileChanged"] = static () => SimIntent.Config,
+            ["ProfileListChanged"] = static () => SimIntent.Config,
             ["SceneCreated"] = static () => SimIntent.Scenes,
             ["SceneRemoved"] = static () => SimIntent.Scenes,
             ["SceneNameChanged"] = static () => SimIntent.Scenes,
@@ -276,7 +279,7 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Takes the snapshot of the state: what OBS Studio really holds, without any lag.</summary>
         public SimSnapshot Snapshot()
         {
-            return _world.Snapshot();
+            return _world.Snapshot() with { Profiles = ProfilesSnapshot(), SceneCollections = new SimNames(CurrentCollection, Collections) };
         }
 
         /// <summary>Gets what the last message of the volume meters said, by the UUID of each input that it listed: the three numbers of each channel (see <see cref="SimWorld.LastMeters"/>).</summary>
@@ -287,6 +290,7 @@ namespace OBSStudioClient.Tests.Simulation
         public void CheckInvariants()
         {
             var problems = _world.FindProblems();
+            FindProfileProblems(problems);
             if (_events is not null)
             {
                 problems.Add("A change is still running.");

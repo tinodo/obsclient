@@ -4,7 +4,7 @@ namespace OBSStudioClient.Exceptions
     using OBSStudioClient.Model;
 
     /// <summary>
-    /// Represents an exception that is thrown when OBS Studio refuses to give a scene or an input a name because the name is taken (the status 601 of obs-websocket).
+    /// Represents an exception that is thrown when OBS Studio refuses to give a scene, an input, a profile or a scene collection a name because the name is taken (the status 601 of obs-websocket).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -29,7 +29,7 @@ namespace OBSStudioClient.Exceptions
         /// </summary>
         /// <param name="name">The name that was refused.</param>
         /// <param name="message">What was refused, and what holds the name.</param>
-        /// <param name="heldBy">The object that holds the name according to the model, or null when the model does not show it.</param>
+        /// <param name="heldBy">The object that holds the name according to the model, or null when the model does not show it (a name of a profile or a scene collection has no such object).</param>
         public ObsNameInUseException(string name, string message, ObsSource? heldBy)
             : base(RequestStatusCode.ResourceAlreadyExists, message)
         {

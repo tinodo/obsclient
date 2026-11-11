@@ -164,6 +164,11 @@ namespace OBSStudioClient.Model
         /// </summary>
         public int CollectionEventsRead => Volatile.Read(ref this._collectionEventsRead);
 
+        /// <summary>
+        /// Gets whether the model is complete (<see cref="ObsModelState.Synchronized"/>). For the change that makes OBS Studio load another scene collection, whose call ends when the model has read it.
+        /// </summary>
+        public bool IsSynchronized => this._model.State == ObsModelState.Synchronized;
+
         /// <summary>Gets what is published now.</summary>
         public ModelView View => this._publisher.View;
 

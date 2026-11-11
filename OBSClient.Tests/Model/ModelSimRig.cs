@@ -64,6 +64,12 @@ namespace OBSStudioClient.Tests.Model
             return value.ToString("0.######", CultureInfo.InvariantCulture);
         }
 
+        // The profiles or the scene collections: the current one and all of them, in the order of OBS Studio.
+        private static string NamesLine(string what, string? current, IEnumerable<string>? names)
+        {
+            return names is null ? $"{what} (none)" : $"{what} \"{current}\" of [{string.Join(", ", names.Select(name => $"\"{name}\""))}]";
+        }
+
         // What OBS Studio holds. A removed input that no scene item uses (a global audio device stays alive that way) cannot be reached by anybody, and nothing tells it
         // from one that was destroyed: it is not compared.
         private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
@@ -71,6 +77,8 @@ namespace OBSStudioClient.Tests.Model
             var transforms = follows.HasFlag(ObsHighVolume.Transforms);
             var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
+            lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
+            lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -106,6 +114,8 @@ namespace OBSStudioClient.Tests.Model
             var transforms = follows.HasFlag(ObsHighVolume.Transforms);
             var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + (model.ProgramScene?.Uuid.ToString("D") ?? "(none)") };
+            lines.Add(NamesLine("profiles", model.Profiles.Current, model.Profiles.Current is null ? null : model.Profiles.Names));
+            lines.Add(NamesLine("scene collections", model.SceneCollections.Current, model.SceneCollections.Current is null ? null : model.SceneCollections.Names));
             var liveScenes = model.Scenes;
             var liveInputs = model.Inputs;
             var liveSceneUuids = liveScenes.Select(scene => scene.Uuid).ToHashSet();

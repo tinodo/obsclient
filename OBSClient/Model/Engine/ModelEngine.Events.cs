@@ -13,6 +13,9 @@ namespace OBSStudioClient.Model.Engine
         // How many times in a row OBS Studio has to refuse to say the current transition for the model to believe that there is none.
         private const int RefusalsBeforeNoTransition = 2;
 
+        // The same for the list of the profiles and the list of the scene collections.
+        private const int RefusalsBeforeNoList = 2;
+
         // The events that the model acts on, and what it does with each of them. The list that Handles answers from is this table, so that an event that the engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<ModelEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<ModelEngine, EventMessage>>
@@ -31,6 +34,13 @@ namespace OBSStudioClient.Model.Engine
             // The same for the preview scene (the swap after a transition comes with the event of the end of it, and turning studio mode on has no event for it at all).
             [EventType.CurrentPreviewSceneChanged] = static (engine, _) => engine._previewScope.MarkDirty(),
             [EventType.CurrentSceneTransitionChanged] = static (engine, _) => engine._transitionScope.MarkDirty(),
+
+            // The profiles and the scene collections: what a list says (and which one is current) is read again, and not taken from the payload. A profile that is created is listed, and becomes the current one,
+            // by two events, and the list that is read is one state of both. Nothing else that the model holds belongs to a profile.
+            [EventType.ProfileListChanged] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.CurrentProfileChanging] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.CurrentProfileChanged] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.SceneCollectionListChanged] = static (engine, _) => engine._collectionsScope.MarkDirty(),
             [EventType.CurrentSceneTransitionDurationChanged] = On<TransitionDurationEventArgs>(static (engine, e) => engine.OnTransitionDurationChanged(e)),
             [EventType.SceneTransitionStarted] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionStarted(e)),
             [EventType.SceneTransitionEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionEnded(e)),
@@ -127,7 +137,9 @@ namespace OBSStudioClient.Model.Engine
         // Whether what an event says holds whatever scene collection OBS Studio has loaded (or is loading).
         private static bool IsIndependentOfCollection(EventType eventType)
         {
-            return OutputNode.IsOutputEvent(eventType) || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved;
+            return OutputNode.IsOutputEvent(eventType)
+                || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved
+                    or EventType.ProfileListChanged or EventType.CurrentProfileChanging or EventType.CurrentProfileChanged or EventType.SceneCollectionListChanged;
         }
 
         // Something happened that is not a state of the model: the application is told, in the order of arrival (see ModelChangeKind.Notification).

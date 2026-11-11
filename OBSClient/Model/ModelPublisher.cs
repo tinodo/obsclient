@@ -30,6 +30,8 @@ namespace OBSStudioClient.Model
         // The most selections that wait for their scene item: a selection of an item that never appears does not hold the later ones back for ever.
         private const int MaxWaitingSelections = 1000;
 
+        private static readonly IReadOnlyList<string> NoNames = Array.Empty<string>();
+
         private readonly ObsModel _model;
         private readonly bool _ignoreCase;
         private readonly Dictionary<Guid, ObsScene> _scenes = new();
@@ -137,6 +139,7 @@ namespace OBSStudioClient.Model
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
             this.PublishTransitions(engine);
+            this.PublishNameLists(engine);
             this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
@@ -810,6 +813,38 @@ namespace OBSStudioClient.Model
             }
 
             transitions.SetStarts(engine.TransitionStarts);
+        }
+
+        // The profiles and the scene collections are objects of the model that stay the same, like the transitions: a change of the names is the PropertyChanged event of the object (Names, and then Current, so that
+        // a profile that was made is in the names by the time that it is the current one), and a record for ObsModel.Changed.
+        private void PublishNameLists(ModelEngine engine)
+        {
+            var profiles = this._model.Profiles;
+            if (profiles.Set(engine.Profiles, out var profilesBefore))
+            {
+                this.AddNameChanges(profiles, profilesBefore, engine.Profiles, nameof(ObsProfiles.Names), nameof(ObsProfiles.Current));
+            }
+
+            var collections = this._model.SceneCollections;
+            if (collections.Set(engine.SceneCollections, out var collectionsBefore))
+            {
+                this.AddNameChanges(collections, collectionsBefore, engine.SceneCollections, nameof(ObsSceneCollections.Names), nameof(ObsSceneCollections.Current));
+            }
+        }
+
+        private void AddNameChanges(object entity, NameList? before, NameList? after, string namesProperty, string currentProperty)
+        {
+            var oldNames = before?.Names ?? NoNames;
+            var newNames = after?.Names ?? NoNames;
+            if (!oldNames.SequenceEqual(newNames, StringComparer.Ordinal))
+            {
+                this.AddProperty(entity, namesProperty, oldNames, newNames, true);
+            }
+
+            if (!string.Equals(before?.Current, after?.Current, StringComparison.Ordinal))
+            {
+                this.AddProperty(entity, currentProperty, before?.Current, after?.Current, true);
+            }
         }
 
         // The outputs are objects of the model that stay the same, so they are brought in line here and not through the view: a change of the status is the PropertyChanged event of the output

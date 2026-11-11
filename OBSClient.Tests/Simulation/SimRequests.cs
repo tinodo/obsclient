@@ -76,6 +76,10 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneCollectionList"] = static (self, request) => self.GetSceneCollectionList(request),
             ["SetCurrentSceneCollection"] = static (self, request) => self.SetCurrentSceneCollection(request),
             ["CreateSceneCollection"] = static (self, request) => self.CreateSceneCollection(request),
+            ["GetProfileList"] = static (self, request) => self.GetProfileList(request),
+            ["SetCurrentProfile"] = static (self, request) => self.SetCurrentProfile(request),
+            ["CreateProfile"] = static (self, request) => self.CreateProfile(request),
+            ["RemoveProfile"] = static (self, request) => self.RemoveProfile(request),
         };
 
         private readonly SimObs _obs;
@@ -1142,7 +1146,7 @@ namespace OBSStudioClient.Tests.Simulation
                 ("sceneCollections", Arr(_obs.Collections.Select(name => (JsonNode?)name)))));
         }
 
-        // ASSUMPTION: read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp), and not measured. A name that is not a collection is
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests) and read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp). A name that is not a collection is
         // answered with 600 and no comment; the collection that is the current one is switched to without anything happening (no event).
         private SimResult SetCurrentSceneCollection(SimRequest request)
         {
@@ -1159,7 +1163,7 @@ namespace OBSStudioClient.Tests.Simulation
             return string.Equals(name, _obs.CurrentCollection, StringComparison.Ordinal) ? SimResult.Ok() : SimResult.Switching(name, create: false);
         }
 
-        // ASSUMPTION: read from the source of obs-websocket 5.7.6, and not measured. A name that is a collection is answered with 601 and no comment. The
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is a collection is answered with 601 and no comment. The
         // collection that is made has one scene, as OBS Studio makes it for a collection that is new (a global audio device is not made).
         private SimResult CreateSceneCollection(SimRequest request)
         {
@@ -1169,6 +1173,81 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             return _obs.Collections.Contains(name) ? SimResult.Fail(SimStatus.ResourceAlreadyExists) : SimResult.Switching(name, create: true);
+        }
+
+        private SimResult GetProfileList(SimRequest request)
+        {
+            return SimResult.Ok(Obj(
+                ("currentProfileName", _obs.CurrentProfile),
+                ("profiles", Arr(_obs.Profiles.Select(name => (JsonNode?)name)))));
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is not a profile is answered with 600 and no comment. The request is answered when the switch is done, with
+        // both events; the profile that is the current one is switched to without anything happening (no event).
+        private SimResult SetCurrentProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound);
+            }
+
+            if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+            {
+                _obs.SwitchProfile(name);
+            }
+
+            return SimResult.Ok();
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is a profile is answered with 601 and no comment. OBS Studio answers before it has made the profile: its user interface
+        // makes it a moment later, and switches to it.
+        private SimResult CreateProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceAlreadyExists);
+            }
+
+            _obs.ScheduleUi(_obs.Quirks.ProfileCreateDelay.Sample(_obs.Random), () => _obs.MakeProfile(name));
+            return SimResult.Ok();
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests) and read from the source of obs-websocket 5.7.6 and OBS Studio 33.0.0. A name that is not a profile is answered with 600 and no comment,
+        // and one that is the only profile with 603. A profile that is not the current one is removed a moment after the answer. The current one is not: OBS Studio asks the user in its window
+        // whether to remove it (OBSBasic::DeleteProfile), and answers at once that it did.
+        private SimResult RemoveProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound);
+            }
+
+            if (_obs.Profiles.Count < 2)
+            {
+                return SimResult.Fail(SimStatus.NotEnoughResources);
+            }
+
+            if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+            {
+                _obs.ScheduleUi(_obs.Quirks.ProfileRemoveDelay.Sample(_obs.Random), () => _obs.DropProfile(name));
+            }
+
+            return SimResult.Ok();
         }
     }
 }

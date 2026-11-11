@@ -483,6 +483,41 @@ What the model does with it:
 - **The levels end with the connection**: when it is lost, `Levels` of every input is `null` and `Ended` says so; they come back with the first message after the model is connected again.
 - **An input that the model does not have yet is skipped**: the next message has it. The plain client passes on one `InputVolumeMeters` event every 100 ms (`obs.Client.InputVolumeMeters`, with `AdditionalEvents = EventSubscriptions.InputVolumeMeters`); the model uses every message.
 
+## Profiles and scene collections
+
+OBS Studio keeps its settings in **profiles** (the video settings, the stream service, the folder for recordings, the encoders) and what is in the scenes in **scene collections**. The model shows which one of each is current, and the names of all, in
+[`obs.Profiles`](xref:OBSStudioClient.Model.ObsProfiles) and [`obs.SceneCollections`](xref:OBSStudioClient.Model.ObsSceneCollections). They are the same objects for as long as the model lives, so you can hold them from the start and bind to them.
+
+```csharp
+Console.WriteLine($"{obs.Profiles.Current} of {string.Join(", ", obs.Profiles.Names)}");
+await obs.Profiles.CreateAsync("Podcast");                   // OBS Studio makes it and switches to it: returns when the model shows that
+await obs.Profiles.SetCurrentAsync("Gaming");
+await obs.Profiles.RemoveAsync("Podcast");                   // not the current one: OBS Studio would ask the user
+
+await obs.SceneCollections.SetCurrentAsync("Stream");        // returns when the model has read the collection that OBS Studio loaded
+obs.SceneCollections.PropertyChanged += (_, e) => Console.WriteLine(e.PropertyName);   // Names, Current
+```
+
+| On `obs.Profiles` and `obs.SceneCollections` | |
+| --- | --- |
+| `Current` | the name of the profile that is current (of the scene collection that is loaded); `null` until OBS Studio has said. `PropertyChanged` and `Changed` say when it changes, also when the user (or another program) changes it |
+| `Names` | the names, in the order in which OBS Studio lists them (it sorts them by name, ignoring case). It is another list when they change: `Names` is told before `Current`, so the current one is among the names when you hear of it |
+| `SetCurrentAsync(name)` | makes it current, and returns when the model shows it. OBS Studio does nothing when it is current already, and the call returns at once. A name that OBS Studio does not have throws an `ObsNotFoundException` that suggests names that are close |
+| `CreateAsync(name)` | makes one, which OBS Studio makes current. For a profile it returns when the list has it and OBS Studio has switched to it; for a scene collection when the model has read it. A name that is taken throws an `ObsNameInUseException`. A profile is a clean one (the settings that OBS Studio gives a new profile); a scene collection has one scene, named `Scene` |
+| `RemoveAsync(name)` (profiles only) | removes a profile and its files, and returns when the list no longer has it. **Not the current one**: it throws an `InvalidOperationException` before anything is sent (see below). There is no request that removes or renames a scene collection, or renames a profile |
+
+What OBS Studio does, which the model follows (checked with OBS Studio 33.0.0, and read in its source):
+
+- **The model never takes a name from an event.** Each of `ProfileListChanged`, `CurrentProfileChanging`, `CurrentProfileChanged` and `SceneCollectionListChanged` makes the model read the list again, and what the model shows is what that read says: OBS Studio does not send `ProfileListChanged` when the
+  user removes the current profile in its window (it says that the current profile changed, which the model also answers with a read).
+- **Switching a profile** is done when OBS Studio answers, and `CurrentProfileChanging` (with the profile that is left) and `CurrentProfileChanged` come at the same moment. **Making a profile** is answered at once, and OBS Studio lists the profile about 40 ms later and says that it is current about 90 ms after that (`CurrentProfileChanging` is not sent for it).
+  Profiles that are made right after one another are made in that order, and the last one is current.
+- **Removing the current profile** is not done by obs-websocket: OBS Studio asks the user in its own window ("are you sure?"), and answers at once as if it had removed it. The profile stays until somebody answers, and a question is left on the screen of the user. `RemoveAsync` refuses it for that reason.
+  A switch to a profile with another sample rate or speaker setup makes OBS Studio ask the user, in its window, whether it may restart; the profile is the current one all the same.
+- **A profile does not change what the model holds** (scenes, inputs, scene items, outputs): it only changes the settings of OBS Studio itself. A **scene collection** does: while OBS Studio loads another one it answers every request with 207 and sends no event, and the model is `Synchronizing`; everything that you hold belongs to the collection that was left
+  (see [The connection, and scene collections](#the-connection-and-scene-collections)). The call returns when the model is `Synchronized` with the new collection. OBS Studio answers `SetCurrentSceneCollection` when it has loaded the collection, so the call waits for the answer as long as `SynchronizationTimeout` when that is more than `WriteTimeout`.
+- **The model reads the two lists when it connects**, and again when it reads everything because OBS Studio switched its scene collection, so a connect sends two requests more.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -532,7 +567,7 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 - `obs.State` is `Disconnected`, `Connecting`, `Synchronizing`, `Synchronized` or `Reconnecting`. `ConnectAsync` returns when the model is complete. [`AutoReconnect`](xref:OBSStudioClient.Model.ObsModelOptions.AutoReconnect)
   (on by default) restores a lost connection and reads the model again; while it is down the model holds what was known last and `IsStale` is true.
-- When OBS Studio switches to another **scene collection**, everything you hold belongs to the collection that was left: the scenes, inputs and scene items are `Gone`, and what is in the new one is new objects, also when a scene of the same name is in both. `Resynchronized` comes when the new model is read.
+- When OBS Studio switches to another **scene collection**, everything you hold belongs to the collection that was left: the scenes, inputs and scene items are `Gone`, and what is in the new one is new objects, also when a scene of the same name is in both. `Resynchronized` comes when the new model is read. Which collection is loaded, and the names of all, are in [`obs.SceneCollections`](#profiles-and-scene-collections).
 - `ConnectAsync` throws [`ObsNotConnectedException`](xref:OBSStudioClient.Exceptions.ObsNotConnectedException) when OBS Studio cannot be reached or refuses the password, and a `TimeoutException` when the model is not complete within `SynchronizationTimeout`.
 
 ## Settings
@@ -545,7 +580,7 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 | `AutoReconnect` | `true` | restore a lost connection, and read the model again when it is back |
 | `SynchronizationTimeout` | 30 s | how long `ConnectAsync` waits for the model to be complete |
 | `ReadTimeout` | 10 s | how long one read of the model may take |
-| `WriteTimeout` | 10 s | how long OBS Studio gets to answer a change |
+| `WriteTimeout` | 10 s | how long OBS Studio gets to answer a change (a call that makes OBS Studio load a scene collection waits as long as `SynchronizationTimeout` when that is more, because OBS Studio answers when it has loaded it) |
 | `OutputStepTimeout` | 30 s | how long an output may be starting or stopping before the model reads it again to see whether the step is over (see [Outputs](#outputs)) |
 | `ConfirmationTimeout` | 1 s | how long a change waits for the event that shows it before the model is read again |
 | `NotificationContext` | none | where the notifications run (for example the UI thread) |
@@ -555,12 +590,12 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
+The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), and the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them). The settings of a profile (the video settings, the stream service, the folder for recordings, its parameters), the data that OBS Studio keeps for an application, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 
 ```csharp
-var profiles = await obs.Client.GetProfileList();                  // not modelled yet: the plain client
+var video = await obs.Client.GetVideoSettings();                   // not modelled yet: the plain client
 await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true); // and the model follows
 ```
 

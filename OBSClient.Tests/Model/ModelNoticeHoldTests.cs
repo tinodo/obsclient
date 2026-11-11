@@ -95,6 +95,23 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public void Release_HandsOverTheTransitions_TheProfilesAndTheSceneCollectionsToo_ForTheFirstTime()
+        {
+            using var model = new ObsModel();
+            var scene = new object();
+            var hold = new ModelNoticeHold(100);
+            hold.Hold([Property(scene, "Name"), Property(model.Transitions, "Current"), Property(model.Profiles, "Names"), Property(model.Profiles, "Current"), Property(model.SceneCollections, "Current")]);
+
+            // Like the outputs, they are the same objects before and after the first synchronization, and the application can hold them from the start.
+            var released = Released(hold, onlyModel: true);
+
+            Assert.Equal(
+                new (object?, string?)[] { (model.Transitions, "Current"), (model.Profiles, "Names"), (model.Profiles, "Current"), (model.SceneCollections, "Current") },
+                released.Select(r => (r.Entity, r.Property)).ToArray());
+            Assert.Equal(0, hold.Count);
+        }
+
+        [Fact]
         public void Release_Forgets_SoThatTheSamePropertyIsHeldAgainAfterwards()
         {
             var a = new object();

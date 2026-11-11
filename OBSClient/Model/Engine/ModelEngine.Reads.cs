@@ -120,6 +120,10 @@ namespace OBSStudioClient.Model.Engine
                     return this._previewScope;
                 case ReadKind.Transition:
                     return this._transitionScope;
+                case ReadKind.Profiles:
+                    return this._profilesScope;
+                case ReadKind.SceneCollections:
+                    return this._collectionsScope;
                 case ReadKind.Stream:
                 case ReadKind.Record:
                 case ReadKind.VirtualCamera:
@@ -180,6 +184,8 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.StudioMode => this._studioScope,
                 ReadKind.Preview => this._previewScope,
                 ReadKind.Transition => this._transitionScope,
+                ReadKind.Profiles => this._profilesScope,
+                ReadKind.SceneCollections => this._collectionsScope,
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
@@ -278,6 +284,12 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.Transition:
                     this.ApplyTransitionResponse(ticket, response, ok);
+                    break;
+                case ReadKind.Profiles:
+                    this.ApplyProfilesResponse(ticket, response, ok);
+                    break;
+                case ReadKind.SceneCollections:
+                    this.ApplySceneCollectionsResponse(ticket, response, ok);
                     break;
                 case ReadKind.Stream:
                 case ReadKind.Record:
@@ -792,6 +804,57 @@ namespace OBSStudioClient.Model.Engine
             {
                 this.Retry(scope);
             }
+        }
+
+        // The profiles, as a read says them: which one is current, and the names of all. An OBS Studio that refuses the read for good (a simulation that does not know the request) has no profiles to
+        // show, so it is believed when it is repeated, as it is for the transition; a refusal that can pass (not ready) and an answer that did not come are read again.
+        private void ApplyProfilesResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._profilesScope;
+            if (ok && response!.ResponseData is ProfileListResponse list)
+            {
+                scope.Attempts = 0;
+                this._profilesRead = true;
+                this._profiles.ApplyRead(new NameList(list.CurrentProfileName, list.Profiles), ticket.SentSeq);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._profilesRead = true;
+                this._profiles.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // The scene collections, as a read says them: which one is loaded, and the names of all. See ApplyProfilesResponse for a refusal.
+        private void ApplySceneCollectionsResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._collectionsScope;
+            if (ok && response!.ResponseData is SceneCollectionListResponse list)
+            {
+                scope.Attempts = 0;
+                this._collectionsRead = true;
+                this._collections.ApplyRead(new NameList(list.CurrentSceneCollectionName, list.SceneCollections), ticket.SentSeq);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._collectionsRead = true;
+                this._collections.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // Whether OBS Studio refused a request in a way that is not a moment that passes (it is not "not ready").
+        private static bool IsRefusedForGood(RequestResponseMessage? response)
+        {
+            return response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady;
         }
 
         private void ApplyScenes(SceneListResponse response, ReadTicket ticket)

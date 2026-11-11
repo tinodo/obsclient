@@ -25,6 +25,9 @@ namespace OBSStudioClient.Tests.Simulation
         {
             ["CurrentSceneCollectionChanging"] = "Config",
             ["CurrentSceneCollectionChanged"] = "Config",
+            ["CurrentProfileChanging"] = "Config",
+            ["CurrentProfileChanged"] = "Config",
+            ["ProfileListChanged"] = "Config",
             ["SceneCreated"] = "Scenes",
             ["SceneRemoved"] = "Scenes",
             ["SceneNameChanged"] = "Scenes",

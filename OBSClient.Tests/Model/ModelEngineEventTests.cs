@@ -321,6 +321,7 @@ namespace OBSStudioClient.Tests.Model
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
                 EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
+                EventType.SceneCollectionListChanged, EventType.CurrentProfileChanging, EventType.CurrentProfileChanged, EventType.ProfileListChanged,
 
                 // What the model needs only when the application asks to follow it (see ObsHighVolume): the host does not pass it otherwise.
                 EventType.SceneItemTransformChanged, EventType.InputActiveStateChanged, EventType.InputShowStateChanged,
@@ -399,6 +400,12 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SourceFilterListReindexed, h => h.Event("SourceFilterListReindexed", new { sourceName = "Scene", filters = new[] { new { filterEnabled = true, filterIndex = 1, filterKind = "color_filter_v2", filterName = "Blur", filterSettings = new { } } } }, 32)),
                 (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
                 (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
+
+                // The lists are read again: what the profiles and the scene collections are is not taken from the payload.
+                (EventType.ProfileListChanged, h => h.Event("ProfileListChanged", new { profiles = new[] { "Untitled", "Gaming" } }, 2)),
+                (EventType.CurrentProfileChanging, h => h.Event("CurrentProfileChanging", new { profileName = "Untitled" }, 2)),
+                (EventType.CurrentProfileChanged, h => h.Event("CurrentProfileChanged", new { profileName = "Gaming" }, 2)),
+                (EventType.SceneCollectionListChanged, h => h.Event("SceneCollectionListChanged", new { sceneCollections = new[] { "Untitled", "Other" } }, 2)),
                 (EventType.RecordFileChanged, h => h.Event("RecordFileChanged", new { newOutputPath = "C:\\Videos\\b.mkv" }, 64)),
                 (EventType.ReplayBufferSaved, h => h.Event("ReplayBufferSaved", new { savedReplayPath = "C:\\Videos\\replay.mkv" }, 64)),
                 (EventType.ScreenshotSaved, h => h.Event("ScreenshotSaved", new { savedScreenshotPath = "C:\\Pictures\\shot.png" }, 1)),

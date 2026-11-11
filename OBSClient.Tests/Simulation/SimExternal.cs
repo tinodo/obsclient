@@ -22,10 +22,85 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the names of the scene collections, the current one included, in alphabetical order.</summary>
         public IReadOnlyList<string> Collections => _obs.Collections;
 
+        /// <summary>Gets the names of the profiles, the current one included, in the order in which OBS Studio lists them.</summary>
+        public IReadOnlyList<string> Profiles => _obs.Profiles;
+
         /// <summary>Makes the changes work on another scene collection: the one that OBS Studio has loaded now.</summary>
         internal void Use(SimWorld world)
         {
             _world = world;
+        }
+
+        /// <summary>
+        /// Switches to another profile, as the user does in the menu: <c>CurrentProfileChanging</c> and <c>CurrentProfileChanged</c> come together. Switching to the profile that is current does nothing.
+        /// </summary>
+        public void SwitchProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (!_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.NotFound($"There is no profile named \"{name}\".");
+                }
+
+                if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+                {
+                    _obs.SwitchProfile(name);
+                }
+
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Makes a new profile and switches to it, as the user does in the menu: <c>ProfileListChanged</c>, and a moment later <c>CurrentProfileChanged</c>.
+        /// </summary>
+        public void CreateProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.Exists($"A profile named \"{name}\" exists already.");
+                }
+
+                _obs.MakeProfile(name);
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Removes a profile, as the user does in the menu. For the profile that is current OBS Studio asks first, and the user says yes: it switches to the profile that comes first by the bytes of
+        /// its name, and does not say that the list changed. It refuses to remove the only profile.
+        /// </summary>
+        public void RemoveProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (!_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.NotFound($"There is no profile named \"{name}\".");
+                }
+
+                if (_obs.Profiles.Count < 2)
+                {
+                    throw new SimFailure(SimStatus.NotEnoughResources, "OBS Studio does not remove the only profile.");
+                }
+
+                if (string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+                {
+                    _obs.DropCurrentProfile();
+                }
+                else
+                {
+                    _obs.DropProfile(name);
+                }
+
+                return 0;
+            });
         }
 
         /// <summary>

@@ -143,6 +143,8 @@ namespace OBSStudioClient.Model
             this._logger = logger ?? NullLogger.Instance;
             this.Outputs = new ObsOutputs(this);
             this.Transitions = new ObsTransitions(this);
+            this.Profiles = new ObsProfiles(this);
+            this.SceneCollections = new ObsSceneCollections(this);
             this._notifier = new ModelNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new ModelHost(this, client, this._options, this._logger, this._notifier);
             this._writer = new ModelWriter(client, this._host, this._options, this._logger);
@@ -288,6 +290,16 @@ namespace OBSStudioClient.Model
         /// Gets the outputs: the stream, the recording, the virtual camera and the replay buffer. They are the same objects for as long as the <see cref="ObsModel"/> lives.
         /// </summary>
         public ObsOutputs Outputs { get; }
+
+        /// <summary>
+        /// Gets the profiles of OBS Studio: which one is current, their names, and the calls that switch to one, make one and remove one. It is the same object for as long as the <see cref="ObsModel"/> lives.
+        /// </summary>
+        public ObsProfiles Profiles { get; }
+
+        /// <summary>
+        /// Gets the scene collections of OBS Studio: which one is loaded, their names, and the calls that load one and make one. It is the same object for as long as the <see cref="ObsModel"/> lives.
+        /// </summary>
+        public ObsSceneCollections SceneCollections { get; }
 
         internal bool IgnoreCase => this._options.IgnoreCase;
 
@@ -951,6 +963,12 @@ namespace OBSStudioClient.Model
                     case ObsTransitions transitions:
                         transitions.RaisePropertyChanged(property);
                         break;
+                    case ObsProfiles profiles:
+                        profiles.RaisePropertyChanged(property);
+                        break;
+                    case ObsSceneCollections collections:
+                        collections.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;
@@ -1023,6 +1041,8 @@ namespace OBSStudioClient.Model
             }
 
             this.Transitions.RaisePropertyChanged(string.Empty);
+            this.Profiles.RaisePropertyChanged(string.Empty);
+            this.SceneCollections.RaisePropertyChanged(string.Empty);
 
             if (!onlyModel)
             {

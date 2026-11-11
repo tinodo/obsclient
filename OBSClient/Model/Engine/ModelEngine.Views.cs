@@ -19,6 +19,12 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets the current scene transition, or null while it is not known (or the scene collection has none).</summary>
         public TransitionInfo? Transition => this._transition.Value;
 
+        /// <summary>Gets the profiles of OBS Studio and which one is current, or null while they are not known (or OBS Studio refuses to list them).</summary>
+        public NameList? Profiles => this._profiles.Value;
+
+        /// <summary>Gets the scene collections of OBS Studio and which one is loaded, or null while they are not known (or OBS Studio refuses to list them).</summary>
+        public NameList? SceneCollections => this._collections.Value;
+
         /// <summary>Gets the duration that OBS Studio gives a transition that has one, in milliseconds, or null until OBS Studio has said.</summary>
         public int? TransitionDuration => this._transitionDuration.Value;
 
