@@ -53,9 +53,11 @@ namespace OBSStudioClient.Model
         /// <param name="parameter">The name of the parameter that it was passed as, for the message.</param>
         /// <param name="what">What the value is, for the message: "the value of persistent data".</param>
         /// <returns>The value.</returns>
+        /// <exception cref="ArgumentNullException">The value is null.</exception>
         /// <exception cref="ArgumentException">The value can not be written as JSON.</exception>
         public static JsonElement AsValue(object value, string parameter, string what)
         {
+            ArgumentNullException.ThrowIfNull(value, parameter);
             try
             {
                 return value is JsonElement given ? given.Clone() : JsonSerializer.SerializeToElement(value, value.GetType());
