@@ -163,6 +163,25 @@ namespace OBSStudioClient.Tests.Live
     }
 
     /// <summary>
+    /// A test against a real OBS Studio that only reads from it and uses the model, which follows scenes and inputs by UUID: it is skipped as well when <c>OBS_LIVE_UUIDS</c> is 0, for an OBS Studio before 30.1.0
+    /// (obs-websocket before 5.4.0), which has no UUIDs, and which the model refuses to connect to.
+    /// </summary>
+    internal sealed class LiveUuidFactAttribute : FactAttribute
+    {
+        public LiveUuidFactAttribute()
+        {
+            if (!LiveObs.IsConfigured)
+            {
+                this.Skip = LiveObs.NotConfigured;
+            }
+            else if (!LiveObs.HasUuids)
+            {
+                this.Skip = LiveUuidChangesFactAttribute.NoUuids;
+            }
+        }
+    }
+
+    /// <summary>
     /// A test that makes canvases against a real OBS Studio, which has no way to make one by itself: it needs what <c>tools/live/run-live-tests.ps1</c> makes for it (a second scene collection with a canvas and the script
     /// that makes, renames and removes canvases: <c>OBS_LIVE_CANVAS_COLLECTION</c>, <c>OBS_LIVE_CANVAS_COMMANDS</c> and <c>OBS_LIVE_CANVAS_SEEDED</c>), besides what <see cref="LiveChangesFactAttribute"/> needs.
     /// </summary>
