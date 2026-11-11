@@ -322,6 +322,7 @@ namespace OBSStudioClient.Tests.Model
                 EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
                 EventType.SceneCollectionListChanged, EventType.CurrentProfileChanging, EventType.CurrentProfileChanged, EventType.ProfileListChanged,
+                EventType.CanvasCreated, EventType.CanvasRemoved, EventType.CanvasNameChanged,
 
                 // What the model needs only when the application asks to follow it (see ObsHighVolume): the host does not pass it otherwise.
                 EventType.SceneItemTransformChanged, EventType.InputActiveStateChanged, EventType.InputShowStateChanged,
@@ -344,6 +345,7 @@ namespace OBSStudioClient.Tests.Model
             var mic = Guid.NewGuid();
             var camera = Guid.NewGuid();
             var clip = Guid.NewGuid();
+            var canvas = Guid.NewGuid();
             var cases = new (EventType Type, Action<EngineHarness> Send)[]
             {
                 (EventType.SceneCreated, h => EngineEvents.SceneCreated(h, other, "Other")),
@@ -406,6 +408,11 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.CurrentProfileChanging, h => h.Event("CurrentProfileChanging", new { profileName = "Untitled" }, 2)),
                 (EventType.CurrentProfileChanged, h => h.Event("CurrentProfileChanged", new { profileName = "Gaming" }, 2)),
                 (EventType.SceneCollectionListChanged, h => h.Event("SceneCollectionListChanged", new { sceneCollections = new[] { "Untitled", "Other" } }, 2)),
+
+                // The canvases: one that is made or renamed is read again (what it is is not taken from the payload), and one that is removed leaves the list at once.
+                (EventType.CanvasCreated, h => h.Event("CanvasCreated", new { canvasName = "New", canvasUuid = Guid.NewGuid() }, 1 << 11)),
+                (EventType.CanvasNameChanged, h => h.Event("CanvasNameChanged", new { canvasUuid = canvas, oldCanvasName = "Overlay", canvasName = "Renamed" }, 1 << 11)),
+                (EventType.CanvasRemoved, h => h.Event("CanvasRemoved", new { canvasName = "Overlay", canvasUuid = canvas }, 1 << 11)),
                 (EventType.RecordFileChanged, h => h.Event("RecordFileChanged", new { newOutputPath = "C:\\Videos\\b.mkv" }, 64)),
                 (EventType.ReplayBufferSaved, h => h.Event("ReplayBufferSaved", new { savedReplayPath = "C:\\Videos\\replay.mkv" }, 64)),
                 (EventType.ScreenshotSaved, h => h.Event("ScreenshotSaved", new { savedScreenshotPath = "C:\\Pictures\\shot.png" }, 1)),
@@ -428,6 +435,7 @@ namespace OBSStudioClient.Tests.Model
                         world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
                         world.AddFilter(scene, "Blur");
                         world.AddFilter(scene, "Tint");
+                        world.Canvases.Add((canvas, "Overlay", 14, false));
                         world.Program = scene;
                     },
                     new ModelEngineOptions { HighVolume = ObsHighVolume.All });

@@ -153,6 +153,41 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>
+        /// Makes a canvas, as a plugin does (obs_frontend_add_canvas): <c>CanvasCreated</c>. The name is made unique ("Name 2" when "Name" is taken), and the flag of the main canvas is taken off the flags.
+        /// </summary>
+        /// <param name="name">The name of the canvas.</param>
+        /// <param name="flags">The flags of the canvas (see <see cref="SimCanvasFlags"/>).</param>
+        /// <param name="video">The video settings of the canvas, or null when it has no video mix.</param>
+        public Guid CreateCanvas(string name, int flags = SimCanvasFlags.Program, SimVideo? video = null)
+        {
+            return _obs.RunExternal(() => _world.CreateCanvas(name, flags, video).Uuid);
+        }
+
+        /// <summary>
+        /// Removes a canvas: <c>CanvasRemoved</c>. The main canvas, and a canvas that was removed, are left alone. OBS Studio may go on listing the canvas for a while (see <see cref="SimQuirks.CanvasRemovedLinger"/>).
+        /// </summary>
+        public void RemoveCanvas(Guid canvasUuid)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.RemoveCanvas(FindCanvas(canvasUuid));
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Renames a canvas: <c>CanvasNameChanged</c>. The main canvas, an empty name, and the name that the canvas has are ignored. The canvas is last in the list afterwards, and a name that is taken is made unique.
+        /// </summary>
+        public void RenameCanvas(Guid canvasUuid, string newName)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.RenameCanvas(FindCanvas(canvasUuid), newName);
+                return 0;
+            });
+        }
+
         /// <summary>Removes a scene. A removed scene that something refers to stays alive, detached from the list of scenes.</summary>
         public void RemoveScene(Guid sceneUuid)
         {
@@ -504,6 +539,11 @@ namespace OBSStudioClient.Tests.Simulation
         private SimInput FindInput(Guid uuid)
         {
             return FindSource(uuid) as SimInput ?? throw new SimFailure(SimStatus.InvalidResourceType, $"The source `{uuid:D}` is not an input.");
+        }
+
+        private SimCanvas FindCanvas(Guid uuid)
+        {
+            return _world.FindCanvas(uuid) ?? throw SimFailure.NotFound($"No canvas was found by the UUID of `{uuid:D}`.");
         }
 
         private SimItem FindItem(Guid sceneUuid, int itemId)

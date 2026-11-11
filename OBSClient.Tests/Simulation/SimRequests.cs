@@ -90,6 +90,7 @@ namespace OBSStudioClient.Tests.Simulation
             ["SetProfileParameter"] = static (self, request) => self.SetProfileParameter(request),
             ["GetPersistentData"] = static (self, request) => self.GetPersistentData(request),
             ["SetPersistentData"] = static (self, request) => self.SetPersistentData(request),
+            ["GetCanvasList"] = static (self, request) => self.GetCanvasList(request),
         };
 
         private readonly SimObs _obs;
@@ -1147,6 +1148,14 @@ namespace OBSStudioClient.Tests.Simulation
 
             var copy = _world.DuplicateItem(item, destination);
             return SimResult.Ok(Obj(("sceneItemId", copy.Id)));
+        }
+
+        // Read from the source of obs-websocket 5.7.6 (RequestHandler_Canvases.cpp) and libobs (obs_enum_canvases walks the hash table of the named canvases, so the order is the order in which they were added), and seen on
+        // OBS Studio 33.0.0 with canvases that a script made (LiveCanvasModelTests): the list has every canvas, with its flags one by one and its video settings, which are null for a canvas that has no video mix.
+        // The capture of OBS Studio 33.0.0 has the main canvas.
+        private SimResult GetCanvasList(SimRequest request)
+        {
+            return SimResult.Ok(Obj(("canvases", Arr(_world.ListedCanvases().Select(canvas => (JsonNode?)SimWorld.CanvasJson(canvas))))));
         }
 
         private SimResult GetSceneCollectionList(SimRequest request)

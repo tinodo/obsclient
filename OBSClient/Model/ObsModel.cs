@@ -145,6 +145,7 @@ namespace OBSStudioClient.Model
             this.Transitions = new ObsTransitions(this);
             this.Profiles = new ObsProfiles(this);
             this.SceneCollections = new ObsSceneCollections(this);
+            this.Canvases = new ObsCanvases(this);
             this._notifier = new ModelNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new ModelHost(this, client, this._options, this._logger, this._notifier);
             this._writer = new ModelWriter(client, this._host, this._options, this._logger);
@@ -300,6 +301,12 @@ namespace OBSStudioClient.Model
         /// Gets the scene collections of OBS Studio: which one is loaded, their names, and the calls that load one and make one. It is the same object for as long as the <see cref="ObsModel"/> lives.
         /// </summary>
         public ObsSceneCollections SceneCollections { get; }
+
+        /// <summary>
+        /// Gets the canvases of OBS Studio: the main canvas, and the ones that plugins made. It is the same object for as long as the <see cref="ObsModel"/> lives. The model holds the scenes of the main canvas
+        /// (<see cref="Scenes"/>).
+        /// </summary>
+        public ObsCanvases Canvases { get; }
 
         internal bool IgnoreCase => this._options.IgnoreCase;
 
@@ -969,6 +976,9 @@ namespace OBSStudioClient.Model
                     case ObsSceneCollections collections:
                         collections.RaisePropertyChanged(property);
                         break;
+                    case ObsCanvases canvases:
+                        canvases.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;
@@ -1043,6 +1053,7 @@ namespace OBSStudioClient.Model
             this.Transitions.RaisePropertyChanged(string.Empty);
             this.Profiles.RaisePropertyChanged(string.Empty);
             this.SceneCollections.RaisePropertyChanged(string.Empty);
+            this.Canvases.RaisePropertyChanged(string.Empty);
 
             if (!onlyModel)
             {

@@ -142,6 +142,7 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="TransitionRunning">Whether a transition is running.</param>
     /// <param name="Profiles">The profiles of OBS Studio and the current one. Only the snapshot of <see cref="SimObs"/> has them: a scene collection has none.</param>
     /// <param name="SceneCollections">The scene collections of OBS Studio and the one that is loaded. Only the snapshot of <see cref="SimObs"/> has them.</param>
+    /// <param name="Canvases">The canvases of the collection, the main canvas first: what OBS Studio holds, which is not what <c>GetCanvasList</c> lists while it still lists a canvas that was removed.</param>
     internal sealed record SimSnapshot(
         string CollectionName,
         IReadOnlyList<SimSceneSnapshot> Scenes,
@@ -154,7 +155,8 @@ namespace OBSStudioClient.Tests.Simulation
         int? TransitionDuration = null,
         bool TransitionRunning = false,
         SimNames? Profiles = null,
-        SimNames? SceneCollections = null)
+        SimNames? SceneCollections = null,
+        IReadOnlyList<SimCanvasSnapshot>? Canvases = null)
     {
         public bool Equals(SimSnapshot? other)
         {
@@ -168,6 +170,7 @@ namespace OBSStudioClient.Tests.Simulation
                 && TransitionRunning == other.TransitionRunning
                 && Equals(Profiles, other.Profiles)
                 && Equals(SceneCollections, other.SceneCollections)
+                && (Canvases ?? []).SequenceEqual(other.Canvases ?? [])
                 && Scenes.SequenceEqual(other.Scenes)
                 && DetachedScenes.SequenceEqual(other.DetachedScenes)
                 && Inputs.SequenceEqual(other.Inputs);
@@ -201,6 +204,11 @@ namespace OBSStudioClient.Tests.Simulation
             if (SceneCollections is not null)
             {
                 text.Append("scene collections: ").AppendLine(SceneCollections.ToString());
+            }
+
+            if (Canvases is { Count: > 0 })
+            {
+                text.Append("canvases: ").AppendLine(string.Join(", ", Canvases.Select(canvas => $"\"{canvas.Name}\" {Short(canvas.Uuid)} flags {canvas.Flags}")));
             }
 
             if (DetachedScenes.Count > 0)

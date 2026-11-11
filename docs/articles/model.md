@@ -161,6 +161,10 @@ and tries again) or `Paused` (the recording). `IsActive` is true for `Started`, 
 - **A recording can be answered "paused" and not pause.** A recording that uses the encoder of the stream (the default of the simple output) cannot be paused, and a recording that does not run is not refused: OBS Studio answers `PauseAsync()`
   with success and sends no event. The call returns with what OBS Studio holds, so look at `IsPaused` after it.
 - Within a connection the events are what the model goes by: OBS Studio can go on saying that a recording runs for a moment after it said that it stopped, and that does not make the model show `Started` again.
+- **`Started` also says that an output came back.** A stream that lost its connection is `Reconnecting`, and is `Started` again when OBS Studio says that it reconnected (`OBS_WEBSOCKET_OUTPUT_RECONNECTED`); a recording that was paused is `Paused`,
+  and is `Started` again when OBS Studio says that it resumed (`OBS_WEBSOCKET_OUTPUT_RESUMED`). The status does not tell a start from a come-back, but the change does: `Reconnecting` to `Started` and `Paused` to `Started` are come-backs. A handler
+  that has to react to a start or a stop only (to say that the stream is live, say) looks at the change, or uses the events of the plain client, which say what OBS Studio sent (`obs.Client.StreamStateChanged`, `RecordStateChanged`,
+  `VirtualcamStateChanged` and `ReplayBufferStateChanged`).
 - While there is no connection the outputs show what was known last (`IsStale` says so); when it is back they show what OBS Studio does.
 
 ## Asking and telling
@@ -559,6 +563,48 @@ What OBS Studio does, which the calls follow (checked with OBS Studio 33.0.0, an
 - **A null is not kept**: OBS Studio takes a null for a value that is missing, and refuses it ("Your request is missing the `slotValue` field"); the call refuses it before it sends anything. OBS Studio has no request that removes a slot: keep an empty value (an empty string, an empty object) to say that there is nothing.
 - **Nothing of it is in the model**, so `Changed` does not tell it: ask again when you need it, and after a switch of the profile. The model does not read any of it when it connects.
 
+## Canvases
+
+OBS Studio can have more than one **canvas** (obs-websocket 5.7.0 and newer): the main canvas, which libobs makes itself, and the canvases that a plugin or a script makes (the live tests of this library use a script). A scene collection saves the canvases that are not ephemeral. The model keeps the list in
+[`obs.Canvases`](xref:OBSStudioClient.Model.ObsCanvases), with one [`ObsCanvas`](xref:OBSStudioClient.Model.ObsCanvas) for each canvas:
+
+```csharp
+foreach (ObsCanvas canvas in obs.Canvases.All)                     // the main canvas first, then the others in the order in which OBS Studio lists them
+{
+    Console.WriteLine($"{canvas.Name} {canvas.Uuid} {canvas.Flags}"); // Main 6c69626f-6273-4c00-9d88-c5136d61696e Main, Activate, MixAudio, SceneRef
+}
+
+ObsVideoSettings? video = await obs.Canvases.Main!.GetVideoSettingsAsync();   // 1920x1080 canvas, 1280x720 output, 30 fps
+obs.Canvases.PropertyChanged += (_, e) => Console.WriteLine(e.PropertyName);  // All (and Main when the main canvas is another object)
+IReadOnlyList<ObsScene> scenes = obs.Scenes;                                   // the scenes of the main canvas
+```
+
+| On `obs.Canvases` | |
+| --- | --- |
+| `All` | the canvases, in the order in which OBS Studio lists them. It is another list when the canvases change, and it is empty until OBS Studio has said |
+| `Main` | the main canvas, the one that has the `Main` flag; `null` until OBS Studio has said |
+| `this[name]`, `this[uuid]`, `TryGet(name, out canvas)`, `TryGet(uuid, out canvas)` | find a canvas. Names are case sensitive, as they are in OBS Studio, unless [`IgnoreCase`](xref:OBSStudioClient.Model.ObsModelOptions.IgnoreCase) is set (see [Names](#names)); a name that is not there throws an `ObsNotFoundException` that suggests names that are close, and a UUID that is not there throws one too |
+
+| On an `ObsCanvas` | |
+| --- | --- |
+| `Name`, `Uuid`, `Flags`, `IsMain` | what the model keeps of a canvas: the name, the UUID (it never changes), and the [`ObsCanvasFlags`](xref:OBSStudioClient.Model.ObsCanvasFlags) (`Main`, `Activate`, `MixAudio`, `SceneRef` and `Ephemeral`, set when the canvas is made) |
+| `GetVideoSettingsAsync()` | asks OBS Studio for the video of the canvas, as an `ObsVideoSettings` (the base and the output resolution, and the frame rate), or `null` for a canvas that has no video. It throws an `ObsRemovedException` when the canvas is not there any more. For the main canvas it says what `obs.GetVideoSettingsAsync()` says |
+
+What OBS Studio does, which the model follows (checked with OBS Studio 33.0.0, obs-websocket 5.7.6, with a script that makes canvases, and read in the source of OBS Studio and obs-websocket):
+
+- **A canvas is a snapshot.** An `ObsCanvas` does not change. A canvas that was renamed is another object with the same `Uuid`, and the canvases that did not change stay the same objects, so `Main` is told (`PropertyChanged`) only when the main canvas is another object.
+- **An event says that something happened, and a read says what.** `CanvasCreated` and `CanvasNameChanged` make the model read the list again, and what it shows is what that read says. `Changed` says it with a record for `All` (`the canvases: All [Main] -> [Main, Overlay]`).
+- **OBS Studio makes the names unique, and the list is in the order in which the canvases were added.** A canvas that is made or renamed to a name that is taken gets the next free one (`Overlay 2`, and for a rename `Renamed 2`: measured), and a canvas that is renamed is last in the list (measured). The main canvas can be neither renamed nor removed.
+- **A canvas that is removed leaves the model at once, however long OBS Studio goes on listing it.** OBS Studio keeps a removed canvas for as long as something holds on to it, lists it all that time (measured: with a script that held it, `GetCanvasList` still listed the canvas, and no longer did when the script let go),
+  and says that it was removed once (`CanvasRemoved`), and nothing when it lets go. The model leaves the canvas out of every read after it, until the connection is made again, or OBS Studio loads another scene collection (a collection saves its canvases with their UUIDs, so one that comes back is listed again).
+- **Canvases belong to the scene collection.** A collection saves its canvases (not the ephemeral ones), and OBS Studio unloads them with the collection. While OBS Studio loads another collection the model keeps what it knew, and when it has loaded it the model reads the list again with the rest
+  (see [The connection, and scene collections](#the-connection-and-scene-collections)). A canvas that a collection loads keeps the UUID that the collection saved (measured), and has no video (see below).
+- **OBS Studio does not announce the video of a canvas**, so the model does not keep it: `GetVideoSettingsAsync` asks, and answers at the moment that OBS Studio does. A canvas without a video says nothing of it (the six values are null; measured for a canvas that a collection loads and for one that a script makes without a video),
+  and the call returns `null`. The main canvas has the video of the profile that is current.
+- **The scenes of the other canvases are not in the model.** `obs.Scenes` holds the scenes of the main canvas, because that is what OBS Studio announces: ask for the others with the plain client (`await obs.Client.GetSceneList(canvas.Uuid)`).
+- **An OBS Studio before obs-websocket 5.7.0 has no canvases.** The model asks, is refused, and does not believe the first refusal; then `All` stays empty and `Main` is `null`, and the model is `Synchronized` all the same.
+- **The model reads the list when it connects** (one request more), and subscribes to the `Canvases` events whatever you pass in `AdditionalEvents`.
+
 ## Hearing about changes
 
 - [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) raises an [`ObsChangedEventArgs`](xref:OBSStudioClient.Model.ObsChangedEventArgs) for each change, in the order in which it happened:
@@ -631,13 +677,13 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them), and calls for the settings of OBS Studio itself and for the data that it keeps for an application (see [The settings of OBS Studio itself](#the-settings-of-obs-studio-itself)). What it does not cover yet: the canvases other than the main one, and request batches (the model makes its changes one at a time, in order; see [Request batches](batches.md)).
+The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them), the canvases (the list, with their flags, and the video of each one when you ask), and calls for the settings of OBS Studio itself and for the data that it keeps for an application (see [The settings of OBS Studio itself](#the-settings-of-obs-studio-itself)). What it does not cover yet: the scenes of the canvases other than the main one, and request batches (the model makes its changes one at a time, in order; see [Request batches](batches.md)).
 Those are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 
 ```csharp
-var canvases = await obs.Client.GetCanvasList();                   // not modelled yet: the plain client
-await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true); // and the model follows
+var scenes = await obs.Client.GetSceneList(obs.Canvases["Vertical"].Uuid);   // the scenes of another canvas: not modelled yet, the plain client
+await obs.Scenes["Gaming"].Items["Webcam"].SetEnabledAsync(true);            // and the model follows
 ```
 
 ## How it is checked

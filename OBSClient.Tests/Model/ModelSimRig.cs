@@ -70,6 +70,12 @@ namespace OBSStudioClient.Tests.Model
             return names is null ? $"{what} (none)" : $"{what} \"{current}\" of [{string.Join(", ", names.Select(name => $"\"{name}\""))}]";
         }
 
+        // The canvases in the order that OBS Studio lists them, with their flags as the numbers of libobs.
+        private static string CanvasesLine(IEnumerable<(Guid Uuid, string Name, int Flags)>? canvases)
+        {
+            return canvases is null ? "canvases (none)" : $"canvases [{string.Join(", ", canvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\" flags {canvas.Flags.ToString(CultureInfo.InvariantCulture)}"))}]";
+        }
+
         // What OBS Studio holds. A removed input that no scene item uses (a global audio device stays alive that way) cannot be reached by anybody, and nothing tells it
         // from one that was destroyed: it is not compared.
         private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
@@ -79,6 +85,7 @@ namespace OBSStudioClient.Tests.Model
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
             lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
             lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Select(canvas => (canvas.Uuid, canvas.Name, canvas.Flags))));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -116,6 +123,7 @@ namespace OBSStudioClient.Tests.Model
             var lines = new List<string> { "program scene " + (model.ProgramScene?.Uuid.ToString("D") ?? "(none)") };
             lines.Add(NamesLine("profiles", model.Profiles.Current, model.Profiles.Current is null ? null : model.Profiles.Names));
             lines.Add(NamesLine("scene collections", model.SceneCollections.Current, model.SceneCollections.Current is null ? null : model.SceneCollections.Names));
+            lines.Add(CanvasesLine(model.Canvases.All.Count == 0 ? null : model.Canvases.All.Select(canvas => (canvas.Uuid, canvas.Name, (int)canvas.Flags))));
             var liveScenes = model.Scenes;
             var liveInputs = model.Inputs;
             var liveSceneUuids = liveScenes.Select(scene => scene.Uuid).ToHashSet();

@@ -63,6 +63,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetSceneCollectionList.</summary>
         SceneCollections,
 
+        /// <summary>GetCanvasList.</summary>
+        Canvases,
+
         /// <summary>GetStreamStatus.</summary>
         Stream,
 
@@ -260,6 +263,13 @@ namespace OBSStudioClient.Model.Engine
         private readonly ScopeState _collectionsScope = new();
         private Cell<NameList?> _profiles = new(null, 0);
         private Cell<NameList?> _collections = new(null, 0);
+
+        // The canvases of OBS Studio (the main one, and those that plugins made). A scene collection saves its canvases, so they are those of the collection: a switch drops them, and they are read again
+        // with the rest. OBS Studio keeps a canvas that it says it removed on its list until the last reference to it is released (it does not say so again), so the canvases that it said it removed are
+        // left out of what a read lists (they do not come back: a canvas of a collection that is loaded again is another one, and a new connection or collection starts the set anew).
+        private readonly ScopeState _canvasesScope = new();
+        private readonly HashSet<Guid> _removedCanvases = new();
+        private Cell<CanvasList?> _canvases = new(null, 0);
         // The outputs (stream, recording, virtual camera, replay buffer), in the order of ObsOutputKind. They do not belong to a scene collection.
         private readonly OutputNode[] _outputs = [new(ObsOutputKind.Stream), new(ObsOutputKind.Record), new(ObsOutputKind.VirtualCamera), new(ObsOutputKind.ReplayBuffer)];
         private Cell<Guid?> _programUuid = new(null, 0);
@@ -290,6 +300,7 @@ namespace OBSStudioClient.Model.Engine
         private bool _transitionRead;
         private bool _profilesRead;
         private bool _collectionsRead;
+        private bool _canvasesRead;
 
         public ModelEngine(ModelEngineOptions? options = null)
         {
@@ -376,7 +387,8 @@ namespace OBSStudioClient.Model.Engine
                 this.ForgetCollection();
             }
 
-            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = this._profilesRead = this._collectionsRead = false;
+            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = this._profilesRead = this._collectionsRead = this._canvasesRead = false;
+            this._removedCanvases.Clear();
 
             // OBS Studio that says that it is exiting does not come back as the same one: a connection that is made after it is made to one that was started again.
             this._exiting.ApplyDerived(false, seq);
@@ -563,6 +575,11 @@ namespace OBSStudioClient.Model.Engine
                 Take(this._collectionsScope, new ReadRequest(ReadKind.SceneCollections, RequestType.GetSceneCollectionList, null, Guid.Empty));
             }
 
+            if (this._canvasesScope.IsReady(now))
+            {
+                Take(this._canvasesScope, new ReadRequest(ReadKind.Canvases, RequestType.GetCanvasList, null, Guid.Empty));
+            }
+
             // The preview scene is read once studio mode is known to be on; while it is off there is none, and nothing is asked.
             if (this._previewScope.IsReady(now) && this._studioRead)
             {
@@ -709,7 +726,7 @@ namespace OBSStudioClient.Model.Engine
                 }
             }
 
-            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this._previewRead && this._transitionRead && this._profilesRead && this._collectionsRead && this.OutputsRead() ? 0 : 1);
+            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this._previewRead && this._transitionRead && this._profilesRead && this._collectionsRead && this._canvasesRead && this.OutputsRead() ? 0 : 1);
         }
 
         // Whether every output was read on this connection (or was found to be one that OBS Studio does not have).
@@ -736,6 +753,7 @@ namespace OBSStudioClient.Model.Engine
             yield return this._transitionScope;
             yield return this._profilesScope;
             yield return this._collectionsScope;
+            yield return this._canvasesScope;
             foreach (var output in this._outputs)
             {
                 yield return output.Scope;

@@ -378,6 +378,7 @@ namespace OBSStudioClient.Tests.Model
                 "GetCurrentSceneTransition" => new ReadRequest(ReadKind.Transition, OBSStudioClient.Enums.RequestType.GetCurrentSceneTransition, null, Guid.Empty),
                 "GetProfileList" => new ReadRequest(ReadKind.Profiles, OBSStudioClient.Enums.RequestType.GetProfileList, null, Guid.Empty),
                 "GetSceneCollectionList" => new ReadRequest(ReadKind.SceneCollections, OBSStudioClient.Enums.RequestType.GetSceneCollectionList, null, Guid.Empty),
+                "GetCanvasList" => new ReadRequest(ReadKind.Canvases, OBSStudioClient.Enums.RequestType.GetCanvasList, null, Guid.Empty),
                 "GetStreamStatus" => new ReadRequest(ReadKind.Stream, OBSStudioClient.Enums.RequestType.GetStreamStatus, null, Guid.Empty),
                 "GetRecordStatus" => new ReadRequest(ReadKind.Record, OBSStudioClient.Enums.RequestType.GetRecordStatus, null, Guid.Empty),
                 "GetVirtualCamStatus" => new ReadRequest(ReadKind.VirtualCamera, OBSStudioClient.Enums.RequestType.GetVirtualCamStatus, null, Guid.Empty),

@@ -140,6 +140,7 @@ namespace OBSStudioClient.Model
             this.PublishOutputs(engine);
             this.PublishTransitions(engine);
             this.PublishNameLists(engine);
+            this.PublishCanvases(engine);
             this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
@@ -829,6 +830,21 @@ namespace OBSStudioClient.Model
             if (collections.Set(engine.SceneCollections, out var collectionsBefore))
             {
                 this.AddNameChanges(collections, collectionsBefore, engine.SceneCollections, nameof(ObsSceneCollections.Names), nameof(ObsSceneCollections.Current));
+            }
+        }
+
+        // The canvases are an object of the model that stays the same, like the profiles: a change of the list is the PropertyChanged event of the object (All, and Main when the main canvas is another snapshot),
+        // and a record for ObsModel.Changed.
+        private void PublishCanvases(ModelEngine engine)
+        {
+            var canvases = this._model.Canvases;
+            if (canvases.Set(engine.Canvases, out var before, out var mainBefore))
+            {
+                this.AddProperty(canvases, nameof(ObsCanvases.All), before, canvases.All, true);
+                if (!ReferenceEquals(mainBefore, canvases.Main))
+                {
+                    this.AddProperty(canvases, nameof(ObsCanvases.Main), mainBefore, canvases.Main, false);
+                }
             }
         }
 

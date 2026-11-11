@@ -35,6 +35,9 @@ namespace OBSStudioClient.Tests.Simulation
             ["CurrentProgramSceneChanged"] = "Scenes",
             ["CurrentPreviewSceneChanged"] = "Scenes",
             ["StudioModeStateChanged"] = "Ui",
+            ["CanvasCreated"] = "Canvases",
+            ["CanvasRemoved"] = "Canvases",
+            ["CanvasNameChanged"] = "Canvases",
             ["InputCreated"] = "Inputs",
             ["InputRemoved"] = "Inputs",
             ["InputNameChanged"] = "Inputs",
@@ -103,6 +106,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// says its length and its position as numbers (measured with OBS Studio 33.0.0: LiveMediaTests); the capture only holds one that was not opened (null).
         /// With studio mode on the list of scenes names the preview scene (<c>GetSceneList</c>), which the capture, made with studio mode off, has as null. The current transition says
         /// no duration when it is a fixed one (the cut), which the capture, made with the fade as the current transition, does not show (measured with OBS Studio 33.0.0: LiveTransitionTests).
+        /// A canvas that has no video mix (the scene collection loads canvases without one) says null for each of the six numbers of its video settings (measured with OBS Studio 33.0.0: LiveCanvasModelTests); the capture only holds
+        /// the main canvas, which has a video.
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string[]> ExtraTypes = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
@@ -113,6 +118,12 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneList:$.currentPreviewSceneName"] = ["string"],
             ["GetSceneList:$.currentPreviewSceneUuid"] = ["string"],
             ["GetCurrentSceneTransition:$.transitionDuration"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.baseHeight"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.baseWidth"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.fpsDenominator"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.fpsNumerator"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.outputHeight"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.outputWidth"] = ["null"],
         };
 
         /// <summary>Members whose value depends on the kind of the input, so that only their own type is checked, and not what is inside.</summary>

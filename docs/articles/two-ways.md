@@ -94,8 +94,8 @@ await obs.ConnectAsync("localhost", 4455, "secret");
 await obs.Scenes["Gaming Scene"].Items["Webcam"].SetEnabledAsync(false);
 ```
 
-What the model has: scenes, inputs (with their settings, audio, media and, when asked for, whether they are on the air), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them), and calls for the settings of OBS Studio itself (the video settings, the stream service, the folder for recordings, the parameters of a profile) and for the data that it keeps for an application.
-What it does not have yet: the canvases other than the main one, and request batches. Use `obs.Client` for those.
+What the model has: scenes, inputs (with their settings, audio, media and, when asked for, whether they are on the air), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, the outputs (stream, recording, virtual camera, replay buffer), the profiles and scene collections (which one is current, the names of all, and the calls that switch and make them), the canvases (the list, with their flags, and the video of each one when you ask), and calls for the settings of OBS Studio itself (the video settings, the stream service, the folder for recordings, the parameters of a profile) and for the data that it keeps for an application.
+What it does not have yet: the scenes of the canvases other than the main one, and request batches. Use `obs.Client` for those.
 [Controlling OBS Studio by name](model.md) has all of it.
 
 ## The same job, both ways
@@ -227,8 +227,8 @@ The model is built on the client, and the client is one property away. Anything 
 follows what it did:
 
 ```csharp
-// Not in the model yet: the protocol.
-var canvases = await obs.Client.GetCanvasList();
+// Not in the model yet: the protocol (the scenes of another canvas).
+var scenes = await obs.Client.GetSceneList(obs.Canvases["Vertical"].Uuid);
 
 // The model: the call returns when the model shows the change.
 await obs.Scenes["Gaming Scene"].SwitchToAsync();

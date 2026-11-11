@@ -725,6 +725,7 @@ namespace OBSStudioClient.Tests.Simulation
             Request(2, () => SetProfileParameter());
             Request(1, () => ("GetPersistentData", Data(("realm", PersistentRealm()), ("slotName", SlotNames[_random.Next(SlotNames.Length)]))));
             Request(2, () => SetPersistentData());
+            Request(1, () => ("GetCanvasList", null));
 
             Operation("client request", 54, () => Send(Pick()));
             Operation("client batch", 5, AskBatch);
@@ -773,6 +774,35 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external SwitchProfile", 2, () => Do(() => Sim.External.SwitchProfile(ProfileName()), "SwitchProfile"));
             Operation("external CreateProfile", 2, () => Do(() => Sim.External.CreateProfile(NewProfileName()), "CreateProfile"));
             Operation("external RemoveProfile", 2, () => Do(() => Sim.External.RemoveProfile(ProfileName()), "RemoveProfile"));
+            Operation("external CreateCanvas", 3, () => Do(() => Sim.External.CreateCanvas(Name(0.1), CanvasFlagsToMake(), CanvasVideoToMake()), "CreateCanvas"));
+            Operation("external RemoveCanvas", 2, () => Do(() => Sim.External.RemoveCanvas(PickCanvas()), "RemoveCanvas"));
+            Operation("external RenameCanvas", 2, () => Do(() => Sim.External.RenameCanvas(PickCanvas(), Name(0.1)), "RenameCanvas"));
+        }
+
+        // The flags of a canvas that a plugin makes: the program preset, a canvas that is not saved, one that only renders, and now and then the flag of the main canvas, which no other canvas can have.
+        private int CanvasFlagsToMake()
+        {
+            int[] flags = [SimCanvasFlags.Program, SimCanvasFlags.Device, SimCanvasFlags.Ephemeral, SimCanvasFlags.Activate, SimCanvasFlags.Program | SimCanvasFlags.Ephemeral];
+            return _random.Chance(0.03) ? SimCanvasFlags.Main : flags[_random.Next(flags.Length)];
+        }
+
+        // A canvas has a video mix when a plugin made one for it, and the six numbers of the video are null when it has none.
+        private SimVideo? CanvasVideoToMake()
+        {
+            return _random.Chance(0.5) ? null : _random.Chance(0.5) ? new SimVideo(30, 1, 1080, 1920, 1080, 1920) : new SimVideo(60, 1, 1920, 1080, 1280, 720);
+        }
+
+        // A canvas to point at: mostly one that is there and is not the main one, and now and then the main canvas or one that is not there.
+        private Guid PickCanvas()
+        {
+            var others = (_state.Canvases ?? []).Where(canvas => (canvas.Flags & SimCanvasFlags.Main) == 0).ToArray();
+            var main = (_state.Canvases ?? []).FirstOrDefault(canvas => (canvas.Flags & SimCanvasFlags.Main) != 0);
+            if (others.Length > 0 && !_random.Chance(0.1))
+            {
+                return others[_random.Next(others.Length)].Uuid;
+            }
+
+            return main is not null && _random.Chance(0.4) ? main.Uuid : _random.NextGuid();
         }
 
         // A profile to point at: mostly one that is there, and now and then one that is not.

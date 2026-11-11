@@ -70,7 +70,11 @@ namespace OBSStudioClient.Model.Engine
             this._transition = new Cell<TransitionInfo?>(null, 0);
             this._transitionDuration = new Cell<int?>(null, 0);
             this._transitionRunning = new Cell<bool>(false, 0);
-            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = false;
+
+            // The canvases are saved with the scene collection: the new one has its own, and the main canvas is read again with them.
+            this._canvases = new Cell<CanvasList?>(null, 0);
+            this._removedCanvases.Clear();
+            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = this._canvasesRead = false;
             this._lastCleanup = this._now;
         }
     }

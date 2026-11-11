@@ -113,6 +113,7 @@ namespace OBSStudioClient.Tests.Simulation
             ProfileCreateDelay = new SimRange(20, 800),
             ProfileActivationTime = new SimRange(60, 1500),
             ProfileRemoveDelay = new SimRange(15, 800),
+            CanvasRemovedLinger = new SimRange(200, 3000),
         };
 
         /// <summary>Gets the order of the response and the events of a change.</summary>
@@ -239,5 +240,13 @@ namespace OBSStudioClient.Tests.Simulation
         /// Gets how long after the answer to <c>RemoveProfile</c> OBS Studio lists the profiles without the one that it removed (measured: about 32 ms).
         /// </summary>
         public SimRange ProfileRemoveDelay { get; init; }
+
+        /// <summary>
+        /// Gets how long after <c>CanvasRemoved</c> <c>GetCanvasList</c> still lists the canvas that was removed. obs_canvas_remove only marks the canvas, and OBS Studio goes on enumerating it until the last
+        /// reference on it is released, without saying anything when that happens (measured with OBS Studio 33.0.0 and a script that held a reference on a canvas that it removed: the canvas was listed, one <c>CanvasRemoved</c>
+        /// came, and after the script released it the canvas was gone, with no event). How long a plugin holds on to a canvas is not known, and the frontend removes and releases the canvases that it made together
+        /// (OBS::Canvas, read in the source), so it is 0 in <see cref="Real"/> and on only in <see cref="Hostile"/>.
+        /// </summary>
+        public SimRange CanvasRemovedLinger { get; init; }
     }
 }

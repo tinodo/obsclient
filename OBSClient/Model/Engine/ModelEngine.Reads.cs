@@ -124,6 +124,8 @@ namespace OBSStudioClient.Model.Engine
                     return this._profilesScope;
                 case ReadKind.SceneCollections:
                     return this._collectionsScope;
+                case ReadKind.Canvases:
+                    return this._canvasesScope;
                 case ReadKind.Stream:
                 case ReadKind.Record:
                 case ReadKind.VirtualCamera:
@@ -186,6 +188,7 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.Transition => this._transitionScope,
                 ReadKind.Profiles => this._profilesScope,
                 ReadKind.SceneCollections => this._collectionsScope,
+                ReadKind.Canvases => this._canvasesScope,
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
@@ -290,6 +293,9 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.SceneCollections:
                     this.ApplySceneCollectionsResponse(ticket, response, ok);
+                    break;
+                case ReadKind.Canvases:
+                    this.ApplyCanvasesResponse(ticket, response, ok);
                     break;
                 case ReadKind.Stream:
                 case ReadKind.Record:
@@ -855,6 +861,41 @@ namespace OBSStudioClient.Model.Engine
         private static bool IsRefusedForGood(RequestResponseMessage? response)
         {
             return response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady;
+        }
+
+        // The canvases, as a read says them. A canvas that OBS Studio said it removed is left out even when it still lists it (it keeps it until the last reference is released, and does not say so again). An obs-websocket
+        // that does not know the request (before 5.7.0) refuses it for good, and has no canvases to show; see ApplyProfilesResponse for how a refusal is believed.
+        private void ApplyCanvasesResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._canvasesScope;
+            if (ok && response!.ResponseData is CanvasListResponse list)
+            {
+                scope.Attempts = 0;
+                this._canvasesRead = true;
+                var canvases = list.Canvases
+                    .Where(canvas => !this._removedCanvases.Contains(canvas.CanvasUuid))
+                    .Select(canvas => new CanvasInfo(canvas.CanvasName, canvas.CanvasUuid, FlagsOf(canvas.CanvasFlags)));
+                this._canvases.ApplyRead(new CanvasList(canvases), ticket.SentSeq);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._canvasesRead = true;
+                this._canvases.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        private static ObsCanvasFlags FlagsOf(CanvasFlags flags)
+        {
+            return (flags.Main ? ObsCanvasFlags.Main : ObsCanvasFlags.None)
+                | (flags.Activate ? ObsCanvasFlags.Activate : ObsCanvasFlags.None)
+                | (flags.MixAudio ? ObsCanvasFlags.MixAudio : ObsCanvasFlags.None)
+                | (flags.SceneRef ? ObsCanvasFlags.SceneRef : ObsCanvasFlags.None)
+                | (flags.Ephemeral ? ObsCanvasFlags.Ephemeral : ObsCanvasFlags.None);
         }
 
         private void ApplyScenes(SceneListResponse response, ReadTicket ticket)

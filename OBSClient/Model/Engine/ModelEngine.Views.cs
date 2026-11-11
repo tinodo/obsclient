@@ -25,6 +25,9 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>Gets the scene collections of OBS Studio and which one is loaded, or null while they are not known (or OBS Studio refuses to list them).</summary>
         public NameList? SceneCollections => this._collections.Value;
 
+        /// <summary>Gets the canvases of OBS Studio, or null while they are not known (or OBS Studio refuses to list them: obs-websocket before 5.7.0).</summary>
+        public CanvasList? Canvases => this._canvases.Value;
+
         /// <summary>Gets the duration that OBS Studio gives a transition that has one, in milliseconds, or null until OBS Studio has said.</summary>
         public int? TransitionDuration => this._transitionDuration.Value;
 

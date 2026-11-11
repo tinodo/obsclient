@@ -41,6 +41,11 @@ namespace OBSStudioClient.Model.Engine
             [EventType.CurrentProfileChanging] = static (engine, _) => engine._profilesScope.MarkDirty(),
             [EventType.CurrentProfileChanged] = static (engine, _) => engine._profilesScope.MarkDirty(),
             [EventType.SceneCollectionListChanged] = static (engine, _) => engine._collectionsScope.MarkDirty(),
+
+            // The canvases: a canvas that is made or renamed is read, and not taken from the payload. A canvas that is removed is left out at once, and from every read after it (see ApplyCanvasesResponse).
+            [EventType.CanvasCreated] = static (engine, _) => engine._canvasesScope.MarkDirty(),
+            [EventType.CanvasNameChanged] = static (engine, _) => engine._canvasesScope.MarkDirty(),
+            [EventType.CanvasRemoved] = On<CanvasRemovedEventArgs>(static (engine, e) => engine.OnCanvasRemoved(e)),
             [EventType.CurrentSceneTransitionDurationChanged] = On<TransitionDurationEventArgs>(static (engine, e) => engine.OnTransitionDurationChanged(e)),
             [EventType.SceneTransitionStarted] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionStarted(e)),
             [EventType.SceneTransitionEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionEnded(e)),
@@ -140,6 +145,19 @@ namespace OBSStudioClient.Model.Engine
             return OutputNode.IsOutputEvent(eventType)
                 || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved
                     or EventType.ProfileListChanged or EventType.CurrentProfileChanging or EventType.CurrentProfileChanged or EventType.SceneCollectionListChanged;
+        }
+
+        // A canvas was removed: it is not in the list from now on, and a read that still lists it (OBS Studio keeps a removed canvas until the last reference to it is released, and does not say so again)
+        // does not bring it back. The list is read again all the same, for what else happened.
+        private void OnCanvasRemoved(CanvasRemovedEventArgs e)
+        {
+            this._removedCanvases.Add(e.CanvasUuid);
+            if (this._canvases.Value is { } canvases && canvases.Contains(e.CanvasUuid))
+            {
+                this._canvases.ApplyDerived(canvases.Without(e.CanvasUuid), this._seq);
+            }
+
+            this._canvasesScope.MarkDirty();
         }
 
         // Something happened that is not a state of the model: the application is told, in the order of arrival (see ModelChangeKind.Notification).

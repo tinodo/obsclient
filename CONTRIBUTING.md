@@ -202,6 +202,15 @@ wire into the output of the test, with the time (what a slow OBS Studio looks li
 test is part of the log of CI. They follow scenes and inputs by UUID, so they are skipped against OBS Studio 30.0.2, like the other tests that need
 UUIDs.
 
+**The canvas tests** (`LiveCanvasModelTests`) need canvases, and OBS Studio makes a canvas only for a plugin or a script that asks (in its source the
+frontend calls `AddCanvas` only for `obs_frontend_add_canvas`, and obs-websocket has no request that makes one). So `run-live-tests.ps1` makes a second scene
+collection for the run, which saves one canvas and loads a Lua script (`tools/live/canvas-driver.lua`): the Lua script makes, renames, removes and releases canvases
+when the test writes a command to a line of a file, and answers in a second file next to it (what OBS Studio then lists, and says with its events, is what the model
+has to follow). `run-live-tests.ps1` sets `OBS_LIVE_CANVAS_COLLECTION` (the name of that collection), `OBS_LIVE_CANVAS_COMMANDS` (the file of the commands) and `OBS_LIVE_CANVAS_SEEDED` (the canvas that the
+collection saves: its name, its UUID and its flags, separated by a bar). Without them (CI does not set them) that test is skipped; the other one, which compares the main canvas with what the plain
+client lists, runs against every OBS Studio (it expects no canvases of an obs-websocket before 5.7.0). The test loads the collection with the Lua script and puts the first collection back. It needs scripting
+in OBS Studio (the Windows build has it).
+
 **The soak test** (`LiveSoakTests`) runs for minutes, and only when `OBS_LIVE_SOAK_SECONDS` says for how long: `-SoakMinutes 30` does that
 (`-Filter "FullyQualifiedName~LiveSoakTests"` runs only that test). The client connects to OBS Studio through a proxy (`ChaosProxy`) that cuts
 the connection with a reset, stalls it, and refuses it, at random, while the client asks OBS Studio things all the time (requests, a batch, an

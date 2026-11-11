@@ -277,6 +277,7 @@ namespace OBSStudioClient.Tests.Model
             lines.Add(TransitionLine(snapshot.TransitionName, snapshot.TransitionDuration, snapshot.TransitionRunning));
             lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
             lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Select(canvas => (canvas.Uuid, canvas.Name, canvas.Flags))));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -312,6 +313,7 @@ namespace OBSStudioClient.Tests.Model
             lines.Add(TransitionLine(snapshot.Transition?.Name ?? "(none)", snapshot.Transition is { IsFixed: false } ? snapshot.TransitionDuration : null, snapshot.TransitionRunning));
             lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
             lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Canvases.Select(canvas => (canvas.Uuid, canvas.Name, (int)canvas.Flags))));
             var referenced = ReferencedSources(snapshot);
             foreach (var scene in snapshot.Scenes)
             {
@@ -348,6 +350,12 @@ namespace OBSStudioClient.Tests.Model
         private static string NamesLine(string what, string? current, IEnumerable<string>? names)
         {
             return names is null ? $"{what} (none)" : $"{what} \"{current}\" of [{string.Join(", ", names.Select(name => $"\"{name}\""))}]";
+        }
+
+        // The canvases in the order that OBS Studio lists them, with their flags as the numbers of libobs.
+        private static string CanvasesLine(IEnumerable<(Guid Uuid, string Name, int Flags)>? canvases)
+        {
+            return canvases is null ? "canvases (none)" : $"canvases [{string.Join(", ", canvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\" flags {canvas.Flags.ToString(CultureInfo.InvariantCulture)}"))}]";
         }
 
         private static HashSet<Guid> ReferencedSources(EngineSnapshot snapshot)

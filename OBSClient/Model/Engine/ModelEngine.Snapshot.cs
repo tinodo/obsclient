@@ -46,6 +46,7 @@ namespace OBSStudioClient.Model.Engine
     /// <param name="TransitionRunning">Whether a transition is running.</param>
     /// <param name="Profiles">The profiles of OBS Studio and the current one, when OBS Studio has said.</param>
     /// <param name="SceneCollections">The scene collections of OBS Studio and the one that is loaded, when OBS Studio has said.</param>
+    /// <param name="Canvases">The canvases of OBS Studio, when OBS Studio has said.</param>
     internal sealed record EngineSnapshot(
         IReadOnlyList<EngineScene> Scenes,
         IReadOnlyList<EngineScene> DetachedScenes,
@@ -59,7 +60,8 @@ namespace OBSStudioClient.Model.Engine
         int? TransitionDuration = null,
         bool TransitionRunning = false,
         NameList? Profiles = null,
-        NameList? SceneCollections = null);
+        NameList? SceneCollections = null,
+        CanvasList? Canvases = null);
 
     internal sealed partial class ModelEngine
     {
@@ -108,7 +110,7 @@ namespace OBSStudioClient.Model.Engine
                     input.Active.Value,
                     input.Showing.Value))
                 .ToArray();
-            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork(), this._previewUuid.Value, this._transition.Value, this._transitionDuration.Value, this._transitionRunning.Value, this._profiles.Value, this._collections.Value);
+            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork(), this._previewUuid.Value, this._transition.Value, this._transitionDuration.Value, this._transitionRunning.Value, this._profiles.Value, this._collections.Value, this._canvases.Value);
         }
 
         /// <summary>Returns the filters that the model holds of a scene or an input, from the first, as plain values; none when the model does not hold the source.</summary>

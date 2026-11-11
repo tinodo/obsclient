@@ -43,6 +43,10 @@ namespace OBSStudioClient.Tests.Live
         // difference. An input that the model does not show while OBS Studio did not say that it was removed is one.
         private readonly HashSet<Guid> _removedInputs = [];
 
+        // The canvases that OBS Studio announced as removed on the plain connection. OBS Studio goes on listing a canvas that something holds on to after it was removed (and says so once), and the model does not
+        // show it: that is not a difference either.
+        private readonly HashSet<Guid> _removedCanvases = [];
+
         private LiveModel(LiveSession raw, ObsModel model, string obsVersion, string webSocketVersion, Guid originalProgramScene)
         {
             this.Raw = raw;
@@ -53,6 +57,7 @@ namespace OBSStudioClient.Tests.Live
             this.WebSocketVersion = ParseVersion(webSocketVersion);
             this._originalProgramScene = originalProgramScene;
             raw.Client.InputRemoved += this.OnInputRemoved;
+            raw.Client.CanvasRemoved += this.OnCanvasRemoved;
         }
 
         /// <summary>Gets the names of the inputs that OBS Studio still listed at the last comparison, and that the model does not show because OBS Studio announced them as removed.</summary>
@@ -134,7 +139,7 @@ namespace OBSStudioClient.Tests.Live
         /// <returns>The connections.</returns>
         public static async Task<LiveModel> ConnectAsync(ITestOutputHelper? output = null, ObsHighVolume highVolume = ObsHighVolume.None)
         {
-            var raw = await LiveSession.ConnectAsync(EventSubscriptions.Inputs, removeLeftovers: true);
+            var raw = await LiveSession.ConnectAsync(EventSubscriptions.Inputs | EventSubscriptions.Canvases, removeLeftovers: true);
             ObsModel? model = null;
             try
             {
@@ -195,6 +200,18 @@ namespace OBSStudioClient.Tests.Live
             var program = await this.Client.GetCurrentProgramScene();
             var sceneList = await this.Client.GetSceneList();
             var inputs = await this.Client.GetInputList();
+
+            // The canvases, in the order of OBS Studio (an obs-websocket before 5.7.0 does not know them, and the model shows none). OBS Studio goes on listing a canvas that something holds on to after it said
+            // that it removed it, and the model does not show it: that canvas is not a difference.
+            if (this.WebSocketVersion >= new Version(5, 7, 0))
+            {
+                var removedCanvases = this.RemovedCanvases;
+                Compare(
+                    problems,
+                    "the canvases",
+                    (await this.Client.GetCanvasList()).Where(canvas => !removedCanvases.Contains(canvas.CanvasUuid)).Select(canvas => $"{canvas.CanvasUuid:D} '{canvas.CanvasName}' flags {FlagsOf(canvas.CanvasFlags)}"),
+                    model.Canvases.All.Select(canvas => $"{canvas.Uuid:D} '{canvas.Name}' flags {(int)canvas.Flags}"));
+            }
 
             // The scenes, in the order of OBS Studio.
             var modelScenes = model.Scenes.ToArray();
@@ -449,6 +466,11 @@ namespace OBSStudioClient.Tests.Live
             }
         }
 
+        private static int FlagsOf(CanvasFlags flags)
+        {
+            return (flags.Main ? 1 : 0) | (flags.Activate ? 2 : 0) | (flags.MixAudio ? 4 : 0) | (flags.SceneRef ? 8 : 0) | (flags.Ephemeral ? 16 : 0);
+        }
+
         private static bool IsKeptAliveInTheModel(IEnumerable<ObsScene> scenes, Guid uuid)
         {
             return scenes.SelectMany(scene => scene.Items).Any(item => item.Source is ObsInput { State: ObsObjectState.Detached } source && source.Uuid == uuid);
@@ -459,6 +481,26 @@ namespace OBSStudioClient.Tests.Live
             lock (this._removedInputs)
             {
                 this._removedInputs.Add(e.InputUuid);
+            }
+        }
+
+        private void OnCanvasRemoved(object? sender, CanvasRemovedEventArgs e)
+        {
+            lock (this._removedCanvases)
+            {
+                this._removedCanvases.Add(e.CanvasUuid);
+            }
+        }
+
+        /// <summary>Gets the canvases that OBS Studio said that it removed on the plain connection.</summary>
+        public IReadOnlyCollection<Guid> RemovedCanvases
+        {
+            get
+            {
+                lock (this._removedCanvases)
+                {
+                    return [.. this._removedCanvases];
+                }
             }
         }
 
