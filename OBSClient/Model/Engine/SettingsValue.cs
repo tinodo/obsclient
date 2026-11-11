@@ -86,8 +86,9 @@ namespace OBSStudioClient.Model.Engine
         }
 
         /// <summary>
-        /// Gets whether a JSON object has everything that another one holds: every field of the subset is in it, with the value that the subset gives (an object that is a value is
-        /// looked at the same way, so a field that is set inside it is enough). A field of the subset that is null asks for nothing: OBS Studio does not keep a null, and leaves the field
+        /// Gets whether a JSON object has everything that another one holds: every field of the subset is in it, with the value that the subset gives. A field that is an object is compared as a whole
+        /// (without its fields that are null, which OBS Studio does not keep): OBS Studio replaces an object that it is given, it does not merge it with the one that was there, so an object that
+        /// has only some of the fields that were asked for is not what was asked for. A field of the subset that is null asks for nothing: OBS Studio does not keep a null, and leaves the field
         /// that it was laid over as it is.
         /// </summary>
         /// <param name="whole">What OBS Studio holds.</param>
@@ -103,7 +104,8 @@ namespace OBSStudioClient.Model.Engine
                         continue;
                     }
 
-                    if (!whole.TryGetProperty(property.Name, out var found) || !Contains(found, property.Value))
+                    var asked = property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array ? WithoutNulls(property.Value) : property.Value;
+                    if (!whole.TryGetProperty(property.Name, out var found) || !DeepEquals(found, asked))
                     {
                         return false;
                     }

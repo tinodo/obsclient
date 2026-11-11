@@ -125,8 +125,9 @@ namespace OBSStudioClient.Model
                     Refresh = [new RefreshTarget(ReadKind.Inputs), new RefreshTarget(ReadKind.Items, this.Uuid)],
                     RefreshFor = static result =>
                     {
+                        // What the model reads of an input before it shows it: its audio, its settings and, for a media input, the state of the media (a read that is no-op for an input that is no media input).
                         var uuid = ((CreatedInput)result!).Uuid;
-                        return [new RefreshTarget(ReadKind.AudioMute, uuid), new RefreshTarget(ReadKind.InputSettings, uuid)];
+                        return [new RefreshTarget(ReadKind.AudioMute, uuid), new RefreshTarget(ReadKind.InputSettings, uuid), new RefreshTarget(ReadKind.MediaStatus, uuid)];
                     },
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: false, requester: null)

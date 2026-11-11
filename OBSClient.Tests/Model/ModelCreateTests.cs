@@ -253,6 +253,29 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(0.5f, headset.VolumeMul);
         }
 
+        [Fact]
+        public async Task AMediaInput_IsShownWhenTheCallReturns_AlsoWhenOBSStudioIsNotReadyToSayWhatItsMediaDoes()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var asked = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "CreateInput")
+                {
+                    var (input, item) = test.MakeInput(test.Gaming, "Clip", "ffmpeg_source", 8327);
+                    return (100, new { inputUuid = input, sceneItemId = item });
+                }
+
+                // The model shows an input when it has read all that it needs of it, the state of its media too: it asks again after a wait, and the call waits for that read as it does for the others.
+                return type == "GetMediaInputStatus" && Interlocked.Increment(ref asked) <= 2 ? (207, null) : null;
+            };
+
+            var clip = await test.Model.Scenes["Gaming"].CreateInputAsync("Clip", "ffmpeg_source").WithTimeoutAsync(Timeout);
+
+            Assert.Same(clip, test.Model.Inputs["Clip"]);
+            Assert.NotNull(clip.Media);
+        }
+
         [Theory]
         [InlineData(5)]
         [InlineData("text")]

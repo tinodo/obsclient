@@ -193,6 +193,30 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task AnObjectThatIsSet_ReplacesTheOneThatWasThere_AndTheCallWaitsForTheModelToShowThatItDid()
+        {
+            var options = CallFixture.DefaultOptions();
+            options.ConfirmationTimeout = TimeSpan.FromSeconds(30);
+            await using var test = await CallFixture.StartAsync(options, world => world.InputSettings[UuidOf(world, "Camera")] = new { font = new { face = "Arial", size = 48 } });
+            var camera = test.Camera;
+            test.Answer("SetInputSettings", _ =>
+            {
+                test.Rig.Responder.Change(world => world.InputSettings[camera.Uuid] = new { font = new { size = 48 } });
+                return (100, null);
+            });
+
+            // What the model shows already has the field that is given (size 48), and OBS Studio takes the other field of the object away: the call is not done until the model shows that.
+            var call = camera.SetSettingsAsync(new { font = new { size = 48 } });
+            await Task.Delay(300);
+            Assert.False(call.IsCompleted, "The call returned while the model still showed the field that OBS Studio replaced away.");
+
+            await test.Rig.Responder.SendEventAsync("InputSettingsChanged", new { inputName = "Camera", inputUuid = camera.Uuid, inputSettings = new { font = new { size = 48 } } }, InputEvents);
+            await call.WithTimeoutAsync(Timeout);
+
+            Assert.Equal("""{"font":{"size":48}}""", camera.Settings.GetRawText());
+        }
+
+        [Fact]
         public async Task SettingsThatAreNotAnObject_OrAreACancellationToken_AreAnArgumentException_AndNothingIsSent()
         {
             await using var test = await CallFixture.StartAsync();
@@ -200,9 +224,11 @@ namespace OBSStudioClient.Tests.Model
 
             var number = Assert.Throws<ArgumentException>(() => { _ = test.Camera.SetSettingsAsync(5); });
             var token = Assert.Throws<ArgumentException>(() => { _ = test.Camera.SetSettingsAsync(source.Token); });
+            var nothing = Assert.Throws<ArgumentNullException>(() => { _ = test.Camera.SetSettingsAsync(null!); });
 
             Assert.Contains("must be an object", number.Message);
             Assert.Equal("settings", token.ParamName);
+            Assert.Equal("settings", nothing.ParamName);
             Assert.Contains("Pass it by name (cancellationToken: token)", token.Message);
             Assert.Equal(0, test.Count("SetInputSettings"));
         }
@@ -493,6 +519,21 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task TheGlobalAudioInputs_AreFoundByTheNameThatOBSStudioSays_AlsoWhenTheModelIgnoresCase()
+        {
+            // An input that OBS Studio made a moment ago is not in the model yet: "MIC" is not the input "Mic" that the model has, and it does not make the lookup ambiguous either.
+            var options = CallFixture.DefaultOptions();
+            options.IgnoreCase = true;
+            await using var test = await CallFixture.StartAsync(options);
+            test.Answer("GetSpecialInputs", 100, new { desktop1 = "MIC", desktop2 = "Mic", mic1 = (string?)null, mic2 = (string?)null, mic3 = (string?)null, mic4 = (string?)null });
+
+            var special = await test.Model.GetSpecialInputsAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Null(special.Desktop1);
+            Assert.Same(test.Mic, special.Desktop2);
+        }
+
+        [Fact]
         public async Task TheSettingsOfAFilter_AreAskedFor_AsAJsonObject()
         {
             await using var test = await CallFixture.StartAsync(setup: world =>
@@ -571,8 +612,10 @@ namespace OBSStudioClient.Tests.Model
             var gain = test.Mic.Filters["Gain"];
 
             var number = Assert.Throws<ArgumentException>(() => { _ = gain.SetSettingsAsync(5); });
+            var nothing = Assert.Throws<ArgumentNullException>(() => { _ = gain.SetSettingsAsync(null!); });
 
             Assert.Contains("the settings of a filter must be an object", number.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("settings", nothing.ParamName);
             Assert.Equal(0, test.Count("SetSourceFilterSettings"));
         }
     }

@@ -16,9 +16,12 @@ namespace OBSStudioClient.Model
         /// <param name="what">What the object is, for the message: "the settings of an output".</param>
         /// <param name="example">An example of such an object, for the message.</param>
         /// <returns>The object.</returns>
+        /// <exception cref="ArgumentNullException">The value is null.</exception>
         /// <exception cref="ArgumentException">The value is not an object, or can not be written as JSON.</exception>
         public static JsonElement AsObject(object value, string parameter, string what, string example)
         {
+            ArgumentNullException.ThrowIfNull(value, parameter);
+
             // The parameter is an object so that new { gamma = 0.5 } can be passed: a token that was meant for cancellationToken would be taken for it, and this is what the call says then.
             if (value is CancellationToken)
             {

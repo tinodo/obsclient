@@ -846,6 +846,15 @@ namespace OBSStudioClient.Model
                 return;
             }
 
+            // What does not depend on the scene collection that is read (the file that an output wrote, that OBS Studio is exiting) is told when it happens, in front of the events that go with it, and is not held.
+            foreach (var notice in this._publisher.Notices)
+            {
+                if (notice.Immediate)
+                {
+                    this._model.QueueNotice(notice);
+                }
+            }
+
             this._held.Hold(this._publisher.Notices);
             foreach (var happened in events)
             {

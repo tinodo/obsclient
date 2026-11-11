@@ -69,18 +69,21 @@ namespace OBSStudioClient.Tests.Model
 
         [Theory]
         [InlineData("""{"a":1,"b":2,"c":{"x":1,"y":2}}""", """{"a":1}""", true)]
-        [InlineData("""{"a":1,"b":2,"c":{"x":1,"y":2}}""", """{"c":{"x":1}}""", true)]
+        [InlineData("""{"a":1,"b":2,"c":{"x":1,"y":2}}""", """{"c":{"x":1,"y":2}}""", true)]
+        [InlineData("""{"a":1,"b":2,"c":{"x":1,"y":2}}""", """{"c":{"x":1}}""", false)]
         [InlineData("""{"a":1,"b":2}""", """{}""", true)]
         [InlineData("""{"a":1}""", """{"a":1,"b":2}""", false)]
         [InlineData("""{"a":1}""", """{"a":2}""", false)]
         [InlineData("""{"a":1}""", """{"a":null}""", true)]
         [InlineData("""{"b":1}""", """{"a":null}""", true)]
         [InlineData("""{"c":{"x":1}}""", """{"c":{"x":1,"y":null}}""", true)]
+        [InlineData("""{"c":{"x":1,"y":2}}""", """{"c":{"x":1,"y":null}}""", false)]
+        [InlineData("""{"c":{"x":1,"d":{"p":1,"q":2}}}""", """{"c":{"x":1,"d":{"p":1}}}""", false)]
         [InlineData("""{"c":{"x":1}}""", """{"c":null}""", true)]
         [InlineData("""{"c":{"x":1}}""", """{"c":{"x":2}}""", false)]
         [InlineData("""{"c":[1,2,3]}""", """{"c":[1,2]}""", false)]
         [InlineData("""{"c":[1,2,3]}""", """{"c":[1,2,3]}""", true)]
-        public void AnObjectHoldsWhatAnotherOneAsksFor_WhenEveryFieldIsThereWithTheValue_AndANullAsksForNothing(string whole, string subset, bool expected)
+        public void AnObjectHoldsWhatAnotherOneAsksFor_WhenEveryFieldIsThereWithTheValue_AnObjectThatIsAValueIsHeldWhole_AndANullAsksForNothing(string whole, string subset, bool expected)
         {
             Assert.Equal(expected, SettingsValue.Contains(Parse(whole), Parse(subset)));
         }

@@ -89,7 +89,9 @@ namespace OBSStudioClient.Model
                     {
                         var special = (SpecialInputsResponse)responses[0].ResponseData!;
                         var inputs = this.Inputs;
-                        ObsInput? Named(string? name) => name is null ? null : inputs.Find(name);
+
+                        // OBS Studio says the exact name of an input: IgnoreCase is for the names that an application passes, and would take an input of another case for it.
+                        ObsInput? Named(string? name) => name is null ? null : inputs.FirstOrDefault(input => string.Equals(input.Name, name, StringComparison.Ordinal));
                         return new ObsSpecialInputs(Named(special.Desktop1), Named(special.Desktop2), Named(special.Mic1), Named(special.Mic2), Named(special.Mic3), Named(special.Mic4));
                     },
                 },

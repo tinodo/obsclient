@@ -254,6 +254,46 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal("C:/Videos/part2.mkv", record.CurrentFile);
             Assert.Equal(ObsOutputStatus.Stopped, record.Status);
         }
+
+        [Fact]
+        public async Task TheNewFileOfARecording_IsToldBeforeTheEvent_AlsoWhileTheModelIsBeingRead()
+        {
+            await using var test = await CallFixture.StartAsync();
+            var record = test.Model.Outputs.Record;
+            var told = new List<string>();
+            record.FileChanged += (_, e) =>
+            {
+                lock (told)
+                {
+                    told.Add($"changed:{e.NewOutputPath}");
+                }
+            };
+            record.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsRecordOutput.CurrentFile))
+                {
+                    lock (told)
+                    {
+                        told.Add("CurrentFile");
+                    }
+                }
+            };
+
+            // OBS Studio begins to change its scene collection: the model is not complete until it has read the new one, and the file of an output has nothing to do with that.
+            await test.Rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Other" }, 2);
+            await ModelRig.EventuallyAsync(() => test.Model.State == ObsModelState.Synchronizing, "the model to be reading");
+            await test.Rig.Responder.SendEventAsync("RecordFileChanged", new { newOutputPath = "C:/Videos/part2.mkv" }, OutputEvents);
+            await ModelRig.EventuallyAsync(() => Told(told) == 2, "the new file to be told while the model is read");
+
+            lock (told)
+            {
+                Assert.Equal(new[] { "CurrentFile", "changed:C:/Videos/part2.mkv" }, told);
+            }
+
+            Assert.Equal(ObsModelState.Synchronizing, test.Model.State);
+            Assert.Equal("C:/Videos/part2.mkv", record.CurrentFile);
+            Assert.Contains(test.Rig.Changes, change => ReferenceEquals(change.Entity, record) && change.PropertyName == nameof(ObsRecordOutput.CurrentFile));
+        }
         [Fact]
         public async Task TheFileOfARecording_IsSetWhenItStartsAndWhenItStops_AndAHandlerOfTheStatusFindsIt()
         {

@@ -341,6 +341,9 @@ namespace OBSStudioClient.Model.Engine
             {
                 output.Read = false;
                 output.StepCheckAt = null;
+
+                // The recording that goes on after a connection is made again may be another one: the file that the model saw it start with is not known to be the one of this recording.
+                output.RecordingStart = null;
             }
 
             // What another connection saw does not hold for this one: a source that was removed there can be here (the scene collection that has

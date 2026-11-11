@@ -125,29 +125,46 @@ namespace OBSStudioClient.Model.Engine
 
         // The recording says where it writes the file when it has started (obs-websocket 5.5.0 and newer), and where it wrote it when it has stopped: whenever it says a path, that is the file
         // of the recording. A recording that was split says, when it stops, the file that it started with (seen with OBS Studio 33.0.0), and the file that it wrote last is the one that the split
-        // announced: that stays.
+        // announced: that stays. It stays for the recording that was split and for no other: when the model saw the recording start it knows the file that the stop has to say, and a stop that says
+        // another file is the end of a recording that the model did not see (one that began while there was no connection), and its file is the file.
         private void OnRecordState(RecordStateChangedEventArgs e)
         {
             var node = this._outputs[(int)ObsOutputKind.Record];
             this.OnOutputState(ObsOutputKind.Record, e.OutputState);
             if (e.OutputState is ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTING or ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED)
             {
+                // A recording that starts is a new one: what was seen of the recording before it says nothing about it.
                 node.SplitSinceStart = false;
+                node.SplitFrom = null;
+                node.RecordingStart = e.OutputState == ObsOutputState.OBS_WEBSOCKET_OUTPUT_STARTED && !string.IsNullOrEmpty(e.OutputPath) ? e.OutputPath : null;
             }
 
-            if (!string.IsNullOrEmpty(e.OutputPath) && !(e.OutputState == ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED && node.SplitSinceStart))
+            var stopped = e.OutputState == ObsOutputState.OBS_WEBSOCKET_OUTPUT_STOPPED;
+            if (!string.IsNullOrEmpty(e.OutputPath))
             {
-                node.LastFile.ApplyEvent(e.OutputPath, this._seq);
+                var isTheStopOfTheSplit = stopped && node.SplitSinceStart && (node.SplitFrom is null || string.Equals(node.SplitFrom, e.OutputPath, StringComparison.Ordinal));
+                if (!isTheStopOfTheSplit)
+                {
+                    node.LastFile.ApplyEvent(e.OutputPath, this._seq);
+                }
+            }
+
+            if (stopped)
+            {
+                node.SplitSinceStart = false;
+                node.SplitFrom = null;
+                node.RecordingStart = null;
             }
         }
 
-        // The recording goes on in a new file: it is the file of the recording from now on.
+        // The recording goes on in a new file: it is the file of the recording from now on. The file that it started with is what it says when it stops, when the model saw it start.
         private void OnRecordFileChanged(RecordFileChangedEventArgs e)
         {
             if (!string.IsNullOrEmpty(e.NewOutputPath))
             {
                 var node = this._outputs[(int)ObsOutputKind.Record];
                 node.SplitSinceStart = true;
+                node.SplitFrom = node.RecordingStart;
                 node.LastFile.ApplyEvent(e.NewOutputPath, this._seq);
             }
 

@@ -156,6 +156,72 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Equal("C:/Videos/first.mkv", FileOf(h, ObsOutputKind.Record));
         }
+
+        [Fact]
+        public void TheStopOfARecording_ThatBeganWhileThereWasNoConnection_IsNotTakenForTheStopOfTheOneThatWasSplit()
+        {
+            var h = Started();
+            h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:/Videos/a.mkv" }, OutputEvents);
+            h.Event("RecordFileChanged", new { newOutputPath = "C:/Videos/a (2).mkv" }, OutputEvents);
+
+            // The connection is lost, the recording ends and another one begins while there is none, and the model is connected again during it.
+            h.End();
+            h.Start();
+            h.SettleWithTime();
+            h.Event("RecordStateChanged", new { outputActive = false, outputState = "OBS_WEBSOCKET_OUTPUT_STOPPED", outputPath = "C:/Videos/b.mkv" }, OutputEvents);
+
+            // It says a file of its own: that is the file, and not the file of the split that came before it.
+            Assert.Equal("C:/Videos/b.mkv", FileOf(h, ObsOutputKind.Record));
+        }
+
+        [Fact]
+        public void ARecordingThatWasSplit_KeepsTheFileOfTheSplit_WhenItStopsAfterTheConnectionWasMadeAgain()
+        {
+            var h = Started();
+            h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:/Videos/a.mkv" }, OutputEvents);
+            h.Event("RecordFileChanged", new { newOutputPath = "C:/Videos/a (2).mkv" }, OutputEvents);
+
+            h.End();
+            h.Start();
+            h.SettleWithTime();
+            h.Event("RecordStateChanged", new { outputActive = false, outputState = "OBS_WEBSOCKET_OUTPUT_STOPPED", outputPath = "C:/Videos/a.mkv" }, OutputEvents);
+
+            // The recording that goes on says the file that it started with, which the model knows from before the connection was lost.
+            Assert.Equal("C:/Videos/a (2).mkv", FileOf(h, ObsOutputKind.Record));
+        }
+
+        [Fact]
+        public void ASplit_ThatIsSeenAfterTheConnectionWasMadeAgain_IsOfARecordingWhoseStartTheModelDoesNotKnow()
+        {
+            var h = Started();
+            h.Event("RecordStateChanged", new { outputActive = true, outputState = "OBS_WEBSOCKET_OUTPUT_STARTED", outputPath = "C:/Videos/a.mkv" }, OutputEvents);
+
+            // The recording that goes on may be another one: the file that the model saw it start with does not count for it.
+            h.End();
+            h.Start();
+            h.SettleWithTime();
+            h.Event("RecordFileChanged", new { newOutputPath = "C:/Videos/b (2).mkv" }, OutputEvents);
+            h.Event("RecordStateChanged", new { outputActive = false, outputState = "OBS_WEBSOCKET_OUTPUT_STOPPED", outputPath = "C:/Videos/b.mkv" }, OutputEvents);
+
+            Assert.Equal("C:/Videos/b (2).mkv", FileOf(h, ObsOutputKind.Record));
+        }
+
+        [Fact]
+        public void TheStopOfARecordingThatWasSplit_EndsTheSplit_SoThatTheStopOfTheNextRecordingIsTaken()
+        {
+            var h = Started();
+
+            // The model did not see the recording start: it saw the split and the stop.
+            h.Event("RecordFileChanged", new { newOutputPath = "C:/Videos/a (2).mkv" }, OutputEvents);
+            h.Event("RecordStateChanged", new { outputActive = false, outputState = "OBS_WEBSOCKET_OUTPUT_STOPPED", outputPath = "C:/Videos/a.mkv" }, OutputEvents);
+            Assert.Equal("C:/Videos/a (2).mkv", FileOf(h, ObsOutputKind.Record));
+
+            // Another recording that the model did not see start stops: nothing of the first one holds for it.
+            h.Event("RecordStateChanged", new { outputActive = false, outputState = "OBS_WEBSOCKET_OUTPUT_STOPPED", outputPath = "C:/Videos/b.mkv" }, OutputEvents);
+
+            Assert.Equal("C:/Videos/b.mkv", FileOf(h, ObsOutputKind.Record));
+        }
+
         [Fact]
         public void TheFileOfTheReplayBuffer_IsTheReplayThatWasSavedLast()
         {

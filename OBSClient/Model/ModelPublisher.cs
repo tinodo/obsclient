@@ -12,7 +12,8 @@ namespace OBSStudioClient.Model
     /// <param name="Entity">The object whose PropertyChanged event is raised, or null.</param>
     /// <param name="Property">The name of the property for the PropertyChanged event.</param>
     /// <param name="Raise">What raises the event of something that happened, or null.</param>
-    internal readonly record struct ModelNotice(ObsChangedEventArgs? Args, object? Entity, string? Property, Action? Raise = null);
+    /// <param name="Immediate">Whether the notification is told when it happens, also while the model is being read, and not held until the model is complete: it is about something that does not depend on the scene collection that is read (the file that an output wrote, that OBS Studio is exiting), and the events that go with it are told at once.</param>
+    internal readonly record struct ModelNotice(ObsChangedEventArgs? Args, object? Entity, string? Property, Action? Raise = null, bool Immediate = false);
 
     /// <summary>
     /// Brings what the application sees (the <see cref="ObsScene"/>, <see cref="ObsInput"/> and <see cref="ObsSceneItem"/> objects and the collections
@@ -710,7 +711,7 @@ namespace OBSStudioClient.Model
             var exiting = engine.Exiting;
             if (this._model.SetExiting(exiting, out var before))
             {
-                this.AddProperty(this._model, nameof(ObsModel.IsExiting), before, exiting, true);
+                this.AddProperty(this._model, nameof(ObsModel.IsExiting), before, exiting, true, immediate: true);
             }
         }
 
@@ -721,10 +722,10 @@ namespace OBSStudioClient.Model
             switch (output)
             {
                 case ObsRecordOutput record when record.SetCurrentFile(file, out var recordBefore):
-                    this.AddProperty(record, nameof(ObsRecordOutput.CurrentFile), recordBefore, file, true);
+                    this.AddProperty(record, nameof(ObsRecordOutput.CurrentFile), recordBefore, file, true, immediate: true);
                     break;
                 case ObsReplayBufferOutput replay when replay.SetLastSavedPath(file, out var replayBefore):
-                    this.AddProperty(replay, nameof(ObsReplayBufferOutput.LastSavedPath), replayBefore, file, true);
+                    this.AddProperty(replay, nameof(ObsReplayBufferOutput.LastSavedPath), replayBefore, file, true, immediate: true);
                     break;
             }
         }
@@ -746,8 +747,9 @@ namespace OBSStudioClient.Model
         }
 
         // A change of a property: the PropertyChanged event of the object, and when the change is one that the application is told about in
-        // ObsModel.Changed, the record. (A change of the position of an object is not: the record of the list that it is in says that.)
-        private void AddProperty(object entity, string property, object? oldValue, object? newValue, bool record)
+        // ObsModel.Changed, the record. (A change of the position of an object is not: the record of the list that it is in says that.) An immediate change is told when it happens,
+        // also while the model is being read (see ModelNotice).
+        private void AddProperty(object entity, string property, object? oldValue, object? newValue, bool record, bool immediate = false)
         {
             ObsChangedEventArgs? args = null;
             if (record)
@@ -755,7 +757,7 @@ namespace OBSStudioClient.Model
                 args = new ObsChangedEventArgs(ObsChangeKind.PropertyChanged, ReferenceEquals(entity, this._model) ? null : entity, property, oldValue, newValue);
             }
 
-            this._changed.Add(new ModelNotice(args, entity, property));
+            this._changed.Add(new ModelNotice(args, entity, property, null, immediate));
         }
     }
 }

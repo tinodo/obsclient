@@ -51,7 +51,8 @@ namespace OBSStudioClient.Model
 
             foreach (var notice in notices)
             {
-                if (notice.Entity is { } entity && notice.Property is { } property && this._seen.Add((entity, property)))
+                // What is told at once is not held (see ModelNotice.Immediate).
+                if (!notice.Immediate && notice.Entity is { } entity && notice.Property is { } property && this._seen.Add((entity, property)))
                 {
                     if (this._held.Count >= this._capacity)
                     {

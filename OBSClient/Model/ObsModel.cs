@@ -174,7 +174,9 @@ namespace OBSStudioClient.Model
         /// <para>
         /// A handler sees the model as it is when the handler runs, which can be newer than the change that it is told about: the properties are always current,
         /// the change is a notification. While the model is being read (after a connection is made, and after one is restored) the changes are not raised one by one:
-        /// <see cref="Resynchronized"/> is raised when it is complete.
+        /// <see cref="Resynchronized"/> is raised when it is complete. What does not depend on the scene collection that is read is the exception: the file that an output wrote
+        /// (<see cref="ObsRecordOutput.CurrentFile"/>, <see cref="ObsReplayBufferOutput.LastSavedPath"/>) and that OBS Studio is exiting (<see cref="IsExiting"/>) are told when they happen, in front of
+        /// the events that go with them (<see cref="ObsRecordOutput.FileChanged"/>, <see cref="ObsReplayBufferOutput.Saved"/>, <see cref="ExitStarted"/>), which are told at once as well.
         /// </para>
         /// <para>
         /// The PropertyChanged events are not lost in that time. The objects that you hold are brought in line with OBS Studio as it is read, and when the model

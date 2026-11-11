@@ -44,6 +44,18 @@ namespace OBSStudioClient.Model.Engine
         public bool SplitSinceStart { get; set; }
 
         /// <summary>
+        /// Gets or sets the file that the recording that is under way started with, when the model saw it say so (obs-websocket 5.5.0 and newer say it when a recording has started), or null when it did not:
+        /// the recording started before the connection, or the connection was lost and made again since (the recording that goes on may be another one), or it says no path.
+        /// </summary>
+        public string? RecordingStart { get; set; }
+
+        /// <summary>
+        /// Gets or sets the file that the recording that was split started with, when the model saw it start and split, or null when it did not. A recording that was split says that file when it stops, and
+        /// that is how the stop of a recording that began while there was no connection (it says a file of its own) is told from the one that is a split recording's.
+        /// </summary>
+        public string? SplitFrom { get; set; }
+
+        /// <summary>
         /// Gets or sets the connection in which an event last told what the output does, or 0 when none has. Within a connection the events are right: OBS Studio can show an output that stopped as
         /// running for a moment after it said so (seen with a recording, a real OBS Studio 33.0.0), so a read is applied to an output that is in no step only when no event of this connection has
         /// told yet (the state at the start of a connection, and what a connection before saw is not known to hold). It is also the connection that the step (starting, stopping) comes from:

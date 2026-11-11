@@ -286,6 +286,43 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task TheExitOfOBSStudio_IsToldWhileTheModelIsBeingRead_WithTheModelExitingBeforeTheEvent()
+        {
+            await using var rig = await ModelRig.ConnectedAsync();
+            var told = new List<string>();
+            rig.Model.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ObsModel.IsExiting))
+                {
+                    lock (told)
+                    {
+                        told.Add($"IsExiting:{rig.Model.IsExiting}");
+                    }
+                }
+            };
+            rig.Model.ExitStarted += (_, _) =>
+            {
+                lock (told)
+                {
+                    told.Add("ExitStarted");
+                }
+            };
+
+            // OBS Studio is changing its scene collection when it is closed: the connection ends, and what is held until the model is complete would never be told.
+            await rig.Responder.SendEventAsync("CurrentSceneCollectionChanging", new { sceneCollectionName = "Other" }, 2);
+            await ModelRig.EventuallyAsync(() => rig.Model.State == ObsModelState.Synchronizing, "the model to be reading");
+            await rig.Responder.SendEventAsync("ExitStarted", new { }, GeneralEvents);
+            await ModelRig.EventuallyAsync(() => Told(told) == 2, "the exit to be told while the model is read");
+
+            lock (told)
+            {
+                Assert.Equal(new[] { "IsExiting:True", "ExitStarted" }, told);
+            }
+
+            Assert.Equal(ObsModelState.Synchronizing, rig.Model.State);
+        }
+
+        [Fact]
         public async Task WhatTheConnectionSaysAboutOBSStudio_IsKnownAfterTheConnect_AndToldWhenItChanges()
         {
             await using var rig = ModelRig.Create();
