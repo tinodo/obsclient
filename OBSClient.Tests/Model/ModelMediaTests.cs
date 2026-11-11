@@ -19,16 +19,27 @@ namespace OBSStudioClient.Tests.Model
         private const string RestartAction = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART";
         private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
-        private static Task<CallFixture> StartAsync(string? state = null)
+        private static Task<CallFixture> StartAsync(string? state = null, ObsModelOptions? options = null)
         {
-            return CallFixture.StartAsync(setup: world =>
-            {
-                var clip = world.AddInput("Clip", "ffmpeg_source", MediaCaps);
-                if (state is not null)
+            return CallFixture.StartAsync(
+                options,
+                world =>
                 {
-                    world.MediaStates[clip] = state;
-                }
-            });
+                    var clip = world.AddInput("Clip", "ffmpeg_source", MediaCaps);
+                    if (state is not null)
+                    {
+                        world.MediaStates[clip] = state;
+                    }
+                });
+        }
+
+        // For a call that the events confirm: the model reads again only when they do not come in the time that it gives them, and a slow machine must not make that time pass.
+        private static ObsModelOptions Patient()
+        {
+            var options = CallFixture.DefaultOptions();
+            options.ConfirmationTimeout = TimeSpan.FromSeconds(10);
+            options.WriteTimeout = TimeSpan.FromSeconds(20);
+            return options;
         }
 
         private static List<string> Watch(ObsMedia media)
@@ -157,7 +168,7 @@ namespace OBSStudioClient.Tests.Model
         [InlineData("Restart", RestartAction, ObsMediaState.Playing)]
         public async Task ThePlaybackCalls_SendTheAction_AndReturnWhenTheEventsShowTheState(string call, string action, ObsMediaState expected)
         {
-            await using var test = await StartAsync();
+            await using var test = await StartAsync(options: Patient());
             var clip = test.Model.Inputs["Clip"];
             ActLikeObsStudio(test, clip);
             var before = test.Count("GetMediaInputStatus");
@@ -168,7 +179,7 @@ namespace OBSStudioClient.Tests.Model
                 "Pause" => clip.Media!.PauseAsync(),
                 "Stop" => clip.Media!.StopAsync(),
                 _ => clip.Media!.RestartAsync(),
-            }).WithTimeoutAsync(Timeout);
+            }).WithTimeoutAsync(TimeSpan.FromSeconds(30));
 
             Assert.Equal(expected, clip.Media!.State);
             var sent = Assert.Single(test.AllSent("TriggerMediaInputAction"));
