@@ -399,6 +399,80 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public void TheEventsOfASwitchThatAReadShowedAlready_AreNotASecondSwitch_WhenTheyComeLate()
+        {
+            var h = Started(world =>
+            {
+                world.AddScene("Gaming");
+                world.SceneCollections.Add("Other");
+            });
+            Load(h.World, world => world.AddScene("Chatting"));
+            h.World.CurrentSceneCollection = "Other";
+            h.Engine.RequestRefresh(ReadKind.SceneCollections, Guid.Empty, h.Now);
+            h.Settle();
+            var epoch = h.Engine.Epoch;
+            Assert.Equal(["Chatting"], SceneNames(h));
+
+            // The events of that switch come after the read: the model is of the collection that OBS Studio loaded, and they are about the switch that it has seen.
+            Changing(h, "Untitled");
+            Assert.False(h.Engine.IsSwitching);
+            Changed(h, "Other");
+
+            Assert.Equal(epoch, h.Engine.Epoch);
+            Assert.Equal(ModelEngineState.Synchronized, h.Engine.State);
+            Assert.Equal(["Chatting"], SceneNames(h));
+            Assert.True(h.Engine.IsSettled);
+
+            // A switch after that is a switch, as its events say.
+            Changing(h, "Other");
+            Assert.True(h.Engine.IsSwitching);
+            Load(h.World, world => world.AddScene("Third"));
+            h.World.CurrentSceneCollection = "Untitled";
+            Changed(h, "Untitled");
+            h.Settle();
+
+            Assert.Equal(epoch + 1, h.Engine.Epoch);
+            Assert.Equal(["Third"], SceneNames(h));
+            Assert.Equal(ModelEngineState.Synchronized, h.Engine.State);
+        }
+
+        [Fact]
+        public void TheEventsOfAnotherSwitchThanTheOneThatAReadShowed_AreASwitch_AlsoWhenTheEventsOfTheFirstWereLost()
+        {
+            var h = Started(world =>
+            {
+                world.AddScene("Gaming");
+                world.SceneCollections.AddRange(["Other", "Third"]);
+            });
+            Load(h.World, world => world.AddScene("Chatting"));
+            h.World.CurrentSceneCollection = "Other";
+            h.Engine.RequestRefresh(ReadKind.SceneCollections, Guid.Empty, h.Now);
+            h.Settle();
+            var epoch = h.Engine.Epoch;
+
+            // OBS Studio went on to a third collection, and the events of the first switch never came: the events that name other collections than the ones of the read are a switch.
+            Changing(h, "Other");
+            Assert.True(h.Engine.IsSwitching);
+            Load(h.World, world => world.AddScene("Closing"));
+            h.World.CurrentSceneCollection = "Third";
+            Changed(h, "Third");
+            h.Settle();
+
+            Assert.Equal(epoch + 1, h.Engine.Epoch);
+            Assert.Equal("Third", h.Engine.Snapshot().SceneCollections!.Current);
+            Assert.Equal(["Closing"], SceneNames(h));
+
+            // What the read showed is not waited for any more, the events above having ended it: an event that says that the first collection is loaded again is a switch like any other.
+            Load(h.World, world => world.AddScene("Opening"));
+            h.World.CurrentSceneCollection = "Other";
+            Changed(h, "Other");
+            h.Settle();
+
+            Assert.Equal(epoch + 2, h.Engine.Epoch);
+            Assert.Equal(["Opening"], SceneNames(h));
+        }
+
+        [Fact]
         public void TheEventsOfASwitch_AreIgnored_WhenThereIsNoConnection()
         {
             var h = new EngineHarness();

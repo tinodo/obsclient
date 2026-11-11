@@ -244,6 +244,40 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task TheEventsOfASwitchThatTheModelReadAlready_ComeLate_AndWhatTheApplicationGotIsStillLive()
+        {
+            await using var test = await StartAsync();
+            test.Answer("SetCurrentSceneCollection", data =>
+            {
+                var name = data!.Value.GetProperty("sceneCollectionName").GetString()!;
+                test.Rig.Responder.Change(world =>
+                {
+                    world.CurrentSceneCollection = name;
+                    world.Scenes.Clear();
+                    world.Items.Clear();
+                    world.Inputs.Clear();
+                    world.Program = null;
+                    world.AddScene("Fresh");
+                });
+                return (100, null);
+            });
+            await test.Model.SceneCollections.SetCurrentAsync("Other").WithTimeoutAsync(Timeout);
+            var fresh = test.Model.Scenes["Fresh"];
+
+            // The events of the switch come after the call ended, and after the model read the collection that OBS Studio loaded. They are the events of a switch that the model has seen.
+            await SendAsync(test, "CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" });
+            await SendAsync(test, "CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" });
+            test.Rig.Responder.Change(world => world.Profiles.Add("Barrier"));
+            await SendAsync(test, "ProfileListChanged", new { profiles = Array.Empty<string>() });
+            await ModelRig.EventuallyAsync(() => test.Model.Profiles.Names.Contains("Barrier"), "the event after the late events");
+
+            Assert.Equal(ObsObjectState.Live, fresh.State);
+            Assert.Same(fresh, test.Model.Scenes["Fresh"]);
+            Assert.Equal(ObsModelState.Synchronized, test.Model.State);
+            Assert.Equal("Other", test.Model.SceneCollections.Current);
+        }
+
+        [Fact]
         public async Task ASceneCollectionThatOBSStudioSaysItMade_AndThatTheModelDoesNotList_IsNotConfirmed()
         {
             await using var test = await StartAsync();

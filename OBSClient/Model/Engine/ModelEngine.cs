@@ -268,6 +268,11 @@ namespace OBSStudioClient.Model.Engine
         // NoticeSwitch). An answer that names another collection later, without the events that say that OBS Studio changed it, is a switch that the model was not told of.
         private string? _loadedCollection;
 
+        // A switch that a read showed before the events of it came (see NoticeSwitch): the collection that OBS Studio left, and the one that it loaded. The events of that switch that come later are about it,
+        // and the model is of the new collection already: they are not acted on a second time (CurrentSceneCollectionChanging says the name of the collection that is left, and CurrentSceneCollectionChanged
+        // the name of the one that is loaded). Any other event of a switch is another switch.
+        private (string From, string To)? _switchShownByRead;
+
         // The canvases of OBS Studio (the main one, and those that plugins made). A scene collection saves its canvases, so they are those of the collection: a switch drops them, and they are read again
         // with the rest. OBS Studio keeps a canvas that it says it removed on its list until the last reference to it is released (it does not say so again), so the canvases that it said it removed are
         // left out of what a read lists (they do not come back: a canvas of a collection that is loaded again is another one, and a new connection or collection starts the set anew).
@@ -382,6 +387,9 @@ namespace OBSStudioClient.Model.Engine
             this._now = now;
             this._sessionId = sessionId;
             this._state = ModelEngineState.Synchronizing;
+
+            // The events of a switch that a read showed on the connection before this one do not come on this one.
+            this._switchShownByRead = null;
 
             // A switch of the scene collection that the connection before had begun, and that was not seen to its end: OBS Studio left the collection that the model holds, and
             // what it has loaded now (maybe that very collection, with the UUIDs that it had) is read as the first collection of a connection is, with nothing of the old one

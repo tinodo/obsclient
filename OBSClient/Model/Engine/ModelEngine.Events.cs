@@ -20,9 +20,10 @@ namespace OBSStudioClient.Model.Engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<ModelEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<ModelEngine, EventMessage>>
         {
-            // The name in these two is not used (yet), so they are acted on whatever their data: a switch that is missed would leave the model of a collection that is gone.
-            [EventType.CurrentSceneCollectionChanging] = static (engine, _) => engine.OnCollectionChanging(),
-            [EventType.CurrentSceneCollectionChanged] = static (engine, _) => engine.OnCollectionChanged(),
+            // The name in these two only tells the events of a switch that a read showed already (see NoticeSwitch) from those of another one: they are acted on whatever their data, because a switch
+            // that is missed would leave the model of a collection that is gone.
+            [EventType.CurrentSceneCollectionChanging] = static (engine, message) => engine.OnCollectionChanging(CollectionNameOf(message)),
+            [EventType.CurrentSceneCollectionChanged] = static (engine, message) => engine.OnCollectionChangedEvent(CollectionNameOf(message)),
             [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneCreated(e)),
             [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneRemoved(e)),
             [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e) => engine.OnSceneNameChanged(e)),
@@ -128,6 +129,12 @@ namespace OBSStudioClient.Model.Engine
 
             this.UpdateState();
             this.CleanUp();
+        }
+
+        // The name that a CurrentSceneCollectionChanging (the collection that OBS Studio leaves) or a CurrentSceneCollectionChanged (the collection that it loaded) says, when it says one.
+        private static string? CollectionNameOf(EventMessage message)
+        {
+            return (message.EventData as SceneCollectionNameEventArgs)?.SceneCollectionName;
         }
 
         private static Action<ModelEngine, EventMessage> On<TData>(Action<ModelEngine, TData> handle)

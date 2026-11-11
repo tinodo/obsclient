@@ -12,12 +12,23 @@ namespace OBSStudioClient.Model.Engine
             return ticket.Epoch != this._epoch;
         }
 
-        // OBS Studio begins to change its scene collection (CurrentSceneCollectionChanging). From now until it says that it has done so, it answers every request with 207 and
+        // OBS Studio begins to change its scene collection (CurrentSceneCollectionChanging, which names the collection that it leaves). From now until it says that it has done so, it answers every request with 207 and
         // sends nothing (obs-websocket 5.4.0 and later), and what it does send is not about the collection that the model will hold. So nothing is asked and nothing is
         // taken from the events, and the answer to a read that is under way is not applied (Owns). The model keeps what it holds, for the application to read as the last that
         // was known, and says that it is being read (the state): it is of the collection that OBS Studio is leaving.
-        private void OnCollectionChanging()
+        private void OnCollectionChanging(string? left)
         {
+            if (this._switchShownByRead is { } shown)
+            {
+                // The event of a switch that a read showed already comes late: the model is of the collection that it went to, and has nothing to wait for.
+                if (left is not null && string.Equals(left, shown.From, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                this._switchShownByRead = null;
+            }
+
             if (this._switching)
             {
                 return;
@@ -25,6 +36,22 @@ namespace OBSStudioClient.Model.Engine
 
             this._switching = true;
             this._state = ModelEngineState.Synchronizing;
+        }
+
+        // The event that says that OBS Studio has changed its scene collection (CurrentSceneCollectionChanged, which names the collection that it loaded). It is the end of the switch that
+        // CurrentSceneCollectionChanging began, unless a read showed the switch before the events came and this is the event of that one: the model is of the collection already.
+        private void OnCollectionChangedEvent(string? loaded)
+        {
+            if (this._switchShownByRead is { } shown)
+            {
+                this._switchShownByRead = null;
+                if (loaded is not null && string.Equals(loaded, shown.To, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            this.OnCollectionChanged();
         }
 
         // OBS Studio has changed its scene collection (CurrentSceneCollectionChanged): this is the end of the switch, and it is also what tells the model when the event that
@@ -73,6 +100,9 @@ namespace OBSStudioClient.Model.Engine
             }
 
             this.OnCollectionChanged();
+
+            // The events of this switch are about it, and are not a second one when they come.
+            this._switchShownByRead = (loaded, current);
         }
 
         // The model of the collection that OBS Studio has left is dropped, and the model is of the next collection: the reads that were taken for the old one are outdated.
@@ -83,6 +113,7 @@ namespace OBSStudioClient.Model.Engine
             this._switching = false;
             this._epoch++;
             this._loadedCollection = null;
+            this._switchShownByRead = null;
             this._scenes.Clear();
             this._inputs.Clear();
             this._refs.Clear();
