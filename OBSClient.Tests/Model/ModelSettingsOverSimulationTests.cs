@@ -79,8 +79,8 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(800, backdrop.Settings.GetProperty("width").GetInt32());
             Assert.Equal(24, backdrop.Settings.GetProperty("font").GetProperty("size").GetInt32());
             Assert.Equal((0.25f, TimeSpan.FromMilliseconds(150), ObsMonitorType.MonitorAndOutput, ObsAudioTracks.Track1 | ObsAudioTracks.Track3 | ObsAudioTracks.Track6), (mic.AudioBalance, mic.SyncOffset, mic.MonitorType, mic.AudioTracks));
-            Assert.Contains(rig.Changes, change => ReferenceEquals(change.Entity, backdrop) && change.PropertyName == "Settings");
-            Assert.Contains(rig.Changes, change => ReferenceEquals(change.Entity, mic) && change.PropertyName == "AudioTracks");
+            await ModelRig.EventuallyAsync(() => rig.Changes.Any(change => ReferenceEquals(change.Entity, backdrop) && change.PropertyName == "Settings"), "the record of the settings");
+            await ModelRig.EventuallyAsync(() => rig.Changes.Any(change => ReferenceEquals(change.Entity, mic) && change.PropertyName == "AudioTracks"), "the record of the tracks");
         }
 
         [Theory]

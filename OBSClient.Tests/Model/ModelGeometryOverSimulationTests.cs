@@ -78,7 +78,7 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(270f, webcam.Transform.Height);
             Assert.Equal(10, webcam.Transform.CropLeft);
             Assert.Equal(5, webcam.Transform.CropTop);
-            Assert.Contains(rig.Changes, change => change.Kind == ObsChangeKind.PropertyChanged && change.PropertyName == nameof(ObsSceneItem.Transform) && ReferenceEquals(change.Entity, webcam));
+            await ModelRig.EventuallyAsync(() => rig.Changes.Any(change => change.Kind == ObsChangeKind.PropertyChanged && change.PropertyName == nameof(ObsSceneItem.Transform) && ReferenceEquals(change.Entity, webcam)), "the record of the change");
 
             rig.World(world => world.SetItemTransform(scene, id, new SimTransformUpdate { Rotation = 90f, BoundsType = "OBS_BOUNDS_STRETCH", BoundsWidth = 640f, BoundsHeight = 360f }));
             await rig.ConvergedAsync("a scene item that was rotated and given bounds", Patience);

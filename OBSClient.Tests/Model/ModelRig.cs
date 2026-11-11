@@ -487,7 +487,13 @@ namespace OBSStudioClient.Tests.Model
 
                 // What a test subscribes to before the connection is made: the notifications of the first read are raised after ConnectAsync has returned.
                 beforeConnect?.Invoke(rig.Model);
+                var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                rig.Model.Resynchronized += (_, _) => firstRead.TrySetResult();
                 await rig.Model.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
+
+                // Resynchronized is raised after the rest of what the first read made the model tell: a test that adds its handlers now is not told any of it (on a slow machine the notifications
+                // of the first read came into the handlers of tests that counted what they were told).
+                await firstRead.Task.WithTimeoutAsync(TimeSpan.FromSeconds(15));
             }
             catch
             {

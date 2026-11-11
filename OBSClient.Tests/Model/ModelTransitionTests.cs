@@ -132,7 +132,7 @@ namespace OBSStudioClient.Tests.Model
             var program = test.Model.Scenes["Scene"];
             Assert.Same(program, test.Model.PreviewScene);
             Assert.True(program.IsPreview);
-            Assert.Contains(test.Rig.Changes, change => change.Entity is null && change.PropertyName == nameof(ObsModel.PreviewScene));
+            await ModelRig.EventuallyAsync(() => test.Rig.Changes.Any(change => change.Entity is null && change.PropertyName == nameof(ObsModel.PreviewScene)), "the record of the preview scene");
         }
 
         [Fact]

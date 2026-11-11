@@ -114,7 +114,7 @@ namespace OBSStudioClient.Tests.Model
             await rig.ConvergedAsync("the webcam to be hidden", Patience);
             Assert.False(webcam.IsActive);
             Assert.False(webcam.IsShowing);
-            Assert.Contains(rig.Changes, change => change.Kind == ObsChangeKind.PropertyChanged && change.PropertyName == nameof(ObsInput.IsActive) && ReferenceEquals(change.Entity, webcam));
+            await ModelRig.EventuallyAsync(() => rig.Changes.Any(change => change.Kind == ObsChangeKind.PropertyChanged && change.PropertyName == nameof(ObsInput.IsActive) && ReferenceEquals(change.Entity, webcam)), "the record of the change");
         }
 
         [Theory]
