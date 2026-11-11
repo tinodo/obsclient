@@ -242,6 +242,7 @@ await gain.RemoveAsync();
 - `IsEnabled`, `Name`, `Index` and the list itself are current: OBS Studio announces every change of them (`PropertyChanged`, and `obs.Changed` with `Added` and `Removed` for filters).
 - **The settings of a filter are not in the model**, and OBS Studio is the reason. The protocol has an event for a change of them (`SourceFilterSettingsChanged`), and OBS Studio does not send it: libobs tells of the
   updates of public sources, and a filter is a private one (a test with OBS Studio 33.0.0 saw no event, for a filter of a scene, of an input or of audio). A copy in the model would go out of date without a sign, so there is none.
+  The model does pass the event on when a server does send it (`obs.FilterSettingsChanged`, with `e.Filter` and `e.Settings`; see [Things that happen](#things-that-happen)): do not wait for it with OBS Studio.
   Ask when you need them, and change them when you want: `await gate.GetSettingsAsync()` is what OBS Studio holds at that moment, and `await gate.SetSettingsAsync(new { open_threshold = -30 })` returns when OBS Studio has made the
   change (nothing in the model shows it, so there is nothing else to wait for). Settings that you pass to `CreateFilterAsync` start the filter with them, and `GetDefaultFilterSettingsAsync(kind)` says what the defaults of a kind are.
 - The filters of a source that was announced a moment ago can be read a moment later: `await obs.WaitUntilSettledAsync()` waits for them (and for the rest of the model).
@@ -626,6 +627,7 @@ one at a time, like the notifications above (on `NotificationContext` when you s
 | `CustomEvent` | `ObsModel` | a program called `BroadcastCustomEventAsync` (this one included), or a script of OBS Studio sent a custom event; `e.EventData` is what was sent |
 | `VendorEvent` | `ObsModel` | a plugin or a script sent an event of its own. **You opt in**: pass `AdditionalEvents = EventSubscriptions.Vendors` (a plugin can send a great many) |
 | `ScreenshotSaved` | `ObsModel` | the user took a screenshot in OBS Studio (its hotkey or its menu); not for `SaveScreenshotAsync`, which returns when the file is written |
+| `FilterSettingsChanged` | `ObsModel` | a server said that the settings of a filter changed (`e.Filter`, `e.Settings`). **OBS Studio does not** (a filter is a private source, and OBS Studio 33.0.0 sent none): ask with `filter.GetSettingsAsync()` |
 | `ExitStarted` | `ObsModel` | OBS Studio begins to shut down. `IsExiting` is true from then until the model is connected to an OBS Studio that was started again: it tells a closed OBS Studio from a lost connection |
 | `AudioLevels` | `ObsModel` | OBS Studio sent new levels of the audio of the inputs that are on the air. **You opt in**: `HighVolume = ObsHighVolume.AudioLevels` (twenty messages a second): a slow handler gets the newest levels, see [How loud is it? Audio levels](#how-loud-is-it-audio-levels) |
 | `FileChanged` | `ObsRecordOutput` | the recording goes on in a new file |

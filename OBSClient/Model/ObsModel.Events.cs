@@ -86,6 +86,22 @@ namespace OBSStudioClient.Model
         public event EventHandler<ObsSceneItemEventArgs>? SceneItemSelected;
 
         /// <summary>
+        /// Occurs when OBS Studio says that the settings of a filter changed, with the filter and the settings that it has now.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>OBS Studio does not send this event, so do not wait for it:</b> libobs tells of the updates of public sources only, and a filter is a private source, so OBS Studio 33.0.0 sent none for any filter in a test, however the
+        /// settings were changed. The protocol has the event (<c>SourceFilterSettingsChanged</c>), and the model passes it on when a server does send it. The model does not keep the settings of a filter either, as a copy would go out of date
+        /// without a sign: ask for them with <see cref="ObsFilter.GetSettingsAsync"/>.
+        /// </para>
+        /// <para>
+        /// The event says the source by its name only. It is not raised when a scene and an input have the same name and both have a filter with the name that it says: it would be raised for a filter whose settings did not change.
+        /// It is raised like <see cref="CustomEvent"/>: in order, on <see cref="ObsModelOptions.NotificationContext"/>.
+        /// </para>
+        /// </remarks>
+        public event EventHandler<ObsFilterSettingsEventArgs>? FilterSettingsChanged;
+
+        /// <summary>
         /// Occurs when OBS Studio sent new levels of the audio of the inputs that are on the air (twenty times a second, as long as they change). It is only raised when the model was asked to follow them
         /// (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.AudioLevels"/>).
         /// </summary>
@@ -120,6 +136,11 @@ namespace OBSStudioClient.Model
         internal void RaiseSceneItemSelected(ObsSceneItemEventArgs args)
         {
             this.RaiseEvent(this.SceneItemSelected, args, nameof(this.SceneItemSelected));
+        }
+
+        internal void RaiseFilterSettingsChanged(ObsFilterSettingsEventArgs args)
+        {
+            this.RaiseEvent(this.FilterSettingsChanged, args, nameof(this.FilterSettingsChanged));
         }
 
         internal void RaiseAudioLevels(ObsAudioLevelsEventArgs args)

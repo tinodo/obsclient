@@ -968,6 +968,7 @@ namespace OBSStudioClient.Model
                 EventType.CustomEvent when data is CustomEventEventArgs custom => () => model.RaiseCustomEvent(custom),
                 EventType.VendorEvent when data is VendorEventEventArgs vendor => () => model.RaiseVendorEvent(vendor),
                 EventType.ScreenshotSaved when data is ScreenshotSavedEventArgs screenshot => () => model.RaiseScreenshotSaved(screenshot),
+                EventType.SourceFilterSettingsChanged when data is FilterSettingsNotice changed && this._filters.TryGetValue(changed.FilterId, out var changedFilter) => () => model.RaiseFilterSettingsChanged(new ObsFilterSettingsEventArgs(changedFilter, changed.Settings.Element)),
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),

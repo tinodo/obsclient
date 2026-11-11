@@ -91,6 +91,9 @@ namespace OBSStudioClient.Model.Engine
             [EventType.SourceFilterRemoved] = On<SourceFilterRemovedEventArgs>(static (engine, e) => engine.OnFilterRemoved(e)),
             [EventType.SourceFilterNameChanged] = On<SourceFilterNameChangedEventArgs>(static (engine, e) => engine.OnFilterRenamed(e)),
             [EventType.SourceFilterEnableStateChanged] = On<SourceFilterEnableStateChangedEventArgs>(static (engine, e) => engine.OnFilterEnabledChanged(e)),
+
+            // The settings of a filter are not kept, and OBS Studio does not announce a change of them: when a server does, the application is told (a notification).
+            [EventType.SourceFilterSettingsChanged] = On<SourceFilterSettingsChangedEventArgs>(static (engine, e) => engine.OnFilterSettingsChanged(e)),
             [EventType.SourceFilterListReindexed] = On<SourceFiltersEventArgs>(static (engine, e) => engine.OnFiltersReindexed(e)),
         }.ToFrozenDictionary();
 

@@ -97,7 +97,8 @@ When obs-websocket publishes a new version (a scheduled workflow opens an issue 
    (`--dry-run` only reports; `--tag 5.8.0` picks a version.)
 2. Build and run the tests. A new request, event or field is already in the client. What the generator cannot decide, it says
    (it stops with the line to add to `overlay.toml`: for example the C# type of a new kind of field, or a reference type for a
-   new pair of `<x>Name` and `<x>Uuid` fields), and what it has to leave to you fails a test.
+   new pair of `<x>Name` and `<x>Uuid` fields), and what it has to leave to you fails a test. So does a new request or event that the model (`ObsModel`)
+   does not cover: `ModelCompletenessTests` says which, and it is covered in the model, or listed in that test with the reason that the model needs nothing for it.
 3. Commit the result, together with a line in the CHANGELOG.
 
 How the methods follow from the definition (see `Model.request_params` in `protocol_model.py`): an `<x>Name` field and an `<x>Uuid` field

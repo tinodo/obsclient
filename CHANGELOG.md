@@ -285,6 +285,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     `GetDefaultFilterSettingsAsync(kind)` and `GetSpecialInputsAsync()` (the desktop audio and the microphones, as `ObsInput` objects: `ObsSpecialInputs`).
   - **The settings of a filter are asked, and not kept**: `filter.GetSettingsAsync()` and `filter.SetSettingsAsync(settings, overlay)`, and `CreateFilterAsync` takes settings. The protocol has an event for a change of
     them, and OBS Studio does not send it (OBS Studio 33.0.0 sent none for any kind of filter: libobs tells of the updates of public sources only, and a filter is a private one), so a copy in the model would go out of date without a sign.
+    The model passes the event on when a server does send it: `obs.FilterSettingsChanged` (`e.Filter`, `e.Settings`), so that every event of the protocol can be reached through `ObsModel`.
 - **`ObsModel` has media inputs: what a media is doing, and the calls that play, pause, stop, restart and move it** *(after rc.3; the third step of making `ObsModel` complete, which goes on until 4.0.0)*.
   - **`input.Media`** is an `ObsMedia` for an input that is a media input (a media source, a VLC video source), and `null` for any other input. Its `State` (`ObsMediaState`: `None`, `Playing`, `Opening`, `Buffering`,
     `Paused`, `Stopped`, `Ended`, `Error`) is current, because OBS Studio announces when a playback starts and ends and when it is told to play, pause, stop or restart; `PropertyChanged` and `Changed` say it. The length and
@@ -387,6 +388,8 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     (and one that a script makes without a video) lists the six numbers of its video as null.
   - The simulation has canvases (also one that stays listed after it was removed, as an OBS Studio that something holds on to does, and the canvases of a scene collection), the engine and the whole stack are compared with it in random walks, and the live tests load a scene collection that saves a canvas and a script that makes, renames and removes canvases
     (`tools/live/canvas-driver.lua`, which `tools/live/run-live-tests.ps1` sets up).
+- **`ObsModel` covers the whole protocol of OBS Studio, and a test keeps it so** *(after rc.3; the end of making `ObsModel` complete)*: every request of obs-websocket 5.7.6 is made by the model, and every event is acted on by it, except `GetVersion` (made when it connects, and shown), `Sleep`, `GetSceneItemId`, `GetSceneItemIndex`, `GetSceneItemLocked`, `GetSceneItemSource`
+  and `GetGroupList` (the model has the answer already), and the event `InputVolumeMeters` (the stream of the levels, which the host takes). `ModelCompletenessTests` fails for a request or an event that a newer protocol adds, and that the model does not cover, until it does or the test says why not.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).

@@ -225,6 +225,18 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
+        // OBS Studio says that the settings of a filter changed, and what they are now (OBS Studio 33.0.0 never does: see ObsFilter.GetSettingsAsync). The model keeps no settings of a filter, so
+        // nothing in it changes: the application is told, in the order of arrival. The event says the source by its name only, so it is told when the name has exactly one filter of that name, which
+        // is the case unless a scene and an input have the same name and both have such a filter: it is not told then, because it would be told of a filter whose settings did not change.
+        private void OnFilterSettingsChanged(SourceFilterSettingsChangedEventArgs e)
+        {
+            var filters = this.SourcesNamed(e.SourceName).Select(source => source.FindFilter(e.FilterName)).OfType<FilterNode>().ToArray();
+            if (filters.Length == 1)
+            {
+                this.Notify(EventType.SourceFilterSettingsChanged, new FilterSettingsNotice(filters[0].Id, SettingsValue.From(e.FilterSettings)));
+            }
+        }
+
         // The filters of a source were put in another order. The event lists them all, so the positions are taken from it; what it lists that the model does not hold, and what
         // the model holds that it does not list, are for the read that follows.
         private void OnFiltersReindexed(SourceFiltersEventArgs e)
