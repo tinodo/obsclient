@@ -45,8 +45,16 @@ namespace OBSStudioClient.Tests.Simulation
         private readonly List<string> _violations = [];
 
         private SimScene _program;
+        private OnAir _programAir;
         private Transition? _transition;
         private long _serial;
+
+        // Studio mode, which is on or off for the world, and the preview scene that it has while it is on. The current transition and the duration that the transitions take (the same for all, as
+        // OBS Studio has it): a collection starts with the fade when the quirks give the transitions a duration, and with the cut when they do not; the duration of OBS Studio is 300 ms.
+        private bool _studioMode;
+        private SimScene? _preview;
+        private bool _currentIsFade;
+        private int _durationMs = 300;
 
         /// <summary>Initializes a new instance of the <see cref="SimWorld"/> class: a new scene collection, which has one scene (the one that OBS Studio makes).</summary>
         /// <param name="obs">The simulated OBS Studio that the collection is in.</param>
@@ -55,6 +63,11 @@ namespace OBSStudioClient.Tests.Simulation
         {
             _obs = obs;
             Name = name;
+            _currentIsFade = obs.Quirks.TransitionDuration > TimeSpan.Zero;
+            if (_currentIsFade)
+            {
+                _durationMs = (int)obs.Quirks.TransitionDuration.TotalMilliseconds;
+            }
 
             // A collection starts with one scene, and it is the program scene (fact 24: "the original Scene").
             var scene = new SimScene(obs.Random.NextGuid(), "Scene", NextSerial());
@@ -62,6 +75,7 @@ namespace OBSStudioClient.Tests.Simulation
             _liveScenes.Add(scene);
             _uiList.Add(scene);
             _program = scene;
+            InitializeActivity();
         }
 
         /// <summary>Gets the name of the scene collection.</summary>
@@ -78,6 +92,21 @@ namespace OBSStudioClient.Tests.Simulation
 
         /// <summary>Gets the program scene.</summary>
         public SimScene Program => _program;
+
+        /// <summary>Gets whether studio mode is on.</summary>
+        public bool StudioMode => _studioMode;
+
+        /// <summary>Gets the preview scene, which there is while studio mode is on.</summary>
+        public SimScene? Preview => _preview;
+
+        /// <summary>Gets the name of the current transition.</summary>
+        public string TransitionName => _currentIsFade ? FadeName : CutName;
+
+        /// <summary>Gets the duration of the transitions in milliseconds, which the current transition says when it has one: the cut does not.</summary>
+        public int? TransitionDurationMilliseconds => _currentIsFade ? _durationMs : null;
+
+        /// <summary>Gets whether a transition is running.</summary>
+        public bool TransitionRunning => _transition is not null;
 
         /// <summary>Gets what is wrong with the way that the simulation emitted its events, found while it did.</summary>
         public IReadOnlyList<string> Violations => _violations;
@@ -184,7 +213,17 @@ namespace OBSStudioClient.Tests.Simulation
                 // does (fact 25). Removing the program scene during a transition was not measured.
                 CancelTransition();
                 _program = _liveScenes[0];
+                _programAir = MakeOnAir(_program);
                 Emit("CurrentProgramSceneChanged", ProgramSceneData());
+            }
+
+            // Measured with OBS Studio 33.0.0 (studio mode on): the preview scene that is removed is replaced by a scene of the list, and OBS Studio announces the new preview scene after the removal.
+            // ASSUMPTION: it is the scene that is first in the list now, as it is for the program scene (fact 26): the removals that were measured were of the scene at index 0, so which scene
+            // follows when the preview scene is in the middle of the list is not known.
+            if (_studioMode && ReferenceEquals(_preview, scene))
+            {
+                _preview = _liveScenes[0];
+                Emit("CurrentPreviewSceneChanged", PreviewSceneJson());
             }
 
             if (scene.References == 0)
@@ -197,6 +236,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             Emit("SceneListChanged", Obj(("scenes", SceneListJson(forEvent: true))));
+            UpdateActivity();
         }
 
         /// <summary>Renames a scene (SetSceneName).</summary>
@@ -236,7 +276,7 @@ namespace OBSStudioClient.Tests.Simulation
             EnsureInputNameFree(name, "A source already exists by that input name.");
             var input = NewInput(name, kind, settings);
             Emit("InputCreated", InputCreatedData(input));
-            item = AddItemCore(scene, input, enabled);
+            item = AddItemCore(scene, input, enabled, activityBeforeSelect: true);
             return input;
         }
 
@@ -342,6 +382,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             ReleaseSource(item.Source, -1, TimeSpan.Zero);
+            UpdateActivity();
         }
 
         /// <summary>Enables or disables a scene item (SetSceneItemEnabled). Nothing is announced when it does not change (ASSUMPTION: not measured).</summary>
@@ -361,6 +402,8 @@ namespace OBSStudioClient.Tests.Simulation
                     ("sceneName", item.Scene.Name),
                     ("sceneUuid", item.Scene.UuidText)));
             }
+
+            UpdateActivity();
         }
 
         /// <summary>Locks or unlocks a scene item (SetSceneItemLocked). Nothing is announced when it does not change (ASSUMPTION: not measured).</summary>
@@ -461,8 +504,10 @@ namespace OBSStudioClient.Tests.Simulation
                 }
             }
 
+            var sizeBefore = SourceSize(input);
             input.Settings = (JsonObject)Sorted(merged)!;
             Emit("InputSettingsChanged", Obj(("inputName", input.Name), ("inputSettings", input.Settings.DeepClone()), ("inputUuid", input.UuidText)));
+            AnnounceResizedSource(input, sizeBefore);
         }
 
         // The node without its fields that are null, at any depth; null for a node that is null.
@@ -646,8 +691,10 @@ namespace OBSStudioClient.Tests.Simulation
                 return;
             }
 
+            var before = _programAir;
             _program = scene;
-            StartTransition();
+            _programAir = MakeOnAir(scene);
+            StartTransition(null, before);
         }
 
         /// <summary>Checks that an input is free to be given a name: no input that is alive, and no scene of the list, has it.</summary>
@@ -738,7 +785,9 @@ namespace OBSStudioClient.Tests.Simulation
             return input;
         }
 
-        private SimItem AddItemCore(SimScene scene, SimSource source, bool enabled)
+        // A new item is announced, then selected. Its source is on the air and shown when the scene is (and the item is enabled): OBS Studio 33.0.0 announced that after the item was selected for a source that
+        // already was (CreateSceneItem), and before it was selected for an input that was created with its item (CreateInput).
+        private SimItem AddItemCore(SimScene scene, SimSource source, bool enabled, bool activityBeforeSelect = false)
         {
             var item = new SimItem(scene.NextItemId++, scene, source) { Index = scene.Items.Count };
             scene.Items.Add(item);
@@ -769,10 +818,20 @@ namespace OBSStudioClient.Tests.Simulation
                 }
             }
 
+            if (activityBeforeSelect)
+            {
+                UpdateActivity();
+            }
+
             if (scene.IsLive)
             {
                 // ASSUMPTION: the user interface selects every item that is created, whatever the source (the brief names the items of inputs).
                 Emit("SceneItemSelected", Obj(("sceneItemId", item.Id), ("sceneName", scene.Name), ("sceneUuid", scene.UuidText)));
+            }
+
+            if (!activityBeforeSelect)
+            {
+                UpdateActivity();
             }
 
             return item;
@@ -872,16 +931,21 @@ namespace OBSStudioClient.Tests.Simulation
                 ("unversionedInputKind", input.Kind.UnversionedId));
         }
 
-        private void StartTransition()
+        // The scene that the program switches to is on the air (and shown) from the start of the transition, and the one that it leaves goes off the air after the transition has ended (measured with OBS Studio
+        // 33.0.0): until then it is the scene that the transition comes from.
+        private void StartTransition(SimScene? swapPreviewTo = null, OnAir? from = null)
         {
             CancelTransition();
 
-            var duration = _obs.Quirks.TransitionDuration;
-            var transition = duration > TimeSpan.Zero
+            var duration = _currentIsFade ? TimeSpan.FromMilliseconds(_durationMs) : TimeSpan.Zero;
+            var transition = _currentIsFade
                 ? new Transition(FadeName, FadeUuid)
                 : new Transition(CutName, CutUuid);
+            transition.SwapPreviewTo = swapPreviewTo;
+            transition.From = from;
             _transition = transition;
             Emit("SceneTransitionStarted", TransitionData(transition));
+            UpdateActivity();
 
             var total = duration + _obs.Quirks.TransitionOverhead.Sample(_obs.Random);
             if (total <= TimeSpan.Zero)
@@ -908,6 +972,8 @@ namespace OBSStudioClient.Tests.Simulation
             Emit("SceneTransitionEnded", TransitionData(running));
         }
 
+        // The end of a transition: its video is over, the preview scene is the scene that was on the air when the transition of studio mode was triggered (OBS Studio swaps them), the program scene is
+        // announced, and so is the end. Measured with OBS Studio 33.0.0.
         private void CompleteTransition(Transition transition)
         {
             if (transition.Cancelled || !ReferenceEquals(_transition, transition))
@@ -917,8 +983,144 @@ namespace OBSStudioClient.Tests.Simulation
 
             _transition = null;
             Emit("SceneTransitionVideoEnded", TransitionData(transition));
+
+            // ASSUMPTION: a scene that was removed while the transition ran is not made the preview scene (the user interface does not list it). Not measured.
+            if (transition.SwapPreviewTo is { Removed: false } swapTo && _studioMode && !ReferenceEquals(_preview, swapTo))
+            {
+                _preview = swapTo;
+                Emit("CurrentPreviewSceneChanged", PreviewSceneJson());
+            }
+
             Emit("CurrentProgramSceneChanged", ProgramSceneData());
             Emit("SceneTransitionEnded", TransitionData(transition));
+            UpdateActivity();
+        }
+
+        /// <summary>Switches studio mode on or off (SetStudioModeEnabled). Nothing is announced when it is as it was. Measured with OBS Studio 33.0.0: switching it on makes the program scene the preview scene without an event for it, and switching it off announces the program scene twice, and then that studio mode is off.</summary>
+        public void SetStudioMode(bool enabled)
+        {
+            if (enabled == _studioMode)
+            {
+                return;
+            }
+
+            _studioMode = enabled;
+            if (enabled)
+            {
+                // Studio mode puts a copy of the program scene on the air (see OnAir).
+                _preview = _program;
+                _programAir = MakeOnAir(_program);
+                Emit("StudioModeStateChanged", Obj(("studioModeEnabled", true)));
+                UpdateActivity();
+                return;
+            }
+
+            // Measured with OBS Studio 33.0.0 (LiveActivityTests): the first announcement is of the preview scene, which OBS Studio makes the program scene for a moment, and the second of the program scene that it
+            // goes back to. They are the same scene when the preview scene is the program scene.
+            var previewData = PreviewSceneJson();
+            _preview = null;
+            _programAir = MakeOnAir(_program);
+            Emit("CurrentProgramSceneChanged", previewData);
+            Emit("CurrentProgramSceneChanged", ProgramSceneData());
+            Emit("StudioModeStateChanged", Obj(("studioModeEnabled", false)));
+            UpdateActivity();
+        }
+
+        /// <summary>Makes a scene the preview scene (SetCurrentPreviewScene): only with studio mode on, and only a scene of the main canvas. Nothing is announced when it is the preview scene already.</summary>
+        public void SwitchPreview(SimScene scene)
+        {
+            if (!_studioMode)
+            {
+                throw new SimFailure(SimStatus.StudioModeNotActive);
+            }
+
+            if (scene.Removed)
+            {
+                throw new SimFailure(SimStatus.InvalidResourceState, "The specified scene is not from the main canvas and cannot be set as the preview scene.");
+            }
+
+            if (ReferenceEquals(scene, _preview))
+            {
+                return;
+            }
+
+            _preview = scene;
+            Emit("CurrentPreviewSceneChanged", PreviewSceneJson());
+            UpdateActivity();
+        }
+
+        /// <summary>
+        /// Triggers the transition of studio mode (TriggerStudioModeTransition): the preview scene is the program scene at once for everything that reads it, and the transition runs; the preview scene is the
+        /// scene that was on the air when it has ended. Nothing happens while a transition runs (measured with OBS Studio 33.0.0).
+        /// </summary>
+        public void TriggerTransition()
+        {
+            if (!_studioMode)
+            {
+                throw new SimFailure(SimStatus.StudioModeNotActive);
+            }
+
+            if (_transition is not null)
+            {
+                return;
+            }
+
+            var before = _program;
+            var beforeAir = _programAir;
+            _program = _preview ?? _program;
+            _programAir = MakeOnAir(_program);
+            StartTransition(before, beforeAir);
+        }
+
+        /// <summary>Makes a transition the current one (SetCurrentSceneTransition): OBS Studio announces it every time, also when it is the current one.</summary>
+        public void SetCurrentTransition(string name)
+        {
+            if (name != FadeName && name != CutName)
+            {
+                throw SimFailure.NotFound("No scene transition was found by that name.");
+            }
+
+            _currentIsFade = name == FadeName;
+            Emit("CurrentSceneTransitionChanged", Obj(("transitionName", TransitionName), ("transitionUuid", _currentIsFade ? FadeUuid : CutUuid)));
+        }
+
+        /// <summary>Sets how long the transitions take (SetCurrentSceneTransitionDuration), from 50 ms to 20 seconds, also while the cut is the current transition. OBS Studio announces it when it changed.</summary>
+        public void SetTransitionDuration(int milliseconds)
+        {
+            if (milliseconds == _durationMs)
+            {
+                return;
+            }
+
+            _durationMs = milliseconds;
+            Emit("CurrentSceneTransitionDurationChanged", Obj(("transitionDuration", milliseconds)));
+        }
+
+        /// <summary>Writes the current transition as GetCurrentSceneTransition answers: a fixed one (the cut) says no duration, and one that has no settings of its own (the cut and the fade) says none.</summary>
+        public JsonObject CurrentTransitionJson()
+        {
+            return Obj(
+                ("transitionConfigurable", false),
+                ("transitionDuration", _currentIsFade ? _durationMs : null),
+                ("transitionFixed", !_currentIsFade),
+                ("transitionKind", _currentIsFade ? "fade_transition" : "cut_transition"),
+                ("transitionName", TransitionName),
+                ("transitionSettings", null),
+                ("transitionUuid", _currentIsFade ? FadeUuid : CutUuid));
+        }
+
+        /// <summary>Writes the preview scene as CurrentPreviewSceneChanged says it.</summary>
+        public JsonObject PreviewSceneJson()
+        {
+            var preview = _preview ?? _program;
+            return Obj(("sceneName", preview.Name), ("sceneUuid", preview.UuidText));
+        }
+
+        /// <summary>Writes the preview scene as GetCurrentPreviewScene answers, which names it twice (the <c>currentPreview</c> members are there for the sake of old clients).</summary>
+        public JsonObject PreviewSceneAnswerJson()
+        {
+            var preview = _preview ?? _program;
+            return Obj(("sceneName", preview.Name), ("sceneUuid", preview.UuidText), ("currentPreviewSceneName", preview.Name), ("currentPreviewSceneUuid", preview.UuidText));
         }
 
         private static JsonObject TransitionData(Transition transition)
@@ -939,6 +1141,12 @@ namespace OBSStudioClient.Tests.Simulation
             public string Uuid { get; }
 
             public bool Cancelled { get; set; }
+
+            /// <summary>Gets or sets the scene that the preview scene becomes when the transition ends: the scene that was on the air when it was triggered (studio mode), or null.</summary>
+            public SimScene? SwapPreviewTo { get; set; }
+
+            /// <summary>Gets or sets what was on the air when the transition started: it stays on the air until the transition has ended. Null for the first transition of a world.</summary>
+            public OnAir? From { get; set; }
         }
     }
 }

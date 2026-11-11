@@ -22,7 +22,9 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="SourceUuid">The UUID of the scene or the input that the item shows.</param>
     /// <param name="Enabled">Whether the item is enabled.</param>
     /// <param name="Locked">Whether the item is locked.</param>
-    internal sealed record SimSavedItem(int Id, Guid SourceUuid, bool Enabled, bool Locked);
+    /// <param name="Transform">The transform of the item, its own copy.</param>
+    /// <param name="BlendMode">The blend mode of the item.</param>
+    internal sealed record SimSavedItem(int Id, Guid SourceUuid, bool Enabled, bool Locked, SimTransform Transform, string BlendMode);
 
     /// <summary>A scene as OBS Studio saves it, with its items from the bottom.</summary>
     /// <param name="Uuid">The UUID of the scene.</param>
@@ -90,7 +92,7 @@ namespace OBSStudioClient.Tests.Simulation
                 foreach (var entry in saved.Scenes[index].Items)
                 {
                     var source = _byUuid[entry.SourceUuid.ToString("D")];
-                    scene.Items.Add(new SimItem(entry.Id, scene, source) { Index = scene.Items.Count, Enabled = entry.Enabled, Locked = entry.Locked });
+                    scene.Items.Add(new SimItem(entry.Id, scene, source) { Index = scene.Items.Count, Enabled = entry.Enabled, Locked = entry.Locked, Transform = entry.Transform.Clone(), BlendMode = entry.BlendMode });
                     source.References++;
                 }
 
@@ -99,6 +101,7 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             _program = scenes.First(scene => scene.Uuid == saved.ProgramSceneUuid);
+            InitializeActivity();
         }
 
         /// <summary>
@@ -127,7 +130,7 @@ namespace OBSStudioClient.Tests.Simulation
                         continue;
                     }
 
-                    items.Add(new SimSavedItem(item.Id, item.Source.Uuid, item.Enabled, item.Locked));
+                    items.Add(new SimSavedItem(item.Id, item.Source.Uuid, item.Enabled, item.Locked, item.Transform.Clone(), item.BlendMode));
                     references[item.Source.Uuid] = references.GetValueOrDefault(item.Source.Uuid) + 1;
                 }
 

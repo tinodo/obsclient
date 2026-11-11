@@ -71,6 +71,67 @@ namespace OBSStudioClient.Tests.Simulation
 
         /// <summary>Gets or sets a value indicating whether the item is locked.</summary>
         public bool Locked { get; set; }
+
+        /// <summary>Gets or sets what the user or a request set of the transform of the item. What follows from the size of the source (its width and height) is calculated when it is told.</summary>
+        public SimTransform Transform { get; set; } = new();
+
+        /// <summary>Gets or sets how the item is blended with what is behind it, as obs-websocket writes it.</summary>
+        public string BlendMode { get; set; } = "OBS_BLEND_NORMAL";
+    }
+
+    /// <summary>
+    /// The transform of a scene item that is stored: its position, rotation, scale, alignment, bounds and crop. These are single precision numbers, as OBS Studio keeps them.
+    /// </summary>
+    internal sealed class SimTransform
+    {
+        /// <summary>Gets or sets the alignment of the item (a set of bits that obs-websocket does not check).</summary>
+        public int Alignment { get; set; } = 5;
+
+        /// <summary>Gets or sets the alignment of the bounds.</summary>
+        public int BoundsAlignment { get; set; }
+
+        /// <summary>Gets or sets the height of the bounds.</summary>
+        public float BoundsHeight { get; set; }
+
+        /// <summary>Gets or sets the type of the bounds, as obs-websocket writes it.</summary>
+        public string BoundsType { get; set; } = "OBS_BOUNDS_NONE";
+
+        /// <summary>Gets or sets the width of the bounds.</summary>
+        public float BoundsWidth { get; set; }
+
+        /// <summary>Gets or sets the crop of the bottom.</summary>
+        public int CropBottom { get; set; }
+
+        /// <summary>Gets or sets the crop of the left.</summary>
+        public int CropLeft { get; set; }
+
+        /// <summary>Gets or sets the crop of the right.</summary>
+        public int CropRight { get; set; }
+
+        /// <summary>Gets or sets the crop of the top.</summary>
+        public int CropTop { get; set; }
+
+        /// <summary>Gets or sets a value indicating whether the item is cropped to its bounds.</summary>
+        public bool CropToBounds { get; set; }
+
+        /// <summary>Gets or sets the x position.</summary>
+        public float PositionX { get; set; }
+
+        /// <summary>Gets or sets the y position.</summary>
+        public float PositionY { get; set; }
+
+        /// <summary>Gets or sets the rotation, in degrees.</summary>
+        public float Rotation { get; set; }
+
+        /// <summary>Gets or sets the horizontal scale.</summary>
+        public float ScaleX { get; set; } = 1f;
+
+        /// <summary>Gets or sets the vertical scale.</summary>
+        public float ScaleY { get; set; } = 1f;
+
+        /// <summary>Makes a copy.</summary>
+        /// <returns>The copy.</returns>
+        public SimTransform Clone() => (SimTransform)MemberwiseClone();
     }
 
     /// <summary>
@@ -152,6 +213,15 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets or sets the number of pins that keep the input alive without a scene item.</summary>
         public int Pins { get; set; }
 
+        /// <summary>Gets or sets whether the input is on the air (<c>videoActive</c>), as OBS Studio last said it. See <see cref="SimWorld"/> (<c>UpdateActivity</c>) for how it follows what is on the air.</summary>
+        public bool Active { get; set; }
+
+        /// <summary>Gets or sets whether the input is shown, on the air or in the preview of studio mode (<c>videoShowing</c>), as OBS Studio last said it.</summary>
+        public bool Showing { get; set; }
+
+        /// <summary>Gets or sets whether a message of the volume meters has listed the input since it came on the air: the first one lists it without channels, as OBS Studio does before it has audio of it.</summary>
+        public bool MeterHeard { get; set; }
+
         /// <inheritdoc />
         public override bool IsScene => false;
     }
@@ -159,7 +229,7 @@ namespace OBSStudioClient.Tests.Simulation
     /// <summary>A request that OBS Studio answers with a status that is not a success. It is thrown by the simulation of a change and caught by whoever asked for it.</summary>
     internal sealed class SimFailure : Exception
     {
-        public SimFailure(int code, string comment)
+        public SimFailure(int code, string? comment = null)
             : base(comment)
         {
             Code = code;
@@ -169,8 +239,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the code of the status of the request.</summary>
         public int Code { get; }
 
-        /// <summary>Gets the comment of the status of the request.</summary>
-        public string Comment { get; }
+        /// <summary>Gets the comment of the status of the request, which is null when OBS Studio gives none (it does not for a request that needs studio mode).</summary>
+        public string? Comment { get; }
 
         public static SimFailure NotFound(string comment) => new(SimStatus.ResourceNotFound, comment);
 

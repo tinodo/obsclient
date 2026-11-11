@@ -116,6 +116,10 @@ namespace OBSStudioClient.Model.Engine
                     return this._programScope;
                 case ReadKind.StudioMode:
                     return this._studioScope;
+                case ReadKind.Preview:
+                    return this._previewScope;
+                case ReadKind.Transition:
+                    return this._transitionScope;
                 case ReadKind.Stream:
                 case ReadKind.Record:
                 case ReadKind.VirtualCamera:
@@ -129,6 +133,8 @@ namespace OBSStudioClient.Model.Engine
                     return this._inputs.TryGetValue(request.Target, out var settingsOf) ? settingsOf.SettingsScope : null;
                 case ReadKind.MediaStatus:
                     return this._inputs.TryGetValue(request.Target, out var mediaOf) ? mediaOf.MediaScope : null;
+                case ReadKind.Activity:
+                    return this._inputs.TryGetValue(request.Target, out var activityOf) ? activityOf.ActivityScope : null;
                 default:
                     return this._inputs.TryGetValue(request.Target, out var input) ? input.AudioScope : null;
             }
@@ -172,11 +178,14 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.Inputs => this._inputsScope,
                 ReadKind.Program => this._programScope,
                 ReadKind.StudioMode => this._studioScope,
+                ReadKind.Preview => this._previewScope,
+                ReadKind.Transition => this._transitionScope,
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
                 ReadKind.InputSettings => this._inputs.TryGetValue(target, out var settingsOf) ? settingsOf.SettingsScope : null,
                 ReadKind.MediaStatus => this._inputs.TryGetValue(target, out var mediaOf) && mediaOf.IsMedia ? mediaOf.MediaScope : null,
+                ReadKind.Activity => this.Follows(ObsHighVolume.Activity) && this._inputs.TryGetValue(target, out var activityOf) ? activityOf.ActivityScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
         }
@@ -255,12 +264,20 @@ namespace OBSStudioClient.Model.Engine
                         {
                             this.Emit(ModelChangeKind.StudioModeChanged, Guid.Empty, 0, null, old, model.StudioModeEnabled);
                         }
+
+                        this.StudioModeApplied();
                     }
                     else
                     {
                         this.Retry(this._studioScope);
                     }
 
+                    break;
+                case ReadKind.Preview:
+                    this.ApplyPreviewResponse(ticket, response, ok);
+                    break;
+                case ReadKind.Transition:
+                    this.ApplyTransitionResponse(ticket, response, ok);
                     break;
                 case ReadKind.Stream:
                 case ReadKind.Record:
@@ -282,6 +299,9 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.MediaStatus:
                     this.ApplyMediaStatusResponse(ticket, request, response, ok, notFound);
+                    break;
+                case ReadKind.Activity:
+                    this.ApplyActivityResponse(ticket, request, response, ok, notFound);
                     break;
             }
         }
@@ -642,6 +662,138 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
+        // Whether an input is on the air and shown, as a read says it (only asked when the engine follows the activity). What the events say is applied as they arrive (see OnInputActiveStateChanged): the cells see to a
+        // read that was sent before such an event not overriding it, and one that was sent after it showing what it did.
+        private void ApplyActivityResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok, bool notFound)
+        {
+            if (!this._inputs.TryGetValue(request.Target, out var input))
+            {
+                return;
+            }
+
+            var scope = input.ActivityScope;
+            if (ok && response!.ResponseData is SourceActiveResponse activity)
+            {
+                scope.Attempts = 0;
+                var oldActive = input.Active.Value;
+                var oldShowing = input.Showing.Value;
+                var activeChanged = input.Active.ApplyRead(activity.VideoActive, ticket.SentSeq);
+                var showingChanged = input.Showing.ApplyRead(activity.VideoShowing, ticket.SentSeq);
+                input.ActivityKnown = true;
+                if (activeChanged && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputActiveChanged, input.Uuid, 0, input.Name.Value, oldActive, input.Active.Value);
+                }
+
+                if (showingChanged && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputShowingChanged, input.Uuid, 0, input.Name.Value, oldShowing, input.Showing.Value);
+                }
+
+                this.TryAnnounce(input);
+            }
+            else if (notFound)
+            {
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the activity is read again after a wait for as long as the input is there.
+                this._inputsScope.MarkDirty();
+                this.Retry(scope);
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                // OBS Studio refuses the request for good (a simulation that does not know it): there is nothing to read, and the activity stays what the events say.
+                scope.Attempts = 0;
+                input.ActivityKnown = true;
+                this.TryAnnounce(input);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again.
+        private void ApplyPreviewResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._previewScope;
+            if (ok && response!.ResponseData is CurrentPreviewSceneNameResponse preview)
+            {
+                scope.Attempts = 0;
+                this._previewRead = true;
+                var old = this._previewUuid.Value;
+                if (this._previewUuid.ApplyRead(preview.SceneUuid, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.PreviewSceneChanged, preview.SceneUuid, 0, preview.SceneName, old, preview.SceneUuid);
+                }
+
+                if (!this._scenes.ContainsKey(preview.SceneUuid) && !this.Removed(preview.SceneUuid))
+                {
+                    this._scenesScope.MarkDirty();
+                }
+            }
+            else if (response is { RequestStatus.Code: RequestStatusCode.StudioModeNotActive })
+            {
+                scope.Attempts = 0;
+                this._previewRead = true;
+                var old = this._previewUuid.Value;
+                if (this._previewUuid.ApplyRead(null, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.PreviewSceneChanged, Guid.Empty, 0, null, old, null);
+                }
+
+                if (this._studioMode.Value)
+                {
+                    this._studioScope.MarkDirty();
+                }
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // The current transition, as a read says it: its identity, and its duration when it has one (a cut has none, and the duration that OBS Studio gives the others stays what it was). A scene
+        // collection that has no transition is refused ("OBS returned no transition."): there is none then. A refusal can also be a moment in which OBS Studio holds none (it is changing it), so
+        // that is only believed when it is repeated; until then the read is asked again.
+        private void ApplyTransitionResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._transitionScope;
+            if (ok && response!.ResponseData is TransitionResponse current)
+            {
+                scope.Attempts = 0;
+                this._transitionRead = true;
+                var info = new TransitionInfo(current.TransitionName, current.TransitionUuid, current.TransitionKind, current.TransitionFixed, current.TransitionConfigurable);
+                var old = this._transition.Value;
+                if (this._transition.ApplyRead(info, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.TransitionChanged, Guid.Empty, 0, info.Name, old, info);
+                }
+
+                if (current.TransitionDuration is { } duration)
+                {
+                    var milliseconds = (int)Math.Round(duration);
+                    var oldDuration = this._transitionDuration.Value;
+                    if (this._transitionDuration.ApplyRead(milliseconds, ticket.SentSeq))
+                    {
+                        this.Emit(ModelChangeKind.TransitionDurationChanged, Guid.Empty, 0, null, oldDuration, milliseconds);
+                    }
+                }
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady && scope.Attempts >= RefusalsBeforeNoTransition)
+            {
+                scope.Attempts = 0;
+                this._transitionRead = true;
+                var old = this._transition.Value;
+                if (this._transition.ApplyRead(null, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.TransitionChanged, Guid.Empty, 0, null, old, null);
+                }
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
         private void ApplyScenes(SceneListResponse response, ReadTicket ticket)
         {
             var sent = ticket.SentSeq;
@@ -830,11 +982,17 @@ namespace OBSStudioClient.Model.Engine
                         input.MediaScope.MarkDirty();
                     }
 
+                    if (!input.ActivityKnown && !input.RemovalUnresolved && !input.ActivityScope.Dirty && !input.ActivityScope.InFlight)
+                    {
+                        input.ActivityScope.MarkDirty();
+                    }
+
                     this.TryAnnounce(input);
                 }
                 else
                 {
                     var created = new InputNode(uuid, entry.InputName, entry.InputKind, entry.UnversionedInputKind, entry.InputKindCaps, sent, ticket.SentAt, confirmed: true);
+                    created.ActivityKnown = !this.Follows(ObsHighVolume.Activity);
                     this._inputs[uuid] = created;
                     if (this._removedUnknown.Contains(uuid))
                     {
@@ -856,6 +1014,11 @@ namespace OBSStudioClient.Model.Engine
                     if (created.IsMedia)
                     {
                         created.MediaScope.MarkDirty();
+                    }
+
+                    if (!created.ActivityKnown)
+                    {
+                        created.ActivityScope.MarkDirty();
                     }
 
                     this.TryAnnounce(created);
@@ -950,6 +1113,15 @@ namespace OBSStudioClient.Model.Engine
             if (item.Locked.ApplyRead(entry.SceneItemLocked, sent) && item.Announced)
             {
                 this.Emit(ModelChangeKind.ItemLockedChanged, item.Scene.Uuid, item.Id, null, oldLocked, item.Locked.Value);
+            }
+
+            if (this.Follows(ObsHighVolume.Transforms) && entry.SceneItemTransform is { } transform)
+            {
+                var oldTransform = item.Transform.Value;
+                if (item.Transform.ApplyRead(transform, sent) && item.Announced)
+                {
+                    this.Emit(ModelChangeKind.ItemTransformChanged, item.Scene.Uuid, item.Id, null, oldTransform, transform);
+                }
             }
 
             item.Known = true;

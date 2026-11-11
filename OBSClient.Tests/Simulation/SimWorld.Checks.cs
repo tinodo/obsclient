@@ -31,9 +31,11 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Kind.HasAudio ? input.SyncOffset : 0,
                     input.Kind.HasAudio ? input.MonitorType : "OBS_MONITORING_TYPE_NONE",
                     input.Kind.HasAudio ? input.Tracks : 63,
-                    input.Kind.IsMedia ? input.MediaState : null))
+                    input.Kind.IsMedia ? input.MediaState : null,
+                    input.Active,
+                    input.Showing))
                 .ToArray();
-            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, null, false);
+            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, _studioMode ? _preview?.Uuid : null, _studioMode, TransitionName, TransitionDurationMilliseconds, TransitionRunning);
         }
 
         /// <summary>
@@ -192,6 +194,7 @@ namespace OBSStudioClient.Tests.Simulation
                 problems.Add("The running transition was cancelled.");
             }
 
+            problems.AddRange(FindActivityProblems());
             return problems;
         }
 
@@ -225,7 +228,7 @@ namespace OBSStudioClient.Tests.Simulation
         private static SimSceneSnapshot SnapshotOf(SimScene scene, int index)
         {
             var items = scene.Items
-                .Select(item => new SimItemSnapshot(item.Id, item.Source.Uuid, item.Source.Name, item.Index, item.Enabled, item.Locked, item.Source.IsScene))
+                .Select(item => new SimItemSnapshot(item.Id, item.Source.Uuid, item.Source.Name, item.Index, item.Enabled, item.Locked, item.Source.IsScene, SimJson.Serialize(TransformJson(item)), item.BlendMode))
                 .ToArray();
             return new SimSceneSnapshot(scene.Uuid, scene.Name, index, items);
         }

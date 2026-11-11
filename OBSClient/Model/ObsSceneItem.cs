@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Model
 {
     using System.ComponentModel;
+    using OBSStudioClient.Classes;
 
     /// <summary>
     /// A scene item of OBS Studio: a source (an input, or another scene) as it is shown in one scene.
@@ -21,8 +22,9 @@ namespace OBSStudioClient.Model
         private bool _enabled;
         private bool _locked;
         private bool _removed;
+        private SceneItemTransform? _transform;
 
-        internal ObsSceneItem(ObsScene scene, ObsSource source, int id, int index, bool enabled, bool locked)
+        internal ObsSceneItem(ObsScene scene, ObsSource source, int id, int index, bool enabled, bool locked, SceneItemTransform? transform = null)
         {
             this.Scene = scene;
             this.Source = source;
@@ -30,6 +32,7 @@ namespace OBSStudioClient.Model
             this._index = index;
             this._enabled = enabled;
             this._locked = locked;
+            this._transform = transform;
         }
 
         /// <inheritdoc/>
@@ -69,6 +72,29 @@ namespace OBSStudioClient.Model
         /// Gets whether the item was removed from its scene.
         /// </summary>
         public bool IsRemoved => Volatile.Read(ref this._removed);
+
+        /// <summary>
+        /// Gets the transform of the item: where it is, how large it is shown, how it is rotated, cropped and bounded. It is null unless the model was asked to follow the transforms
+        /// (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.Transforms"/>): OBS Studio sends an event for every step of a drag, so the model does not ask for them unless they are wanted. To ask OBS Studio
+        /// once, whatever the options are, use <see cref="GetTransformAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The value is current, and the object is a copy that does not change: when the transform changes the property gets another object (and PropertyChanged and <see cref="ObsModel.Changed"/> tell). OBS Studio
+        /// sends the transform again when something else about the item changes (a blend mode that is set, for one), so the model only tells when the transform is not the one that it held.
+        /// </para>
+        /// <para>
+        /// When several programs change the same item at the same moment, the events can come in another order than the changes were made (measured with OBS Studio 33.0.0: two of fifty changes that were
+        /// sent at once), and the model shows the last that came: <see cref="GetTransformAsync"/> says what OBS Studio holds.
+        /// </para>
+        /// <para>
+        /// OBS Studio 33.0.0 announces a change of the position, the scale, the rotation, the alignment and the bounds at once, and a change of the crop and of the size of the source (which changes the size of the
+        /// item) only for a scene that it renders: the program scene, the preview scene of studio mode, a scene that a projector shows. For another scene it announces them when the scene is rendered, and until then the
+        /// transform that the model shows of an item in it has the crop and the size from before. The changes that the model makes itself (<see cref="SetTransformAsync"/>, <see cref="DuplicateAsync"/>) read the scene again
+        /// and do not depend on it; <see cref="GetTransformAsync"/> says what OBS Studio holds, whatever the scene is.
+        /// </para>
+        /// </remarks>
+        public SceneItemTransform? Transform => Volatile.Read(ref this._transform);
 
         // The number of the pass of the publisher that last saw the item in the model: an item that a pass does not see is gone.
         internal int Pass { get; set; }
@@ -115,6 +141,17 @@ namespace OBSStudioClient.Model
             }
 
             Volatile.Write(ref this._removed, true);
+            return true;
+        }
+
+        internal bool SetTransform(SceneItemTransform? transform)
+        {
+            if (Equals(Volatile.Read(ref this._transform), transform))
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._transform, transform);
             return true;
         }
 

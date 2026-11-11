@@ -27,6 +27,9 @@ namespace OBSStudioClient.Model
     /// </remarks>
     internal sealed class ModelPublisher
     {
+        // The most selections that wait for their scene item: a selection of an item that never appears does not hold the later ones back for ever.
+        private const int MaxWaitingSelections = 1000;
+
         private readonly ObsModel _model;
         private readonly bool _ignoreCase;
         private readonly Dictionary<Guid, ObsScene> _scenes = new();
@@ -45,10 +48,19 @@ namespace OBSStudioClient.Model
         // What happened in the pass and is no state of the model (a file was saved): told after the notices, in the order of arrival, and also while the model is read.
         private readonly List<ModelNotice> _events = new();
 
+        // The events of the pass that tell of something that happened, with their data, until what they are about is published.
+        private readonly List<(EventType Type, object Data)> _told = new();
+
+        // The selections of scene items that were not told yet, in the order of arrival, and the ones that are still waiting after a pass. An item that is made is selected at once, and the application is told of the
+        // selection after it was told of the item, which can be some passes later: the item appears when its source does.
+        private readonly List<SceneItemSelectedEventArgs> _selected = new();
+        private readonly List<SceneItemSelectedEventArgs> _stillWaiting = new();
+
         // Reused by every pass.
         private readonly List<(int Index, ObsScene Scene)> _liveScenes = new();
         private readonly List<ObsScene> _otherScenes = new();
         private readonly List<ObsInput> _liveInputs = new();
+        private readonly List<ObsInput> _keptInputs = new();
         private readonly List<ObsSceneItem> _sceneItems = new();
         private readonly List<ItemKey> _vanishedItems = new();
         private readonly List<ObsFilter> _sourceFilters = new();
@@ -101,6 +113,7 @@ namespace OBSStudioClient.Model
             var pass = ++this._pass;
 
             // Before anything is removed: the objects that the model corrected itself about are still known now.
+            this._told.Clear();
             foreach (var change in changes)
             {
                 if (change.Kind == ModelChangeKind.Repaired && this.FindSource(change.Subject) is { } source)
@@ -109,7 +122,7 @@ namespace OBSStudioClient.Model
                 }
                 else if (change.Kind == ModelChangeKind.Notification && change.OldValue is EventType eventType && change.NewValue is { } data)
                 {
-                    this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+                    this._told.Add((eventType, data));
                 }
             }
 
@@ -117,8 +130,13 @@ namespace OBSStudioClient.Model
             this.PublishItems(engine, pass);
             this.PublishFilters(engine, pass);
             this.RemoveVanished(pass);
+
+            // What happened is told once what it is about is published: a scene item that was selected as it was made is the one that this pass published.
+            this.TellWhatHappened(engine);
+
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
+            this.PublishTransitions(engine);
             this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
@@ -161,6 +179,7 @@ namespace OBSStudioClient.Model
             this._liveScenes.Clear();
             this._otherScenes.Clear();
             this._liveInputs.Clear();
+            this._keptInputs.Clear();
 
             foreach (var node in engine.SceneNodes)
             {
@@ -224,6 +243,8 @@ namespace OBSStudioClient.Model
                     input.SetMonitorType(node.MonitorType.Value);
                     input.SetAudioTracks(node.Tracks.Value);
                     input.SetSettings(node.Settings.Value);
+                    input.SetActive(node.Active.Value);
+                    input.SetShowing(node.Showing.Value);
                     if (node.IsMedia && node.MediaKnown)
                     {
                         input.AttachMedia(node.MediaState.Value);
@@ -283,6 +304,18 @@ namespace OBSStudioClient.Model
                         this.AddProperty(input, nameof(ObsInput.Settings), settings, input.Settings, true);
                     }
 
+                    var active = input.IsActive;
+                    if (input.SetActive(node.Active.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.IsActive), active, node.Active.Value, true);
+                    }
+
+                    var showing = input.IsShowing;
+                    if (input.SetShowing(node.Showing.Value))
+                    {
+                        this.AddProperty(input, nameof(ObsInput.IsShowing), showing, node.Showing.Value, true);
+                    }
+
                     if (input.Media is { } media)
                     {
                         var mediaState = media.State;
@@ -303,6 +336,10 @@ namespace OBSStudioClient.Model
                 if (node.State == SourceState.Live)
                 {
                     this._liveInputs.Add(input);
+                }
+                else if (node.State == SourceState.Detached)
+                {
+                    this._keptInputs.Add(input);
                 }
             }
         }
@@ -351,7 +388,7 @@ namespace OBSStudioClient.Model
                             continue;
                         }
 
-                        item = new ObsSceneItem(scene, source, itemNode.Id, itemNode.Index.Value, itemNode.Enabled.Value, itemNode.Locked.Value);
+                        item = new ObsSceneItem(scene, source, itemNode.Id, itemNode.Index.Value, itemNode.Enabled.Value, itemNode.Locked.Value, itemNode.Transform.Value);
                         this._items.Add(key, item);
                         this._added.Add(new ModelNotice(new ObsChangedEventArgs(ObsChangeKind.Added, item), null, null));
                     }
@@ -373,6 +410,12 @@ namespace OBSStudioClient.Model
                         if (item.SetLocked(itemNode.Locked.Value))
                         {
                             this.AddProperty(item, nameof(ObsSceneItem.IsLocked), locked, itemNode.Locked.Value, true);
+                        }
+
+                        var transform = item.Transform;
+                        if (item.SetTransform(itemNode.Transform.Value))
+                        {
+                            this.AddProperty(item, nameof(ObsSceneItem.Transform), transform, itemNode.Transform.Value, true);
                         }
                     }
 
@@ -636,6 +679,18 @@ namespace OBSStudioClient.Model
                 this._otherScenes.CopyTo(allScenes, orderedScenes.Length);
             }
 
+            // Every input that OBS Studio still has: the live ones, and the ones that were removed and are kept alive for a scene item that shows them. OBS Studio goes on sending the levels of
+            // such an input for as long as it is on the air, so what looks inputs up by UUID needs them too. It is made again only when the set is another one.
+            this._keptInputs.Sort(static (a, b) => a.Uuid.CompareTo(b.Uuid));
+            var allInputs = old.AllInputs;
+            var allInputsChanged = !HoldsInputs(allInputs, orderedInputs, this._keptInputs);
+            if (allInputsChanged)
+            {
+                allInputs = new ObsInput[orderedInputs.Length + this._keptInputs.Count];
+                orderedInputs.CopyTo(allInputs, 0);
+                this._keptInputs.CopyTo(allInputs, orderedInputs.Length);
+            }
+
             // A program scene that the model has heard of but that is not published yet (its event came first) is shown when it is.
             var program = old.ProgramScene;
             if (engine.ProgramSceneUuid is { } programUuid)
@@ -670,13 +725,91 @@ namespace OBSStudioClient.Model
                 this.AddProperty(this._model, nameof(ObsModel.IsStudioModeEnabled), old.StudioMode, studioMode, true);
             }
 
-            if (!scenesChanged && !inputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode)
+            // The preview scene, as the program scene: shown when it is published.
+            var preview = old.PreviewScene;
+            if (engine.PreviewSceneUuid is { } previewUuid)
+            {
+                if (this._scenes.TryGetValue(previewUuid, out var wantedPreview) && wantedPreview.Pass == pass)
+                {
+                    preview = wantedPreview;
+                }
+            }
+            else
+            {
+                preview = null;
+            }
+
+            if (!ReferenceEquals(preview, old.PreviewScene))
+            {
+                this.AddProperty(this._model, nameof(ObsModel.PreviewScene), old.PreviewScene, preview, true);
+                if (old.PreviewScene is { } previousPreview)
+                {
+                    this._changed.Add(new ModelNotice(null, previousPreview, nameof(ObsScene.IsPreview)));
+                }
+
+                if (preview is not null)
+                {
+                    this._changed.Add(new ModelNotice(null, preview, nameof(ObsScene.IsPreview)));
+                }
+            }
+
+            if (!scenesChanged && !inputsChanged && !allInputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode && ReferenceEquals(preview, old.PreviewScene))
             {
                 return old;
             }
 
-            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode);
+            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode, preview, allInputs);
             return this._view;
+        }
+
+        // Whether an array holds exactly the inputs of two lists, one after the other and the same objects.
+        private static bool HoldsInputs(ObsInput[] held, ObsInput[] first, List<ObsInput> second)
+        {
+            if (held.Length != first.Length + second.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < first.Length; i++)
+            {
+                if (!ReferenceEquals(held[i], first[i]))
+                {
+                    return false;
+                }
+            }
+
+            for (var i = 0; i < second.Count; i++)
+            {
+                if (!ReferenceEquals(held[first.Length + i], second[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // The transitions are an object of the model that stays the same, so it is brought in line here and not through the view: a change is the PropertyChanged event of the object, and a record for
+        // ObsModel.Changed.
+        private void PublishTransitions(ModelEngine engine)
+        {
+            var transitions = this._model.Transitions;
+            if (transitions.SetCurrent(engine.Transition, out var before))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.Current), before, transitions.Current, true);
+            }
+
+            if (transitions.SetDuration(engine.TransitionDuration, out var durationBefore))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.Duration), durationBefore, transitions.Duration, true);
+            }
+
+            if (transitions.SetRunning(engine.TransitionRunning, out var runningBefore))
+            {
+                this.AddProperty(transitions, nameof(ObsTransitions.IsRunning), runningBefore, engine.TransitionRunning, true);
+            }
+
+            transitions.SetStarts(engine.TransitionStarts);
         }
 
         // The outputs are objects of the model that stay the same, so they are brought in line here and not through the view: a change of the status is the PropertyChanged event of the output
@@ -730,6 +863,51 @@ namespace OBSStudioClient.Model
             }
         }
 
+        // Tells what happened in the pass, in the order of arrival: first the selections that waited from the passes before, which are older than anything in this one. A selection waits when its scene item is
+        // in the model and the application has not been told of it yet (it appears when its source does), and the selections after it wait with it, so that they are told in order. A selection of an item that
+        // is gone (it was removed, or the scene collection was left) is not told.
+        private void TellWhatHappened(ModelEngine engine)
+        {
+            this._stillWaiting.Clear();
+            var held = false;
+            foreach (var selected in this._selected)
+            {
+                this.TellSelection(engine, selected, ref held);
+            }
+
+            foreach (var (eventType, data) in this._told)
+            {
+                if (eventType == EventType.SceneItemSelected && data is SceneItemSelectedEventArgs selected)
+                {
+                    this.TellSelection(engine, selected, ref held);
+                }
+                else
+                {
+                    this._events.Add(new ModelNotice(null, null, null, this.RaiseOf(eventType, data)));
+                }
+            }
+
+            this._selected.Clear();
+            for (var i = Math.Max(0, this._stillWaiting.Count - MaxWaitingSelections); i < this._stillWaiting.Count; i++)
+            {
+                this._selected.Add(this._stillWaiting[i]);
+            }
+        }
+
+        private void TellSelection(ModelEngine engine, SceneItemSelectedEventArgs selected, ref bool held)
+        {
+            if (!held && this._items.TryGetValue(new ItemKey(selected.SceneUuid, selected.SceneItemId), out var item))
+            {
+                var model = this._model;
+                this._events.Add(new ModelNotice(null, null, null, () => model.RaiseSceneItemSelected(new ObsSceneItemEventArgs(item))));
+            }
+            else if (engine.HasItem(selected.SceneUuid, selected.SceneItemId))
+            {
+                held = true;
+                this._stillWaiting.Add(selected);
+            }
+        }
+
         // What tells the application of something that happened: the event of the model, or of the output that it is about. It is raised later, by the notifier.
         private Action RaiseOf(EventType eventType, object data)
         {
@@ -742,6 +920,9 @@ namespace OBSStudioClient.Model
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),
+                EventType.SceneTransitionStarted when data is TransitionNameEventArgs started => () => model.Transitions.RaiseStarted(started),
+                EventType.SceneTransitionEnded when data is TransitionNameEventArgs ended => () => model.Transitions.RaiseEnded(ended),
+                EventType.SceneTransitionVideoEnded when data is TransitionNameEventArgs videoEnded => () => model.Transitions.RaiseVideoEnded(videoEnded),
                 _ => static () => { },
             };
         }

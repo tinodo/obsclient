@@ -30,6 +30,8 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneNameChanged"] = "Scenes",
             ["SceneListChanged"] = "Scenes",
             ["CurrentProgramSceneChanged"] = "Scenes",
+            ["CurrentPreviewSceneChanged"] = "Scenes",
+            ["StudioModeStateChanged"] = "Ui",
             ["InputCreated"] = "Inputs",
             ["InputRemoved"] = "Inputs",
             ["InputNameChanged"] = "Inputs",
@@ -46,23 +48,37 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneTransitionStarted"] = "Transitions",
             ["SceneTransitionEnded"] = "Transitions",
             ["SceneTransitionVideoEnded"] = "Transitions",
+            ["CurrentSceneTransitionChanged"] = "Transitions",
+            ["CurrentSceneTransitionDurationChanged"] = "Transitions",
             ["SceneItemCreated"] = "SceneItems",
             ["SceneItemRemoved"] = "SceneItems",
             ["SceneItemListReindexed"] = "SceneItems",
             ["SceneItemEnableStateChanged"] = "SceneItems",
             ["SceneItemLockStateChanged"] = "SceneItems",
             ["SceneItemSelected"] = "SceneItems",
+            ["SceneItemTransformChanged"] = "SceneItemTransformChanged",
+            ["InputActiveStateChanged"] = "InputActiveStateChanged",
+            ["InputShowStateChanged"] = "InputShowStateChanged",
+            ["InputVolumeMeters"] = "InputVolumeMeters",
         };
 
         /// <summary>
         /// The members of a response that a real OBS Studio sends (they are in its capture), and that the protocol snapshot does not list.
         /// <c>GetCurrentProgramScene</c> answers with <c>sceneName</c> and <c>sceneUuid</c> as the snapshot says, and also with
-        /// <c>currentProgramSceneName</c> and <c>currentProgramSceneUuid</c>, as obs-websocket 5.7.6 does for the sake of old clients.
+        /// <c>currentProgramSceneName</c> and <c>currentProgramSceneUuid</c>, as obs-websocket 5.7.6 does for the sake of old clients;
+        /// <c>GetCurrentPreviewScene</c> does the same with <c>currentPreviewSceneName</c> and <c>currentPreviewSceneUuid</c> (see <see cref="ExtraResponseMembersNotCaptured"/>).
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string[]> ExtraResponseMembers = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["GetCurrentProgramScene"] = ["currentProgramSceneName", "currentProgramSceneUuid"],
+            ["GetCurrentPreviewScene"] = ["currentPreviewSceneName", "currentPreviewSceneUuid"],
         };
+
+        /// <summary>
+        /// The responses of <see cref="ExtraResponseMembers"/> that the capture does not hold, because it was made with studio mode off, which refuses <c>GetCurrentPreviewScene</c>.
+        /// The source of obs-websocket says that it sends the extra members, and LiveTransitionTests check it against a real OBS Studio.
+        /// </summary>
+        internal static readonly IReadOnlySet<string> ExtraResponseMembersNotCaptured = new HashSet<string>(StringComparer.Ordinal) { "GetCurrentPreviewScene" };
 
         /// <summary>
         /// The members of an event that a real OBS Studio sends, and that the protocol snapshot does not list. There are none that the
@@ -75,6 +91,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// has no such case. A scene item of a source that is a scene has no <c>inputKind</c> (null) and has <c>isGroup</c> as a boolean
         /// (obs-websocket 5.7.6 reports <c>isGroup</c> as null for an input); the capture only holds items of inputs. A media input that plays or is paused
         /// says its length and its position as numbers (measured with OBS Studio 33.0.0: LiveMediaTests); the capture only holds one that was not opened (null).
+        /// With studio mode on the list of scenes names the preview scene (<c>GetSceneList</c>), which the capture, made with studio mode off, has as null. The current transition says
+        /// no duration when it is a fixed one (the cut), which the capture, made with the fade as the current transition, does not show (measured with OBS Studio 33.0.0: LiveTransitionTests).
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string[]> ExtraTypes = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
@@ -82,6 +100,9 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneItemList:$.sceneItems[].isGroup"] = ["boolean"],
             ["GetMediaInputStatus:$.mediaCursor"] = ["number"],
             ["GetMediaInputStatus:$.mediaDuration"] = ["number"],
+            ["GetSceneList:$.currentPreviewSceneName"] = ["string"],
+            ["GetSceneList:$.currentPreviewSceneUuid"] = ["string"],
+            ["GetCurrentSceneTransition:$.transitionDuration"] = ["null"],
         };
 
         /// <summary>Members whose value depends on the kind of the input, so that only their own type is checked, and not what is inside.</summary>

@@ -7,6 +7,12 @@ namespace OBSStudioClient.Model.Engine
 
     internal sealed partial class ModelEngine
     {
+        // The kind of a transition that plays a video, and says that it reached its cut point (SceneTransitionEnded) before the video is over (SceneTransitionVideoEnded).
+        private const string StingerKind = "obs_stinger_transition";
+
+        // How many times in a row OBS Studio has to refuse to say the current transition for the model to believe that there is none.
+        private const int RefusalsBeforeNoTransition = 2;
+
         // The events that the model acts on, and what it does with each of them. The list that Handles answers from is this table, so that an event that the engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<ModelEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<ModelEngine, EventMessage>>
@@ -21,6 +27,14 @@ namespace OBSStudioClient.Model.Engine
 
             // Never taken from the payload: the event comes at the end of a transition, and a read says what the program scene is now.
             [EventType.CurrentProgramSceneChanged] = static (engine, _) => engine._programScope.MarkDirty(),
+
+            // The same for the preview scene (the swap after a transition comes with the event of the end of it, and turning studio mode on has no event for it at all).
+            [EventType.CurrentPreviewSceneChanged] = static (engine, _) => engine._previewScope.MarkDirty(),
+            [EventType.CurrentSceneTransitionChanged] = static (engine, _) => engine._transitionScope.MarkDirty(),
+            [EventType.CurrentSceneTransitionDurationChanged] = On<TransitionDurationEventArgs>(static (engine, e) => engine.OnTransitionDurationChanged(e)),
+            [EventType.SceneTransitionStarted] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionStarted(e)),
+            [EventType.SceneTransitionEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionEnded(e)),
+            [EventType.SceneTransitionVideoEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionVideoEnded(e)),
             [EventType.InputCreated] = On<InputCreatedEventArgs>(static (engine, e) => engine.OnInputCreated(e)),
             [EventType.InputRemoved] = On<InputNameEventArgs>(static (engine, e) => engine.OnInputRemoved(e)),
             [EventType.InputNameChanged] = On<InputNameChangedEventArgs>(static (engine, e) => engine.OnInputNameChanged(e)),
@@ -39,6 +53,12 @@ namespace OBSStudioClient.Model.Engine
             [EventType.SceneItemListReindexed] = On<SceneItemListReindexedEventArgs>(static (engine, e) => engine.OnItemsReindexed(e)),
             [EventType.SceneItemEnableStateChanged] = On<SceneItemEnableStateChangedEventArgs>(static (engine, e) => engine.OnItemEnabledChanged(e)),
             [EventType.SceneItemLockStateChanged] = On<SceneItemLockStateChangedEventArgs>(static (engine, e) => engine.OnItemLockedChanged(e)),
+            [EventType.SceneItemSelected] = On<SceneItemSelectedEventArgs>(static (engine, e) => engine.OnItemSelected(e)),
+
+            // What OBS Studio sends very often, and that is only acted on when the application asked for it (see Wants).
+            [EventType.SceneItemTransformChanged] = On<SceneItemTransformChangedEventArgs>(static (engine, e) => engine.OnItemTransformChanged(e)),
+            [EventType.InputActiveStateChanged] = On<InputActiveStateChangedEventArgs>(static (engine, e) => engine.OnInputActiveChanged(e)),
+            [EventType.InputShowStateChanged] = On<InputShowStateChangedEventArgs>(static (engine, e) => engine.OnInputShowingChanged(e)),
             [EventType.StudioModeStateChanged] = On<StudioModeStateChangedEventArgs>(static (engine, e) => engine.OnStudioModeChanged(e)),
             [EventType.StreamStateChanged] = On<OutputStateChangedEventArgs>(static (engine, e) => engine.OnOutputState(ObsOutputKind.Stream, e.OutputState)),
             [EventType.RecordStateChanged] = On<RecordStateChangedEventArgs>(static (engine, e) => engine.OnRecordState(e)),
@@ -83,7 +103,7 @@ namespace OBSStudioClient.Model.Engine
                 return;
             }
 
-            if (Handlers.TryGetValue(message.EventType, out var handler))
+            if (Handlers.TryGetValue(message.EventType, out var handler) && this.Wants(message.EventType))
             {
                 handler(this, message);
             }
@@ -186,6 +206,87 @@ namespace OBSStudioClient.Model.Engine
             if (this._studioMode.ApplyEvent(e.StudioModeEnabled, this._seq))
             {
                 this.Emit(ModelChangeKind.StudioModeChanged, Guid.Empty, 0, null, !e.StudioModeEnabled, e.StudioModeEnabled);
+            }
+
+            this.StudioModeApplied();
+        }
+
+        // Studio mode is known to be on or off now (an event said so, or a read did). There is a preview scene to know while it is on, and OBS Studio does not say which when it turns studio mode on:
+        // it is read (and again on a new connection, which has to read what the one before knew). While studio mode is off there is none.
+        private void StudioModeApplied()
+        {
+            if (this._studioMode.Value)
+            {
+                if (!this._previewRead || this._previewUuid.Value is null)
+                {
+                    this._previewRead = false;
+                    this._previewScope.MarkDirty();
+                }
+            }
+            else if (this._previewUuid.Value is not null || !this._previewRead)
+            {
+                this.ClearPreview();
+            }
+        }
+
+        // There is no preview scene: studio mode is off.
+        private void ClearPreview()
+        {
+            this._previewScope.Dirty = false;
+            this._previewScope.Attempts = 0;
+            this._previewRead = true;
+            var old = this._previewUuid.Value;
+            if (this._previewUuid.ApplyDerived(null, this._seq))
+            {
+                this.Emit(ModelChangeKind.PreviewSceneChanged, Guid.Empty, 0, null, old, null);
+            }
+        }
+
+        // A transition started. The program scene that OBS Studio answers with is the one that it goes to, from this moment (the event that says that it is the program scene comes when
+        // the transition has ended, and a transition can take seconds): so it is read now, and the model shows it from the start of the transition, as a call that asks OBS Studio does.
+        private void OnTransitionStarted(TransitionNameEventArgs e)
+        {
+            this._transitionStarts++;
+            this.SetTransitionRunning(true);
+            this._programScope.MarkDirty();
+            this.Notify(EventType.SceneTransitionStarted, e);
+        }
+
+        // The video of a transition is over, which is the end of it (a stinger says that it has reached its cut point first, with SceneTransitionEnded).
+        private void OnTransitionVideoEnded(TransitionNameEventArgs e)
+        {
+            this.SetTransitionRunning(false);
+            this.Notify(EventType.SceneTransitionVideoEnded, e);
+        }
+
+        // A transition ended. For every transition but a stinger that is the end of it as well: one that the next transition cancels ends without saying that its video did. A stinger says here that it has
+        // reached its cut point, and plays on until its video ends.
+        private void OnTransitionEnded(TransitionNameEventArgs e)
+        {
+            var current = this._transition.Value;
+            if (current is null || current.Kind != StingerKind || current.Uuid != e.TransitionUuid)
+            {
+                this.SetTransitionRunning(false);
+            }
+
+            this.Notify(EventType.SceneTransitionEnded, e);
+        }
+
+        private void SetTransitionRunning(bool running)
+        {
+            var old = this._transitionRunning.Value;
+            if (this._transitionRunning.ApplyEvent(running, this._seq))
+            {
+                this.Emit(ModelChangeKind.TransitionRunningChanged, Guid.Empty, 0, null, old, running);
+            }
+        }
+
+        private void OnTransitionDurationChanged(TransitionDurationEventArgs e)
+        {
+            var old = this._transitionDuration.Value;
+            if (this._transitionDuration.ApplyEvent(e.TransitionDuration, this._seq))
+            {
+                this.Emit(ModelChangeKind.TransitionDurationChanged, Guid.Empty, 0, null, old, e.TransitionDuration);
             }
         }
 
@@ -373,6 +474,7 @@ namespace OBSStudioClient.Model.Engine
 
             // The event has the capabilities of the kind from obs-websocket 5.6.0; without them the input has audio until OBS says that it has not.
             var input = new InputNode(e.InputUuid, e.InputName, e.InputKind, e.UnversionedInputKind, e.InputKindCaps, this._seq, this._now, confirmed: false);
+            input.ActivityKnown = !this.Follows(ObsHighVolume.Activity);
             this._inputs[input.Uuid] = input;
             this._inputsScope.MarkDirty();
             input.SettingsScope.MarkDirty();
@@ -384,6 +486,11 @@ namespace OBSStudioClient.Model.Engine
             if (input.IsMedia)
             {
                 input.MediaScope.MarkDirty();
+            }
+
+            if (!input.ActivityKnown)
+            {
+                input.ActivityScope.MarkDirty();
             }
 
             this.TryAnnounce(input);
@@ -603,6 +710,40 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
+        // Whether an input is on the air, and whether it is shown (measured with OBS Studio 33.0.0, see LiveActivityTests): OBS Studio says it for inputs only, first whether it is shown and then whether it
+        // is on the air, and says nothing of an input that it destroys. An input that the model does not know yet is read with the list of inputs, which reads its activity.
+        private void OnInputActiveChanged(InputActiveStateChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Active.Value;
+                if (input.Active.ApplyEvent(e.VideoActive, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputActiveChanged, input.Uuid, 0, input.Name.Value, old, input.Active.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
+        private void OnInputShowingChanged(InputShowStateChangedEventArgs e)
+        {
+            if (this._inputs.TryGetValue(e.InputUuid, out var input))
+            {
+                var old = input.Showing.Value;
+                if (input.Showing.ApplyEvent(e.VideoShowing, this._seq) && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputShowingChanged, input.Uuid, 0, input.Name.Value, old, input.Showing.Value);
+                }
+            }
+            else if (!this.Removed(e.InputUuid))
+            {
+                this._inputsScope.MarkDirty();
+            }
+        }
+
         private void OnItemCreated(SceneItemCreatedEventArgs e)
         {
             if (!this._scenes.TryGetValue(e.SceneUuid, out var scene))
@@ -720,6 +861,31 @@ namespace OBSStudioClient.Model.Engine
                 {
                     this.Emit(ModelChangeKind.ItemLockedChanged, item.Scene.Uuid, item.Id, null, old, item.Locked.Value);
                 }
+            }
+        }
+
+        // OBS Studio sends the transform again whenever something about the item changes (also when nothing of the transform did: a blend mode that is set gives one), and a change of the transform can be
+        // two events (a copy of an item gives its crop after the rest): a transform that is the one that the model holds is no change.
+        private void OnItemTransformChanged(SceneItemTransformChangedEventArgs e)
+        {
+            if (this.TryGetItem(e.SceneUuid, e.SceneItemId, out var item))
+            {
+                var old = item.Transform.Value;
+                if (item.Transform.ApplyEvent(e.SceneItemTransform, this._seq) && item.Announced)
+                {
+                    this.Emit(ModelChangeKind.ItemTransformChanged, item.Scene.Uuid, item.Id, null, old, e.SceneItemTransform);
+                }
+            }
+        }
+
+        // An item was selected in OBS Studio. The model does not keep which one is (OBS Studio says nothing when it is not selected any more), so it is something that happened: the application is told, in
+        // the order of arrival. An item that was just made is selected at once, before its state is read and before the application can know of it: the engine says what happened, and what is published
+        // holds a selection back until the application has been told of its item (see ModelPublisher), so that it is told in order and never lost.
+        private void OnItemSelected(SceneItemSelectedEventArgs e)
+        {
+            if (this.TryGetItem(e.SceneUuid, e.SceneItemId, out _))
+            {
+                this.Notify(EventType.SceneItemSelected, e);
             }
         }
 

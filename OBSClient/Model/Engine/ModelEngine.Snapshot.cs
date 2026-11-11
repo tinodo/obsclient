@@ -1,7 +1,9 @@
 namespace OBSStudioClient.Model.Engine
 {
+    using OBSStudioClient.Classes;
+
     /// <summary>A scene item, as the model holds it.</summary>
-    internal sealed record EngineItem(int Id, Guid SourceUuid, int Index, bool Enabled, bool Locked);
+    internal sealed record EngineItem(int Id, Guid SourceUuid, int Index, bool Enabled, bool Locked, SceneItemTransform? Transform = null);
 
     /// <summary>A scene, as the model holds it.</summary>
     internal sealed record EngineScene(Guid Uuid, string Name, int Index, SourceState State, IReadOnlyList<EngineItem> Items);
@@ -21,7 +23,9 @@ namespace OBSStudioClient.Model.Engine
         int SyncOffset = 0,
         ObsMonitorType MonitorType = ObsMonitorType.Off,
         int Tracks = (int)ObsAudioTracks.All,
-        ObsMediaState? MediaState = null);
+        ObsMediaState? MediaState = null,
+        bool? Active = null,
+        bool? Showing = null);
 
     /// <summary>A filter of a scene or an input, as the model holds it.</summary>
     internal sealed record EngineFilter(long Id, string Name, string Kind, int Index, bool Enabled);
@@ -36,6 +40,10 @@ namespace OBSStudioClient.Model.Engine
     /// <param name="StudioMode">Whether studio mode is on.</param>
     /// <param name="State">The state of the connection of the engine.</param>
     /// <param name="Incomplete">The number of things that the model holds but does not know completely.</param>
+    /// <param name="PreviewSceneUuid">The UUID of the preview scene: null while studio mode is off.</param>
+    /// <param name="Transition">The current scene transition.</param>
+    /// <param name="TransitionDuration">The duration of the transitions that have one, in milliseconds, when OBS Studio has said.</param>
+    /// <param name="TransitionRunning">Whether a transition is running.</param>
     internal sealed record EngineSnapshot(
         IReadOnlyList<EngineScene> Scenes,
         IReadOnlyList<EngineScene> DetachedScenes,
@@ -43,7 +51,11 @@ namespace OBSStudioClient.Model.Engine
         Guid? ProgramSceneUuid,
         bool StudioMode,
         ModelEngineState State,
-        int Incomplete);
+        int Incomplete,
+        Guid? PreviewSceneUuid = null,
+        TransitionInfo? Transition = null,
+        int? TransitionDuration = null,
+        bool TransitionRunning = false);
 
     internal sealed partial class ModelEngine
     {
@@ -56,7 +68,7 @@ namespace OBSStudioClient.Model.Engine
                     .Where(item => item.Known)
                     .OrderBy(item => item.Index.Value)
                     .ThenBy(item => item.Id)
-                    .Select(item => new EngineItem(item.Id, item.SourceUuid, item.Index.Value, item.Enabled.Value, item.Locked.Value))
+                    .Select(item => new EngineItem(item.Id, item.SourceUuid, item.Index.Value, item.Enabled.Value, item.Locked.Value, item.Transform.Value))
                     .ToArray();
             }
 
@@ -88,9 +100,11 @@ namespace OBSStudioClient.Model.Engine
                     input.SyncOffset.Value,
                     input.MonitorType.Value,
                     input.Tracks.Value,
-                    input.IsMedia ? input.MediaState.Value : null))
+                    input.IsMedia ? input.MediaState.Value : null,
+                    input.Active.Value,
+                    input.Showing.Value))
                 .ToArray();
-            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
+            return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork(), this._previewUuid.Value, this._transition.Value, this._transitionDuration.Value, this._transitionRunning.Value);
         }
 
         /// <summary>Returns the filters that the model holds of a scene or an input, from the first, as plain values; none when the model does not hold the source.</summary>

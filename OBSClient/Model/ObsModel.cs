@@ -142,6 +142,7 @@ namespace OBSStudioClient.Model
             this._ownsClient = ownsClient;
             this._logger = logger ?? NullLogger.Instance;
             this.Outputs = new ObsOutputs(this);
+            this.Transitions = new ObsTransitions(this);
             this._notifier = new ModelNotifier(this._options.NotificationContext, this._logger, this._options.MaxPendingNotifications, this.RaiseEverything);
             this._host = new ModelHost(this, client, this._options, this._logger, this._notifier);
             this._writer = new ModelWriter(client, this._host, this._options, this._logger);
@@ -256,15 +257,32 @@ namespace OBSStudioClient.Model
         /// </summary>
         public ObsNamedCollection<ObsInput> Inputs => this._view.Inputs;
 
+        /// <summary>Gets every input that OBS Studio still has: <see cref="Inputs"/>, and the ones that were removed and are kept alive for a scene item that shows them.</summary>
+        internal IReadOnlyList<ObsInput> AllInputs => this._view.AllInputs;
+
         /// <summary>
         /// Gets the program scene: the scene that is on the air. It is null until it is known.
         /// </summary>
+        /// <remarks>
+        /// While a transition runs (<see cref="ObsTransitions.IsRunning"/>) it is the scene that OBS Studio switches to: it says so as soon as the transition starts, and the scene is on the air when the transition has ended.
+        /// </remarks>
         public ObsScene? ProgramScene => this._view.ProgramScene;
 
         /// <summary>
-        /// Gets whether studio mode is on.
+        /// Gets the preview scene: the scene that studio mode shows next to the program scene, and that becomes the program scene when the transition is triggered
+        /// (<see cref="ObsTransitions.TriggerAsync"/>). It is null while studio mode is off (<see cref="IsStudioModeEnabled"/>).
+        /// </summary>
+        public ObsScene? PreviewScene => this._view.PreviewScene;
+
+        /// <summary>
+        /// Gets whether studio mode is on. <see cref="SetStudioModeEnabledAsync"/> switches it.
         /// </summary>
         public bool IsStudioModeEnabled => this._view.StudioMode;
+
+        /// <summary>
+        /// Gets the scene transitions: the current one, how long it takes, whether one is running, and the calls that change them. It is the same object for as long as the <see cref="ObsModel"/> lives.
+        /// </summary>
+        public ObsTransitions Transitions { get; }
 
         /// <summary>
         /// Gets the outputs: the stream, the recording, the virtual camera and the replay buffer. They are the same objects for as long as the <see cref="ObsModel"/> lives.
@@ -272,6 +290,9 @@ namespace OBSStudioClient.Model
         public ObsOutputs Outputs { get; }
 
         internal bool IgnoreCase => this._options.IgnoreCase;
+
+        // What the model follows of what OBS Studio sends very often.
+        internal ObsHighVolume HighVolume => this._options.HighVolume;
 
         // The host, for the tests that bring about an order in which things reach it, or make it fail.
         internal ModelHost Host => this._host;
@@ -311,6 +332,10 @@ namespace OBSStudioClient.Model
             ValidateTimeout(options.WriteTimeout, nameof(options.WriteTimeout));
             ValidateTimeout(options.OutputStepTimeout, nameof(options.OutputStepTimeout));
             ArgumentOutOfRangeException.ThrowIfLessThan(options.MaxPendingNotifications, 1, nameof(options.MaxPendingNotifications));
+            if ((options.HighVolume & ~ObsHighVolume.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(options.HighVolume), options.HighVolume, "HighVolume has a flag that does not exist.");
+            }
         }
 
         // A timeout is waited for in whole milliseconds, by a wait that cannot be longer than int.MaxValue of them (about 24.8 days): a time that is not in that range
@@ -393,7 +418,7 @@ namespace OBSStudioClient.Model
                     // A call of DisconnectAsync, or a disposal, that came before the client was asked to connect: nothing is connected then.
                     connecting.Token.ThrowIfCancellationRequested();
                     ObjectDisposedException.ThrowIf(this._disposed, this);
-                    var events = ModelHost.RequiredEvents | this._options.AdditionalEvents;
+                    var events = ModelHost.RequiredEvents | ModelHost.SubscriptionsFor(this._options.HighVolume) | this._options.AdditionalEvents;
 
                     // The client ends the attempt when this token is cancelled (a connection that the client has not made yet is not made), at once, whenever that is: it
                     // looks at the token when it activates its session, so a call of DisconnectAsync or Dispose cannot miss the session of a call that is about to start one.
@@ -923,6 +948,9 @@ namespace OBSStudioClient.Model
                     case ObsMedia media:
                         media.RaisePropertyChanged(property);
                         break;
+                    case ObsTransitions transitions:
+                        transitions.RaisePropertyChanged(property);
+                        break;
                     case ObsOutput output:
                         output.RaisePropertyChanged(property);
                         break;
@@ -993,6 +1021,8 @@ namespace OBSStudioClient.Model
             {
                 output.RaisePropertyChanged(string.Empty);
             }
+
+            this.Transitions.RaisePropertyChanged(string.Empty);
 
             if (!onlyModel)
             {

@@ -1,6 +1,8 @@
 namespace OBSStudioClient.Tests.Model
 {
     using System.Text.Json;
+    using OBSStudioClient.Classes;
+    using OBSStudioClient.Enums;
     using OBSStudioClient.Messages;
     using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
@@ -137,6 +139,15 @@ namespace OBSStudioClient.Tests.Model
 
         public bool StudioMode { get; set; }
 
+        /// <summary>Gets or sets the preview scene while studio mode is on; the program scene when it is null (OBS Studio makes the program scene the preview scene when it switches studio mode on).</summary>
+        public Guid? Preview { get; set; }
+
+        /// <summary>Gets or sets the current scene transition: OBS Studio has a cut and a fade to begin with, and the fade is the current one.</summary>
+        public (string Name, Guid Uuid, string Kind, bool IsFixed, bool IsConfigurable)? Transition { get; set; } = ("Fade", new Guid("b40ea4bd-c1de-492b-9083-5055b9bfb0fe"), "fade_transition", false, false);
+
+        /// <summary>Gets or sets how long the transitions take, in milliseconds; a fixed transition does not say it.</summary>
+        public int TransitionDuration { get; set; } = 300;
+
         /// <summary>Gets what the outputs of OBS Studio are doing; an output that is not in it is stopped.</summary>
         public Dictionary<ObsOutputKind, ObsOutputStatus> Outputs { get; } = new();
 
@@ -172,6 +183,12 @@ namespace OBSStudioClient.Tests.Model
 
         /// <summary>Gets the settings of the filters that have some set, by the UUID of their source and their name (an object that is written as JSON).</summary>
         public Dictionary<(Guid Source, string Name), object> FilterSettings { get; } = new();
+
+        /// <summary>Gets the transform of the scene items that have another than <see cref="DefaultTransform"/>, by the UUID of their scene and their id.</summary>
+        public Dictionary<(Guid Scene, int Id), SceneItemTransform> Transforms { get; } = new();
+
+        /// <summary>Gets whether the inputs are on the air and whether they are shown, by UUID, as <c>GetSourceActive</c> says it; an input that is not in it is neither.</summary>
+        public Dictionary<Guid, (bool Active, bool Showing)> Activity { get; } = new();
 
         public Guid AddScene(string name)
         {
@@ -309,6 +326,27 @@ namespace OBSStudioClient.Tests.Model
                     return (100, new { sceneName = program.Name, sceneUuid = program.Uuid });
                 case ReadKind.StudioMode:
                     return (100, new { studioModeEnabled = this.StudioMode });
+                case ReadKind.Preview:
+                    if (!this.StudioMode)
+                    {
+                        return (506, null);
+                    }
+
+                    var preview = this.Scenes.First(s => s.Uuid == (this.Preview ?? this.Program));
+                    return (100, new { sceneName = preview.Name, sceneUuid = preview.Uuid });
+                case ReadKind.Transition:
+                    return this.Transition is { } transition
+                        ? (100, new
+                        {
+                            transitionConfigurable = transition.IsConfigurable,
+                            transitionDuration = transition.IsFixed ? null : (int?)this.TransitionDuration,
+                            transitionFixed = transition.IsFixed,
+                            transitionKind = transition.Kind,
+                            transitionName = transition.Name,
+                            transitionSettings = transition.IsConfigurable ? (object)new { } : null,
+                            transitionUuid = transition.Uuid,
+                        })
+                        : (600, null);
                 case ReadKind.Stream:
                     var streamStatus = this.OutputStatus(ObsOutputKind.Stream);
                     return (100, new { outputActive = IsRunning(streamStatus), outputReconnecting = streamStatus == ObsOutputStatus.Reconnecting, outputTimecode = "00:00:00.000", outputDuration = 0L, outputCongestion = 0.0, outputBytes = 0L, outputSkippedFrames = 0L, outputTotalFrames = 0L });
@@ -330,7 +368,7 @@ namespace OBSStudioClient.Tests.Model
                         : (600, null);
                 case ReadKind.Items:
                     return this.Items.TryGetValue(request.Target, out var items)
-                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(this.Item).ToArray() })
+                        ? (100, new { sceneItems = items.OrderBy(i => i.Index).Select(item => this.Item(request.Target, item)).ToArray() })
                         : (600, null);
                 case ReadKind.AudioMute:
                     return this.AudioAnswer(request.Target, input => new { inputMuted = input.Muted });
@@ -356,6 +394,14 @@ namespace OBSStudioClient.Tests.Model
                             mediaState = this.MediaStates.GetValueOrDefault(request.Target, "OBS_MEDIA_STATE_NONE"),
                             mediaDuration = this.MediaTimes.TryGetValue(request.Target, out var times) ? (long?)times.Duration : null,
                             mediaCursor = this.MediaTimes.TryGetValue(request.Target, out var cursor) ? (long?)cursor.Cursor : null,
+                        })
+                        : (600, null);
+                case ReadKind.Activity:
+                    return this.Inputs.Any(input => input.Uuid == request.Target)
+                        ? (100, new
+                        {
+                            videoActive = this.Activity.TryGetValue(request.Target, out var activity) && activity.Active,
+                            videoShowing = activity.Showing,
                         })
                         : (600, null);
                 default:
@@ -394,7 +440,7 @@ namespace OBSStudioClient.Tests.Model
             return (600, null);
         }
 
-        private object Item((int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
+        private object Item(Guid scene, (int Id, Guid Source, bool IsScene, string SourceName, int Index, bool Enabled, bool Locked) item)
         {
             return new
             {
@@ -405,32 +451,14 @@ namespace OBSStudioClient.Tests.Model
                 sceneItemId = item.Id,
                 sceneItemIndex = item.Index,
                 sceneItemLocked = item.Locked,
-                sceneItemTransform = new
-                {
-                    alignment = 5,
-                    boundsAlignment = 0,
-                    boundsHeight = 0.0,
-                    boundsType = "OBS_BOUNDS_NONE",
-                    boundsWidth = 0.0,
-                    cropBottom = 0,
-                    cropLeft = 0,
-                    cropRight = 0,
-                    cropToBounds = false,
-                    cropTop = 0,
-                    height = 1080.0,
-                    positionX = 0.0,
-                    positionY = 0.0,
-                    rotation = 0.0,
-                    scaleX = 1.0,
-                    scaleY = 1.0,
-                    sourceHeight = 1080.0,
-                    sourceWidth = 1920.0,
-                    width = 1920.0,
-                },
+                sceneItemTransform = this.Transforms.TryGetValue((scene, item.Id), out var transform) ? transform : DefaultTransform,
                 sourceName = item.SourceName,
                 sourceType = item.IsScene ? "OBS_SOURCE_TYPE_SCENE" : "OBS_SOURCE_TYPE_INPUT",
                 sourceUuid = item.Source,
             };
         }
+
+        /// <summary>The transform of a scene item that a test did not give one: what OBS Studio says of an item that shows a source of 1920 by 1080 that was just made.</summary>
+        public static SceneItemTransform DefaultTransform { get; } = new(5, 0, 0f, Bounds.OBS_BOUNDS_NONE, 0f, 0, 0, 0, 0, 1080f, 0f, 0f, 0f, 1f, 1f, 1080f, 1920f, 1920f) { CropToBounds = false };
     }
 }

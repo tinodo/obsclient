@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Tests.Model
 {
+    using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
     using OBSStudioClient.Tests.Simulation;
 
@@ -36,12 +37,45 @@ namespace OBSStudioClient.Tests.Model
         [InlineData("Hostile", 4, true, ShortRetention)]
         public void After_a_random_walk_the_model_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects, int retentionSeconds)
         {
+            AssertWalks(quirks, maxBatch, reconnects, retentionSeconds, ObsHighVolume.None);
+        }
+
+        // The same, for a model that follows the transforms of the scene items (ObsHighVolume.Transforms): it subscribes to their events as well, and what it holds of every item has to be what OBS Studio holds.
+        [Theory]
+        [InlineData("Ideal", 50, false)]
+        [InlineData("Ideal", 50, true)]
+        [InlineData("Real", 50, true)]
+        [InlineData("Real", 4, false)]
+        [InlineData("Hostile", 50, false)]
+        [InlineData("Hostile", 4, true)]
+        public void After_a_random_walk_the_model_that_follows_the_transforms_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects)
+        {
+            AssertWalks(quirks, maxBatch, reconnects, 0, ObsHighVolume.Transforms);
+        }
+
+        // The same, for a model that follows whether the inputs are on the air and shown (ObsHighVolume.Activity), and for one that follows everything that is sent often (ObsHighVolume.All): it subscribes to the
+        // events of the activity, reads it for every input, and what it holds of every input has to be what OBS Studio holds, through the program scene, transitions, nested scenes and studio mode.
+        [Theory]
+        [InlineData("Ideal", 50, false, ObsHighVolume.Activity)]
+        [InlineData("Ideal", 50, true, ObsHighVolume.Activity)]
+        [InlineData("Real", 50, true, ObsHighVolume.Activity)]
+        [InlineData("Real", 4, false, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 50, false, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 4, true, ObsHighVolume.Activity)]
+        [InlineData("Hostile", 50, true, ObsHighVolume.All)]
+        public void After_a_random_walk_the_model_that_follows_the_activity_holds_what_OBS_Model_holds(string quirks, int maxBatch, bool reconnects, ObsHighVolume highVolume)
+        {
+            AssertWalks(quirks, maxBatch, reconnects, 0, highVolume);
+        }
+
+        private static void AssertWalks(string quirks, int maxBatch, bool reconnects, int retentionSeconds, ObsHighVolume highVolume)
+        {
             var failures = new List<string>();
             var walks = 0;
             foreach (var seed in SeedRange(FirstSeed, Seeds))
             {
                 walks++;
-                var result = Run(seed, quirks, maxBatch, reconnects, retentionSeconds);
+                var result = Run(seed, quirks, maxBatch, reconnects, retentionSeconds, highVolume: highVolume);
                 if (result.Problem is not null)
                 {
                     failures.Add(result.Problem);
@@ -87,7 +121,7 @@ namespace OBSStudioClient.Tests.Model
         public void The_walks_with_a_short_retention_let_go_of_what_they_remember()
         {
             var letGo = 0L;
-            for (var seed = 1; seed <= 20; seed++)
+            for (var seed = 1; seed <= 30; seed++)
             {
                 // Without changes of the scene collection: a switch lets the model forget what it remembers, all at once, before the retention does.
                 var result = Run(seed, "Hostile", 4, reconnects: true, ShortRetention, collections: false);
@@ -95,8 +129,9 @@ namespace OBSStudioClient.Tests.Model
                 letGo += result.LetGo;
             }
 
-            // If nothing was let go of, the walks that use a short retention would prove nothing about it.
-            Assert.True(letGo > 200, $"Only {letGo} things were let go of.");
+            // If nothing was let go of, the walks that use a short retention would prove nothing about it. A walk lasts about a minute of virtual time and the retention is 25 seconds, so only
+            // what was removed early in a walk is let go of in it: the count follows the share of the operations that remove something or let time pass.
+            Assert.True(letGo > 100, $"Only {letGo} things were let go of.");
         }
 
         [Fact]
@@ -222,7 +257,7 @@ namespace OBSStudioClient.Tests.Model
             return db <= -100 ? 0 : Math.Pow(10, db / 20);
         }
 
-        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0, bool collections = true)
+        private static EngineSimResult Run(int seed, string quirks, int maxBatch, bool reconnects, int retentionSeconds = 0, bool collections = true, ObsHighVolume highVolume = ObsHighVolume.None)
         {
             var presets = quirks switch
             {
@@ -231,7 +266,7 @@ namespace OBSStudioClient.Tests.Model
                 "Hostile" => SimQuirks.Hostile,
                 _ => throw new ArgumentOutOfRangeException(nameof(quirks), quirks, null),
             };
-            var options = new ModelEngineOptions { MaxBatch = maxBatch };
+            var options = new ModelEngineOptions { MaxBatch = maxBatch, HighVolume = highVolume };
             if (retentionSeconds > 0)
             {
                 // Much shorter than the default, so that the walks (a minute or two of virtual time) let go of what they remember, and show that nothing needs more

@@ -374,6 +374,8 @@ namespace OBSStudioClient.Tests.Model
                 "GetInputList" => new ReadRequest(ReadKind.Inputs, OBSStudioClient.Enums.RequestType.GetInputList, null, Guid.Empty),
                 "GetCurrentProgramScene" => new ReadRequest(ReadKind.Program, OBSStudioClient.Enums.RequestType.GetCurrentProgramScene, null, Guid.Empty),
                 "GetStudioModeEnabled" => new ReadRequest(ReadKind.StudioMode, OBSStudioClient.Enums.RequestType.GetStudioModeEnabled, null, Guid.Empty),
+                "GetCurrentPreviewScene" => new ReadRequest(ReadKind.Preview, OBSStudioClient.Enums.RequestType.GetCurrentPreviewScene, null, Guid.Empty),
+                "GetCurrentSceneTransition" => new ReadRequest(ReadKind.Transition, OBSStudioClient.Enums.RequestType.GetCurrentSceneTransition, null, Guid.Empty),
                 "GetStreamStatus" => new ReadRequest(ReadKind.Stream, OBSStudioClient.Enums.RequestType.GetStreamStatus, null, Guid.Empty),
                 "GetRecordStatus" => new ReadRequest(ReadKind.Record, OBSStudioClient.Enums.RequestType.GetRecordStatus, null, Guid.Empty),
                 "GetVirtualCamStatus" => new ReadRequest(ReadKind.VirtualCamera, OBSStudioClient.Enums.RequestType.GetVirtualCamStatus, null, Guid.Empty),
@@ -389,6 +391,7 @@ namespace OBSStudioClient.Tests.Model
                 "GetInputAudioTracks" => new ReadRequest(ReadKind.AudioTracks, OBSStudioClient.Enums.RequestType.GetInputAudioTracks, null, Target("inputUuid")),
                 "GetInputSettings" => new ReadRequest(ReadKind.InputSettings, OBSStudioClient.Enums.RequestType.GetInputSettings, null, Target("inputUuid")),
                 "GetMediaInputStatus" => new ReadRequest(ReadKind.MediaStatus, OBSStudioClient.Enums.RequestType.GetMediaInputStatus, null, Target("inputUuid")),
+                "GetSourceActive" => new ReadRequest(ReadKind.Activity, OBSStudioClient.Enums.RequestType.GetSourceActive, null, Target("sourceUuid")),
                 _ => null,
             };
             if (request is null)
@@ -467,7 +470,7 @@ namespace OBSStudioClient.Tests.Model
             return rig;
         }
 
-        public static async Task<ModelRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsModelOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null)
+        public static async Task<ModelRig> ConnectedAsync(Action<FakeWorld>? setup = null, ObsModelOptions? options = null, ILoggerFactory? loggerFactory = null, string? webSocketVersion = null, string? obsVersion = null, Action<ObsModel>? beforeConnect = null)
         {
             var rig = Create(setup, options, loggerFactory);
             try
@@ -482,7 +485,15 @@ namespace OBSStudioClient.Tests.Model
                     rig.Responder.ObsVersion = obsVersion;
                 }
 
+                // What a test subscribes to before the connection is made: the notifications of the first read are raised after ConnectAsync has returned.
+                beforeConnect?.Invoke(rig.Model);
+                var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                rig.Model.Resynchronized += (_, _) => firstRead.TrySetResult();
                 await rig.Model.ConnectAsync("127.0.0.1", rig.Responder.Port).WithTimeoutAsync(TimeSpan.FromSeconds(15));
+
+                // Resynchronized is raised after the rest of what the first read made the model tell: a test that adds its handlers now is not told any of it (on a slow machine the notifications
+                // of the first read came into the handlers of tests that counted what they were told).
+                await firstRead.Task.WithTimeoutAsync(TimeSpan.FromSeconds(15));
             }
             catch
             {

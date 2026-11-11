@@ -41,7 +41,7 @@ namespace OBSStudioClient.Tests.Model
             };
         }
 
-        public static async Task<CallFixture> StartAsync(ObsModelOptions? options = null, Action<FakeWorld>? setup = null)
+        public static async Task<CallFixture> StartAsync(ObsModelOptions? options = null, Action<FakeWorld>? setup = null, Action<ObsModel>? beforeConnect = null)
         {
             var gaming = Guid.Empty;
             var rig = await ModelRig.ConnectedAsync(
@@ -55,7 +55,8 @@ namespace OBSStudioClient.Tests.Model
                     world.AddItem(gaming, mic, "Mic");
                     setup?.Invoke(world);
                 },
-                options ?? DefaultOptions());
+                options ?? DefaultOptions(),
+                beforeConnect: beforeConnect);
             return new CallFixture(rig, gaming);
         }
 
@@ -97,6 +98,15 @@ namespace OBSStudioClient.Tests.Model
             lock (this._lock)
             {
                 return this._sent.Count(sent => sent.Type == type);
+            }
+        }
+
+        // Stops answering a type of request as the test said, so that the world answers it again.
+        public void StopAnswering(string type)
+        {
+            lock (this._lock)
+            {
+                this._answers.Remove(type);
             }
         }
 

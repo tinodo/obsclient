@@ -32,10 +32,18 @@ namespace OBSStudioClient.Tests.Simulation
 
             foreach (var input in initial.Inputs)
             {
-                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks, Media = input.MediaState };
+                inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks, Media = input.MediaState, Active = input.Active, Showing = input.Showing };
             }
 
             var program = initial.ProgramSceneUuid;
+            var studio = initial.StudioMode;
+            var preview = initial.PreviewSceneUuid;
+            var transition = initial.TransitionName;
+            int? duration = initial.TransitionDuration;
+
+            // Whether a transition was started and its events had not told that it was over when the events end: a switch of the scene collection ends a stretch of events while a transition runs, and what OBS
+            // Studio says of the program scene then (it is the scene that the transition goes to, at once) is what the events say of it when the transition has ended (and never, when it was cut off).
+            var transitionRunning = false;
             var number = 0;
             foreach (var message in messages)
             {
@@ -91,8 +99,30 @@ namespace OBSStudioClient.Tests.Simulation
                         }
 
                         break;
+                    case "StudioModeStateChanged":
+                        studio = data.GetProperty("studioModeEnabled").GetBoolean();
+
+                        // OBS Studio makes the program scene the preview scene when it switches studio mode on, and does not say so.
+                        preview = studio ? program : null;
+                        break;
+                    case "CurrentPreviewSceneChanged":
+                        preview = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
+                        break;
+                    case "CurrentSceneTransitionChanged":
+                        transition = data.GetProperty("transitionName").GetString()!;
+                        break;
+                    case "CurrentSceneTransitionDurationChanged":
+                        duration = data.GetProperty("transitionDuration").GetInt32();
+                        break;
                     case "CurrentProgramSceneChanged":
                         program = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
+                        break;
+                    case "SceneTransitionStarted":
+                        transitionRunning = true;
+                        break;
+                    case "SceneTransitionEnded":
+                    case "SceneTransitionVideoEnded":
+                        transitionRunning = false;
                         break;
                     case "InputCreated":
                         var createdInput = Guid.Parse(data.GetProperty("inputUuid").GetString()!);
@@ -165,6 +195,8 @@ namespace OBSStudioClient.Tests.Simulation
                     case "MediaInputPlaybackStarted":
                     case "MediaInputPlaybackEnded":
                     case "MediaInputActionTriggered":
+                    case "InputActiveStateChanged":
+                    case "InputShowStateChanged":
                         if (inputs.TryGetValue(Guid.Parse(data.GetProperty("inputUuid").GetString()!), out var changedInput))
                         {
                             Apply(changedInput, type, data);
@@ -246,9 +278,30 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             Same(problems, "scenes", scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""), final.Scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""));
-            if (program != final.ProgramSceneUuid)
+            if (program != final.ProgramSceneUuid && !transitionRunning)
             {
                 problems.Add($"The events say that the program scene is {program}, and it is {final.ProgramSceneUuid}.");
+            }
+
+            if (studio != final.StudioMode)
+            {
+                problems.Add($"The events say that studio mode is {(studio ? "on" : "off")}, and it is {(final.StudioMode ? "on" : "off")}.");
+            }
+
+            if (studio && preview != final.PreviewSceneUuid)
+            {
+                problems.Add($"The events say that the preview scene is {preview}, and it is {final.PreviewSceneUuid}.");
+            }
+
+            if (transition != final.TransitionName)
+            {
+                problems.Add($"The events say that the current transition is {transition}, and it is {final.TransitionName}.");
+            }
+
+            // The duration is the same for every transition and only the one that has one says it: when the events never said it, it is not known here.
+            if (duration is { } replayedDuration && final.TransitionDuration is { } finalDuration && replayedDuration != finalDuration)
+            {
+                problems.Add($"The events say that the transitions take {replayedDuration} ms, and they take {finalDuration} ms.");
             }
 
             foreach (var scene in final.Scenes)
@@ -301,6 +354,12 @@ namespace OBSStudioClient.Tests.Simulation
                 case "InputAudioMonitorTypeChanged":
                     input.Monitor = data.GetProperty("monitorType").GetString()!;
                     break;
+                case "InputActiveStateChanged":
+                    input.Active = data.GetProperty("videoActive").GetBoolean();
+                    break;
+                case "InputShowStateChanged":
+                    input.Showing = data.GetProperty("videoShowing").GetBoolean();
+                    break;
                 case "MediaInputPlaybackStarted":
                     input.Media = "OBS_MEDIA_STATE_PLAYING";
                     break;
@@ -331,20 +390,20 @@ namespace OBSStudioClient.Tests.Simulation
 
         private static string Describe(Input input)
         {
-            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.Mul, input.Balance, input.SyncOffset, input.Monitor, input.Tracks, input.Settings, input.Media);
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.Mul, input.Balance, input.SyncOffset, input.Monitor, input.Tracks, input.Settings, input.Media, input.Active, input.Showing);
         }
 
         private static string Describe(SimInputSnapshot input)
         {
-            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.VolumeMul, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks, input.Settings, input.MediaState);
+            return Describe(input.Uuid, input.Name, input.Kind, input.Muted, input.VolumeMul, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks, input.Settings, input.MediaState, input.Active, input.Showing);
         }
 
-        private static string Describe(Guid uuid, string name, string kind, bool muted, double mul, float balance, int offset, string monitor, int tracks, string settings, string? media)
+        private static string Describe(Guid uuid, string name, string kind, bool muted, double mul, float balance, int offset, string monitor, int tracks, string settings, string? media, bool active, bool showing)
         {
             var audio = SimInputKinds.Find(kind)!.HasAudio
                 ? $" {(muted ? "muted" : "unmuted")} mul={mul.ToString("R", CultureInfo.InvariantCulture)} balance={balance.ToString("R", CultureInfo.InvariantCulture)} offset={offset.ToString(CultureInfo.InvariantCulture)} monitor={monitor} tracks={tracks.ToString(CultureInfo.InvariantCulture)}"
                 : string.Empty;
-            return $"{uuid:D} \"{name}\" {kind}{audio}{(media is null ? string.Empty : " media=" + media)} settings={settings}";
+            return $"{uuid:D} \"{name}\" {kind}{audio}{(media is null ? string.Empty : " media=" + media)} active={active} showing={showing} settings={settings}";
         }
 
         private static Scene? Find(List<Scene> scenes, string uuid, List<string> problems, string at)
@@ -414,6 +473,11 @@ namespace OBSStudioClient.Tests.Simulation
 
             // What the media of the input does; null for an input that plays no media. A new media input has not been opened.
             public string? Media { get; set; } = SimInputKinds.Find(kind)!.IsMedia ? "OBS_MEDIA_STATE_NONE" : null;
+
+            // Whether the input is on the air and whether it is shown: a new input is neither, until an event says so.
+            public bool Active { get; set; }
+
+            public bool Showing { get; set; }
         }
     }
 }

@@ -22,7 +22,7 @@ namespace OBSStudioClient.Tests.Simulation
             var requests = new HashSet<string>(StringComparer.Ordinal);
             var messages = 0;
             var walks = new List<(SimQuirks Quirks, int Seed)>();
-            walks.AddRange(Enumerable.Range(1, 50).Select(seed => (SimQuirks.Hostile, seed)));
+            walks.AddRange(Enumerable.Range(1, 70).Select(seed => (SimQuirks.Hostile, seed)));
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Real, seed)));
             walks.AddRange(Enumerable.Range(1, 15).Select(seed => (SimQuirks.Ideal, seed)));
 
@@ -72,12 +72,9 @@ namespace OBSStudioClient.Tests.Simulation
         public void TheRandomWalks_SendEveryEventAndEveryResponse_ThatIsChecked()
         {
             var missingEvents = SimShape.EventCategories.Keys.Where(name => !Walks.Value.Events.Contains(name)).ToArray();
-
-            // Without studio mode GetCurrentPreviewScene always fails (506), so it is the one request that never succeeds.
-            var missingResponses = SimRequests.Implemented.Where(name => name != "GetCurrentPreviewScene" && !Walks.Value.Requests.Contains(name)).ToArray();
+            var missingResponses = SimRequests.Implemented.Where(name => !Walks.Value.Requests.Contains(name)).ToArray();
             Assert.True(missingEvents.Length == 0, "Events that the walks never sent: " + string.Join(", ", missingEvents));
             Assert.True(missingResponses.Length == 0, "Requests that the walks never saw succeed: " + string.Join(", ", missingResponses));
-            Assert.DoesNotContain("GetCurrentPreviewScene", Walks.Value.Requests);
         }
 
         [Fact]
@@ -107,8 +104,15 @@ namespace OBSStudioClient.Tests.Simulation
             foreach (var (type, members) in SimShape.ExtraResponseMembers)
             {
                 var documented = ProtocolSnapshot.Current.Requests[type].ResponseFields.Select(field => field.Name).ToArray();
-                Assert.Contains(type, shape.CapturedRequests);
                 Assert.All(members, member => Assert.DoesNotContain(member, documented));
+                if (SimShape.ExtraResponseMembersNotCaptured.Contains(type))
+                {
+                    // The capture has to be the one that holds them as soon as it can: this is the way out for the answers that it lacks, and no more.
+                    Assert.DoesNotContain(type, shape.CapturedRequests);
+                    continue;
+                }
+
+                Assert.Contains(type, shape.CapturedRequests);
                 Assert.All(members, member => Assert.True(shape.CapturedHas(type, "$." + member, isEvent: false), $"{type}.{member} is not in the capture"));
             }
 

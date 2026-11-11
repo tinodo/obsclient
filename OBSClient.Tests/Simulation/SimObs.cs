@@ -44,6 +44,8 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneNameChanged"] = static () => SimIntent.Scenes,
             ["SceneListChanged"] = static () => SimIntent.Scenes,
             ["CurrentProgramSceneChanged"] = static () => SimIntent.Scenes,
+            ["CurrentPreviewSceneChanged"] = static () => SimIntent.Scenes,
+            ["StudioModeStateChanged"] = static () => SimIntent.Ui,
             ["InputCreated"] = static () => SimIntent.Inputs,
             ["InputRemoved"] = static () => SimIntent.Inputs,
             ["InputNameChanged"] = static () => SimIntent.Inputs,
@@ -60,12 +62,18 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneTransitionStarted"] = static () => SimIntent.Transitions,
             ["SceneTransitionEnded"] = static () => SimIntent.Transitions,
             ["SceneTransitionVideoEnded"] = static () => SimIntent.Transitions,
+            ["CurrentSceneTransitionChanged"] = static () => SimIntent.Transitions,
+            ["CurrentSceneTransitionDurationChanged"] = static () => SimIntent.Transitions,
             ["SceneItemCreated"] = static () => SimIntent.SceneItems,
             ["SceneItemRemoved"] = static () => SimIntent.SceneItems,
             ["SceneItemListReindexed"] = static () => SimIntent.SceneItems,
             ["SceneItemEnableStateChanged"] = static () => SimIntent.SceneItems,
             ["SceneItemLockStateChanged"] = static () => SimIntent.SceneItems,
             ["SceneItemSelected"] = static () => SimIntent.SceneItems,
+            ["SceneItemTransformChanged"] = static () => SimIntent.SceneItemTransform,
+            ["InputActiveStateChanged"] = static () => SimIntent.InputActive,
+            ["InputShowStateChanged"] = static () => SimIntent.InputShow,
+            ["InputVolumeMeters"] = static () => SimIntent.InputVolumeMeters,
         };
 
         private readonly SimRequests _requests;
@@ -270,6 +278,9 @@ namespace OBSStudioClient.Tests.Simulation
         {
             return _world.Snapshot();
         }
+
+        /// <summary>Gets what the last message of the volume meters said, by the UUID of each input that it listed: the three numbers of each channel (see <see cref="SimWorld.LastMeters"/>).</summary>
+        public IReadOnlyDictionary<string, float[][]> LastMeters => _world.LastMeters;
 
         /// <summary>Checks the rules that the state of OBS Studio follows (see <see cref="SimWorld.FindProblems"/>) and throws when one is broken.</summary>
         /// <exception cref="InvalidOperationException">A rule is broken. The message says which, and shows the state.</exception>

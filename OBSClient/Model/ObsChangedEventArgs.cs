@@ -26,7 +26,7 @@ namespace OBSStudioClient.Model
         public ObsChangeKind Kind { get; }
 
         /// <summary>
-        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/>, <see cref="ObsMedia"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
+        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/>, <see cref="ObsMedia"/>, <see cref="ObsOutput"/> or <see cref="ObsTransitions"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
         /// </summary>
         public object? Entity { get; }
 
@@ -55,6 +55,7 @@ namespace OBSStudioClient.Model
                 ObsOutput output => $"the {output.Name}",
                 ObsFilter filter => $"filter '{filter.Name}' of {filter.Source.Label}",
                 ObsMedia media => $"the media of {media.Input.Label}",
+                ObsTransitions => "the scene transitions",
                 _ => "the model",
             };
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";

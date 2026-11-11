@@ -48,6 +48,15 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetMediaInputStatus.</summary>
         MediaStatus,
 
+        /// <summary>GetSourceActive, for an input (only asked when the engine follows <see cref="ObsHighVolume.Activity"/>).</summary>
+        Activity,
+
+        /// <summary>GetCurrentPreviewScene (only asked while studio mode is on).</summary>
+        Preview,
+
+        /// <summary>GetCurrentSceneTransition.</summary>
+        Transition,
+
         /// <summary>GetStreamStatus.</summary>
         Stream,
 
@@ -183,6 +192,12 @@ namespace OBSStudioClient.Model.Engine
         /// recording that cannot begin shows an error in its own window and sends no event after the first), so a step that lasts this long is checked: a start that is not running then is over.
         /// </summary>
         public TimeSpan OutputStepTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Gets or sets what the engine follows of what OBS Studio sends very often (see <see cref="ObsHighVolume"/>): the events for it are acted on, and what a read says of it is kept. What is not asked for
+        /// is left out, and the host does not subscribe to it.
+        /// </summary>
+        public ObsHighVolume HighVolume { get; set; } = ObsHighVolume.None;
     }
 
     /// <summary>
@@ -230,11 +245,23 @@ namespace OBSStudioClient.Model.Engine
         private readonly ScopeState _inputsScope = new();
         private readonly ScopeState _programScope = new();
         private readonly ScopeState _studioScope = new();
+        private readonly ScopeState _previewScope = new();
+        private readonly ScopeState _transitionScope = new();
 
         // The outputs (stream, recording, virtual camera, replay buffer), in the order of ObsOutputKind. They do not belong to a scene collection.
         private readonly OutputNode[] _outputs = [new(ObsOutputKind.Stream), new(ObsOutputKind.Record), new(ObsOutputKind.VirtualCamera), new(ObsOutputKind.ReplayBuffer)];
         private Cell<Guid?> _programUuid = new(null, 0);
         private Cell<bool> _studioMode = new(false, 0);
+
+        // The preview scene (there is one while studio mode is on), and the transitions of the scene collection: the one that is current, the duration that OBS Studio gives a transition that has
+        // one (it is the same for all, and null until OBS Studio has said), and whether one is running (from the event that says that it started to the one that says that its video ended).
+        private Cell<Guid?> _previewUuid = new(null, 0);
+        private Cell<TransitionInfo?> _transition = new(null, 0);
+        private Cell<int?> _transitionDuration = new(null, 0);
+        private Cell<bool> _transitionRunning = new(false, 0);
+
+        // How many transitions the events have said started: a change that triggers one is done when the number has gone up (a transition of a cut is over before the model is asked).
+        private long _transitionStarts;
         private Cell<bool> _exiting = new(false, 0);
         private ModelEngineState _state = ModelEngineState.Disconnected;
         private TimeSpan _now;
@@ -247,6 +274,8 @@ namespace OBSStudioClient.Model.Engine
         private bool _inputsRead;
         private bool _programRead;
         private bool _studioRead;
+        private bool _previewRead;
+        private bool _transitionRead;
 
         public ModelEngine(ModelEngineOptions? options = null)
         {
@@ -333,10 +362,13 @@ namespace OBSStudioClient.Model.Engine
                 this.ForgetCollection();
             }
 
-            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = false;
+            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = false;
 
             // OBS Studio that says that it is exiting does not come back as the same one: a connection that is made after it is made to one that was started again.
             this._exiting.ApplyDerived(false, seq);
+
+            // A transition that was running when the connection ended is over as far as the model can tell: its events are not coming, and what OBS Studio does now is read.
+            this._transitionRunning.ApplyDerived(false, seq);
             foreach (var output in this._outputs)
             {
                 output.Read = false;
@@ -387,6 +419,9 @@ namespace OBSStudioClient.Model.Engine
                 scope.NotBefore = TimeSpan.Zero;
                 scope.Dirty = true;
             }
+
+            // There is a preview scene to read only when studio mode is on, which is not known until it has been read (see StudioModeApplied).
+            this._previewScope.Dirty = false;
         }
 
         /// <summary>Tells the engine that the connection ended: reads that were under way will never be answered.</summary>
@@ -499,6 +534,24 @@ namespace OBSStudioClient.Model.Engine
                 Take(this._studioScope, new ReadRequest(ReadKind.StudioMode, RequestType.GetStudioModeEnabled, null, Guid.Empty));
             }
 
+            if (this._transitionScope.IsReady(now))
+            {
+                Take(this._transitionScope, new ReadRequest(ReadKind.Transition, RequestType.GetCurrentSceneTransition, null, Guid.Empty));
+            }
+
+            // The preview scene is read once studio mode is known to be on; while it is off there is none, and nothing is asked.
+            if (this._previewScope.IsReady(now) && this._studioRead)
+            {
+                if (this._studioMode.Value)
+                {
+                    Take(this._previewScope, new ReadRequest(ReadKind.Preview, RequestType.GetCurrentPreviewScene, null, Guid.Empty));
+                }
+                else
+                {
+                    this.ClearPreview();
+                }
+            }
+
             foreach (var output in this._outputs)
             {
                 // A start or a stop that has lasted as long as it may is looked at (see ModelEngineOptions.OutputStepTimeout).
@@ -547,6 +600,11 @@ namespace OBSStudioClient.Model.Engine
                 if (input.IsMedia && input.MediaScope.IsReady(now))
                 {
                     Take(input.MediaScope, new ReadRequest(ReadKind.MediaStatus, RequestType.GetMediaInputStatus, new { inputUuid = input.Uuid }, input.Uuid));
+                }
+
+                if (this.Follows(ObsHighVolume.Activity) && input.ActivityScope.IsReady(now))
+                {
+                    Take(input.ActivityScope, new ReadRequest(ReadKind.Activity, RequestType.GetSourceActive, new { sourceUuid = input.Uuid }, input.Uuid));
                 }
             }
 
@@ -627,7 +685,7 @@ namespace OBSStudioClient.Model.Engine
                 }
             }
 
-            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this.OutputsRead() ? 0 : 1);
+            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this._previewRead && this._transitionRead && this.OutputsRead() ? 0 : 1);
         }
 
         // Whether every output was read on this connection (or was found to be one that OBS Studio does not have).
@@ -650,6 +708,8 @@ namespace OBSStudioClient.Model.Engine
             yield return this._inputsScope;
             yield return this._programScope;
             yield return this._studioScope;
+            yield return this._previewScope;
+            yield return this._transitionScope;
             foreach (var output in this._outputs)
             {
                 yield return output.Scope;
@@ -672,6 +732,11 @@ namespace OBSStudioClient.Model.Engine
                 if (input.IsMedia)
                 {
                     yield return input.MediaScope;
+                }
+
+                if (this.Follows(ObsHighVolume.Activity))
+                {
+                    yield return input.ActivityScope;
                 }
             }
 

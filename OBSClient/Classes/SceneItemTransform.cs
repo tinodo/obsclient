@@ -28,7 +28,7 @@
     /// <param name="sourceWidth">The source width.</param>
     /// <param name="width">The width.</param>
     [method: JsonConstructor]
-    public sealed class SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Bounds boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width)
+    public sealed class SceneItemTransform(int alignment, int boundsAlignment, float boundsHeight, Bounds boundsType, float boundsWidth, int cropBottom, int cropLeft, int cropRight, int cropTop, float height, float positionX, float positionY, float rotation, float scaleX, float scaleY, float sourceHeight, float sourceWidth, float width) : IEquatable<SceneItemTransform>
     {
         /// <summary>
         /// Gets the alignment of the scene transform.
@@ -156,5 +156,63 @@
         /// </summary>
         /// <returns>The update. The bounds of a transform without bounds are left out of it, because OBS Studio refuses a bounds width or height below 1.</returns>
         public SceneItemTransformUpdate ToUpdate() => SceneItemTransformUpdate.From(this);
+
+        /// <summary>
+        /// Gets whether another transform has the same value in every member.
+        /// </summary>
+        /// <param name="other">The other transform.</param>
+        /// <returns>True when every member is the same.</returns>
+        public bool Equals(SceneItemTransform? other)
+        {
+            return other is not null
+                && this.Alignment == other.Alignment
+                && this.BoundsAlignment == other.BoundsAlignment
+                && this.BoundsHeight.Equals(other.BoundsHeight)
+                && this.BoundsType == other.BoundsType
+                && this.BoundsWidth.Equals(other.BoundsWidth)
+                && this.CropBottom == other.CropBottom
+                && this.CropLeft == other.CropLeft
+                && this.CropRight == other.CropRight
+                && this.CropTop == other.CropTop
+                && this.CropToBounds == other.CropToBounds
+                && this.Height.Equals(other.Height)
+                && this.PositionX.Equals(other.PositionX)
+                && this.PositionY.Equals(other.PositionY)
+                && this.Rotation.Equals(other.Rotation)
+                && this.ScaleX.Equals(other.ScaleX)
+                && this.ScaleY.Equals(other.ScaleY)
+                && this.SourceHeight.Equals(other.SourceHeight)
+                && this.SourceWidth.Equals(other.SourceWidth)
+                && this.Width.Equals(other.Width);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj) => this.Equals(obj as SceneItemTransform);
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(this.Alignment);
+            hash.Add(this.BoundsAlignment);
+            hash.Add(this.BoundsHeight);
+            hash.Add(this.BoundsType);
+            hash.Add(this.BoundsWidth);
+            hash.Add(this.CropBottom);
+            hash.Add(this.CropLeft);
+            hash.Add(this.CropRight);
+            hash.Add(this.CropTop);
+            hash.Add(this.CropToBounds);
+            hash.Add(this.Height);
+            hash.Add(this.PositionX);
+            hash.Add(this.PositionY);
+            hash.Add(this.Rotation);
+            hash.Add(this.ScaleX);
+            hash.Add(this.ScaleY);
+            hash.Add(this.SourceHeight);
+            hash.Add(this.SourceWidth);
+            hash.Add(this.Width);
+            return hash.ToHashCode();
+        }
     }
 }

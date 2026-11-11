@@ -37,6 +37,12 @@ namespace OBSStudioClient.Model
         public bool IsProgram => ReferenceEquals(this.Model.ProgramScene, this);
 
         /// <summary>
+        /// Gets whether the scene is the preview scene: the one that studio mode shows next to the program scene, and that becomes the program scene when the transition is triggered
+        /// (<see cref="ObsTransitions.TriggerAsync"/>). There is none while studio mode is off.
+        /// </summary>
+        public bool IsPreview => ReferenceEquals(this.Model.PreviewScene, this);
+
+        /// <summary>
         /// Gets the scene items of the scene, from the bottom (index 0) to the top.
         /// </summary>
         /// <remarks>

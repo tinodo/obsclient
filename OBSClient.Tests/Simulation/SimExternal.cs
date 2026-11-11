@@ -204,6 +204,36 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>Changes the transform of a scene item, as the user does when it moves or resizes the item in the preview.</summary>
+        public void SetItemTransform(Guid sceneUuid, int itemId, SimTransformUpdate update)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetItemTransform(FindItem(sceneUuid, itemId), update);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets the blend mode of a scene item.</summary>
+        public void SetItemBlendMode(Guid sceneUuid, int itemId, string mode)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetItemBlendMode(FindItem(sceneUuid, itemId), mode);
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a copy of a scene item on top of a scene (the scene of the item when it is not given), and returns the ID of the copy.</summary>
+        public int DuplicateItem(Guid sceneUuid, int itemId, Guid? destinationUuid = null)
+        {
+            return _obs.RunExternal(() =>
+            {
+                var item = FindItem(sceneUuid, itemId);
+                return _world.DuplicateItem(item, destinationUuid is { } destination ? FindScene(destination) : item.Scene).Id;
+            });
+        }
+
         /// <summary>Mutes or unmutes an input.</summary>
         public void SetMute(Guid inputUuid, bool muted)
         {
@@ -305,6 +335,69 @@ namespace OBSStudioClient.Tests.Simulation
             _obs.RunExternal(() =>
             {
                 _world.SwitchProgram(FindScene(sceneUuid));
+                return 0;
+            });
+        }
+
+        /// <summary>Switches studio mode on or off, as its button does.</summary>
+        public void SetStudioMode(bool enabled)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetStudioMode(enabled);
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a scene the preview scene, as a click on it does while studio mode is on.</summary>
+        public void SwitchPreviewScene(Guid sceneUuid)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SwitchPreview(FindScene(sceneUuid));
+                return 0;
+            });
+        }
+
+        /// <summary>Triggers the transition of studio mode, as its button does.</summary>
+        public void TriggerTransition()
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.TriggerTransition();
+                return 0;
+            });
+        }
+
+        /// <summary>Makes a transition the current one, as its dropdown does.</summary>
+        public void SetTransition(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetCurrentTransition(name);
+                return 0;
+            });
+        }
+
+        /// <summary>Sets how long the transitions take, as its box does.</summary>
+        public void SetTransitionDuration(int milliseconds)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.SetTransitionDuration(milliseconds);
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Sends the levels of the audio of the inputs that are on the air (<c>InputVolumeMeters</c>), as obs-websocket does every 50 ms to a client that subscribed to them. The simulation has no clock that ticks, so
+        /// it sends them when this is called.
+        /// </summary>
+        public void MeterTick()
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.MeterTick();
                 return 0;
             });
         }

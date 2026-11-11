@@ -1,8 +1,10 @@
 namespace OBSStudioClient.Tests.Model
 {
     using System.Globalization;
+    using OBSStudioClient.Classes;
     using OBSStudioClient.Model;
     using OBSStudioClient.Tests.Simulation;
+    using OBSStudioClient.Tests.TestSupport;
 
     /// <summary>
     /// What an <see cref="ObsModel"/> shows, compared with what the simulation of OBS Studio really holds (see <see cref="SimSnapshot"/>). Both are written as the same
@@ -23,8 +25,9 @@ namespace OBSStudioClient.Tests.Model
         /// <returns>The differences, one to a line, or null.</returns>
         public static string? Compare(SimSnapshot truth, ObsModel model)
         {
-            var truthLines = Project(truth);
-            var modelLines = Project(model, out var modelInputs, out var disagreements);
+            var follows = model.HighVolume;
+            var truthLines = Project(truth, follows);
+            var modelLines = Project(model, follows, out var modelInputs, out var disagreements);
             var problems = new List<string>();
             problems.AddRange(truthLines.Except(modelLines).Select(line => "only in OBS Studio: " + line));
             problems.AddRange(modelLines.Except(truthLines).Select(line => "only in the model:  " + line));
@@ -63,27 +66,29 @@ namespace OBSStudioClient.Tests.Model
 
         // What OBS Studio holds. A removed input that no scene item uses (a global audio device stays alive that way) cannot be reached by anybody, and nothing tells it
         // from one that was destroyed: it is not compared.
-        private static List<string> Project(SimSnapshot snapshot)
+        private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
                 lines.Add(SceneLine(scene.Index, scene.Uuid, scene.Name));
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? TransformTexts.Of(System.Text.Json.JsonSerializer.Deserialize<SceneItemTransform>(item.Transform)!) : null)));
             }
 
             foreach (var scene in snapshot.DetachedScenes.OrderBy(scene => scene.Uuid))
             {
                 lines.Add($"detached scene {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? TransformTexts.Of(System.Text.Json.JsonSerializer.Deserialize<SceneItemTransform>(item.Transform)!) : null)));
             }
 
             foreach (var input in snapshot.Inputs.OrderBy(input => input.Uuid))
             {
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState, activity ? ActivityText(input.Active, input.Showing) : null));
                 }
             }
 
@@ -96,8 +101,10 @@ namespace OBSStudioClient.Tests.Model
         // list. It can disagree for a moment: a step of the model changes its objects in place, and swaps in the collections after that, and a reader that is between
         // the two sees an object that says Detached and a collection that still lists it. That is reported as a difference, so that a model is only called the same
         // as OBS Studio when the collections and the objects agree.
-        private static List<string> Project(ObsModel model, out Dictionary<Guid, ObsInput> inputs, out List<string> disagreements)
+        private static List<string> Project(ObsModel model, ObsHighVolume follows, out Dictionary<Guid, ObsInput> inputs, out List<string> disagreements)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + (model.ProgramScene?.Uuid.ToString("D") ?? "(none)") };
             var liveScenes = model.Scenes;
             var liveInputs = model.Inputs;
@@ -141,14 +148,14 @@ namespace OBSStudioClient.Tests.Model
                 }
 
                 lines.Add(SceneLine(scene.Index, scene.Uuid, scene.Name));
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.Source.Uuid, item.IsEnabled, item.IsLocked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.Source.Uuid, item.IsEnabled, item.IsLocked, transforms ? (item.Transform is { } held ? TransformTexts.Of(held) : "(no transform)") : null)));
                 Collect(scene);
             }
 
             foreach (var scene in detachedScenes.Values)
             {
                 lines.Add($"detached scene {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.Source.Uuid, item.IsEnabled, item.IsLocked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.Source.Uuid, item.IsEnabled, item.IsLocked, transforms ? (item.Transform is { } held ? TransformTexts.Of(held) : "(no transform)") : null)));
                 Collect(scene);
             }
 
@@ -174,7 +181,8 @@ namespace OBSStudioClient.Tests.Model
                     !liveInputUuids.Contains(input.Uuid),
                     AudioDetails(input.HasAudio, input.AudioBalance, (int)input.SyncOffset.TotalMilliseconds, ModelEnums.ToWire(input.MonitorType).ToString(), (int)input.AudioTracks),
                     Canonical(input.Settings.GetRawText()),
-                    MediaWire.Of(input.Media?.State)));
+                    MediaWire.Of(input.Media?.State),
+                    activity ? (input.IsActive is { } active && input.IsShowing is { } showing ? ActivityText(active, showing) : "(no activity)") : null));
             }
 
             disagreements = found;
@@ -186,14 +194,19 @@ namespace OBSStudioClient.Tests.Model
             return $"scene [{index.ToString(CultureInfo.InvariantCulture)}] {uuid:D} \"{name}\"";
         }
 
-        private static string ItemLine(int id, int index, Guid source, bool enabled, bool locked)
+        private static string ItemLine(int id, int index, Guid source, bool enabled, bool locked, string? transform)
         {
-            return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}";
+            return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}{(transform is null ? string.Empty : ", " + transform)}";
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media, string? activity)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(activity is null ? string.Empty : ", " + activity)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+        }
+
+        private static string ActivityText(bool active, bool showing)
+        {
+            return $"{(active ? "on the air" : "off the air")}, {(showing ? "shown" : "not shown")}";
         }
 
         private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)

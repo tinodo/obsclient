@@ -183,7 +183,7 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         [Fact]
-        public void StudioModeIsNotSimulated()
+        public void StudioModeIsOffToBeginWith_AndThereAreNoGroups()
         {
             var h = new SimHarness(Ideal);
 

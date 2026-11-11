@@ -87,45 +87,47 @@ namespace OBSStudioClient.Tests.Simulation
             return Obj(
                 ("inputKind", source is SimInput input ? JsonValue.Create(input.Kind.Id) : null),
                 ("isGroup", source.IsScene ? JsonValue.Create(false) : null),
-                ("sceneItemBlendMode", "OBS_BLEND_NORMAL"),
+                ("sceneItemBlendMode", item.BlendMode),
                 ("sceneItemEnabled", item.Enabled),
                 ("sceneItemId", item.Id),
                 ("sceneItemIndex", item.Index),
                 ("sceneItemLocked", item.Locked),
-                ("sceneItemTransform", TransformJson(source)),
+                ("sceneItemTransform", TransformJson(item)),
                 ("sourceName", source.Name),
                 ("sourceType", source.IsScene ? "OBS_SOURCE_TYPE_SCENE" : "OBS_SOURCE_TYPE_INPUT"),
                 ("sourceUuid", source.UuidText));
         }
 
-        // The transform of an item that was not changed. The size of a source is that of the canvas for a scene, the width and height of its
-        // settings for a color source, and not known for the other kinds (their size depends on what they show).
-        private static JsonObject TransformJson(SimSource source)
+        // The transform of an item: what was set, and what follows from the size of its source and the scale (the size of an item is the size of the source times the scale, whatever the bounds are: measured with OBS
+        // Studio 33.0.0, LiveGeometryTests). The size of a source is that of the canvas for a scene, the width and height of its settings for a color source, and not known for the other kinds (their size
+        // depends on what they show).
+        internal static JsonObject TransformJson(SimItem item)
         {
-            var (width, height) = SourceSize(source);
+            var transform = item.Transform;
+            var (sourceWidth, sourceHeight) = SourceSize(item.Source);
             return Obj(
-                ("alignment", 5),
-                ("boundsAlignment", 0),
-                ("boundsHeight", 0.0),
-                ("boundsType", "OBS_BOUNDS_NONE"),
-                ("boundsWidth", 0.0),
-                ("cropBottom", 0),
-                ("cropLeft", 0),
-                ("cropRight", 0),
-                ("cropToBounds", false),
-                ("cropTop", 0),
-                ("height", height),
-                ("positionX", 0.0),
-                ("positionY", 0.0),
-                ("rotation", 0.0),
-                ("scaleX", 1.0),
-                ("scaleY", 1.0),
-                ("sourceHeight", height),
-                ("sourceWidth", width),
-                ("width", width));
+                ("alignment", transform.Alignment),
+                ("boundsAlignment", transform.BoundsAlignment),
+                ("boundsHeight", (double)transform.BoundsHeight),
+                ("boundsType", transform.BoundsType),
+                ("boundsWidth", (double)transform.BoundsWidth),
+                ("cropBottom", transform.CropBottom),
+                ("cropLeft", transform.CropLeft),
+                ("cropRight", transform.CropRight),
+                ("cropToBounds", transform.CropToBounds),
+                ("cropTop", transform.CropTop),
+                ("height", (double)((float)sourceHeight * transform.ScaleY)),
+                ("positionX", (double)transform.PositionX),
+                ("positionY", (double)transform.PositionY),
+                ("rotation", (double)transform.Rotation),
+                ("scaleX", (double)transform.ScaleX),
+                ("scaleY", (double)transform.ScaleY),
+                ("sourceHeight", sourceHeight),
+                ("sourceWidth", sourceWidth),
+                ("width", (double)((float)sourceWidth * transform.ScaleX)));
         }
 
-        private static (double Width, double Height) SourceSize(SimSource source)
+        internal static (double Width, double Height) SourceSize(SimSource source)
         {
             if (source is SimScene)
             {

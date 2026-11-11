@@ -295,6 +295,12 @@ namespace OBSStudioClient.Tests.Simulation
             return value.Length > 0;
         }
 
+        /// <summary>Makes a check of the request fail with a status that a request handler comes to by itself. Always returns false.</summary>
+        public bool Refuse(int code, string comment)
+        {
+            return Fail(code, comment);
+        }
+
         private bool Fail(int code, string comment)
         {
             Failure = new SimFailure(code, comment);

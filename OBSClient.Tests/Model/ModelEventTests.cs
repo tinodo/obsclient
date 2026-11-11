@@ -44,9 +44,21 @@ namespace OBSStudioClient.Tests.Model
             await without.ConnectAsync().WithTimeoutAsync(Timeout);
             await using var with = new ModelSimRig(options: new ObsModelOptions { AdditionalEvents = EventSubscriptions.InputVolumeMeters });
             await with.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var following = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.Transforms });
+            await following.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var watching = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.Activity });
+            await watching.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var listening = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.AudioLevels });
+            await listening.ConnectAsync().WithTimeoutAsync(Timeout);
+            await using var everything = new ModelSimRig(options: new ObsModelOptions { HighVolume = ObsHighVolume.All });
+            await everything.ConnectAsync().WithTimeoutAsync(Timeout);
 
             Assert.Equal(EventSubscriptions.None, (EventSubscriptions)without.Server.EventSubscriptions!.Value & HighVolume);
             Assert.Equal(EventSubscriptions.InputVolumeMeters, (EventSubscriptions)with.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(EventSubscriptions.SceneItemTransformChanged, (EventSubscriptions)following.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged, (EventSubscriptions)watching.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(EventSubscriptions.InputVolumeMeters, (EventSubscriptions)listening.Server.EventSubscriptions!.Value & HighVolume);
+            Assert.Equal(HighVolume, (EventSubscriptions)everything.Server.EventSubscriptions!.Value & HighVolume);
             Assert.False(ModelHost.RequiredEvents.HasFlag(EventSubscriptions.Vendors));
         }
 

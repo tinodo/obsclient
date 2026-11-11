@@ -3,10 +3,12 @@ namespace OBSStudioClient.Tests.Model
     using System.Globalization;
     using System.Text;
     using System.Text.Json;
+    using OBSStudioClient.Classes;
     using OBSStudioClient.Messages;
     using OBSStudioClient.Model;
     using OBSStudioClient.Model.Engine;
     using OBSStudioClient.Tests.Simulation;
+    using OBSStudioClient.Tests.TestSupport;
 
     /// <summary>What a run of <see cref="EngineSimRun"/> found, and how much it did.</summary>
     /// <param name="Problem">What is wrong, with everything that is needed to see why, or null.</param>
@@ -44,8 +46,9 @@ namespace OBSStudioClient.Tests.Model
         // How much of what happened a report shows (OBSCLIENT_SIM_TRACE sets it, to see more of a walk that fails).
         private static readonly int TraceLines = int.TryParse(Environment.GetEnvironmentVariable("OBSCLIENT_SIM_TRACE"), out var lines) && lines > 0 ? lines : 150;
 
-        // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories.
-        private static readonly int Subscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs;
+        // What the model subscribes to (see ObsModel): OBS Studio only sends the events of these categories, and those of the transforms of the scene items and of the activity of the inputs when the model follows
+        // them (ObsHighVolume.Transforms, ObsHighVolume.Activity).
+        private static readonly int BaseSubscribed = SimIntent.Scenes | SimIntent.Inputs | SimIntent.SceneItems | SimIntent.Config | SimIntent.MediaInputs | SimIntent.Transitions | SimIntent.Ui;
 
         private readonly SimObs _sim;
         private readonly ModelEngine _engine;
@@ -97,6 +100,12 @@ namespace OBSStudioClient.Tests.Model
         public ModelEngine Engine => this._engine;
 
         public SimObs Sim => this._sim;
+
+        private int Subscribed => BaseSubscribed | (this.FollowsTransforms ? SimIntent.SceneItemTransform : 0) | (this.FollowsActivity ? SimIntent.InputActive | SimIntent.InputShow : 0);
+
+        private bool FollowsTransforms => this._options.HighVolume.HasFlag(ObsHighVolume.Transforms);
+
+        private bool FollowsActivity => this._options.HighVolume.HasFlag(ObsHighVolume.Activity);
 
         private TimeSpan Now => this._sim.Clock.Now;
 
@@ -186,17 +195,17 @@ namespace OBSStudioClient.Tests.Model
             this._sim.CheckInvariants();
             var truth = this._sim.Snapshot();
             var model = this._engine.Snapshot();
-            foreach (var line in Project(truth))
+            foreach (var line in Project(truth, this._options.HighVolume))
             {
                 this.Record("truth " + line);
             }
 
-            foreach (var line in Project(model))
+            foreach (var line in Project(model, this._options.HighVolume))
             {
                 this.Record("model " + line);
             }
 
-            var problems = Differences(truth, model);
+            var problems = Differences(truth, model, this._options.HighVolume);
             problems.AddRange(this.Leaks(truth, model));
 
             // What the model holds has to be consistent with itself too: a source that OBS destroyed can be absent from every comparison below and still be held.
@@ -214,10 +223,10 @@ namespace OBSStudioClient.Tests.Model
             return problems.Count == 0 ? null : this.Describe(string.Join(Environment.NewLine, problems));
         }
 
-        private static List<string> Differences(SimSnapshot truth, EngineSnapshot model)
+        private static List<string> Differences(SimSnapshot truth, EngineSnapshot model, ObsHighVolume follows)
         {
-            var truthLines = Project(truth);
-            var modelLines = Project(model);
+            var truthLines = Project(truth, follows);
+            var modelLines = Project(model, follows);
             var problems = new List<string>();
             problems.AddRange(truthLines.Except(modelLines).Select(line => "only in OBS Studio: " + line));
             problems.AddRange(modelLines.Except(truthLines).Select(line => "only in the model:  " + line));
@@ -259,20 +268,24 @@ namespace OBSStudioClient.Tests.Model
                 && Math.Abs(model.VolumeMul - truth.VolumeMul) <= Math.Max(VolumeMulFloor, VolumeMulShare * Math.Max(truth.VolumeMul, model.VolumeMul));
         }
 
-        private static List<string> Project(SimSnapshot snapshot)
+        private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
+            lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
+            lines.Add(TransitionLine(snapshot.TransitionName, snapshot.TransitionDuration, snapshot.TransitionRunning));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
                 lines.Add($"scene [{scene.Index.ToString(CultureInfo.InvariantCulture)}] {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? TransformText(JsonSerializer.Deserialize<SceneItemTransform>(item.Transform)!) : null)));
             }
 
             foreach (var scene in snapshot.DetachedScenes.OrderBy(scene => scene.Uuid))
             {
                 lines.Add($"detached scene {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? TransformText(JsonSerializer.Deserialize<SceneItemTransform>(item.Transform)!) : null)));
             }
 
             foreach (var input in snapshot.Inputs.OrderBy(input => input.Uuid))
@@ -281,27 +294,31 @@ namespace OBSStudioClient.Tests.Model
                 // anybody, and nothing tells it from one that was destroyed: it is not compared.
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState, activity ? ActivityText(input.Active, input.Showing) : null));
                 }
             }
 
             return lines;
         }
 
-        private static List<string> Project(EngineSnapshot snapshot)
+        private static List<string> Project(EngineSnapshot snapshot, ObsHighVolume follows)
         {
+            var transforms = follows.HasFlag(ObsHighVolume.Transforms);
+            var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + (snapshot.ProgramSceneUuid?.ToString("D") ?? "(none)") };
+            lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
+            lines.Add(TransitionLine(snapshot.Transition?.Name ?? "(none)", snapshot.Transition is { IsFixed: false } ? snapshot.TransitionDuration : null, snapshot.TransitionRunning));
             var referenced = ReferencedSources(snapshot);
             foreach (var scene in snapshot.Scenes)
             {
                 lines.Add($"scene [{scene.Index.ToString(CultureInfo.InvariantCulture)}] {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? (item.Transform is { } held ? TransformText(held) : "(no transform)") : null)));
             }
 
             foreach (var scene in snapshot.DetachedScenes.OrderBy(scene => scene.Uuid))
             {
                 lines.Add($"detached scene {scene.Uuid:D} \"{scene.Name}\"");
-                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked)));
+                lines.AddRange(scene.Items.Select(item => ItemLine(item.Id, item.Index, item.SourceUuid, item.Enabled, item.Locked, transforms ? (item.Transform is { } held ? TransformText(held) : "(no transform)") : null)));
             }
 
             // The same as the other side: a removed input that no scene item uses is not compared (the model can hold it, when OBS Studio keeps it alive, and
@@ -311,11 +328,16 @@ namespace OBSStudioClient.Tests.Model
                 var detached = input.State == SourceState.Detached;
                 if (!detached || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}"), MediaWire.Of(input.MediaState)));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, detached, AudioDetails(input.HasAudio, input.AudioBalance, input.SyncOffset, ModelEnums.ToWire(input.MonitorType).ToString(), input.Tracks), Canonical(input.Settings?.ToString() ?? "{}"), MediaWire.Of(input.MediaState), activity ? (input.Active is { } active && input.Showing is { } showing ? ActivityText(active, showing) : "(no activity)") : null));
                 }
             }
 
             return lines;
+        }
+
+        private static string TransitionLine(string name, int? duration, bool running)
+        {
+            return $"transition {name}{(duration is { } milliseconds ? " " + milliseconds.ToString(CultureInfo.InvariantCulture) + " ms" : string.Empty)}{(running ? ", running" : string.Empty)}";
         }
 
         private static HashSet<Guid> ReferencedSources(EngineSnapshot snapshot)
@@ -323,14 +345,24 @@ namespace OBSStudioClient.Tests.Model
             return snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
         }
 
-        private static string ItemLine(int id, int index, Guid source, bool enabled, bool locked)
+        private static string ItemLine(int id, int index, Guid source, bool enabled, bool locked, string? transform)
         {
-            return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}";
+            return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}{(transform is null ? string.Empty : ", " + transform)}";
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
+        private static string TransformText(SceneItemTransform transform)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+            return TransformTexts.Of(transform);
+        }
+
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media, string? activity)
+        {
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(activity is null ? string.Empty : ", " + activity)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+        }
+
+        private static string ActivityText(bool active, bool showing)
+        {
+            return $"{(active ? "on the air" : "off the air")}, {(showing ? "shown" : "not shown")}";
         }
 
         private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)
@@ -829,6 +861,23 @@ namespace OBSStudioClient.Tests.Model
                 var index = this._random.Next(0, scene.Items.Count);
                 this.Act($"move item #{item.Id} of scene \"{scene.Name}\" {Short(scene.Uuid)} to index {index}", () => this._sim.External.SetItemIndex(scene.Uuid, item.Id, index));
             }));
+            this.Add("change the transform of an item", 4, truth => this.WithItem(truth, (scene, item) =>
+            {
+                var update = this.SomeTransformUpdate();
+                this.Act($"change the transform of item #{item.Id} of scene \"{scene.Name}\" {Short(scene.Uuid)}", () => this._sim.External.SetItemTransform(scene.Uuid, item.Id, update));
+            }));
+            this.Add("change the blend mode of an item", 1, truth => this.WithItem(truth, (scene, item) =>
+            {
+                var mode = this.Pick(SimWorld.BlendModes);
+                this.Act($"set the blend mode of item #{item.Id} of scene \"{scene.Name}\" {Short(scene.Uuid)} to {mode}", () => this._sim.External.SetItemBlendMode(scene.Uuid, item.Id, mode));
+            }));
+            this.Add("duplicate an item", 2, truth => this.WithItem(truth, (scene, item) =>
+            {
+                // Into another scene only an item of an input: a scene could be given a scene that holds it.
+                var destination = !item.IsScene && this._random.Chance(0.4) ? this.Pick(truth.Scenes) : null;
+                var into = destination is null ? string.Empty : $" into scene \"{destination.Name}\" {Short(destination.Uuid)}";
+                this.Act($"duplicate item #{item.Id} of scene \"{scene.Name}\" {Short(scene.Uuid)}{into}", () => this._sim.External.DuplicateItem(scene.Uuid, item.Id, destination?.Uuid));
+            }));
             this.Add("mute or unmute input", 2, truth =>
             {
                 var inputs = truth.Inputs.Where(input => input.HasAudio).ToArray();
@@ -928,6 +977,36 @@ namespace OBSStudioClient.Tests.Model
                     this.Act($"switch the program scene to \"{scene.Name}\" {Short(scene.Uuid)}", () => this._sim.External.SwitchProgramScene(scene.Uuid));
                 }
             });
+            this.Add("switch studio mode", 2, truth =>
+            {
+                var enabled = !truth.StudioMode;
+                this.Act($"switch studio mode {(enabled ? "on" : "off")}", () => this._sim.External.SetStudioMode(enabled));
+            });
+            this.Add("switch the preview scene", 3, truth =>
+            {
+                if (truth.StudioMode && truth.Scenes.Count > 0)
+                {
+                    var scene = this.Pick(truth.Scenes);
+                    this.Act($"switch the preview scene to \"{scene.Name}\" {Short(scene.Uuid)}", () => this._sim.External.SwitchPreviewScene(scene.Uuid));
+                }
+            });
+            this.Add("trigger the transition of studio mode", 3, truth =>
+            {
+                if (truth.StudioMode)
+                {
+                    this.Act("trigger the transition of studio mode", () => this._sim.External.TriggerTransition());
+                }
+            });
+            this.Add("choose the transition", 2, _ =>
+            {
+                var name = this.Pick(new[] { "Cut", "Fade" });
+                this.Act($"make {name} the current transition", () => this._sim.External.SetTransition(name));
+            });
+            this.Add("set the duration of the transitions", 2, _ =>
+            {
+                var milliseconds = this._random.Next(50, 2500);
+                this.Act($"set the duration of the transitions to {milliseconds.ToString(CultureInfo.InvariantCulture)} ms", () => this._sim.External.SetTransitionDuration(milliseconds));
+            });
             this.Add("a moment passes", 14, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(1, 120))), OperationKind.Time);
             this.Add("a while passes", 3, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(300, 3000))), OperationKind.Time);
             this.Add("a long while passes", 1, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(5000, 15000))), OperationKind.Time);
@@ -1005,6 +1084,48 @@ namespace OBSStudioClient.Tests.Model
             return items[this._random.Next(items.Count)];
         }
 
+        // Some members of the transform of an item: the ones that someone changes by dragging the item in the preview, now and then bounds or a crop, and always at least one.
+        private SimTransformUpdate SomeTransformUpdate()
+        {
+            var update = new SimTransformUpdate();
+            if (this._random.Chance(0.6))
+            {
+                update.PositionX = this._random.Next(-200, 400) / 4f;
+                update.PositionY = this._random.Next(-200, 400) / 4f;
+            }
+
+            if (this._random.Chance(0.4))
+            {
+                update.ScaleX = this._random.Next(1, 9) / 4f;
+                update.ScaleY = this._random.Next(1, 9) / 4f;
+            }
+
+            if (this._random.Chance(0.15))
+            {
+                update.Rotation = this._random.Next(0, 360);
+            }
+
+            if (this._random.Chance(0.2))
+            {
+                update.BoundsType = this.Pick(SimWorld.BoundsTypes);
+                update.BoundsWidth = this._random.Next(1, 20) * 50f;
+                update.BoundsHeight = this._random.Next(1, 20) * 50f;
+            }
+
+            if (this._random.Chance(0.3))
+            {
+                update.CropLeft = this._random.Next(0, 100);
+                update.CropTop = this._random.Next(0, 100);
+            }
+
+            if (!update.HasInfo && !update.HasCrop)
+            {
+                update.PositionX = this._random.Next(-200, 400) / 4f;
+            }
+
+            return update;
+        }
+
         private string NewName(string prefix)
         {
             var name = $"{prefix} {(++this._fresh).ToString(CultureInfo.InvariantCulture)}";
@@ -1029,7 +1150,7 @@ namespace OBSStudioClient.Tests.Model
                 text.AppendLine("OBS Studio holds:");
                 text.AppendLine(this._sim.Snapshot().ToString());
                 text.AppendLine("The model holds:");
-                text.AppendLine(string.Join(Environment.NewLine, Project(this._engine.Snapshot()).Select(line => "  " + line)));
+                text.AppendLine(string.Join(Environment.NewLine, Project(this._engine.Snapshot(), this._options.HighVolume).Select(line => "  " + line)));
             }
             catch (Exception exception)
             {

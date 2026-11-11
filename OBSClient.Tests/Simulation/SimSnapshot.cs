@@ -11,7 +11,9 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="Enabled">Whether the item is enabled.</param>
     /// <param name="Locked">Whether the item is locked.</param>
     /// <param name="IsScene">Whether the source of the item is a scene.</param>
-    internal sealed record SimItemSnapshot(int Id, Guid SourceUuid, string SourceName, int Index, bool Enabled, bool Locked, bool IsScene);
+    /// <param name="Transform">The transform of the item, as obs-websocket writes it (JSON text, the members sorted).</param>
+    /// <param name="BlendMode">The blend mode of the item, as obs-websocket writes it.</param>
+    internal sealed record SimItemSnapshot(int Id, Guid SourceUuid, string SourceName, int Index, bool Enabled, bool Locked, bool IsScene, string Transform, string BlendMode);
 
     /// <summary>A scene in a <see cref="SimSnapshot"/>.</summary>
     /// <param name="Uuid">The UUID of the scene.</param>
@@ -69,6 +71,8 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="MonitorType">The monitor type, as obs-websocket writes it.</param>
     /// <param name="Tracks">The audio tracks, one bit for each (63 for an input without audio).</param>
     /// <param name="MediaState">What the media of the input does, as obs-websocket writes it; null for an input that is no media input.</param>
+    /// <param name="Active">Whether the input is on the air (<c>videoActive</c>).</param>
+    /// <param name="Showing">Whether the input is shown, on the air or in the preview of studio mode (<c>videoShowing</c>).</param>
     internal sealed record SimInputSnapshot(
         Guid Uuid,
         string Name,
@@ -84,7 +88,9 @@ namespace OBSStudioClient.Tests.Simulation
         int SyncOffset = 0,
         string MonitorType = "OBS_MONITORING_TYPE_NONE",
         int Tracks = 63,
-        string? MediaState = null)
+        string? MediaState = null,
+        bool Active = false,
+        bool Showing = false)
     {
         public override string ToString()
         {
@@ -92,6 +98,7 @@ namespace OBSStudioClient.Tests.Simulation
                 + (HasAudio ? $", {(Muted ? "muted" : "unmuted")}, volume {VolumeMul.ToString("0.####", CultureInfo.InvariantCulture)} ({VolumeDb.ToString("0.##", CultureInfo.InvariantCulture)} dB)" : string.Empty)
                 + (HasAudio ? $", balance {Balance.ToString("R", CultureInfo.InvariantCulture)}, sync offset {SyncOffset.ToString(CultureInfo.InvariantCulture)} ms, {MonitorType}, tracks {Convert.ToString(Tracks, 2).PadLeft(6, '0')}" : string.Empty)
                 + (MediaState is null ? string.Empty : $", media {MediaState}")
+                + (Active ? ", on the air" : Showing ? ", shown" : string.Empty)
                 + (Settings == "{}" ? string.Empty : $", settings {Settings}")
                 + (Pinned ? ", pinned" : string.Empty)
                 + (Removed ? ", removed" : string.Empty);
@@ -107,8 +114,11 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="DetachedScenes">The scenes that were removed but are alive, because they are an item of another scene.</param>
     /// <param name="Inputs">Every input that is alive, in the order in which they were created.</param>
     /// <param name="ProgramSceneUuid">The UUID of the program scene.</param>
-    /// <param name="PreviewSceneUuid">The UUID of the preview scene, which is null: studio mode is not simulated.</param>
-    /// <param name="StudioMode">Whether studio mode is enabled, which it is not.</param>
+    /// <param name="PreviewSceneUuid">The UUID of the preview scene, which there is while studio mode is on.</param>
+    /// <param name="StudioMode">Whether studio mode is enabled.</param>
+    /// <param name="TransitionName">The name of the current scene transition.</param>
+    /// <param name="TransitionDuration">The duration of the transitions in milliseconds when the current transition says one (the cut does not).</param>
+    /// <param name="TransitionRunning">Whether a transition is running.</param>
     internal sealed record SimSnapshot(
         string CollectionName,
         IReadOnlyList<SimSceneSnapshot> Scenes,
@@ -116,7 +126,10 @@ namespace OBSStudioClient.Tests.Simulation
         IReadOnlyList<SimInputSnapshot> Inputs,
         Guid ProgramSceneUuid,
         Guid? PreviewSceneUuid,
-        bool StudioMode)
+        bool StudioMode,
+        string TransitionName = "Cut",
+        int? TransitionDuration = null,
+        bool TransitionRunning = false)
     {
         public bool Equals(SimSnapshot? other)
         {
@@ -125,6 +138,9 @@ namespace OBSStudioClient.Tests.Simulation
                 && ProgramSceneUuid == other.ProgramSceneUuid
                 && PreviewSceneUuid == other.PreviewSceneUuid
                 && StudioMode == other.StudioMode
+                && TransitionName == other.TransitionName
+                && TransitionDuration == other.TransitionDuration
+                && TransitionRunning == other.TransitionRunning
                 && Scenes.SequenceEqual(other.Scenes)
                 && DetachedScenes.SequenceEqual(other.DetachedScenes)
                 && Inputs.SequenceEqual(other.Inputs);
@@ -139,9 +155,11 @@ namespace OBSStudioClient.Tests.Simulation
         {
             var text = new StringBuilder();
             var program = Scenes.FirstOrDefault(scene => scene.Uuid == ProgramSceneUuid);
+            var preview = PreviewSceneUuid is { } previewUuid ? Scenes.FirstOrDefault(scene => scene.Uuid == previewUuid) : null;
             text.Append("collection \"").Append(CollectionName).Append("\", program scene ")
                 .Append(program is null ? "(none)" : $"\"{program.Name}\" {Short(ProgramSceneUuid)}")
-                .Append(StudioMode ? ", studio mode on" : ", studio mode off").AppendLine();
+                .Append(StudioMode ? ", studio mode on, preview scene " + (preview is null ? "(none)" : $"\"{preview.Name}\" {Short(preview.Uuid)}") : ", studio mode off")
+                .Append(", transition ").Append(TransitionName).Append(TransitionDuration is { } duration ? $" {duration} ms" : string.Empty).Append(TransitionRunning ? " (running)" : string.Empty).AppendLine();
             text.AppendLine("scenes:");
             foreach (var scene in Scenes)
             {

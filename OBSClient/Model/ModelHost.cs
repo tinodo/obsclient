@@ -29,10 +29,36 @@ namespace OBSStudioClient.Model
     {
         /// <summary>The events that the model needs. They are always subscribed to, with the ones that the application asks for.</summary>
         public const EventSubscriptions RequiredEvents =
-            EventSubscriptions.General | EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters | EventSubscriptions.MediaInputs;
+            EventSubscriptions.General | EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters | EventSubscriptions.MediaInputs | EventSubscriptions.Transitions;
 
         /// <summary>The oldest obs-websocket that the model works with: the first one that identifies scenes and inputs by UUID (OBS Studio 30.1).</summary>
         public static readonly Version RequiredWebSocketVersion = new(5, 4, 0);
+
+        /// <summary>
+        /// The events that the model needs for what the application asked it to follow of what OBS Studio sends very often (see <see cref="ObsHighVolume"/>).
+        /// </summary>
+        /// <param name="highVolume">What the model follows.</param>
+        /// <returns>The events to subscribe to.</returns>
+        public static EventSubscriptions SubscriptionsFor(ObsHighVolume highVolume)
+        {
+            var events = EventSubscriptions.None;
+            if (highVolume.HasFlag(ObsHighVolume.Transforms))
+            {
+                events |= EventSubscriptions.SceneItemTransformChanged;
+            }
+
+            if (highVolume.HasFlag(ObsHighVolume.Activity))
+            {
+                events |= EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged;
+            }
+
+            if (highVolume.HasFlag(ObsHighVolume.AudioLevels))
+            {
+                events |= EventSubscriptions.InputVolumeMeters;
+            }
+
+            return events;
+        }
 
         private static readonly TimeSpan VersionRetryDelay = TimeSpan.FromSeconds(1);
 
@@ -51,6 +77,7 @@ namespace OBSStudioClient.Model
         private readonly ModelEngine _engine;
         private readonly ModelPublisher _publisher;
         private readonly ModelNotifier _notifier;
+        private readonly ModelAudioLevels? _audioLevels;
         private readonly ModelNoticeHold _held;
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
@@ -93,9 +120,13 @@ namespace OBSStudioClient.Model
             this._time = options.TimeProvider ?? TimeProvider.System;
             this._start = this._time.GetTimestamp();
             this._readTimeout = options.ReadTimeout;
-            this._engine = new ModelEngine(new ModelEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout });
+            this._engine = new ModelEngine(new ModelEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout, HighVolume = options.HighVolume });
             this._held = new ModelNoticeHold(options.MaxPendingNotifications);
             this._publisher = new ModelPublisher(model, options.IgnoreCase);
+            if (options.HighVolume.HasFlag(ObsHighVolume.AudioLevels))
+            {
+                this._audioLevels = new ModelAudioLevels(() => model.AllInputs, notifier, model.RaiseAudioLevels);
+            }
         }
 
         private enum HostItemKind
@@ -341,7 +372,13 @@ namespace OBSStudioClient.Model
         // Called by the receive loop of the client: it only puts the item in the inbox. Events that the model does not need are not even queued.
         private void OnIngress(IngressItem item)
         {
-            if (item.Kind == IngressKind.Event && !ModelEngine.Handles(item.Event!.EventType))
+            // The levels of the audio are a stream that does not need the engine, and they are the only thing that comes twenty times a second: they are kept where they arrive.
+            if (this._audioLevels is { } audioLevels && audioLevels.Observe(item))
+            {
+                return;
+            }
+
+            if (item.Kind == IngressKind.Event && !this._engine.Wants(item.Event!.EventType))
             {
                 return;
             }
