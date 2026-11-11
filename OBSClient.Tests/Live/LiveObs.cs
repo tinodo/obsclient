@@ -179,6 +179,9 @@ namespace OBSStudioClient.Tests.Live
 
         private static readonly TimeSpan EventsQuietPeriod = TimeSpan.FromMilliseconds(300);
 
+        // What OBS Studio is told to remove goes within a frame, or when the transition that shows it has ended: for longer than this something else holds on to it, and waiting does not help.
+        private static readonly TimeSpan LeftoversTimeout = TimeSpan.FromSeconds(3);
+
         private readonly List<(string Name, object? Arguments)> _events = [];
 
         private LiveSession(ObsClient client, ListLogger log)
@@ -257,10 +260,11 @@ namespace OBSStudioClient.Tests.Live
         }
 
         /// <summary>Removes the scenes and the inputs that were made by an earlier run of the live tests that did not finish: the ones that carry <see cref="LiveObs.NamePrefix"/>.</summary>
-        /// <returns>A task that completes when they are removed.</returns>
+        /// <returns>A task that completes when they are removed, and OBS Studio has let go of them (it stops listing them) or has held on to them for longer than it should.</returns>
         /// <remarks>
         /// A scene that OBS Studio is already removing (it let go of it only later, which it does when something still holds it) is
-        /// still in the list, and refuses to be removed again: it is not an error here.
+        /// still in the list, and refuses to be removed again: it is not an error here. OBS Studio goes on listing what it removed for as long as it holds on to it (a frame, or until the
+        /// transition that shows it has ended) and tells nothing when it lets go, so a model that connects in that time shows what is gone for good: the next test starts when it has let go.
         /// </remarks>
         public async Task RemoveLeftoversAsync()
         {
@@ -276,6 +280,26 @@ namespace OBSStudioClient.Tests.Live
                 // An OBS Studio before 30.1.0 has no UUIDs (they are empty): the scene is removed by its name.
                 var reference = scene.SceneUuid == Guid.Empty ? SceneRef.FromName(scene.SceneName) : SceneRef.FromUuid(scene.SceneUuid);
                 await this.TryRemoveAsync(() => this.Client.RemoveScene(reference));
+            }
+
+            await this.WaitUntilLeftoversAreGoneAsync();
+        }
+
+        private async Task WaitUntilLeftoversAreGoneAsync()
+        {
+            var deadline = DateTime.UtcNow + LeftoversTimeout;
+            while (true)
+            {
+                var inputs = await this.Client.GetInputList();
+                var scenes = await this.Client.GetSceneList();
+                var listed = inputs.Any(input => input.InputName.StartsWith(LiveObs.NamePrefix, StringComparison.Ordinal))
+                    || scenes.Scenes.Any(scene => scene.SceneName.StartsWith(LiveObs.NamePrefix, StringComparison.Ordinal));
+                if (!listed || DateTime.UtcNow >= deadline)
+                {
+                    return;
+                }
+
+                await Task.Delay(50);
             }
         }
 

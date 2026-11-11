@@ -371,6 +371,7 @@ namespace OBSStudioClient.Tests.Live
             var versioned = await model.GetInputKindsAsync();
             var unversioned = await model.GetInputKindsAsync(unversioned: true);
             var rawVersioned = await live.Client.GetInputKindList(false);
+            var rawUnversioned = await live.Client.GetInputKindList(true);
             var filters = await model.GetFilterKindsAsync();
             var rawFilters = await live.Client.GetSourceFilterKindList();
             output.WriteLine($"{versioned.Count} input kinds ({unversioned.Count} unversioned), {filters.Count} filter kinds");
@@ -380,7 +381,9 @@ namespace OBSStudioClient.Tests.Live
             Assert.Contains(versioned, kind => kind.StartsWith("color_source", StringComparison.Ordinal));
             Assert.Contains(MediaKind, versioned);
             Assert.Contains(filters, kind => kind.StartsWith("color_filter", StringComparison.Ordinal));
-            Assert.All(unversioned, kind => Assert.DoesNotMatch(@"_v\d+$", kind));
+
+            // What OBS Studio calls a kind without a version is whatever it says: the XSHM capture of OBS Studio 32 on Linux is "xshm_input_v2" there, so no rule about the name holds.
+            Assert.Equal(rawUnversioned.Order(StringComparer.Ordinal), unversioned.Order(StringComparer.Ordinal));
 
             var colorKind = await live.ColorKindAsync();
             var inputDefaults = await model.GetDefaultInputSettingsAsync(colorKind);
