@@ -69,14 +69,31 @@ jobs:
       # The PPA of the OBS project has the newest release that Ubuntu 24.04 gets (and keeps an older one for a month: it cannot be asked for
       # one that is older); the archive of Ubuntu itself has OBS Studio 30.0.2, which does not change. The recommended packages are left
       # out: they include a kernel module (v4l2loopback) for the virtual camera, which nothing here uses.
+      # apt-get update only warns about a repository that it cannot reach, and apt-get install then takes what Ubuntu has: the job of the
+      # newest OBS Studio would test OBS Studio 30.0.2 and fail on what that one cannot do. So the PPA has to be there (it is tried a few
+      # times, as Launchpad is not always reachable from a runner), and the step fails with that as the reason when it is not.
       - name: Install OBS Studio and a virtual display
         env:
           OBS: ${{ matrix.obs }}
         run: |
           if [ "$OBS" = latest ]; then
-            sudo add-apt-repository -y ppa:obsproject/obs-studio
+            added=false
+            for attempt in 1 2 3 4 5; do
+              if sudo add-apt-repository -y ppa:obsproject/obs-studio && sudo apt-get update \
+                && apt-cache policy obs-studio | grep -q 'ppa.launchpadcontent.net/obsproject/obs-studio'; then
+                added=true
+                break
+              fi
+              echo "The PPA of the OBS project cannot be reached (attempt $attempt of 5); trying again."
+              sleep $((attempt * 15))
+            done
+            if [ "$added" != true ]; then
+              echo "::error::The PPA of the OBS project cannot be reached, so the newest OBS Studio cannot be installed (Ubuntu itself has OBS Studio 30.0.2)."
+              exit 1
+            fi
+          else
+            sudo apt-get update
           fi
-          sudo apt-get update
           sudo apt-get install -y --no-install-recommends obs-studio xvfb libgl1-mesa-dri libxcb-cursor0 jq
           apt-cache policy obs-studio | head -n 4
 
