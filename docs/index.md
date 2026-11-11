@@ -24,7 +24,7 @@ on Windows, Linux or macOS.
 </div>
 
 ```shell
-dotnet add package OBSClient --prerelease
+dotnet add package OBSClient
 ```
 
 </div>
@@ -55,7 +55,7 @@ obs.Changed += (_, e) => Console.WriteLine(e);
 <div class="oc-banner">
 <i class="bi bi-info-circle"></i>
 <div>
-<strong>4.0 is a release candidate.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6, and <a href="articles/model.md">ObsModel</a>, OBS Studio by name, which is new and provisional.
+<strong>OBSClient 4.0.</strong> This site documents OBSClient 4.0, a major update that brings the client to obs-websocket 5.7.6, and <a href="articles/model.md">ObsModel</a>, OBS Studio by name, which is new.
 Using 3.x? <a href="articles/migrating-to-4.md">Moving from 3.x to 4.0</a> lists what changes.
 </div>
 </div>
