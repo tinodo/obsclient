@@ -317,5 +317,26 @@ namespace OBSStudioClient.Tests.Model
             Assert.Null(spare.Levels);
             Assert.Same(spare, Assert.Single(Raised(raised)[1].Ended));
         }
+
+        [Fact]
+        public async Task AnInputThatIsRemovedAndKeptAlive_KeepsItsLevels_ForAsLongAsOBSStudioListsThem()
+        {
+            await using var test = await StartAsync();
+            var raised = Record(test.Model);
+            var mic = test.Mic;
+            await SendAsync(test, Entry(mic, [0.5f, 0.6f, 0.7f]));
+            await ModelRig.EventuallyAsync(() => CountOf(raised) == 1, "the levels to be told");
+
+            // OBS Studio removes the input and keeps it alive for the scene item that shows it: the list of inputs still has it, and it is on the air, so the levels still list it.
+            await test.Rig.Responder.SendEventAsync("InputRemoved", new { inputName = mic.Name, inputUuid = mic.Uuid }, 8);
+            await ModelRig.EventuallyAsync(() => mic.State == ObsObjectState.Detached, "the input to be detached");
+            await SendAsync(test, Entry(mic, [0.25f, 0.5f, 0.75f]));
+            await ModelRig.EventuallyAsync(() => CountOf(raised) == 2, "the new levels to be told");
+
+            Assert.Equal(0.25f, mic.Levels!.Channels[0].Magnitude);
+            var told = Raised(raised)[1];
+            Assert.Empty(told.Ended);
+            Assert.Same(mic, Assert.Single(told.Levels).Input);
+        }
     }
 }

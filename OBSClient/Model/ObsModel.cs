@@ -257,6 +257,9 @@ namespace OBSStudioClient.Model
         /// </summary>
         public ObsNamedCollection<ObsInput> Inputs => this._view.Inputs;
 
+        /// <summary>Gets every input that OBS Studio still has: <see cref="Inputs"/>, and the ones that were removed and are kept alive for a scene item that shows them.</summary>
+        internal IReadOnlyList<ObsInput> AllInputs => this._view.AllInputs;
+
         /// <summary>
         /// Gets the program scene: the scene that is on the air. It is null until it is known.
         /// </summary>

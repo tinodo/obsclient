@@ -125,7 +125,7 @@ namespace OBSStudioClient.Model
             this._publisher = new ModelPublisher(model, options.IgnoreCase);
             if (options.HighVolume.HasFlag(ObsHighVolume.AudioLevels))
             {
-                this._audioLevels = new ModelAudioLevels(() => model.Inputs, notifier, model.RaiseAudioLevels);
+                this._audioLevels = new ModelAudioLevels(() => model.AllInputs, notifier, model.RaiseAudioLevels);
             }
         }
 

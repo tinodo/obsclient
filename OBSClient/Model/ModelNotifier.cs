@@ -59,10 +59,11 @@ namespace OBSStudioClient.Model
         internal Action? BeforeInsert { get; set; }
 
         /// <summary>
-        /// Gets or sets what is called when a notification that was queued is dropped later, because the context cannot be posted to. It is for a producer that queues one
-        /// notification at a time and waits for it to run (see <see cref="ModelAudioLevels"/>): it must not wait for one that never will.
+        /// Gets or sets what is called, with the notification, when a notification that was queued is dropped later, because the context cannot be posted to. It is for a producer that queues one
+        /// notification at a time and waits for it to run (see <see cref="ModelAudioLevels"/>): it must not wait for one that never will, and it must not stop waiting for one that is still
+        /// there because another notification was dropped.
         /// </summary>
-        internal Action? Dropped { get; set; }
+        internal Action<Action>? Dropped { get; set; }
 
         /// <summary>Queues a notification. Once the notifier is stopped nothing is queued.</summary>
         public void Enqueue(Action raise)
@@ -203,7 +204,7 @@ namespace OBSStudioClient.Model
                     this._logger.LogError(ex, "The context for the notifications of the model could not be posted to. The notifications that it cannot take are dropped.");
                 }
 
-                this.Dropped?.Invoke();
+                this.Dropped?.Invoke(raise);
             }
         }
 

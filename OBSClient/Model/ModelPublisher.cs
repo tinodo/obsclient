@@ -52,6 +52,7 @@ namespace OBSStudioClient.Model
         private readonly List<(int Index, ObsScene Scene)> _liveScenes = new();
         private readonly List<ObsScene> _otherScenes = new();
         private readonly List<ObsInput> _liveInputs = new();
+        private readonly List<ObsInput> _keptInputs = new();
         private readonly List<ObsSceneItem> _sceneItems = new();
         private readonly List<ItemKey> _vanishedItems = new();
         private readonly List<ObsFilter> _sourceFilters = new();
@@ -173,6 +174,7 @@ namespace OBSStudioClient.Model
             this._liveScenes.Clear();
             this._otherScenes.Clear();
             this._liveInputs.Clear();
+            this._keptInputs.Clear();
 
             foreach (var node in engine.SceneNodes)
             {
@@ -329,6 +331,10 @@ namespace OBSStudioClient.Model
                 if (node.State == SourceState.Live)
                 {
                     this._liveInputs.Add(input);
+                }
+                else if (node.State == SourceState.Detached)
+                {
+                    this._keptInputs.Add(input);
                 }
             }
         }
@@ -668,6 +674,18 @@ namespace OBSStudioClient.Model
                 this._otherScenes.CopyTo(allScenes, orderedScenes.Length);
             }
 
+            // Every input that OBS Studio still has: the live ones, and the ones that were removed and are kept alive for a scene item that shows them. OBS Studio goes on sending the levels of
+            // such an input for as long as it is on the air, so what looks inputs up by UUID needs them too. It is made again only when the set is another one.
+            this._keptInputs.Sort(static (a, b) => a.Uuid.CompareTo(b.Uuid));
+            var allInputs = old.AllInputs;
+            var allInputsChanged = !HoldsInputs(allInputs, orderedInputs, this._keptInputs);
+            if (allInputsChanged)
+            {
+                allInputs = new ObsInput[orderedInputs.Length + this._keptInputs.Count];
+                orderedInputs.CopyTo(allInputs, 0);
+                this._keptInputs.CopyTo(allInputs, orderedInputs.Length);
+            }
+
             // A program scene that the model has heard of but that is not published yet (its event came first) is shown when it is.
             var program = old.ProgramScene;
             if (engine.ProgramSceneUuid is { } programUuid)
@@ -730,13 +748,40 @@ namespace OBSStudioClient.Model
                 }
             }
 
-            if (!scenesChanged && !inputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode && ReferenceEquals(preview, old.PreviewScene))
+            if (!scenesChanged && !inputsChanged && !allInputsChanged && !this._setOfScenesChanged && ReferenceEquals(program, old.ProgramScene) && studioMode == old.StudioMode && ReferenceEquals(preview, old.PreviewScene))
             {
                 return old;
             }
 
-            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode, preview);
+            this._view = new ModelView(scenes, inputs, allScenes, program, studioMode, preview, allInputs);
             return this._view;
+        }
+
+        // Whether an array holds exactly the inputs of two lists, one after the other and the same objects.
+        private static bool HoldsInputs(ObsInput[] held, ObsInput[] first, List<ObsInput> second)
+        {
+            if (held.Length != first.Length + second.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < first.Length; i++)
+            {
+                if (!ReferenceEquals(held[i], first[i]))
+                {
+                    return false;
+                }
+            }
+
+            for (var i = 0; i < second.Count; i++)
+            {
+                if (!ReferenceEquals(held[first.Length + i], second[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // The transitions are an object of the model that stays the same, so it is brought in line here and not through the view: a change is the PropertyChanged event of the object, and a record for

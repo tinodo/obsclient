@@ -178,11 +178,18 @@ namespace OBSStudioClient.Tests.Model
             rig.World(world => world.CreateInput(program, "Logo", Colour));
             await rig.ConvergedAsync("an input that is new", Patience);
 
-            ObsInput[] added;
-            lock (told)
-            {
-                added = told.ToArray();
-            }
+            // The model has the input before the notification that says so has run, and the notifications of the first read may still be on their way: wait for the one of Logo.
+            ObsInput[] added = [];
+            await ModelRig.EventuallyAsync(
+                () =>
+                {
+                    lock (told)
+                    {
+                        added = told.Where(input => input.Name == "Logo").ToArray();
+                        return added.Length > 0;
+                    }
+                },
+                "the model to tell of the new input");
 
             var logo = Assert.Single(added);
             Assert.True(logo.IsActive);

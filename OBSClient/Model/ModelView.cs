@@ -12,7 +12,8 @@ namespace OBSStudioClient.Model
             ObsScene[] allScenes,
             ObsScene? programScene,
             bool studioMode,
-            ObsScene? previewScene = null)
+            ObsScene? previewScene = null,
+            ObsInput[]? allInputs = null)
         {
             this.Scenes = scenes;
             this.Inputs = inputs;
@@ -20,6 +21,7 @@ namespace OBSStudioClient.Model
             this.ProgramScene = programScene;
             this.StudioMode = studioMode;
             this.PreviewScene = previewScene;
+            this.AllInputs = allInputs ?? [];
         }
 
         /// <summary>Gets the scenes in the list of scenes of OBS Studio (not the groups, and not the scenes that were removed but are kept alive).</summary>
@@ -30,6 +32,9 @@ namespace OBSStudioClient.Model
 
         /// <summary>Gets every scene: those of <see cref="Scenes"/> first, then the groups and the scenes that were removed but are kept alive.</summary>
         public ObsScene[] AllScenes { get; }
+
+        /// <summary>Gets every input that OBS Studio still has: those of <see cref="Inputs"/> first, then the ones that were removed but are kept alive for a scene item that shows them. The same array for as long as the set is the same.</summary>
+        public ObsInput[] AllInputs { get; }
 
         /// <summary>Gets the program scene, or null while it is not known.</summary>
         public ObsScene? ProgramScene { get; }

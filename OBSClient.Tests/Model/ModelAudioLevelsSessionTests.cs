@@ -182,9 +182,9 @@ namespace OBSStudioClient.Tests.Model
             // The notifier counts the notification as no longer waiting a moment before it says that it dropped it: it is the producer being told that lets the next levels queue another one.
             var dropped = 0;
             var producerIsTold = notifier.Dropped!;
-            notifier.Dropped = () =>
+            notifier.Dropped = notification =>
             {
-                producerIsTold();
+                producerIsTold(notification);
                 Interlocked.Increment(ref dropped);
             };
             levels.Observe(this.Session(IngressKind.SessionStarted, 1));
@@ -199,6 +199,40 @@ namespace OBSStudioClient.Tests.Model
             await ModelRig.EventuallyAsync(() => context.Count == 1, "a notification to be posted after the refusal");
             context.RunAll();
 
+            Assert.Equal(1, Volatile.Read(ref raised));
+            Assert.Equal(0.6f, this._mic.Levels!.Channels[0].Magnitude);
+        }
+
+        [Fact]
+        public async Task WhenTheContextRefusesAnotherNotification_TheNotificationOfTheLevelsIsStillWaitedFor()
+        {
+            var context = new HeldContext();
+            var notifier = new ModelNotifier(context, NullLogger.Instance, 100, () => { });
+            var raised = 0;
+            var levels = new ModelAudioLevels(() => this._inputs, notifier, _ => Interlocked.Increment(ref raised));
+            var dropped = 0;
+            var producerIsTold = notifier.Dropped!;
+            notifier.Dropped = notification =>
+            {
+                producerIsTold(notification);
+                Interlocked.Increment(ref dropped);
+            };
+            levels.Observe(this.Session(IngressKind.SessionStarted, 1));
+
+            // The notification of the levels is posted, and waits in the context.
+            levels.Observe(this.Meters(1, 0.5f));
+            await ModelRig.EventuallyAsync(() => context.Count == 1, "the notification of the levels to be posted");
+
+            // The context refuses another notification. The one of the levels is still there, so the levels that come next do not queue another one: it would tell the same twice.
+            context.Failing = true;
+            notifier.Enqueue(() => { });
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref dropped) == 1, "the context to refuse the other notification");
+            context.Failing = false;
+            levels.Observe(this.Meters(1, 0.6f));
+            await Task.Delay(100);
+            Assert.Equal(1, context.Count);
+
+            context.RunAll();
             Assert.Equal(1, Volatile.Read(ref raised));
             Assert.Equal(0.6f, this._mic.Levels!.Channels[0].Magnitude);
         }

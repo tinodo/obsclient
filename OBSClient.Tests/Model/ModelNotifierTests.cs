@@ -274,17 +274,24 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
-        public async Task Dropped_IsCalled_WhenTheContextRefusesANotificationThatWasQueued()
+        public async Task Dropped_IsCalledWithTheNotification_WhenTheContextRefusesANotificationThatWasQueued()
         {
             var context = new HeldContext { Failing = true };
             var recorder = new Recorder();
             var notifier = new ModelNotifier(context, NullLogger.Instance, 100, recorder.Recovered);
             var dropped = 0;
-            notifier.Dropped = () => Interlocked.Increment(ref dropped);
+            Action? droppedNotification = null;
+            notifier.Dropped = notification =>
+            {
+                droppedNotification = notification;
+                Interlocked.Increment(ref dropped);
+            };
 
             // The notification is accepted (it is queued), and the context refuses it when the notifier posts it.
-            Assert.True(notifier.TryEnqueue(recorder.Note("lost")));
+            var lost = recorder.Note("lost");
+            Assert.True(notifier.TryEnqueue(lost));
             await ModelRig.EventuallyAsync(() => Volatile.Read(ref dropped) == 1, "the notifier to say that the notification was dropped");
+            Assert.Same(lost, droppedNotification);
 
             context.Failing = false;
             notifier.Enqueue(recorder.Note("later"));

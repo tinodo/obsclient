@@ -24,7 +24,7 @@ namespace OBSStudioClient.Model
     /// </remarks>
     internal sealed class ModelAudioLevels
     {
-        private readonly Func<ObsNamedCollection<ObsInput>> _inputsOfTheModel;
+        private readonly Func<IReadOnlyList<ObsInput>> _inputsOfTheModel;
         private readonly Action<ObsAudioLevelsEventArgs> _raise;
         private readonly ModelNotifier _notifier;
         private readonly object _gate = new();
@@ -32,17 +32,17 @@ namespace OBSStudioClient.Model
         private readonly Dictionary<Guid, ObsInput> _byUuid = [];
         private readonly HashSet<ObsInput> _changed = [];
         private readonly HashSet<ObsInput> _ended = [];
-        private ObsNamedCollection<ObsInput>? _snapshot;
+        private IReadOnlyList<ObsInput>? _snapshot;
         private ObsInput[] _listed = [];
         private ObsAudioLevels[] _latest = [];
         private int _session;
         private int _queued;
 
         /// <summary>Initializes a new instance of the <see cref="ModelAudioLevels"/> class.</summary>
-        /// <param name="inputs">What gives the inputs of the model as it shows them now.</param>
+        /// <param name="inputs">What gives the inputs that OBS Studio still has, as the model shows them now (the ones that were removed and are kept alive for a scene item as well: their levels go on).</param>
         /// <param name="notifier">The notifier that tells the application.</param>
         /// <param name="raise">What raises the event of the model.</param>
-        public ModelAudioLevels(Func<ObsNamedCollection<ObsInput>> inputs, ModelNotifier notifier, Action<ObsAudioLevelsEventArgs> raise)
+        public ModelAudioLevels(Func<IReadOnlyList<ObsInput>> inputs, ModelNotifier notifier, Action<ObsAudioLevelsEventArgs> raise)
         {
             this._inputsOfTheModel = inputs;
             this._notifier = notifier;
@@ -212,10 +212,14 @@ namespace OBSStudioClient.Model
             }
         }
 
-        // A notification that was queued was dropped: the one that is waited for may be it.
-        private void OnDropped()
+        // A notification that was queued was dropped: the one that is waited for may be it. Only that one is waited for: when another notification was dropped, the one of the
+        // levels may still be waiting in the context, and queuing another would deliver twice.
+        private void OnDropped(Action dropped)
         {
-            Volatile.Write(ref this._queued, 0);
+            if (ReferenceEquals(dropped, this._deliver))
+            {
+                Volatile.Write(ref this._queued, 0);
+            }
         }
 
         // Runs on the lane of the notifications. The flag is reset in the same step that takes what changed, so what changes afterwards queues a notification of its own.

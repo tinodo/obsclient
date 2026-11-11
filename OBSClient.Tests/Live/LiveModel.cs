@@ -389,15 +389,23 @@ namespace OBSStudioClient.Tests.Live
         {
             var deadline = DateTime.UtcNow + (timeout ?? EqualTimeout);
             IReadOnlyList<string> problems;
+            var idle = false;
             while (true)
             {
                 problems = await this.DifferencesAsync();
-                if ((problems.Count == 0 && await this.Client.GetCurrentSceneTransitionCursor() >= 1.0) || DateTime.UtcNow >= deadline)
+                idle = problems.Count == 0 && await this.Client.GetCurrentSceneTransitionCursor() >= 1.0;
+                if (idle || DateTime.UtcNow >= deadline)
                 {
                     break;
                 }
 
                 await Task.Delay(250);
+            }
+
+            // A transition that still runs when the time is up is a failure as well: what the method promises is an OBS Studio that is idle.
+            if (problems.Count == 0 && !idle)
+            {
+                problems = ["a transition of OBS Studio is still running"];
             }
 
             Assert.True(problems.Count == 0, $"The model does not equal what OBS Studio holds {when}: {string.Join("; ", problems)}");

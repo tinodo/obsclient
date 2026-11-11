@@ -14,6 +14,10 @@ namespace OBSStudioClient.Tests.Simulation
         // What is on the air for a scene: the scene itself while studio mode is off, and a copy of its scene items as they were when it went on the air while studio mode is on (OBS Studio shows a private copy of the
         // scene then, so that what is done to the scene in the preview is not done to what is on the air: measured, hiding an item of the program scene in studio mode changed nothing of what GetSourceActive says of its
         // input). The copy holds the same sources, and the scenes that it shows are the scenes themselves.
+        //
+        // NOT MODELLED: the scene items of the private copy of a scene hold a reference to their sources in OBS Studio (libobs duplicates the items), so a source that loses its last real scene item while a copy
+        // that shows it is on the air stays alive there until the copy ends. Here the copy holds no reference: such a source is destroyed at once, and announced removed, like one that nothing shows. What the model
+        // does with an input that is alive and listed and that no scene item shows is covered by the pins of the inputs (see SimInput.Pins); the interplay of the two is not.
         private sealed class OnAir
         {
             public OnAir(SimScene scene, (SimSource Source, bool Enabled)[]? copy)
