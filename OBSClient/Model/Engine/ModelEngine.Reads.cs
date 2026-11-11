@@ -729,7 +729,9 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
-        // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again.
+        // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again. A server that
+        // refuses the read for good in another way (a simulation or a test double that does not know the request) has none to show: that is believed when it is repeated, as it is for the transition,
+        // and an event can still say which scene is the preview scene.
         private void ApplyPreviewResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
         {
             var scope = this._previewScope;
@@ -761,6 +763,16 @@ namespace OBSStudioClient.Model.Engine
                 if (this._studioMode.Value)
                 {
                     this._studioScope.MarkDirty();
+                }
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoTransition)
+            {
+                scope.Attempts = 0;
+                this._previewRead = true;
+                var old = this._previewUuid.Value;
+                if (this._previewUuid.ApplyRead(null, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.PreviewSceneChanged, Guid.Empty, 0, null, old, null);
                 }
             }
             else

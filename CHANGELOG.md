@@ -310,6 +310,7 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
     nothing, except in the first moment of a transition; the duration belongs to the transitions and is taken while a cut is current; a scene that has a transition of its own is shown with it and `Current` does not change.
     **Removing the program scene while studio mode is on makes OBS Studio stop answering for seconds**: switch to another scene first.
   - The model subscribes to the transition events now (`EventSubscriptions.Transitions`), and reads the current transition when it connects, and the preview scene while studio mode is on: a connect sends one or two requests more.
+    A server that does not know one of those requests (a test double that answers 204) is believed when it repeats the refusal (the third one): the model then has no current transition or no preview scene, and is `Synchronized` all the same.
 - **`ObsModel` has the transform of a scene item, its blend mode, copies of scene items, and a choice of what it follows of what OBS Studio sends very often** *(after rc.3; the fifth step of making `ObsModel` complete, which goes on until 4.0.0)*.
   - **`ObsModelOptions.HighVolume`** (`ObsHighVolume`, `None` by default) says what the model follows of what OBS Studio sends many times a second, which every client that listens pays for (OBS Studio does not include these events in
     `EventSubscriptions.All` either). `ObsHighVolume.Transforms` makes the model follow the transform of every scene item, and subscribe to the events for it.
