@@ -264,6 +264,10 @@ OBS Studio keeps a scene or an input **alive after it is removed** for as long a
 
 `RemoveAsync` removes the scene items too, so that OBS Studio destroys the object and the name is free. It returns when the object is removed and those scene items are gone; the model can call a scene `Gone` a moment later (watch `StateChanged`, or wait for `State`).
 
+OBS Studio frees the name a moment after the model can tell (it destroys the object when the last reference to it is released, up to a frame later, and does not announce it: about 1 time in 10, for up to 25 ms, with OBS Studio 33.0.0). The calls that
+take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for that: a name that OBS Studio refuses and that nothing in the model holds is asked for again every 25 ms, for as long as
+`ConfirmationTimeout`, before the `ObsNameInUseException` is thrown. A name that the model shows a holder for is refused at once.
+
 ## The connection, and scene collections
 
 - `obs.State` is `Disconnected`, `Connecting`, `Synchronizing`, `Synchronized` or `Reconnecting`. `ConnectAsync` returns when the model is complete. [`AutoReconnect`](xref:OBSStudioClient.Model.ObsModelOptions.AutoReconnect)

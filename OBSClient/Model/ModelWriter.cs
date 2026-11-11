@@ -66,6 +66,15 @@ namespace OBSStudioClient.Model
         public Func<int, RequestResponseMessage, Exception?>? Map { get; init; }
 
         /// <summary>
+        /// Gets whether the change is sent again, in its turn, when OBS Studio refuses the name that it makes or gives (601) and nothing in the model holds that name. OBS Studio frees the name of a
+        /// source that it destroyed a moment after the model can tell: the source lives until the last reference to it is released, which can be a frame later, and OBS Studio does not announce
+        /// that, so a call that makes or renames something with the name of an input that was just removed is refused for a few milliseconds (measured with OBS Studio 33.0.0: in about 1 round of
+        /// 10, for up to 25 ms or so). A change that was refused made nothing, so sending it again is safe. It is sent again every few milliseconds until OBS Studio takes it, the model shows what holds the name
+        /// (the exception says it then), or <see cref="ObsModelOptions.ConfirmationTimeout"/> has passed: the refusal is what the call says then.
+        /// </summary>
+        public bool RetriesAFreedName { get; init; }
+
+        /// <summary>
         /// Gets what says that the model shows the change. The loop of the model calls it after every step that publishes, so it only reads the objects of the model; the
         /// writer calls it once more, from its own thread, when the model could not be read again in time (what it reads is published, so that is safe). It is true too when
         /// the object was removed meanwhile (the change does not show then).
@@ -256,6 +265,9 @@ namespace OBSStudioClient.Model
         // The longest time that a timer can be given (the 4,294,967,294 milliseconds of a timer of the system): the options allow 24 days each for the time for the events
         // and for the reads, and the wait for the model adds them up.
         private static readonly TimeSpan LongestTimer = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+
+        // How long a change waits before it is sent again, when OBS Studio refuses a name that it frees a moment late (WriteJob.RetriesAFreedName).
+        private static readonly TimeSpan NameRetryDelay = TimeSpan.FromMilliseconds(25);
 
         private readonly ObsClient _client;
         private readonly ModelHost _host;
@@ -629,6 +641,13 @@ namespace OBSStudioClient.Model
                 return;
             }
 
+            await this.SendBatchAsync(job, requests, this._time.GetTimestamp()).ConfigureAwait(false);
+        }
+
+        // The batch of a change: it is written, the answer comes, and the turn is over when the answer has been looked at. A refused name that OBS Studio frees a moment late is sent again
+        // (WriteJob.RetriesAFreedName), in the same turn: the changes that were asked for after this one wait.
+        private async Task SendBatchAsync(WriteJob job, IReadOnlyList<WriteRequest> requests, long firstSent)
+        {
             var batch = new RequestBatchMessage(haltOnFailure: true, RequestBatchExecutionType.SerialRealtime);
             foreach (var request in requests)
             {
@@ -699,6 +718,36 @@ namespace OBSStudioClient.Model
                 return;
             }
 
+            if (this.RepeatsAFreedName(job, results, firstSent))
+            {
+                // Nothing was made, and OBS Studio frees the name a moment after the model can tell: the same batch is sent again, in the same turn.
+                try
+                {
+                    using var waiting = CancellationTokenSource.CreateLinkedTokenSource(job.Cancellation, this._stopping.Token);
+                    await Task.Delay(NameRetryDelay, this._time, waiting.Token).ConfigureAwait(false);
+                    this.EnsureItCanBeSent(job);
+                }
+                catch (OperationCanceledException) when (this._stopping.IsCancellationRequested)
+                {
+                    job.Fail(new ObjectDisposedException(nameof(ObsModel)));
+                    return;
+                }
+                catch (OperationCanceledException)
+                {
+                    // The caller does not wait any more, and the change that was refused made nothing.
+                    job.Cancel();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    job.Fail(ex);
+                    return;
+                }
+
+                await this.SendBatchAsync(job, requests, firstSent).ConfigureAwait(false);
+                return;
+            }
+
             for (var i = 0; i < results.Length; i++)
             {
                 if (!results[i].RequestStatus.Result)
@@ -765,6 +814,17 @@ namespace OBSStudioClient.Model
             {
                 _ = this.ConfirmAsync(job, result);
             }
+        }
+
+        // Whether a refused name is to be sent again: the change says so, its first request was refused because the name is taken, nothing in the model holds the name (what the mapping of
+        // the refusal says), and the time that a change waits for OBS Studio to catch up has not passed.
+        private bool RepeatsAFreedName(WriteJob job, RequestResponseMessage[] results, long firstSent)
+        {
+            return job.RetriesAFreedName
+                && results.Length > 0
+                && results[0].RequestStatus is { Result: false, Code: RequestStatusCode.ResourceAlreadyExists }
+                && this._time.GetElapsedTime(firstSent) < this._confirmationTimeout
+                && MapFailure(job, 0, results[0]) is ObsNameInUseException { HeldBy: null };
         }
 
         // Ends the call of a change that stopped halfway with the refusal, once the model shows what the requests before it made. The wait is the one of any change (the events, and when

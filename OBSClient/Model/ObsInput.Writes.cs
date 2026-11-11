@@ -191,6 +191,7 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: false, requester: this)
                         : null,
+                    RetriesAFreedName = true,
                 },
                 cancellationToken);
         }

@@ -127,6 +127,7 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: false, requester: null)
                         : null,
+                    RetriesAFreedName = true,
                 },
                 cancellationToken);
         }
@@ -223,6 +224,7 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: true, requester: this)
                         : null,
+                    RetriesAFreedName = true,
                 },
                 cancellationToken);
         }

@@ -564,3 +564,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - The events of OBS Studio and `ConnectionClosed` are raised by a dispatcher of the client and not by the receive thread, since 4.0.0
   (see *Breaking changes*): up to and including 4.0.0-beta1 a handler that blocked waiting for a response of OBS Studio (for example with
   `.Result`) kept the client from receiving that response, and the request timed out.
+- **Making or renaming something with the name of an input that was just removed no longer fails for a moment** *(after rc.3)*. OBS Studio destroys a source that it removed a moment after the model
+  can tell (when the last scene item that kept it alive is gone, the last reference to it is released a frame later, and OBS Studio does not announce it), and keeps its name taken until then: measured with
+  OBS Studio 33.0.0, in about 1 round of 10, for up to 25 ms or so. A `CreateSceneAsync`, `CreateInputAsync` or `RenameAsync` right after the `RemoveAsync` of the object that had the name was refused in that moment with an
+  `ObsNameInUseException` that says that the model does not show who holds the name (a live test that does exactly that failed in about 1 run of 10 because of it). A refusal for a name that nothing in the model holds is now sent
+  again every 25 ms, in the same turn of the line of changes, for as long as `ObsModelOptions.ConfirmationTimeout` (1 s by default); a name that the model shows a holder for is refused at once, as before.
+  A change that was refused made nothing, so sending it again is safe.

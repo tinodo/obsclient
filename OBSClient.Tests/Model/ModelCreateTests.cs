@@ -335,6 +335,104 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task AName_ThatOBSStudioFreesAMomentLate_IsAskedForAgain_AndTheSceneIsMade()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+
+            // OBS Studio destroys a source that was removed a moment after the model can tell, and keeps its name taken until it has: the first answers say so, and nothing in the model holds the name.
+            var attempts = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateScene")
+                {
+                    return null;
+                }
+
+                return Interlocked.Increment(ref attempts) <= 2 ? (601, null) : (100, new { sceneUuid = test.MakeScene("Intro") });
+            };
+
+            var scene = await test.Model.CreateSceneAsync("Intro").WithTimeoutAsync(Timeout);
+
+            Assert.Same(scene, test.Model.Scenes["Intro"]);
+            Assert.Equal(3, test.Count("CreateScene"));
+        }
+
+        [Fact]
+        public async Task AName_ThatOBSStudioFreesAMomentLate_IsAskedForAgain_AndTheInputIsMade()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var attempts = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateInput")
+                {
+                    return null;
+                }
+
+                if (Interlocked.Increment(ref attempts) <= 2)
+                {
+                    return (601, null);
+                }
+
+                var (input, item) = test.MakeInput(test.Gaming, "Backdrop");
+                return (100, new { inputUuid = input, sceneItemId = item });
+            };
+
+            var backdrop = await test.Model.Scenes["Gaming"].CreateInputAsync("Backdrop", "color_source_v3").WithTimeoutAsync(Timeout);
+
+            Assert.Same(backdrop, test.Model.Inputs["Backdrop"]);
+            Assert.Equal(3, test.Count("CreateInput"));
+        }
+
+        [Fact]
+        public async Task AName_ThatNothingInTheModelHolds_IsAskedForAgain_UntilTheTimeForOBSStudioToCatchUpIsOver_AndThenRefused()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            test.Responder.OnRequest = (type, data) => type == "CreateScene" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Model.CreateSceneAsync("Ghost").WithTimeoutAsync(Timeout));
+
+            // The time is ConfirmationTimeout (300 ms here), and the name is asked for every 25 ms: more than twice, and not for ever.
+            Assert.Null(exception.HeldBy);
+            Assert.InRange(test.Count("CreateScene"), 3, 40);
+        }
+
+        [Fact]
+        public async Task AName_ThatTheCallerGivesUpWhileItIsAskedForAgain_IsNotAskedForAgain()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            using var giveUp = new CancellationTokenSource();
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateScene")
+                {
+                    return null;
+                }
+
+                giveUp.Cancel();
+                return (601, null);
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => test.Model.CreateSceneAsync("Ghost", giveUp.Token).WithTimeoutAsync(Timeout));
+
+            // What was refused made nothing, and the line is not held up: it was asked for once.
+            await Task.Delay(200);
+            Assert.Equal(1, test.Count("CreateScene"));
+        }
+
+        [Fact]
+        public async Task AScene_WhoseNameIsHeldByAnObjectOfTheModel_IsNotAskedForAgain()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            test.Responder.OnRequest = (type, data) => type == "CreateScene" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Model.CreateSceneAsync("Gaming").WithTimeoutAsync(Timeout));
+
+            Assert.Same(test.Model.Scenes["Gaming"], exception.HeldBy);
+            Assert.Equal(1, test.Count("CreateScene"));
+        }
+
+        [Fact]
         public async Task AnInput_WhoseNameIsTakenByAnInputThatWasRemovedAndIsAliveForOneSceneItem_SaysItInTheSingular()
         {
             await using var test = await ByNameFixture.StartAsync();

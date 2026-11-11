@@ -215,8 +215,9 @@ namespace OBSStudioClient.Tests.Live
             // A scene item of another scene shows the scene, so OBS Studio keeps it alive when the user removes it.
             await holder.AddAsync(scene);
             await live.Client.RemoveScene(SceneRef.FromUuid(scene.Uuid));
-            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => scene.State == ObsObjectState.Detached, Wait), "The scene was not detached.");
-            Assert.False(model.Scenes.Contains(name));
+
+            // The model changes the object first and swaps the collection a moment after that: wait for both.
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => scene.State == ObsObjectState.Detached && !model.Scenes.Contains(name), Wait), "The model did not show the scene as removed (Detached, and not among the scenes).");
 
             if (live.ObsVersion >= new Version(31, 1, 0))
             {
@@ -287,8 +288,9 @@ namespace OBSStudioClient.Tests.Live
 
             // The user removes the input; the scene items keep it alive, still listed, and its name stays taken.
             await live.Client.RemoveInput(InputRef.FromUuid(input.Uuid));
-            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => input.State == ObsObjectState.Detached, Wait), "The input was not detached.");
-            Assert.False(model.Inputs.Contains(name));
+
+            // The model changes the object first and swaps the collection a moment after that: wait for both.
+            Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => input.State == ObsObjectState.Detached && !model.Inputs.Contains(name), Wait), "The model did not show the input as removed (Detached, and not among the inputs).");
             await live.AssertModelEqualsObsAsync("after the user removed the input");
 
             var taken = await Assert.ThrowsAsync<ObsNameInUseException>(() => scene.CreateInputAsync(name, kind));
