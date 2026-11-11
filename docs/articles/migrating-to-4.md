@@ -9,9 +9,8 @@ to light when every request and field was checked against the protocol definitio
 compiles. This page lists what does not, what behaves differently, and what is new.
 
 > [!NOTE]
-> 4.0 is a release candidate. Install it with `dotnet add package OBSClient --version 4.0.0-rc.3` (`--prerelease` installs the newest prerelease), and report what you find in an
-> [issue](https://github.com/tinodo/obsclient/issues). The public API of the client is closed: what changes before 4.0.0 is fixes for what is
-> found, and a mistake in the API if somebody finds one. [`ObsModel`](model.md), which is new in 4.0.0-rc.2, is the exception: it is provisional. The [changelog](../changelog.md) has the complete list.
+> Install 4.0 with `dotnet add package OBSClient`, and report what you find in an [issue](https://github.com/tinodo/obsclient/issues).
+> The public API of the client and of [`ObsModel`](model.md) is closed: the versions of 4 that follow add to it, and do not break it. The [changelog](../changelog.md) has the complete list.
 
 Code that was compiled against 3.x **has to be recompiled**: a signature changed, even where the call looks the same.
 
@@ -191,14 +190,14 @@ These were bugs. Code that worked around them may not need the workaround any mo
   `SceneItem.SourceUuid`.
 - Every message the client **sends** is logged at the debug level, as what it receives already was.
 - A `net10.0` target next to `net8.0` in 4.0.0-beta1 to 4.0.0-rc.1; from 4.0.0-rc.2 on `net10.0` is the only target.
-- [`ObsModel`](model.md), OBS Studio by name: a model of your scenes, inputs, scene items, filters and outputs that you work with by name (new in 4.0.0-rc.2, provisional). What you did with 3.x is `ObsClient`, the protocol as it is, and it stays; `ObsModel` is a second way to work with OBS Studio, built on it: see [Two ways to work with OBS Studio](two-ways.md).
+- [`ObsModel`](model.md), OBS Studio by name: a model of your scenes, inputs, scene items, filters, outputs and more that you work with by name (new in 4.0). What you did with 3.x is `ObsClient`, the protocol as it is, and it stays; `ObsModel` is a second way to work with OBS Studio, built on it: see [Two ways to work with OBS Studio](two-ways.md).
 - [A test app](test-app.md), a WinUI 3 application to try every request and event by hand.
 - A test suite with protocol conformance tests, and code that is generated from the protocol definition: see
   [Staying in sync with obs-websocket](protocol-sync.md).
 
 ## Upgrading step by step
 
-1. Update the package: `dotnet add package OBSClient --version 4.0.0-rc.3` (or `--prerelease` for the newest prerelease).
+1. Update the package: `dotnet add package OBSClient --version 4.0.0`.
 2. Build. The compiler points to what has to change: named arguments, method groups, the types in the table above.
 3. Read the list of behavior changes. If you kept a workaround for a bug that is listed there, try without it.
 4. Run your program against OBS Studio. The [test app](test-app.md) is a quick way to see what a response looks like.

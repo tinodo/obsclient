@@ -15,7 +15,7 @@ The library has [two ways to work with OBS Studio](../articles/two-ways.md): [`O
 | Type | What it is |
 | --- | --- |
 | [`ObsClient`](xref:OBSStudioClient.ObsClient) | The protocol: the connection, every request, every event. |
-| [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | OBS Studio by name: a live model of its scenes, inputs, scene items, filters and outputs, built on `ObsClient`. New, and provisional. |
+| [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | OBS Studio by name: a live model of its scenes, inputs, scene items, filters, outputs and more, built on `ObsClient`. New in 4.0. |
 | [`ObsScene`](xref:OBSStudioClient.Model.ObsScene), [`ObsInput`](xref:OBSStudioClient.Model.ObsInput), [`ObsSceneItem`](xref:OBSStudioClient.Model.ObsSceneItem), [`ObsFilter`](xref:OBSStudioClient.Model.ObsFilter), [`ObsOutputs`](xref:OBSStudioClient.Model.ObsOutputs) | What the model holds, and the methods that change it. |
 | [`RequestBatchMessage`](xref:OBSStudioClient.Messages.RequestBatchMessage) | Builds a [request batch](../articles/batches.md). |
 | [`EventSubscriptions`](xref:OBSStudioClient.Enums.EventSubscriptions) | Chooses the events to receive. |

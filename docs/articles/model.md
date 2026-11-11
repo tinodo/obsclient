@@ -1,8 +1,8 @@
 # ObsModel: controlling OBS Studio by name
 
 > [!NOTE]
-> This part of the library is new, and **provisional**: it first appears in 4.0.0-rc.2, and the names and the shapes of its types can still change
-> before 4.0.0 is released. Everything else in OBSClient is unaffected, and you can ignore this article if you only use the requests.
+> This part of the library is new in 4.0 (it first appeared in 4.0.0-rc.2). Its API is closed like the rest of OBSClient: the versions of 4 that follow add to it, and do not break it.
+> You can ignore this article if you only use the requests.
 >
 > `ObsModel` is one of the [two ways to work with OBS Studio](two-ways.md). The other is `ObsClient`, the protocol as it is, which the model is built on.
 
@@ -651,6 +651,10 @@ OBS Studio keeps a scene or an input **alive after it is removed** for as long a
 OBS Studio frees the name a moment after the model can tell (it destroys the object when the last reference to it is released, up to a frame later, and does not announce it: about 1 time in 10, for up to 25 ms, with OBS Studio 33.0.0). The calls that
 take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for that: a name that OBS Studio refuses and that nothing in the model holds is asked for again every 25 ms, for as long as
 `ConfirmationTimeout`, before the `ObsNameInUseException` is thrown. A name that the model shows a holder for is refused at once.
+
+One thing that the model cannot be told is what OBS Studio removed a moment **before** the connection was made. OBS Studio goes on listing a scene or an input that it removed for as long as it holds on to it (a frame, or until the transition that shows it has ended),
+says nothing when it lets go, and has nothing in the list that tells a removed object from a live one. A model that reads the lists in that time shows the object as `Live`, until a list is read again: when a scene or an input is created or the
+model is read again (a new connection, another scene collection). That takes a connection that is made within that time, usually a frame or the length of a transition, so it is rare; the live tests wait for OBS Studio to let go of what a test removed before the next one connects.
 
 ## The connection, and scene collections
 

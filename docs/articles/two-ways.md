@@ -9,8 +9,7 @@ OBSClient is one package with two ways in. [`ObsClient`](xref:OBSStudioClient.Ob
 They share a library and a connection. You can use either, and you can use both in the same program.
 
 > [!NOTE]
-> `ObsClient` has been in the library from the start, and its API is closed for 4.0. `ObsModel` is new in 4.0.0-rc.2 and **provisional**: its names and shapes can still change
-> before 4.0.0 is released.
+> `ObsClient` has been in the library from the start. `ObsModel` is new in 4.0. The API of both is closed: the versions of 4 that follow add to it, and do not break it.
 
 ## The idea, in a minute
 
@@ -30,9 +29,9 @@ The protocol names things the way OBS Studio keeps them inside: a scene or an in
 | **You read state** | with a request, each time | from a property, answered from memory, with no request |
 | **A change** | is one request; the call returns when OBS Studio has answered | is a method on the object; the call returns when the model shows the change |
 | **You hear about changes** | with one event for each kind of change, and you apply them | with `Changed` and `INotifyPropertyChanged`, after the model has applied them, and `Resynchronized` when it read everything again |
-| **It covers** | the whole protocol | scenes, inputs, scene items, filters and outputs; the rest through `obs.Client` |
+| **It covers** | the whole protocol | the whole protocol too, by name: scenes, inputs (settings, audio, media), scene items (transforms), filters, outputs, studio mode and transitions, profiles and scene collections, canvases and the settings of OBS Studio. Request batches, and the scenes of canvases other than the main one, through `obs.Client` |
 | **It needs** | OBS Studio 28 or newer | OBS Studio 30.1 or newer |
-| **In 4.0** | the API is closed | new in 4.0.0-rc.2, provisional |
+| **In 4.0** | the API is closed | new in 4.0, and its API is closed too |
 
 <div class="oc-stack" role="img" aria-label="Your application uses ObsModel, which is built on ObsClient, or uses ObsClient directly. ObsClient talks to OBS Studio over a WebSocket.">
 <div class="oc-stack-app">Your application</div>
@@ -252,7 +251,6 @@ The model is not free, and it is as well to know where:
 - **What OBS Studio sends very often is not followed unless you ask.** The transform of every scene item (`HighVolume = Transforms`), whether each input is on the air (`Activity`) and how loud each input is (`AudioLevels`: twenty messages a second, for as long as the connection lasts) cost OBS Studio and the connection something for every client that listens, so the model
   subscribes to them only for what you ask for (see [Controlling OBS Studio by name](model.md)).
 - **It needs OBS Studio 30.1 or newer**, the first version that gives scenes and inputs a UUID. Older versions work with the plain client alone.
-- **It is provisional.** Its names and shapes can change until 4.0.0 is released.
 
 ## Next steps
 
