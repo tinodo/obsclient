@@ -243,5 +243,55 @@ namespace OBSStudioClient.Tests.Model
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new ModelNotifier(null, NullLogger.Instance, 0, () => { }));
         }
+
+        [Fact]
+        public async Task TryEnqueue_SaysWhetherTheNotificationWasQueuedAsItIs()
+        {
+            var recorder = new Recorder();
+            var notifier = new ModelNotifier(null, NullLogger.Instance, 2, recorder.Recovered);
+            using var gate = new ManualResetEventSlim();
+            var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Assert.True(notifier.TryEnqueue(() =>
+            {
+                blocked.TrySetResult();
+                gate.Wait(Timeout);
+            }));
+            await blocked.Task.WaitAsync(Timeout);
+
+            Assert.True(notifier.TryEnqueue(recorder.Note("n1")));
+            Assert.True(notifier.TryEnqueue(recorder.Note("n2")));
+
+            // The third is one too many: the recovery is queued in its place, and what comes while the recovery waits is dropped.
+            Assert.False(notifier.TryEnqueue(recorder.Note("n3")));
+            Assert.False(notifier.TryEnqueue(recorder.Note("n4")));
+            gate.Set();
+            await ModelRig.EventuallyAsync(() => recorder.Raised.Contains("recovered"), "the recovery");
+
+            // Accepted again after the recovery, and not after Stop.
+            Assert.True(notifier.TryEnqueue(recorder.Note("later")));
+            notifier.Stop();
+            Assert.False(notifier.TryEnqueue(recorder.Note("after the stop")));
+        }
+
+        [Fact]
+        public async Task Dropped_IsCalled_WhenTheContextRefusesANotificationThatWasQueued()
+        {
+            var context = new HeldContext { Failing = true };
+            var recorder = new Recorder();
+            var notifier = new ModelNotifier(context, NullLogger.Instance, 100, recorder.Recovered);
+            var dropped = 0;
+            notifier.Dropped = () => Interlocked.Increment(ref dropped);
+
+            // The notification is accepted (it is queued), and the context refuses it when the notifier posts it.
+            Assert.True(notifier.TryEnqueue(recorder.Note("lost")));
+            await ModelRig.EventuallyAsync(() => Volatile.Read(ref dropped) == 1, "the notifier to say that the notification was dropped");
+
+            context.Failing = false;
+            notifier.Enqueue(recorder.Note("later"));
+            await ModelRig.EventuallyAsync(() => context.Count == 1, "a notification to be posted after the failure");
+            context.RunAll();
+            Assert.Equal(new[] { "later" }, recorder.Raised);
+            Assert.Equal(1, Volatile.Read(ref dropped));
+        }
     }
 }

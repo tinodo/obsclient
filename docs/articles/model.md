@@ -48,7 +48,7 @@ Everything that is a property is answered from the model, at once, and can be re
 | --- | --- |
 | [`ObsModel`](xref:OBSStudioClient.Model.ObsModel) | `Scenes`, `Inputs`, `ProgramScene`, `PreviewScene`, `IsStudioModeEnabled`, `Transitions`, `Outputs`, `State`, `IsStale`, `IsExiting`, `ObsVersion`, `WebSocketVersion`, `Platform`, `SupportedImageFormats`, `Client` |
 | [`ObsScene`](xref:OBSStudioClient.Model.ObsScene) | `Name`, `Uuid`, `Index`, `IsProgram`, `IsPreview`, `IsGroup`, `Items`, `Filters`, `State` |
-| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it); `IsActive` and `IsShowing` when the model is asked to follow them (see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)) |
+| [`ObsInput`](xref:OBSStudioClient.Model.ObsInput) | `Name`, `Uuid`, `Kind`, `HasAudio`, `IsMuted`, `VolumeDb`, `VolumeMul`, `AudioBalance`, `SyncOffset`, `MonitorType`, `AudioTracks`, `Settings`, `Filters`, `State`, `GetSceneItems()` (every scene item that shows it); `IsActive` and `IsShowing` when the model is asked to follow them (see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)), and `Levels` when it is asked to follow the levels of the audio (see [How loud is it? Audio levels](#how-loud-is-it-audio-levels)) |
 | [`ObsSceneItem`](xref:OBSStudioClient.Model.ObsSceneItem) | `Scene`, `Source` (the input or scene that it shows), `Id`, `Index`, `IsEnabled`, `IsLocked`, `IsRemoved` |
 | [`ObsFilters`](xref:OBSStudioClient.Model.ObsFilters) | the filters of a scene or an input, from the first: `Filters["Gain"]` by name, by position, `TryGet`, `Find`, `Contains` |
 | [`ObsFilter`](xref:OBSStudioClient.Model.ObsFilter) | `Source`, `Name`, `Kind`, `Index`, `IsEnabled`, `IsRemoved` |
@@ -413,7 +413,7 @@ Console.WriteLine($"{webcam.IsActive} {webcam.IsShowing}");        // null witho
 var asked = await webcam.GetActivityAsync();                       // asks OBS Studio: works with and without HighVolume, and for scenes too
 ```
 
-[`ObsHighVolume.All`](xref:OBSStudioClient.Model.ObsHighVolume) follows everything that is sent often (the transforms of the scene items and the activity of the inputs).
+[`ObsHighVolume.All`](xref:OBSStudioClient.Model.ObsHighVolume) follows everything that is sent often (the transforms of the scene items, the activity of the inputs and the levels of the audio).
 
 | On `ObsInput` | |
 | --- | --- |
@@ -435,6 +435,53 @@ What OBS Studio does (checked with OBS Studio 33.0.0, obs-websocket 5.7.6):
 - **The events come in no fixed order.** An input is told that it is shown and that it is on the air in either order, and relative to the other events of the same change (the scene item that was made, the end of a transition) anywhere. The model does not depend on it, and `Changed` tells each of the two properties by itself.
 - **An input that OBS Studio destroys is not told to go off the air**, and neither is one that is removed: there is no event, and the model shows an input that was removed as removed. A scene that is removed while it is on the air puts the scene that takes its place on the air.
 - **The model reads the activity again after a connection that was lost came back**, and tells what changed while it was down once for each property, as for any other value (see [Hearing about changes](#hearing-about-changes)).
+
+## How loud is it? Audio levels
+
+OBS Studio measures how loud each input is, and tells every client that asks **twenty times a second**, whether anything plays or not, and it has every input that is on the air measure its audio for as long as somebody asks. It is a **stream** (no request says how loud an input is now) and a busy one, so the model
+**does not follow the levels unless you ask it to**:
+
+```csharp
+using var obs = new ObsModel(new ObsModelOptions { HighVolume = ObsHighVolume.AudioLevels });   // follow the levels of the audio
+obs.AudioLevels += (_, e) =>                                           // about twenty times a second, as long as the levels change
+{
+    foreach (var levels in e.Levels)                                   // every input that OBS Studio listed, in its order
+    {
+        Console.WriteLine($"{levels.Input.Name}: {string.Join(" / ", levels.Channels.Select(channel => $"{channel.PeakDb:0} dB"))}");
+    }
+};
+// ...
+var mic = obs.Inputs["Microphone"];
+Console.WriteLine(mic.Levels?.Channels[0].PeakDb);                     // null while OBS Studio does not list the input; PropertyChanged says when it changes
+```
+
+[`ObsHighVolume.All`](xref:OBSStudioClient.Model.ObsHighVolume) follows everything that is sent often (the transforms of the scene items, the activity of the inputs and the levels of the audio).
+
+| | |
+| --- | --- |
+| `ObsInput.Levels` | the [`ObsAudioLevels`](xref:OBSStudioClient.Model.ObsAudioLevels) of the last message of OBS Studio about the input: its `Input` and its `Channels`, the left one first. `null` unless the model follows the levels ([`ObsModelOptions.HighVolume`](xref:OBSStudioClient.Model.ObsModelOptions.HighVolume) with [`ObsHighVolume.AudioLevels`](xref:OBSStudioClient.Model.ObsHighVolume)) and OBS Studio lists the input. It is a snapshot: a new message makes a new object |
+| [`ObsChannelLevel`](xref:OBSStudioClient.Model.ObsChannelLevel) | `Magnitude` (how loud it sounds: the root mean square of the last chunk of audio), `Peak` (the highest sample) and `InputPeak` (the peak as the input made it), as multipliers of the full scale (1 is 0 dB), and `MagnitudeDb`, `PeakDb` and `InputPeakDb` in decibels (-100 is silence) |
+| `ObsModel.AudioLevels` | an [`ObsAudioLevelsEventArgs`](xref:OBSStudioClient.Model.ObsAudioLevelsEventArgs): `Levels` of every input that OBS Studio listed in its last message, and `Ended`, the inputs that it stopped listing since the last time the event was raised (their `Levels` is `null` now) |
+
+What OBS Studio does (checked with OBS Studio 33.0.0, obs-websocket 5.7.6):
+
+- **It sends a message every 50 milliseconds**, with an empty list when nothing is on the air.
+- **It lists the inputs that are on the air and have audio, and no others**, in the order in which they came on the air: an input that is only shown in the preview of studio mode, an input whose scene item is hidden, a color source or any other input without audio, and an input of a scene that is not on the air are not in it.
+  The inputs of a scene that goes off the air are listed until the transition has ended (a fade keeps both scenes on the air). It is the same set of inputs as `IsActive` with `HasAudio` (see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)).
+- **A muted input is listed.** The magnitude and the peak are what the volume and the mute make of them (0 while it is muted), and the peak of the input is the peak as the input made it: a meter that wants to show whether the source is too loud for whatever the fader says looks at `InputPeak`.
+- **An input that plays nothing is listed too**, with levels of 0 after a moment, and so is one that is paused or stopped, for as long as it is on the air.
+- **The first message that lists an input has no channels** (OBS Studio has no audio of it yet): `Levels` is there, and `Channels` is empty. A mono file arrives as two channels with the same numbers.
+- **The first message that has audio of an input can say a peak that is far too high** (1.9 was measured often, and 2.7e20 once): a meter should limit it, or ignore the first message of an input.
+- **An input that was just removed can be listed once more**, in the message that was on its way.
+
+What the model does with it:
+
+- **The levels are in the inputs when the message arrives**, from any thread; nothing is read, and nothing waits for another message.
+- **You are told, but not of every message.** At most one notification waits in the queue of the notifications, and it tells what changed since the last one that was raised, with the newest levels: a handler that is slower than OBS Studio (or a user interface thread that is busy) gets the newest levels, and not all of them.
+  The levels never fill the queue ([`MaxPendingNotifications`](xref:OBSStudioClient.Model.ObsModelOptions.MaxPendingNotifications)), and never hold up what the model reads from OBS Studio. A handler that does not return holds up the notifications behind it, as for any notification.
+- **A message that says what the one before it said is not told**: a silence that stays silent is not twenty notifications a second. `PropertyChanged` of `Levels` is raised for each input whose levels changed, and when OBS Studio stops listing it. [`obs.Changed`](xref:OBSStudioClient.Model.ObsModel.Changed) does not tell the levels.
+- **The levels end with the connection**: when it is lost, `Levels` of every input is `null` and `Ended` says so; they come back with the first message after the model is connected again.
+- **An input that the model does not have yet is skipped**: the next message has it. The plain client passes on one `InputVolumeMeters` event every 100 ms (`obs.Client.InputVolumeMeters`, with `AdditionalEvents = EventSubscriptions.InputVolumeMeters`); the model uses every message.
 
 ## Hearing about changes
 
@@ -458,6 +505,7 @@ one at a time, like the notifications above (on `NotificationContext` when you s
 | `VendorEvent` | `ObsModel` | a plugin or a script sent an event of its own. **You opt in**: pass `AdditionalEvents = EventSubscriptions.Vendors` (a plugin can send a great many) |
 | `ScreenshotSaved` | `ObsModel` | the user took a screenshot in OBS Studio (its hotkey or its menu); not for `SaveScreenshotAsync`, which returns when the file is written |
 | `ExitStarted` | `ObsModel` | OBS Studio begins to shut down. `IsExiting` is true from then until the model is connected to an OBS Studio that was started again: it tells a closed OBS Studio from a lost connection |
+| `AudioLevels` | `ObsModel` | OBS Studio sent new levels of the audio of the inputs that are on the air. **You opt in**: `HighVolume = ObsHighVolume.AudioLevels` (twenty messages a second): a slow handler gets the newest levels, see [How loud is it? Audio levels](#how-loud-is-it-audio-levels) |
 | `FileChanged` | `ObsRecordOutput` | the recording goes on in a new file |
 | `Saved` | `ObsReplayBufferOutput` | the replay buffer was saved to a file |
 | `Started`, `Ended`, `VideoEnded` | `ObsTransitions` | a scene transition started, ended, and its video ended (see [Studio mode, the preview scene and transitions](#studio-mode-the-preview-scene-and-transitions)); `e.TransitionName` and `e.TransitionUuid` say which |
@@ -503,11 +551,11 @@ take a name, `CreateSceneAsync`, `CreateInputAsync` and `RenameAsync`, allow for
 | `NotificationContext` | none | where the notifications run (for example the UI thread) |
 | `MaxPendingNotifications` | 10,000 | how many notifications may wait for slow handlers; beyond that new ones are dropped until the handlers catch up, and then every object raises `PropertyChanged` with an empty name and `Resynchronized` is raised (the model itself is always current) |
 | `AdditionalEvents` | none | event subscriptions for your own handlers on `obs.Client`, on top of the ones that the model needs; `VendorEvent` needs `Vendors` here. The events that arrive very often (the volume meters of the inputs, the active and showing state of inputs, a changed transform of a scene item) are not subscribed to for the model unless `HighVolume` asks for them |
-| `HighVolume` | none | what the model follows of what OBS Studio sends very often: `Transforms` (the transform of every scene item, see [Position, size and crop: transforms](#position-size-and-crop-transforms)), `Activity` (whether the inputs are on the air and shown, see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)), or `All` |
+| `HighVolume` | none | what the model follows of what OBS Studio sends very often: `Transforms` (the transform of every scene item, see [Position, size and crop: transforms](#position-size-and-crop-transforms)), `Activity` (whether the inputs are on the air and shown, see [Is an input on the air? Activity](#is-an-input-on-the-air-activity)), `AudioLevels` (how loud the inputs are, see [How loud is it? Audio levels](#how-loud-is-it-audio-levels)), or `All` |
 
 ## What the model does not cover yet
 
-The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
+The model has scenes, inputs (with their settings, audio, media and, when asked for, their activity and levels), scene items (with their transform and blend mode, and copies of them), the program scene and the preview scene, studio mode and the scene transitions, the filters of scenes and inputs, and the outputs (stream, recording, virtual camera, replay buffer). Profiles and scene collections, and the rest of
 the protocol are reached through the plain client, `obs.Client`, with the names and UUIDs that you know. The model sees what those requests do to scenes, inputs, scene items and outputs through the events, as it does for anything
 another program does. Do not call `ConnectAsync`, `Disconnect` or `ReidentifyAsync` on that client yourself: use `ObsModel.ConnectAsync` and `DisconnectAsync`.
 

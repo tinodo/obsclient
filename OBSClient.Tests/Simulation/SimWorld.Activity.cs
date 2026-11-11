@@ -140,6 +140,7 @@ namespace OBSStudioClient.Tests.Simulation
                 {
                     input.Active = nowActive;
                     Emit("InputActiveStateChanged", Obj(("inputName", input.Name), ("inputUuid", input.UuidText), ("videoActive", nowActive)));
+                    TrackMeter(input);
                 }
             }
         }
@@ -155,11 +156,18 @@ namespace OBSStudioClient.Tests.Simulation
                 input.Showing = showing.Contains(input);
                 input.Active = active.Contains(input);
             }
+
+            InitializeMeters();
         }
 
         // What is wrong with the activity: an input that is not what the scene items and the scenes make it.
         private IEnumerable<string> FindActivityProblems()
         {
+            foreach (var problem in FindMeterProblems())
+            {
+                yield return problem;
+            }
+
             var (active, showing) = ReachableSources();
             foreach (var input in _inputs)
             {

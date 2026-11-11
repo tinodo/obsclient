@@ -6,8 +6,9 @@ namespace OBSStudioClient.Model
     /// <remarks>
     /// <para>
     /// OBS Studio sends these events to every client that is subscribed to them, and what a client that is not interested does with them is still work for OBS Studio and for the
-    /// connection: dragging a scene item in the preview is sixty events a second, and every program that listens adds its own copy. So the model subscribes to them only for what you ask
-    /// for, and what it keeps of them (<see cref="ObsSceneItem.Transform"/>, <see cref="ObsInput.IsActive"/> and <see cref="ObsInput.IsShowing"/>) is <c>null</c> as long as you did not.
+    /// connection: dragging a scene item in the preview is sixty events a second, the levels of the audio are twenty messages a second for as long as the connection lasts, and every program that listens
+    /// adds its own copy. So the model subscribes to them only for what you ask for, and what it keeps of them (<see cref="ObsSceneItem.Transform"/>, <see cref="ObsInput.IsActive"/>,
+    /// <see cref="ObsInput.IsShowing"/> and <see cref="ObsInput.Levels"/>) is <c>null</c> as long as you did not.
     /// </para>
     /// <para>
     /// What you can ask OBS Studio for by a call does not need any of this: <see cref="ObsSceneItem.GetTransformAsync"/> and <see cref="ObsSource.GetActivityAsync"/> are always there.
@@ -33,7 +34,14 @@ namespace OBSStudioClient.Model
         /// </summary>
         Activity = 2,
 
+        /// <summary>
+        /// The levels of the audio of the inputs that are on the air (<see cref="ObsInput.Levels"/> and <see cref="ObsModel.AudioLevels"/>): OBS Studio sends a message every 50 milliseconds, also when nothing
+        /// is playing, and has every input that is on the air report its levels for as long as a client is subscribed. The model keeps the newest levels, and tells the application of them without ever
+        /// holding up OBS Studio, or the rest of the model: a handler that is slower than OBS Studio gets the newest levels and not all of them.
+        /// </summary>
+        AudioLevels = 4,
+
         /// <summary>All of them.</summary>
-        All = Transforms | Activity,
+        All = Transforms | Activity | AudioLevels,
     }
 }

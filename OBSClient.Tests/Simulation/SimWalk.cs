@@ -666,7 +666,7 @@ namespace OBSStudioClient.Tests.Simulation
             Request(1, () => Input("SetInputAudioBalance", true, ("inputAudioBalance", Balances[_random.Next(Balances.Length)])));
             Request(1, () => Input("SetInputAudioSyncOffset", true, ("inputAudioSyncOffset", SyncOffsets[_random.Next(SyncOffsets.Length)])));
             Request(1, () => Input("SetInputAudioMonitorType", true, ("monitorType", _random.Chance(0.05) ? "OBS_MONITORING_TYPE_BOGUS" : MonitorTypeNames[_random.Next(MonitorTypeNames.Length)])));
-            Request(1, () => SetInputAudioTracks());
+            Request(2, () => SetInputAudioTracks());
             Request(2, () => MediaInput("TriggerMediaInputAction", ("mediaAction", _random.Chance(0.03) ? "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_BOGUS" : MediaActionNames[_random.Next(MediaActionNames.Length)])));
             Request(1, () => MediaInput("SetMediaInputCursor", ("mediaCursor", MediaCursors[_random.Next(MediaCursors.Length)])));
             Request(1, () => MediaInput("OffsetMediaInputCursor", ("mediaCursorOffset", MediaOffsets[_random.Next(MediaOffsets.Length)])));
@@ -746,6 +746,7 @@ namespace OBSStudioClient.Tests.Simulation
             Operation("external TriggerTransition", 2, () => Do(() => Sim.External.TriggerTransition(), "TriggerTransition"));
             Operation("external SetTransition", 1, () => Do(() => Sim.External.SetTransition(TransitionNames[_random.Next(2)]), "SetTransition"));
             Operation("external SetTransitionDuration", 1, () => Do(() => Sim.External.SetTransitionDuration(TransitionDurations[_random.Next(1, TransitionDurations.Length - 1)]), "SetTransitionDuration"));
+            Operation("external MeterTick", 2, () => Do(() => Sim.External.MeterTick(), "MeterTick"));
             Operation("external SwitchCollection", 2, () => Do(() => Sim.External.SwitchCollection(CollectionName()), "SwitchCollection"));
             Operation("external CreateCollection", 1, () => Do(() => Sim.External.CreateCollection(NewCollectionName()), "CreateCollection"));
         }

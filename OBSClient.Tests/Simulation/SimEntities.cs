@@ -219,6 +219,9 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets or sets whether the input is shown, on the air or in the preview of studio mode (<c>videoShowing</c>), as OBS Studio last said it.</summary>
         public bool Showing { get; set; }
 
+        /// <summary>Gets or sets whether a message of the volume meters has listed the input since it came on the air: the first one lists it without channels, as OBS Studio does before it has audio of it.</summary>
+        public bool MeterHeard { get; set; }
+
         /// <inheritdoc />
         public override bool IsScene => false;
     }

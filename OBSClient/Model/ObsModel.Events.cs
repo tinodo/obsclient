@@ -85,6 +85,23 @@ namespace OBSStudioClient.Model
         /// </remarks>
         public event EventHandler<ObsSceneItemEventArgs>? SceneItemSelected;
 
+        /// <summary>
+        /// Occurs when OBS Studio sent new levels of the audio of the inputs that are on the air (twenty times a second, as long as they change). It is only raised when the model was asked to follow them
+        /// (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.AudioLevels"/>).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The levels are a stream, not a history: what matters is how loud it is now. When the handlers of the application are slower than OBS Studio, the levels that came meanwhile are not raised
+        /// one by one: the event is raised once with the newest levels, and <see cref="ObsAudioLevelsEventArgs.Ended"/> has every input that stopped being listed in between. The levels never wait in
+        /// the queue of the other notifications of the model, and never fill it. A message that says what the previous one said (a silence that stays silent) is not raised.
+        /// </para>
+        /// <para>
+        /// It is raised on the lane of the other notifications of the model: one at a time, never while another notification is being raised, on <see cref="ObsModelOptions.NotificationContext"/> (or a thread of the thread pool). Its place in that lane is the place of the first
+        /// message that came after it was last raised, so it can come after the notification of a change that happened after that message. The PropertyChanged event of each input (<see cref="ObsInput.Levels"/>) follows it. The levels are not told by <see cref="Changed"/>.
+        /// </para>
+        /// </remarks>
+        public event EventHandler<ObsAudioLevelsEventArgs>? AudioLevels;
+
         internal void RaiseCustomEvent(CustomEventEventArgs args)
         {
             this.RaiseEvent(this.CustomEvent, args, nameof(this.CustomEvent));
@@ -103,6 +120,11 @@ namespace OBSStudioClient.Model
         internal void RaiseSceneItemSelected(ObsSceneItemEventArgs args)
         {
             this.RaiseEvent(this.SceneItemSelected, args, nameof(this.SceneItemSelected));
+        }
+
+        internal void RaiseAudioLevels(ObsAudioLevelsEventArgs args)
+        {
+            this.RaiseEvent(this.AudioLevels, args, nameof(this.AudioLevels));
         }
 
         internal void RaiseExitStarted()

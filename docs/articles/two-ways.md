@@ -249,6 +249,8 @@ The model is not free, and it is as well to know where:
 - **It reads before it works.** `ConnectAsync` returns when the model is complete, which takes a number of requests (more with many inputs, and two more for each input without audio before OBS Studio 31.1).
 - **It holds a copy.** The copy is small, and it is kept right by the events. It is a copy: between two reads of it, it can have changed, and while the connection is down it shows what was known last (`IsStale` says so).
 - **Changes go one at a time.** That is what makes them predictable and in order. A change that takes long makes the ones behind it wait.
+- **What OBS Studio sends very often is not followed unless you ask.** The transform of every scene item (`HighVolume = Transforms`), whether each input is on the air (`Activity`) and how loud each input is (`AudioLevels`: twenty messages a second, for as long as the connection lasts) cost OBS Studio and the connection something for every client that listens, so the model
+  subscribes to them only for what you ask for (see [Controlling OBS Studio by name](model.md)).
 - **It needs OBS Studio 30.1 or newer**, the first version that gives scenes and inputs a UUID. Older versions work with the plain client alone.
 - **It is provisional.** Its names and shapes can change until 4.0.0 is released.
 

@@ -115,6 +115,9 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>The high-volume event that says whether an input is shown.</summary>
         public static readonly int InputShow = Bit("InputShowStateChanged");
 
+        /// <summary>The high-volume event with the levels of the audio of the inputs that are on the air.</summary>
+        public static readonly int InputVolumeMeters = Bit("InputVolumeMeters");
+
         /// <summary>Gets the subscription of a connection that did not ask for one: every event except the high-volume ones.</summary>
         public static readonly int All = Bit("All");
 

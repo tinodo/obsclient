@@ -59,6 +59,7 @@ namespace OBSStudioClient.Tests.Simulation
             ["SceneItemTransformChanged"] = "SceneItemTransformChanged",
             ["InputActiveStateChanged"] = "InputActiveStateChanged",
             ["InputShowStateChanged"] = "InputShowStateChanged",
+            ["InputVolumeMeters"] = "InputVolumeMeters",
         };
 
         /// <summary>

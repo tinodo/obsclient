@@ -19,6 +19,7 @@ namespace OBSStudioClient.Model
         private ObsMedia? _media;
         private int _active = Unknown;
         private int _showing = Unknown;
+        private ObsAudioLevels? _levels;
 
         // What the activity is until the model has it: it is only kept when it follows it (ObsHighVolume.Activity).
         private const int Unknown = -1;
@@ -135,9 +136,40 @@ namespace OBSStudioClient.Model
         /// </summary>
         public bool? IsShowing => ToNullable(Volatile.Read(ref this._showing));
 
+        /// <summary>
+        /// Gets the levels of the audio of the input, as OBS Studio measured them in its last message: how loud each channel is. It is null unless the model was asked to follow the levels
+        /// (<see cref="ObsModelOptions.HighVolume"/> with <see cref="ObsHighVolume.AudioLevels"/>), and while OBS Studio does not list the input: it lists the inputs that are on the air
+        /// (<see cref="IsActive"/>) and have audio (<see cref="HasAudio"/>), and says nothing of the others.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio sends the levels twenty times a second, and the model shows the last message, whatever the handlers of the application do: a handler that is slower than OBS Studio gets the
+        /// newest levels and not all of them (see <see cref="ObsModel.AudioLevels"/>). An input that is muted is listed, with the levels that the volume and the mute give (see <see cref="ObsChannelLevel"/>),
+        /// and so is an input that plays nothing: it has levels of 0 (<see cref="ObsChannelLevel.PeakDb"/> is -100). The value is a snapshot: it does not change while you hold it.
+        /// </para>
+        /// <para>
+        /// PropertyChanged is raised when the levels of the input change from one message to the next (a silence that stays silent is not announced again), and when OBS Studio stops listing the input,
+        /// and also when the connection ends: the levels are null then.
+        /// </para>
+        /// </remarks>
+        public ObsAudioLevels? Levels => Volatile.Read(ref this._levels);
+
         private static bool? ToNullable(int value)
         {
             return value == Unknown ? null : value != 0;
+        }
+
+        // Brings the levels in line with the last message of OBS Studio. Returns whether they changed: a message that says what the previous one said is not a change.
+        internal bool SetLevels(ObsAudioLevels? levels)
+        {
+            var current = Volatile.Read(ref this._levels);
+            if (current is null ? levels is null : levels is not null && current.HasSameLevelsAs(levels))
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._levels, levels);
+            return true;
         }
 
         internal bool SetActive(bool? value)

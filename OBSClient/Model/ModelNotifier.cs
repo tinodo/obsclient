@@ -58,8 +58,25 @@ namespace OBSStudioClient.Model
         /// <summary>Gets or sets what is called while a notification is admitted and before it is queued. It is for tests: another producer can be held up there.</summary>
         internal Action? BeforeInsert { get; set; }
 
+        /// <summary>
+        /// Gets or sets what is called when a notification that was queued is dropped later, because the context cannot be posted to. It is for a producer that queues one
+        /// notification at a time and waits for it to run (see <see cref="ModelAudioLevels"/>): it must not wait for one that never will.
+        /// </summary>
+        internal Action? Dropped { get; set; }
+
         /// <summary>Queues a notification. Once the notifier is stopped nothing is queued.</summary>
         public void Enqueue(Action raise)
+        {
+            this.TryEnqueue(raise);
+        }
+
+        /// <summary>
+        /// Queues a notification, and tells whether it was queued as it is: it is not when the notifier is stopped, when notifications are being dropped until the handlers have
+        /// caught up, or when it was the one that overflowed the queue (the recovery is queued in its place).
+        /// </summary>
+        /// <param name="raise">The notification.</param>
+        /// <returns>Whether <paramref name="raise"/> will be run (unless the notifier is stopped first).</returns>
+        public bool TryEnqueue(Action raise)
         {
             var overflowed = false;
             var backlog = false;
@@ -70,13 +87,13 @@ namespace OBSStudioClient.Model
             {
                 if (this._stopped)
                 {
-                    return;
+                    return false;
                 }
 
                 // What is dropped is covered by the recovery, which is queued after everything that waits.
                 if (this._overflowed)
                 {
-                    return;
+                    return false;
                 }
 
                 var waiting = Interlocked.Increment(ref this._waiting);
@@ -112,6 +129,8 @@ namespace OBSStudioClient.Model
             {
                 _ = Task.Run(this.Deliver);
             }
+
+            return !overflowed;
         }
 
         /// <summary>
@@ -183,6 +202,8 @@ namespace OBSStudioClient.Model
                     this._postFailed = true;
                     this._logger.LogError(ex, "The context for the notifications of the model could not be posted to. The notifications that it cannot take are dropped.");
                 }
+
+                this.Dropped?.Invoke();
             }
         }
 

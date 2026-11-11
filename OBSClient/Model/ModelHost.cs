@@ -52,6 +52,11 @@ namespace OBSStudioClient.Model
                 events |= EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged;
             }
 
+            if (highVolume.HasFlag(ObsHighVolume.AudioLevels))
+            {
+                events |= EventSubscriptions.InputVolumeMeters;
+            }
+
             return events;
         }
 
@@ -72,6 +77,7 @@ namespace OBSStudioClient.Model
         private readonly ModelEngine _engine;
         private readonly ModelPublisher _publisher;
         private readonly ModelNotifier _notifier;
+        private readonly ModelAudioLevels? _audioLevels;
         private readonly ModelNoticeHold _held;
         private readonly Channel<HostItem> _inbox = Channel.CreateUnbounded<HostItem>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
@@ -117,6 +123,10 @@ namespace OBSStudioClient.Model
             this._engine = new ModelEngine(new ModelEngineOptions { TombstoneRetention = RetentionFor(options.ReadTimeout), OutputStepTimeout = options.OutputStepTimeout, HighVolume = options.HighVolume });
             this._held = new ModelNoticeHold(options.MaxPendingNotifications);
             this._publisher = new ModelPublisher(model, options.IgnoreCase);
+            if (options.HighVolume.HasFlag(ObsHighVolume.AudioLevels))
+            {
+                this._audioLevels = new ModelAudioLevels(() => model.Inputs, notifier, model.RaiseAudioLevels);
+            }
         }
 
         private enum HostItemKind
@@ -362,6 +372,12 @@ namespace OBSStudioClient.Model
         // Called by the receive loop of the client: it only puts the item in the inbox. Events that the model does not need are not even queued.
         private void OnIngress(IngressItem item)
         {
+            // The levels of the audio are a stream that does not need the engine, and they are the only thing that comes twenty times a second: they are kept where they arrive.
+            if (this._audioLevels is { } audioLevels && audioLevels.Observe(item))
+            {
+                return;
+            }
+
             if (item.Kind == IngressKind.Event && !this._engine.Wants(item.Event!.EventType))
             {
                 return;

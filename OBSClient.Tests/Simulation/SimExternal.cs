@@ -389,6 +389,19 @@ namespace OBSStudioClient.Tests.Simulation
             });
         }
 
+        /// <summary>
+        /// Sends the levels of the audio of the inputs that are on the air (<c>InputVolumeMeters</c>), as obs-websocket does every 50 ms to a client that subscribed to them. The simulation has no clock that ticks, so
+        /// it sends them when this is called.
+        /// </summary>
+        public void MeterTick()
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.MeterTick();
+                return 0;
+            });
+        }
+
         private static void RequireName(string name)
         {
             // The user interface of OBS Studio does not accept an empty name, and obs-websocket answers 403.
