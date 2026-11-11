@@ -35,6 +35,14 @@ namespace OBSStudioClient.Tests.Simulation
             ["InputNameChanged"] = "Inputs",
             ["InputMuteStateChanged"] = "Inputs",
             ["InputVolumeChanged"] = "Inputs",
+            ["InputSettingsChanged"] = "Inputs",
+            ["InputAudioBalanceChanged"] = "Inputs",
+            ["InputAudioSyncOffsetChanged"] = "Inputs",
+            ["InputAudioMonitorTypeChanged"] = "Inputs",
+            ["InputAudioTracksChanged"] = "Inputs",
+            ["MediaInputPlaybackStarted"] = "MediaInputs",
+            ["MediaInputPlaybackEnded"] = "MediaInputs",
+            ["MediaInputActionTriggered"] = "MediaInputs",
             ["SceneTransitionStarted"] = "Transitions",
             ["SceneTransitionEnded"] = "Transitions",
             ["SceneTransitionVideoEnded"] = "Transitions",
@@ -65,12 +73,15 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>
         /// Kinds of JSON value, by response or event and path, that the simulation sends and the capture does not show, because the capture
         /// has no such case. A scene item of a source that is a scene has no <c>inputKind</c> (null) and has <c>isGroup</c> as a boolean
-        /// (obs-websocket 5.7.6 reports <c>isGroup</c> as null for an input); the capture only holds items of inputs.
+        /// (obs-websocket 5.7.6 reports <c>isGroup</c> as null for an input); the capture only holds items of inputs. A media input that plays or is paused
+        /// says its length and its position as numbers (measured with OBS Studio 33.0.0: LiveMediaTests); the capture only holds one that was not opened (null).
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string[]> ExtraTypes = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["GetSceneItemList:$.sceneItems[].inputKind"] = ["null"],
             ["GetSceneItemList:$.sceneItems[].isGroup"] = ["boolean"],
+            ["GetMediaInputStatus:$.mediaCursor"] = ["number"],
+            ["GetMediaInputStatus:$.mediaDuration"] = ["number"],
         };
 
         /// <summary>Members whose value depends on the kind of the input, so that only their own type is checked, and not what is inside.</summary>

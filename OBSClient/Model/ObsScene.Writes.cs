@@ -92,7 +92,7 @@ namespace OBSStudioClient.Model
             };
             if (settings is not null)
             {
-                data["inputSettings"] = SettingsAsObject(settings);
+                data["inputSettings"] = ModelJson.AsObject(settings, nameof(settings), "the settings of an input", "new { width = 640, height = 360 }");
             }
 
             var description = $"creating input '{name}' in scene '{this.Name}'";
@@ -123,10 +123,16 @@ namespace OBSStudioClient.Model
                             : new ObsNotConfirmedException(description, "the input is not in the model: it was removed again, OBS Studio changed its scene collection, or the model was not told of it in time");
                     },
                     Refresh = [new RefreshTarget(ReadKind.Inputs), new RefreshTarget(ReadKind.Items, this.Uuid)],
-                    RefreshFor = static result => [new RefreshTarget(ReadKind.AudioMute, ((CreatedInput)result!).Uuid)],
+                    RefreshFor = static result =>
+                    {
+                        // What the model reads of an input before it shows it: its audio, its settings and, for a media input, the state of the media (a read that is no-op for an input that is no media input).
+                        var uuid = ((CreatedInput)result!).Uuid;
+                        return [new RefreshTarget(ReadKind.AudioMute, uuid), new RefreshTarget(ReadKind.InputSettings, uuid), new RefreshTarget(ReadKind.MediaStatus, uuid)];
+                    },
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: false, requester: null)
                         : null,
+                    RetriesAFreedName = true,
                 },
                 cancellationToken);
         }
@@ -223,6 +229,7 @@ namespace OBSStudioClient.Model
                     Map = (_, response) => response.RequestStatus.Code == RequestStatusCode.ResourceAlreadyExists
                         ? ModelNames.InUse(model, description, name, forScene: true, requester: this)
                         : null,
+                    RetriesAFreedName = true,
                 },
                 cancellationToken);
         }
@@ -408,32 +415,6 @@ namespace OBSStudioClient.Model
             }
 
             ModelRemovals.ThrowIfAGroupShows(this);
-        }
-
-        private static JsonElement SettingsAsObject(object settings)
-        {
-            // The parameter is an object so that new { width = 640 } can be passed: a token that was meant for cancellationToken would be taken for settings, and this is what the call says then.
-            if (settings is CancellationToken)
-            {
-                throw new ArgumentException("A CancellationToken was passed as the settings of the input. Pass it by name (cancellationToken: token) when the settings are left out.", nameof(settings));
-            }
-
-            JsonElement element;
-            try
-            {
-                element = JsonSerializer.SerializeToElement(settings, settings.GetType());
-            }
-            catch (Exception ex) when (ex is NotSupportedException or JsonException or InvalidOperationException)
-            {
-                throw new ArgumentException($"The settings of an input can not be written as JSON: {ex.Message}", nameof(settings), ex);
-            }
-
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                throw new ArgumentException("The settings of an input are an object: the fields of its kind and their values, for example new { width = 640, height = 360 }.", nameof(settings));
-            }
-
-            return element;
         }
 
         private readonly record struct CreatedInput(Guid Uuid, int ItemId);

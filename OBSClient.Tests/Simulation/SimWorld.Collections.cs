@@ -11,7 +11,11 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="Muted">Whether the input is muted.</param>
     /// <param name="Volume">The volume of the input, as a multiplier.</param>
     /// <param name="Pins">The number of pins of the input: a global audio device is kept by the collection.</param>
-    internal sealed record SimSavedInput(Guid Uuid, string Name, SimInputKind Kind, JsonObject Settings, bool Muted, float Volume, int Pins);
+    /// <param name="Balance">The balance of the audio.</param>
+    /// <param name="SyncOffset">The sync offset of the audio, in milliseconds.</param>
+    /// <param name="MonitorType">The monitor type.</param>
+    /// <param name="Tracks">The audio tracks, one bit for each.</param>
+    internal sealed record SimSavedInput(Guid Uuid, string Name, SimInputKind Kind, JsonObject Settings, bool Muted, float Volume, int Pins, float Balance, int SyncOffset, string MonitorType, int Tracks);
 
     /// <summary>A scene item as OBS Studio saves it. Its place in the list of the items of the scene is its index.</summary>
     /// <param name="Id">The ID of the item.</param>
@@ -62,6 +66,10 @@ namespace OBSStudioClient.Tests.Simulation
                     Muted = input.Muted,
                     Volume = input.Volume,
                     Pins = input.Pins,
+                    Balance = input.Balance,
+                    SyncOffset = input.SyncOffset,
+                    MonitorType = input.MonitorType,
+                    Tracks = input.Tracks,
                 };
                 _byUuid[loaded.UuidText] = loaded;
                 _inputs.Add(loaded);
@@ -128,7 +136,7 @@ namespace OBSStudioClient.Tests.Simulation
 
             var inputs = _inputs
                 .Where(input => !input.Removed && (input.Pins > 0 || references.GetValueOrDefault(input.Uuid) > 0))
-                .Select(input => new SimSavedInput(input.Uuid, input.Name, input.Kind, (JsonObject)input.Settings.DeepClone(), input.Muted, input.Volume, input.Pins))
+                .Select(input => new SimSavedInput(input.Uuid, input.Name, input.Kind, (JsonObject)input.Settings.DeepClone(), input.Muted, input.Volume, input.Pins, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks))
                 .ToArray();
             return new SimSavedCollection(Name, scenes, inputs, _program.Uuid);
         }

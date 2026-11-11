@@ -256,6 +256,45 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
   two levels: `ObsClient`, the protocol as it is (every request and event, complete, close to the API), and `ObsModel`, OBS Studio by name (intuitive, close to OBS Studio). They say how the two differ, show the
   same jobs done both ways, and say which one to use and how to use both. The getting started guide has a first program for each, the guides of the client say that they are about `ObsClient`, and the API
   reference starts with both (it did not mention the `OBSStudioClient.Model` namespace). The description of the package says it too. The README is the page of the package on nuget.org, which shows what was packed: the new text appears there with the next version.
+- **`ObsModel` does more than scenes, inputs, filters and outputs: the calls that change nothing, the files of the outputs and the events that say that something happened** *(after rc.3; the first step of making
+  `ObsModel` complete, which goes on until 4.0.0)*.
+  - **Asking and telling** (nothing is kept in the model, and each call takes its turn in the line of the changes): `GetStatsAsync()`, `GetHotkeysAsync()`, `TriggerHotkeyAsync(name, context)` and
+    `TriggerHotkeyAsync(key, modifiers)` (and `TriggerHotkeyAsync(name)` on a scene or an input), `BroadcastCustomEventAsync(data)`, `CallVendorRequestAsync(vendor, request, data)`, `GetMonitorsAsync()` and
+    `OpenVideoMixProjectorAsync(...)`; on scenes and inputs `GetActivityAsync()`, `GetScreenshotAsync(...)` (an `ObsScreenshot`), `SaveScreenshotAsync(...)` and `OpenProjectorAsync(...)`; on inputs
+    `OpenPropertiesDialogAsync()`, `OpenFiltersDialogAsync()` and `OpenInteractDialogAsync()`.
+  - **Outputs**: `obs.Outputs.GetAllAsync()` lists every output of OBS Studio, and `obs.Outputs.Named(name)` gives one by its name (an `ObsNamedOutput`: start, stop, toggle, status, settings), for the outputs
+    that plugins add. The stream sends captions (`SendCaptionAsync`); the recording toggles its pause (`TogglePauseAsync`), splits (`SplitFileAsync`) and takes chapters (`CreateChapterAsync`); the replay buffer tells its
+    newest replay (`GetLastReplayFileAsync`); the stream and the recording tell their figures (`GetStatisticsAsync`: duration, bytes, congestion, skipped frames).
+  - **The files**: `record.CurrentFile` and `replayBuffer.LastSavedPath`, with the events `record.FileChanged` and `replayBuffer.Saved`: where OBS Studio writes the recording (obs-websocket 5.5.0 and newer say it
+    when the recording starts) and which replay was saved last.
+  - **Events that say that something happened**: `obs.CustomEvent`, `obs.VendorEvent` (you opt in with `AdditionalEvents = EventSubscriptions.Vendors`), `obs.ScreenshotSaved`, and `obs.ExitStarted` with
+    `obs.IsExiting` (a closed OBS Studio is not a lost connection). They are raised in the order of arrival, one at a time, also while the model is read. The model subscribes to the General events for them.
+  - **What OBS Studio says about itself**: `obs.ObsVersion`, `obs.WebSocketVersion`, `obs.Platform` and `obs.SupportedImageFormats`. A request that the obs-websocket of that OBS Studio does not have (splitting a
+    recording and chapters need 5.5.0) is refused with a message that says so.
+  - `obs.Outputs.Stream` has the type `ObsStreamOutput` (a subclass of `ObsOutput`) and no longer `ObsOutput`: code that was compiled against rc.3 has to be compiled again. `ObsModel` is provisional.
+- **`ObsModel` has the settings of inputs, the details of their audio, and the calls around them** *(after rc.3; the second step of making `ObsModel` complete, which goes on until 4.0.0)*.
+  - **The settings of an input**: `input.Settings` (a `JsonElement`: what was set, without the defaults of the kind; current, because OBS Studio announces every change) and
+    `input.SetSettingsAsync(settings, overlay)`, which returns when the model shows them. `CreateInputAsync(name, kind, settings)` starts an input with them. Checked with OBS Studio 33.0.0: a field that is an object
+    replaces the object that was there as a whole, and a null field is ignored.
+  - **The audio of an input**: `AudioBalance`, `SyncOffset` (a `TimeSpan`), `MonitorType` (`ObsMonitorType`) and `AudioTracks` (`ObsAudioTracks`, flags), current like the volume, with `SetAudioBalanceAsync`, `SetSyncOffsetAsync`,
+    `SetMonitorTypeAsync` and `SetAudioTracksAsync`. A value that OBS Studio does not take is an `ArgumentOutOfRangeException` before anything is sent. OBS Studio 33 has no "monitor only": it holds
+    `MonitorAndOutput` when it is asked for `MonitorOnly`, and the property shows what it holds.
+  - **Asked, and not kept in the model** (each call takes its turn in the line of the changes): `input.GetPropertyItemsAsync(name)` (the choices of a dropdown of the properties window, as `ObsPropertyItem`s) and
+    `input.PressPropertyButtonAsync(name)`; `GetDeinterlaceModeAsync()`, `SetDeinterlaceModeAsync(mode)`, `GetDeinterlaceFieldOrderAsync()` and `SetDeinterlaceFieldOrderAsync(order)` (`ObsDeinterlaceMode`,
+    `ObsDeinterlaceFieldOrder`; for inputs that have their own video); on the model `GetInputKindsAsync(unversioned)`, `GetFilterKindsAsync()`, `GetDefaultInputSettingsAsync(kind)`,
+    `GetDefaultFilterSettingsAsync(kind)` and `GetSpecialInputsAsync()` (the desktop audio and the microphones, as `ObsInput` objects: `ObsSpecialInputs`).
+  - **The settings of a filter are asked, and not kept**: `filter.GetSettingsAsync()` and `filter.SetSettingsAsync(settings, overlay)`, and `CreateFilterAsync` takes settings. The protocol has an event for a change of
+    them, and OBS Studio does not send it (OBS Studio 33.0.0 sent none for any kind of filter: libobs tells of the updates of public sources only, and a filter is a private one), so a copy in the model would go out of date without a sign.
+- **`ObsModel` has media inputs: what a media is doing, and the calls that play, pause, stop, restart and move it** *(after rc.3; the third step of making `ObsModel` complete, which goes on until 4.0.0)*.
+  - **`input.Media`** is an `ObsMedia` for an input that is a media input (a media source, a VLC video source), and `null` for any other input. Its `State` (`ObsMediaState`: `None`, `Playing`, `Opening`, `Buffering`,
+    `Paused`, `Stopped`, `Ended`, `Error`) is current, because OBS Studio announces when a playback starts and ends and when it is told to play, pause, stop or restart; `PropertyChanged` and `Changed` say it. The length and
+    the position are not kept (they move all the time, and OBS Studio sends no event for them): `GetStatusAsync()` asks for them (an `ObsMediaStatus`), and for the states that no event announces.
+  - **The calls** (each takes its turn in the line of the changes): `PlayAsync()`, `PauseAsync()`, `StopAsync()` and `RestartAsync()` return when the model shows the new state; `TogglePlayPauseAsync()` returns the state
+    that it asked for (OBS Studio has no toggle, so the model decides in the turn of the change); `NextAsync()` and `PreviousAsync()` (the playlist of a VLC source); `SeekAsync(position)` and `SkipAsync(offset)`.
+  - **Checked with OBS Studio 33.0.0** (the article has the details): a media source whose scene is not on the program output is not opened (state `None`) and does not move; showing the scene plays it from the start,
+    and when it is no longer shown it ends. A change of the position is carried out for a media that plays and is shown, a position beyond the end ends the media, and a media that neither plays nor is paused refuses
+    a change of its position with `InvalidResourceState`.
+  - The model subscribes to the media input events now (`EventSubscriptions.MediaInputs`), and reads the state of each media input once, when it reads the inputs: a connect sends one request more for each media input.
 - Support for the **Canvases** category of obs-websocket 5.7.0: `GetCanvasList`, the `Canvas`, `CanvasFlags` and
   `CanvasVideoSettings` classes, the `CanvasCreated`, `CanvasRemoved` and `CanvasNameChanged` events, and the
   `EventSubscriptions.Canvases` flag (included in `EventSubscriptions.All`).
@@ -548,3 +587,9 @@ What changed in the protocol between 5.5.2 and 5.7.6, and where it landed:
 - The events of OBS Studio and `ConnectionClosed` are raised by a dispatcher of the client and not by the receive thread, since 4.0.0
   (see *Breaking changes*): up to and including 4.0.0-beta1 a handler that blocked waiting for a response of OBS Studio (for example with
   `.Result`) kept the client from receiving that response, and the request timed out.
+- **Making or renaming something with the name of an input that was just removed no longer fails for a moment** *(after rc.3)*. OBS Studio destroys a source that it removed a moment after the model
+  can tell (when the last scene item that kept it alive is gone, the last reference to it is released a frame later, and OBS Studio does not announce it), and keeps its name taken until then: measured with
+  OBS Studio 33.0.0, in about 1 round of 10, for up to 25 ms or so. A `CreateSceneAsync`, `CreateInputAsync` or `RenameAsync` right after the `RemoveAsync` of the object that had the name was refused in that moment with an
+  `ObsNameInUseException` that says that the model does not show who holds the name (a live test that does exactly that failed in about 1 run of 10 because of it). A refusal for a name that nothing in the model holds is now sent
+  again every 25 ms, in the same turn of the line of changes, for as long as `ObsModelOptions.ConfirmationTimeout` (1 s by default); a name that the model shows a holder for is refused at once, as before.
+  A change that was refused made nothing, so sending it again is safe.

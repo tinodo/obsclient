@@ -1,6 +1,7 @@
 namespace OBSStudioClient.Model
 {
     using System.ComponentModel;
+    using OBSStudioClient.Exceptions;
 
     /// <summary>
     /// A scene or an input of OBS Studio: something that has a name and a UUID, and that scene items can show.
@@ -93,6 +94,15 @@ namespace OBSStudioClient.Model
 
         // The number of the pass of the publisher that last saw the object in the model: an object that a pass does not see is gone.
         internal int Pass { get; set; }
+
+        // A source that OBS Studio destroyed can not be asked anything. One that it removed and keeps alive for the scene items that still use it (Detached) still exists, and can be.
+        internal void CheckNotDestroyed()
+        {
+            if (this.State == ObsObjectState.Gone)
+            {
+                throw new ObsRemovedException(this.Label, this.State);
+            }
+        }
 
         // What the object is, in words, for the messages: "scene 'Gaming'", "group 'Overlays'" or "input 'Webcam'". A group is a scene of OBS Studio, and an application calls it a group.
         internal string Label => $"{(this is ObsScene { IsGroup: true } ? "group" : this is ObsScene ? "scene" : "input")} '{this.Name}'";

@@ -569,7 +569,9 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(1, properties.Count(property => property == "Scenes"));
             Assert.Equal(1, properties.Count(property => property == "Inputs"));
             Assert.Equal(1, properties.Count(property => property == "ProgramScene"));
-            Assert.Equal(3, properties.Count(property => property is not ("State" or "IsStale")));
+
+            // What the connection said about OBS Studio (its version, its platform) is told too, when it is known; it is not about the collections.
+            Assert.Equal(3, properties.Count(property => property is not ("State" or "IsStale" or "ObsVersion" or "WebSocketVersion" or "Platform")));
         }
 
         [Fact]

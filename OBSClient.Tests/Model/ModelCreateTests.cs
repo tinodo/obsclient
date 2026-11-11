@@ -253,6 +253,29 @@ namespace OBSStudioClient.Tests.Model
             Assert.Equal(0.5f, headset.VolumeMul);
         }
 
+        [Fact]
+        public async Task AMediaInput_IsShownWhenTheCallReturns_AlsoWhenOBSStudioIsNotReadyToSayWhatItsMediaDoes()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var asked = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type == "CreateInput")
+                {
+                    var (input, item) = test.MakeInput(test.Gaming, "Clip", "ffmpeg_source", 8327);
+                    return (100, new { inputUuid = input, sceneItemId = item });
+                }
+
+                // The model shows an input when it has read all that it needs of it, the state of its media too: it asks again after a wait, and the call waits for that read as it does for the others.
+                return type == "GetMediaInputStatus" && Interlocked.Increment(ref asked) <= 2 ? (207, null) : null;
+            };
+
+            var clip = await test.Model.Scenes["Gaming"].CreateInputAsync("Clip", "ffmpeg_source").WithTimeoutAsync(Timeout);
+
+            Assert.Same(clip, test.Model.Inputs["Clip"]);
+            Assert.NotNull(clip.Media);
+        }
+
         [Theory]
         [InlineData(5)]
         [InlineData("text")]
@@ -332,6 +355,104 @@ namespace OBSStudioClient.Tests.Model
             Assert.False(test.Model.Inputs.Contains("Overlay"));
             Assert.Contains("an input named 'Overlay' was removed, but OBS Studio keeps it alive because 2 scene items still show it", exception.Message);
             Assert.Contains("and a name stays taken until the last of them is gone", exception.Message);
+        }
+
+        [Fact]
+        public async Task AName_ThatOBSStudioFreesAMomentLate_IsAskedForAgain_AndTheSceneIsMade()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+
+            // OBS Studio destroys a source that was removed a moment after the model can tell, and keeps its name taken until it has: the first answers say so, and nothing in the model holds the name.
+            var attempts = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateScene")
+                {
+                    return null;
+                }
+
+                return Interlocked.Increment(ref attempts) <= 2 ? (601, null) : (100, new { sceneUuid = test.MakeScene("Intro") });
+            };
+
+            var scene = await test.Model.CreateSceneAsync("Intro").WithTimeoutAsync(Timeout);
+
+            Assert.Same(scene, test.Model.Scenes["Intro"]);
+            Assert.Equal(3, test.Count("CreateScene"));
+        }
+
+        [Fact]
+        public async Task AName_ThatOBSStudioFreesAMomentLate_IsAskedForAgain_AndTheInputIsMade()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            var attempts = 0;
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateInput")
+                {
+                    return null;
+                }
+
+                if (Interlocked.Increment(ref attempts) <= 2)
+                {
+                    return (601, null);
+                }
+
+                var (input, item) = test.MakeInput(test.Gaming, "Backdrop");
+                return (100, new { inputUuid = input, sceneItemId = item });
+            };
+
+            var backdrop = await test.Model.Scenes["Gaming"].CreateInputAsync("Backdrop", "color_source_v3").WithTimeoutAsync(Timeout);
+
+            Assert.Same(backdrop, test.Model.Inputs["Backdrop"]);
+            Assert.Equal(3, test.Count("CreateInput"));
+        }
+
+        [Fact]
+        public async Task AName_ThatNothingInTheModelHolds_IsAskedForAgain_UntilTheTimeForOBSStudioToCatchUpIsOver_AndThenRefused()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            test.Responder.OnRequest = (type, data) => type == "CreateScene" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Model.CreateSceneAsync("Ghost").WithTimeoutAsync(Timeout));
+
+            // The time is ConfirmationTimeout (300 ms here), and the name is asked for every 25 ms: more than twice, and not for ever.
+            Assert.Null(exception.HeldBy);
+            Assert.InRange(test.Count("CreateScene"), 3, 40);
+        }
+
+        [Fact]
+        public async Task AName_ThatTheCallerGivesUpWhileItIsAskedForAgain_IsNotAskedForAgain()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            using var giveUp = new CancellationTokenSource();
+            test.Responder.OnRequest = (type, data) =>
+            {
+                if (type != "CreateScene")
+                {
+                    return null;
+                }
+
+                giveUp.Cancel();
+                return (601, null);
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => test.Model.CreateSceneAsync("Ghost", giveUp.Token).WithTimeoutAsync(Timeout));
+
+            // What was refused made nothing, and the line is not held up: it was asked for once.
+            await Task.Delay(200);
+            Assert.Equal(1, test.Count("CreateScene"));
+        }
+
+        [Fact]
+        public async Task AScene_WhoseNameIsHeldByAnObjectOfTheModel_IsNotAskedForAgain()
+        {
+            await using var test = await ByNameFixture.StartAsync();
+            test.Responder.OnRequest = (type, data) => type == "CreateScene" ? (601, null) : null;
+
+            var exception = await Assert.ThrowsAsync<ObsNameInUseException>(() => test.Model.CreateSceneAsync("Gaming").WithTimeoutAsync(Timeout));
+
+            Assert.Same(test.Model.Scenes["Gaming"], exception.HeldBy);
+            Assert.Equal(1, test.Count("CreateScene"));
         }
 
         [Fact]
@@ -592,7 +713,7 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Equal("settings", token.ParamName);
             Assert.Contains("Pass it by name (cancellationToken: token)", token.Message);
-            Assert.Contains("are an object", number.Message);
+            Assert.Contains("must be an object", number.Message);
             Assert.Equal("settings", unwritable.ParamName);
             Assert.Contains("can not be written as JSON", unwritable.Message);
             Assert.NotNull(unwritable.InnerException);

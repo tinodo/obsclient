@@ -33,6 +33,19 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetInputMute"] = static (self, request) => self.GetInputMute(request),
             ["GetInputVolume"] = static (self, request) => self.GetInputVolume(request),
             ["GetInputSettings"] = static (self, request) => self.GetInputSettings(request),
+            ["GetInputAudioBalance"] = static (self, request) => self.GetInputAudioBalance(request),
+            ["GetInputAudioSyncOffset"] = static (self, request) => self.GetInputAudioSyncOffset(request),
+            ["GetInputAudioMonitorType"] = static (self, request) => self.GetInputAudioMonitorType(request),
+            ["GetInputAudioTracks"] = static (self, request) => self.GetInputAudioTracks(request),
+            ["GetMediaInputStatus"] = static (self, request) => self.GetMediaInputStatus(request),
+            ["SetMediaInputCursor"] = static (self, request) => self.SetMediaInputCursor(request),
+            ["OffsetMediaInputCursor"] = static (self, request) => self.OffsetMediaInputCursor(request),
+            ["TriggerMediaInputAction"] = static (self, request) => self.TriggerMediaInputAction(request),
+            ["SetInputSettings"] = static (self, request) => self.SetInputSettings(request),
+            ["SetInputAudioBalance"] = static (self, request) => self.SetInputAudioBalance(request),
+            ["SetInputAudioSyncOffset"] = static (self, request) => self.SetInputAudioSyncOffset(request),
+            ["SetInputAudioMonitorType"] = static (self, request) => self.SetInputAudioMonitorType(request),
+            ["SetInputAudioTracks"] = static (self, request) => self.SetInputAudioTracks(request),
             ["CreateScene"] = static (self, request) => self.CreateScene(request),
             ["RemoveScene"] = static (self, request) => self.RemoveScene(request),
             ["SetSceneName"] = static (self, request) => self.SetSceneName(request),
@@ -315,6 +328,216 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             return SimResult.Ok(Obj(("inputKind", input.Kind.Id), ("inputSettings", input.Settings.DeepClone())));
+        }
+
+        private SimResult GetInputAudioBalance(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioBalance", (double)input.Balance)));
+        }
+
+        private SimResult GetInputAudioSyncOffset(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioSyncOffset", input.SyncOffset)));
+        }
+
+        private SimResult GetInputAudioMonitorType(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("monitorType", input.MonitorType)));
+        }
+
+        private SimResult GetInputAudioTracks(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            return SimResult.Ok(Obj(("inputAudioTracks", SimWorld.TracksJson(input.Tracks))));
+        }
+
+        private SimResult SetInputSettings(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.ValidateBasic("inputSettings") || !request.OptionalObject("inputSettings", out var settings, allowEmpty: true))
+            {
+                return Failed(request);
+            }
+
+            var overlay = true;
+            if (request.Contains("overlay") && !request.OptionalBoolean("overlay", out overlay))
+            {
+                return Failed(request);
+            }
+
+            _world.SetSettings(input, settings, overlay);
+            return SimResult.Ok();
+        }
+
+        // The state of the media of an input, and, while it plays or is paused, its length and its position (GetMediaInputStatus). An input that is no media input answers with the state none
+        // (measured with a color source), and so does a media input that was not opened.
+        private SimResult GetMediaInputStatus(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null)
+            {
+                return Failed(request);
+            }
+
+            var timed = input.MediaState is "OBS_MEDIA_STATE_PLAYING" or "OBS_MEDIA_STATE_PAUSED";
+            return SimResult.Ok(Obj(
+                ("mediaCursor", timed ? input.MediaCursor : null),
+                ("mediaDuration", timed ? SimWorld.MediaDuration : null),
+                ("mediaState", input.MediaState)));
+        }
+
+        private SimResult SetMediaInputCursor(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("mediaCursor", out var cursor, 0))
+            {
+                return Failed(request);
+            }
+
+            _world.MoveMedia(input, (long)cursor, relative: false);
+            return SimResult.Ok();
+        }
+
+        private SimResult OffsetMediaInputCursor(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("mediaCursorOffset", out var offset))
+            {
+                return Failed(request);
+            }
+
+            _world.MoveMedia(input, (long)offset, relative: true);
+            return SimResult.Ok();
+        }
+
+        private static readonly string[] MediaActions =
+        [
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT",
+            "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS",
+        ];
+
+        private SimResult TriggerMediaInputAction(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireString("mediaAction", out var action))
+            {
+                return Failed(request);
+            }
+
+            if (!MediaActions.Contains(action))
+            {
+                return SimResult.Fail(SimStatus.InvalidRequestField, "You have specified an invalid media input action.");
+            }
+
+            _world.TriggerMedia(input, action);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioBalance(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("inputAudioBalance", out var balance, 0.0, 1.0))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            _world.SetBalance(input, (float)balance);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioSyncOffset(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireNumber("inputAudioSyncOffset", out var offset, -950, 20000))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            _world.SetSyncOffset(input, (int)offset);
+            return SimResult.Ok();
+        }
+
+        private static readonly string[] MonitorTypes = ["OBS_MONITORING_TYPE_NONE", "OBS_MONITORING_TYPE_MONITOR_ONLY", "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT"];
+
+        private SimResult SetInputAudioMonitorType(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.RequireString("monitorType", out var type))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            if (!MonitorTypes.Contains(type))
+            {
+                return SimResult.Fail(SimStatus.InvalidRequestField, $"Unknown monitor type: {type}");
+            }
+
+            _world.SetMonitorType(input, type);
+            return SimResult.Ok();
+        }
+
+        private SimResult SetInputAudioTracks(SimRequest request)
+        {
+            var input = request.AcquireInput();
+            if (input is null || !request.ValidateBasic("inputAudioTracks") || !request.OptionalObject("inputAudioTracks", out var given, allowEmpty: false))
+            {
+                return Failed(request);
+            }
+
+            SimWorld.EnsureAudio(input);
+            var tracks = input.Tracks;
+            for (var track = 1; track <= 6; track++)
+            {
+                var name = track.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!given.TryGetPropertyValue(name, out var value) || value is null)
+                {
+                    continue;
+                }
+
+                if (value.GetValueKind() is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
+                {
+                    return SimResult.Fail(SimStatus.InvalidRequestFieldType, "The value of one of your tracks is not a boolean.");
+                }
+
+                tracks = value.GetValue<bool>() ? tracks | (1 << (track - 1)) : tracks & ~(1 << (track - 1));
+            }
+
+            _world.SetTracks(input, tracks);
+            return SimResult.Ok();
         }
 
         private SimResult CreateScene(SimRequest request)

@@ -29,7 +29,7 @@ namespace OBSStudioClient.Model
     {
         /// <summary>The events that the model needs. They are always subscribed to, with the ones that the application asks for.</summary>
         public const EventSubscriptions RequiredEvents =
-            EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters;
+            EventSubscriptions.General | EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters | EventSubscriptions.MediaInputs;
 
         /// <summary>The oldest obs-websocket that the model works with: the first one that identifies scenes and inputs by UUID (OBS Studio 30.1).</summary>
         public static readonly Version RequiredWebSocketVersion = new(5, 4, 0);
@@ -678,7 +678,9 @@ namespace OBSStudioClient.Model
                 this._versionKnown = true;
 
                 // What a removed scene does to its name depends on the version of OBS Studio (libobs), not on that of obs-websocket. A version that can not be read gives the newest behaviour (null).
-                this._model.SetObsVersion(TryParseVersion(item.Version.ObsVersion, out var obsVersion) ? obsVersion : null);
+                var obsVersion = TryParseVersion(item.Version.ObsVersion, out var parsedObsVersion) ? parsedObsVersion : null;
+                this._model.SetObsVersion(obsVersion);
+                this._model.SetVersionFacts(item.Version, obsVersion, version);
 
                 return;
             }
@@ -826,6 +828,9 @@ namespace OBSStudioClient.Model
             var view = this._publisher.Publish(this._engine, changes);
             this._model.SetView(view);
             var after = this._engine.State;
+
+            // What happened is told in the order of arrival and whatever the state of the model is: a file that was saved while the model was read was saved all the same. It follows the notices of the step.
+            var events = this._publisher.Events;
             if (before == ModelEngineState.Synchronized && after == ModelEngineState.Synchronized)
             {
                 foreach (var notice in this._publisher.Notices)
@@ -833,10 +838,28 @@ namespace OBSStudioClient.Model
                     this._model.QueueNotice(notice);
                 }
 
+                foreach (var happened in events)
+                {
+                    this._model.QueueNotice(happened);
+                }
+
                 return;
             }
 
+            // What does not depend on the scene collection that is read (the file that an output wrote, that OBS Studio is exiting) is told when it happens, in front of the events that go with it, and is not held.
+            foreach (var notice in this._publisher.Notices)
+            {
+                if (notice.Immediate)
+                {
+                    this._model.QueueNotice(notice);
+                }
+            }
+
             this._held.Hold(this._publisher.Notices);
+            foreach (var happened in events)
+            {
+                this._model.QueueNotice(happened);
+            }
             if (after == ModelEngineState.Synchronizing)
             {
                 // OBS Studio is changing its scene collection, or has changed it and the model reads the new one: the model is not complete, and the application is told so.

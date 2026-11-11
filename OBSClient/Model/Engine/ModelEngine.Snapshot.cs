@@ -7,7 +7,21 @@ namespace OBSStudioClient.Model.Engine
     internal sealed record EngineScene(Guid Uuid, string Name, int Index, SourceState State, IReadOnlyList<EngineItem> Items);
 
     /// <summary>An input, as the model holds it.</summary>
-    internal sealed record EngineInput(Guid Uuid, string Name, string Kind, bool HasAudio, bool Muted, float VolumeMul, float VolumeDb, SourceState State);
+    internal sealed record EngineInput(
+        Guid Uuid,
+        string Name,
+        string Kind,
+        bool HasAudio,
+        bool Muted,
+        float VolumeMul,
+        float VolumeDb,
+        SourceState State,
+        SettingsValue? Settings = null,
+        float AudioBalance = 0.5f,
+        int SyncOffset = 0,
+        ObsMonitorType MonitorType = ObsMonitorType.Off,
+        int Tracks = (int)ObsAudioTracks.All,
+        ObsMediaState? MediaState = null);
 
     /// <summary>A filter of a scene or an input, as the model holds it.</summary>
     internal sealed record EngineFilter(long Id, string Name, string Kind, int Index, bool Enabled);
@@ -60,7 +74,21 @@ namespace OBSStudioClient.Model.Engine
             var inputs = this._inputs.Values
                 .Where(input => input.IsComplete)
                 .OrderBy(input => input.Uuid)
-                .Select(input => new EngineInput(input.Uuid, input.Name.Value, input.Kind, input.HasAudio, input.Muted.Value, input.VolumeMul.Value, input.VolumeDb.Value, input.State))
+                .Select(input => new EngineInput(
+                    input.Uuid,
+                    input.Name.Value,
+                    input.Kind,
+                    input.HasAudio,
+                    input.Muted.Value,
+                    input.VolumeMul.Value,
+                    input.VolumeDb.Value,
+                    input.State,
+                    input.Settings.Value,
+                    input.AudioBalance.Value,
+                    input.SyncOffset.Value,
+                    input.MonitorType.Value,
+                    input.Tracks.Value,
+                    input.IsMedia ? input.MediaState.Value : null))
                 .ToArray();
             return new EngineSnapshot(live, detached, inputs, this._programUuid.Value, this._studioMode.Value, this._state, this.PendingWork());
         }

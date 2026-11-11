@@ -83,7 +83,7 @@ namespace OBSStudioClient.Tests.Model
             {
                 if (!input.Removed || referenced.Contains(input.Uuid))
                 {
-                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed));
+                    lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.Muted, input.Removed, AudioDetails(input.HasAudio, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks), Canonical(input.Settings), input.MediaState));
                 }
             }
 
@@ -165,7 +165,16 @@ namespace OBSStudioClient.Tests.Model
 
             foreach (var input in inputs.Values.OrderBy(input => input.Uuid))
             {
-                lines.Add(InputLine(input.Uuid, input.Name, input.Kind, input.HasAudio, input.IsMuted, !liveInputUuids.Contains(input.Uuid)));
+                lines.Add(InputLine(
+                    input.Uuid,
+                    input.Name,
+                    input.Kind,
+                    input.HasAudio,
+                    input.IsMuted,
+                    !liveInputUuids.Contains(input.Uuid),
+                    AudioDetails(input.HasAudio, input.AudioBalance, (int)input.SyncOffset.TotalMilliseconds, ModelEnums.ToWire(input.MonitorType).ToString(), (int)input.AudioTracks),
+                    Canonical(input.Settings.GetRawText()),
+                    MediaWire.Of(input.Media?.State)));
             }
 
             disagreements = found;
@@ -182,9 +191,22 @@ namespace OBSStudioClient.Tests.Model
             return $"    item #{id.ToString(CultureInfo.InvariantCulture)} at {index.ToString(CultureInfo.InvariantCulture)}: {source:D}{(enabled ? string.Empty : ", disabled")}{(locked ? ", locked" : string.Empty)}";
         }
 
-        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached)
+        private static string InputLine(Guid uuid, string name, string kind, bool hasAudio, bool muted, bool detached, string audioDetails, string settings, string? media)
         {
-            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{(detached ? ", removed but alive" : string.Empty)}";
+            return $"input {uuid:D} \"{name}\" {kind}{(hasAudio ? (muted ? ", muted" : ", unmuted") : ", no audio")}{audioDetails}{(media is null ? string.Empty : ", media " + media)}{(settings == "{}" ? string.Empty : ", settings " + settings)}{(detached ? ", removed but alive" : string.Empty)}";
+        }
+
+        private static string AudioDetails(bool hasAudio, float balance, int syncOffset, string monitorType, int tracks)
+        {
+            return hasAudio
+                ? $", balance {balance.ToString("R", CultureInfo.InvariantCulture)}, sync offset {syncOffset.ToString(CultureInfo.InvariantCulture)} ms, {monitorType}, tracks {tracks.ToString(CultureInfo.InvariantCulture)}"
+                : string.Empty;
+        }
+
+        // The settings with the fields in the same order on both sides: what is compared is what the fields are, and not how they are written.
+        private static string Canonical(string settings)
+        {
+            return SimJson.Serialize(SimJson.Sorted(System.Text.Json.Nodes.JsonNode.Parse(settings))!);
         }
     }
 

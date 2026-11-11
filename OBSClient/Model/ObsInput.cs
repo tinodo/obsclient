@@ -1,5 +1,8 @@
 namespace OBSStudioClient.Model
 {
+    using System.Text.Json;
+    using OBSStudioClient.Model.Engine;
+
     /// <summary>
     /// An input of OBS Studio: a source of video, audio or both (a camera, a microphone, an image, a browser source, and so on).
     /// </summary>
@@ -8,6 +11,12 @@ namespace OBSStudioClient.Model
         private bool _muted;
         private float _volumeMul = 1f;
         private float _volumeDb;
+        private float _audioBalance = 0.5f;
+        private int _syncOffset;
+        private int _monitorType;
+        private int _audioTracks = (int)ObsAudioTracks.All;
+        private SettingsValue _settings = SettingsValue.Empty;
+        private ObsMedia? _media;
 
         internal ObsInput(ObsModel model, Guid uuid, string name, ObsObjectState state, string kind, bool hasAudio)
             : base(model, uuid, name, state)
@@ -22,9 +31,27 @@ namespace OBSStudioClient.Model
         public string Kind { get; }
 
         /// <summary>
-        /// Gets whether the input has audio. Only then are <see cref="IsMuted"/>, <see cref="VolumeMul"/> and <see cref="VolumeDb"/> meaningful.
+        /// Gets whether the input has audio. Only then are <see cref="IsMuted"/>, <see cref="VolumeMul"/>, <see cref="VolumeDb"/>, <see cref="AudioBalance"/>, <see cref="SyncOffset"/>,
+        /// <see cref="MonitorType"/> and <see cref="AudioTracks"/> meaningful.
         /// </summary>
         public bool HasAudio { get; }
+
+        /// <summary>
+        /// Gets the settings of the input: a JSON object with the values that were set, as OBS Studio says them (<c>{"text":"Hello","font":{"face":"Arial","size":48}}</c> for a text input).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OBS Studio says the settings that were set, and leaves out the ones that still have the default of the input kind: ask <see cref="ObsModel.GetDefaultInputSettingsAsync"/> for the
+        /// defaults of a kind, and lay the settings over them for the whole picture. What a setting is called, and what it means, depends on the kind of the input, and is not written
+        /// down anywhere but in the source of OBS Studio and its plugins: the properties window of the input is the place to look (or <see cref="GetPropertyItemsAsync"/> for the choices of a list).
+        /// </para>
+        /// <para>
+        /// The value is current: OBS Studio announces every change of the settings (the property changes when a person changes the input, or a request, a script or the input
+        /// itself does). It is a snapshot: a change makes a new element, and an element that you hold does not change. An input that has no settings set has an empty object. Change the
+        /// settings with <see cref="SetSettingsAsync"/>.
+        /// </para>
+        /// </remarks>
+        public JsonElement Settings => Volatile.Read(ref this._settings).Element;
 
         /// <summary>
         /// Gets whether the input is muted. The value is current: OBS Studio announces every change of it.
@@ -42,6 +69,48 @@ namespace OBSStudioClient.Model
         /// every change of it.
         /// </summary>
         public float VolumeDb => Volatile.Read(ref this._volumeDb);
+
+        /// <summary>
+        /// Gets the balance of the audio between the left and the right: from 0 (all on the left) to 1 (all on the right); 0.5 is the middle, which is what an input has until it is changed. The
+        /// value is current: OBS Studio announces every change of it. Only meaningful when <see cref="HasAudio"/>.
+        /// </summary>
+        public float AudioBalance => Volatile.Read(ref this._audioBalance);
+
+        /// <summary>
+        /// Gets how much the audio of the input is delayed (when it is positive) or advanced (when it is negative), to bring it in sync with the video: from -950 ms to 20 s, in whole
+        /// milliseconds. The value is current: OBS Studio announces every change of it. Only meaningful when <see cref="HasAudio"/>.
+        /// </summary>
+        public TimeSpan SyncOffset => TimeSpan.FromMilliseconds(Volatile.Read(ref this._syncOffset));
+
+        /// <summary>
+        /// Gets whether the audio of the input is also played on the monitoring device of the computer of OBS Studio. The value is current: OBS Studio announces every change of it. Only
+        /// meaningful when <see cref="HasAudio"/>. OBS Studio 33 has no <see cref="ObsMonitorType.MonitorOnly"/>: see <see cref="ObsMonitorType"/>.
+        /// </summary>
+        public ObsMonitorType MonitorType => (ObsMonitorType)Volatile.Read(ref this._monitorType);
+
+        /// <summary>
+        /// Gets the audio tracks that the input is mixed into: a recording or a stream has the audio of the inputs that are on the tracks that it takes. The value is current: OBS Studio
+        /// announces every change of it. Only meaningful when <see cref="HasAudio"/>.
+        /// </summary>
+        public ObsAudioTracks AudioTracks => (ObsAudioTracks)Volatile.Read(ref this._audioTracks);
+
+        /// <summary>
+        /// Gets the playback of the input when it plays media that can be controlled (a media source, a VLC video source): its state, and the calls that play, pause, stop and seek it. It is null
+        /// for an input that is no media input (a camera, a color source, a browser source), and it is the same object for as long as the input exists.
+        /// </summary>
+        /// <remarks>
+        /// OBS Studio says which kinds of input are media inputs (from obs-websocket 5.6.0); an OBS Studio that does not say it has two media kinds, <c>ffmpeg_source</c> and <c>vlc_source</c>, and
+        /// the model takes those for media inputs and no others.
+        /// </remarks>
+        public ObsMedia? Media => Volatile.Read(ref this._media);
+
+        // The playback is made once, when the model knows that the input is a media input and what it does.
+        internal ObsMedia AttachMedia(ObsMediaState state)
+        {
+            var media = new ObsMedia(this, state);
+            Volatile.Write(ref this._media, media);
+            return media;
+        }
 
         // The values are written by one thread only, the one that runs the model, and read by any.
         internal bool SetMuted(bool muted)
@@ -74,6 +143,62 @@ namespace OBSStudioClient.Model
             }
 
             Volatile.Write(ref this._volumeDb, value);
+            return true;
+        }
+
+        internal bool SetAudioBalance(float value)
+        {
+            if (Volatile.Read(ref this._audioBalance) == value)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._audioBalance, value);
+            return true;
+        }
+
+        internal bool SetSyncOffset(int milliseconds)
+        {
+            if (Volatile.Read(ref this._syncOffset) == milliseconds)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._syncOffset, milliseconds);
+            return true;
+        }
+
+        internal bool SetMonitorType(ObsMonitorType value)
+        {
+            if (Volatile.Read(ref this._monitorType) == (int)value)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._monitorType, (int)value);
+            return true;
+        }
+
+        internal bool SetAudioTracks(int mask)
+        {
+            if (Volatile.Read(ref this._audioTracks) == mask)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._audioTracks, mask);
+            return true;
+        }
+
+        internal bool SetSettings(SettingsValue value)
+        {
+            var current = Volatile.Read(ref this._settings);
+            if (ReferenceEquals(current, value) || current.Equals(value))
+            {
+                return false;
+            }
+
+            Volatile.Write(ref this._settings, value);
             return true;
         }
     }

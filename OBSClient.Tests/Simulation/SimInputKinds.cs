@@ -14,8 +14,14 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>The flag of a kind that has audio: it has a mute state and a volume (fact 18).</summary>
         public const int AudioCap = 2;
 
+        /// <summary>The flag of a kind whose inputs play media that can be controlled (OBS_SOURCE_CONTROLLABLE_MEDIA).</summary>
+        public const int MediaCap = 8192;
+
         /// <summary>Gets a value indicating whether the kind has audio.</summary>
         public bool HasAudio => (Caps & AudioCap) != 0;
+
+        /// <summary>Gets a value indicating whether the inputs of the kind play media that can be controlled.</summary>
+        public bool IsMedia => (Caps & MediaCap) != 0;
 
         /// <summary>Makes a new object of the default settings.</summary>
         public JsonObject MakeDefaultSettings()

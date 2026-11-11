@@ -38,6 +38,24 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>The volume of an input changed.</summary>
         InputVolumeChanged,
 
+        /// <summary>The settings of an input changed.</summary>
+        InputSettingsChanged,
+
+        /// <summary>The audio balance of an input changed.</summary>
+        InputAudioBalanceChanged,
+
+        /// <summary>The sync offset of an input changed.</summary>
+        InputSyncOffsetChanged,
+
+        /// <summary>The monitor type of an input changed.</summary>
+        InputMonitorTypeChanged,
+
+        /// <summary>The audio tracks of an input changed.</summary>
+        InputTracksChanged,
+
+        /// <summary>What a media input does (its playback state) changed.</summary>
+        InputMediaStateChanged,
+
         /// <summary>A scene item appeared (it is complete).</summary>
         ItemAdded,
 
@@ -82,6 +100,13 @@ namespace OBSStudioClient.Model.Engine
 
         /// <summary>The model corrected itself: it held something that a read showed not to exist.</summary>
         Repaired,
+
+        /// <summary>
+        /// OBS Studio said something that is not a state of the model but happened: a screenshot was saved, a file was written, OBS Studio is exiting, somebody sent a custom event. The type of the
+        /// event (an <c>EventType</c>) is the old value, the text is its name, and the data of the event is the new value. The application is told in the order in which the events arrived, also
+        /// while the model is read.
+        /// </summary>
+        Notification,
     }
 
     /// <summary>

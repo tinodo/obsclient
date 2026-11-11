@@ -62,6 +62,7 @@ namespace OBSStudioClient.Tests.Simulation
         public const int NotReady = 207;
         public const int MissingRequestField = 300;
         public const int MissingRequestData = 301;
+        public const int InvalidRequestField = 400;
         public const int InvalidRequestFieldType = 401;
         public const int RequestFieldOutOfRange = 402;
         public const int RequestFieldEmpty = 403;
@@ -102,6 +103,7 @@ namespace OBSStudioClient.Tests.Simulation
         public static readonly int Inputs = Bit("Inputs");
         public static readonly int Transitions = Bit("Transitions");
         public static readonly int SceneItems = Bit("SceneItems");
+        public static readonly int MediaInputs = Bit("MediaInputs");
 
         /// <summary>Gets the subscription of a connection that did not ask for one: every event except the high-volume ones.</summary>
         public static readonly int All = Bit("All");

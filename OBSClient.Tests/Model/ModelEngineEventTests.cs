@@ -53,7 +53,8 @@ namespace OBSStudioClient.Tests.Model
         {
             var h = Started();
 
-            h.Event("InputSettingsChanged", new { inputName = "x", inputUuid = Guid.NewGuid(), inputSettings = new { } }, 8);
+            // The events that OBS Studio sends many times a second are not subscribed to by default, and the model does not use them.
+            h.Event("InputActiveStateChanged", new { inputName = "x", inputUuid = Guid.NewGuid(), videoActive = true }, 8);
 
             Assert.Empty(h.Engine.TakeChanges());
             Assert.Empty(NextRead(h));
@@ -311,11 +312,16 @@ namespace OBSStudioClient.Tests.Model
             [
                 EventType.SceneCreated, EventType.SceneRemoved, EventType.SceneNameChanged, EventType.SceneListChanged, EventType.CurrentProgramSceneChanged,
                 EventType.InputCreated, EventType.InputRemoved, EventType.InputNameChanged, EventType.InputMuteStateChanged, EventType.InputVolumeChanged,
+                EventType.InputSettingsChanged, EventType.InputAudioBalanceChanged, EventType.InputAudioSyncOffsetChanged, EventType.InputAudioTracksChanged, EventType.InputAudioMonitorTypeChanged,
+                EventType.MediaInputPlaybackStarted, EventType.MediaInputPlaybackEnded, EventType.MediaInputActionTriggered,
                 EventType.SceneItemCreated, EventType.SceneItemRemoved, EventType.SceneItemListReindexed, EventType.SceneItemEnableStateChanged,
                 EventType.SceneItemLockStateChanged, EventType.StudioModeStateChanged,
                 EventType.StreamStateChanged, EventType.RecordStateChanged, EventType.VirtualcamStateChanged, EventType.ReplayBufferStateChanged,
                 EventType.SourceFilterCreated, EventType.SourceFilterRemoved, EventType.SourceFilterNameChanged, EventType.SourceFilterEnableStateChanged, EventType.SourceFilterListReindexed,
                 EventType.CurrentSceneCollectionChanging, EventType.CurrentSceneCollectionChanged,
+
+                // What happened and is no state of the model: the model tells the application, in the order of arrival (ModelChangeKind.Notification).
+                EventType.RecordFileChanged, EventType.ReplayBufferSaved, EventType.ScreenshotSaved, EventType.ExitStarted, EventType.CustomEvent, EventType.VendorEvent,
             ];
 
             var handled = Enum.GetValues<EventType>().Where(ModelEngine.Handles).Order().ToArray();
@@ -331,6 +337,7 @@ namespace OBSStudioClient.Tests.Model
             var other = Guid.NewGuid();
             var mic = Guid.NewGuid();
             var camera = Guid.NewGuid();
+            var clip = Guid.NewGuid();
             var cases = new (EventType Type, Action<EngineHarness> Send)[]
             {
                 (EventType.SceneCreated, h => EngineEvents.SceneCreated(h, other, "Other")),
@@ -343,6 +350,14 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.InputNameChanged, h => h.Event("InputNameChanged", new { inputUuid = mic, oldInputName = "Mic", inputName = "Microphone" }, 8)),
                 (EventType.InputMuteStateChanged, h => h.Event("InputMuteStateChanged", new { inputName = "Mic", inputUuid = mic, inputMuted = true }, 8)),
                 (EventType.InputVolumeChanged, h => h.Event("InputVolumeChanged", new { inputName = "Mic", inputUuid = mic, inputVolumeMul = 0.5, inputVolumeDb = -6.02 }, 8)),
+                (EventType.InputSettingsChanged, h => h.Event("InputSettingsChanged", new { inputName = "Mic", inputUuid = mic, inputSettings = new { device_id = "default" } }, 8)),
+                (EventType.InputAudioBalanceChanged, h => h.Event("InputAudioBalanceChanged", new { inputName = "Mic", inputUuid = mic, inputAudioBalance = 0.25 }, 8)),
+                (EventType.InputAudioSyncOffsetChanged, h => h.Event("InputAudioSyncOffsetChanged", new { inputName = "Mic", inputUuid = mic, inputAudioSyncOffset = 150 }, 8)),
+                (EventType.InputAudioTracksChanged, h => h.Event("InputAudioTracksChanged", new { inputName = "Mic", inputUuid = mic, inputAudioTracks = new Dictionary<string, bool> { ["1"] = true, ["2"] = false, ["3"] = true, ["4"] = true, ["5"] = true, ["6"] = true } }, 8)),
+                (EventType.InputAudioMonitorTypeChanged, h => h.Event("InputAudioMonitorTypeChanged", new { inputName = "Mic", inputUuid = mic, monitorType = "OBS_MONITORING_TYPE_MONITOR_ONLY" }, 8)),
+                (EventType.MediaInputPlaybackStarted, h => h.Event("MediaInputPlaybackStarted", new { inputName = "Clip", inputUuid = clip }, 256)),
+                (EventType.MediaInputPlaybackEnded, h => h.Event("MediaInputPlaybackEnded", new { inputName = "Clip", inputUuid = clip }, 256)),
+                (EventType.MediaInputActionTriggered, h => h.Event("MediaInputActionTriggered", new { inputName = "Clip", inputUuid = clip, mediaAction = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE" }, 256)),
                 (EventType.SceneItemCreated, h => h.Event("SceneItemCreated", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 9, sceneItemIndex = 1 }, 128)),
                 (EventType.SceneItemRemoved, h => h.Event("SceneItemRemoved", new { sceneName = "Scene", sceneUuid = scene, sourceName = "Camera", sourceUuid = camera, sceneItemId = 1 }, 128)),
                 (EventType.SceneItemListReindexed, h => h.Event("SceneItemListReindexed", new { sceneName = "Scene", sceneUuid = scene, sceneItems = new[] { new { sceneItemId = 1, sceneItemIndex = 7 } } }, 128)),
@@ -360,6 +375,12 @@ namespace OBSStudioClient.Tests.Model
                 (EventType.SourceFilterListReindexed, h => h.Event("SourceFilterListReindexed", new { sourceName = "Scene", filters = new[] { new { filterEnabled = true, filterIndex = 1, filterKind = "color_filter_v2", filterName = "Blur", filterSettings = new { } } } }, 32)),
                 (EventType.CurrentSceneCollectionChanging, h => h.Event("CurrentSceneCollectionChanging", new { sceneCollectionName = "Untitled" }, 2)),
                 (EventType.CurrentSceneCollectionChanged, h => h.Event("CurrentSceneCollectionChanged", new { sceneCollectionName = "Other" }, 2)),
+                (EventType.RecordFileChanged, h => h.Event("RecordFileChanged", new { newOutputPath = "C:\\Videos\\b.mkv" }, 64)),
+                (EventType.ReplayBufferSaved, h => h.Event("ReplayBufferSaved", new { savedReplayPath = "C:\\Videos\\replay.mkv" }, 64)),
+                (EventType.ScreenshotSaved, h => h.Event("ScreenshotSaved", new { savedScreenshotPath = "C:\\Pictures\\shot.png" }, 1)),
+                (EventType.ExitStarted, h => h.Event("ExitStarted", new { }, 1)),
+                (EventType.CustomEvent, h => h.Event("CustomEvent", new { source = "a test" }, 1)),
+                (EventType.VendorEvent, h => h.Event("VendorEvent", new { vendorName = "a-plugin", eventType = "Something", eventData = new { } }, 512)),
             };
 
             Assert.Equal(cases.Select(c => c.Type).Order(), Enum.GetValues<EventType>().Where(ModelEngine.Handles).Order());
@@ -371,6 +392,7 @@ namespace OBSStudioClient.Tests.Model
                     world.Scenes.Add((scene, "Scene"));
                     world.Inputs.Add((mic, "Mic", "wasapi_input_capture", 2, false, 1.0));
                     world.Inputs.Add((camera, "Camera", "dshow_input", 8, false, 1.0));
+                    world.Inputs.Add((clip, "Clip", "ffmpeg_source", 8327, false, 1.0));
                     world.Items[scene] = [(1, camera, false, "Camera", 0, true, false)];
                     world.AddFilter(scene, "Blur");
                     world.AddFilter(scene, "Tint");

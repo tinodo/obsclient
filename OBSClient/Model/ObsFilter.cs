@@ -16,8 +16,8 @@ namespace OBSStudioClient.Model
     /// was destroyed (<see cref="ObsObjectState.Gone"/>) are removed with it.
     /// </para>
     /// <para>
-    /// The settings of a filter are not a property: OBS Studio does not announce every change of them (it sends no event for most), so the model could show old values for ever.
-    /// Ask OBS Studio when you need them, with the plain client: <c>obs.Client.GetSourceFilter(filter.Source.Uuid, filter.Name)</c> and <c>obs.Client.SetSourceFilterSettings(...)</c>.
+    /// The settings of a filter are not in the model: OBS Studio does not announce a change of them, so a value that the model kept would go out of date without a sign. Ask for them with
+    /// <see cref="GetSettingsAsync"/> when you need them, and change them with <see cref="SetSettingsAsync"/>.
     /// </para>
     /// </remarks>
     public sealed partial class ObsFilter : INotifyPropertyChanged

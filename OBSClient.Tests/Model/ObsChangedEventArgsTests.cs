@@ -35,5 +35,22 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Equal("the model: ProgramScene (nothing) -> Scene 'Scene'", change.ToString());
         }
+
+        [Fact]
+        public async Task TheTextOfAChangeOfSettings_ShowsTheJson_CutOffWhenItIsLong()
+        {
+            await using var rig = await ModelRig.ConnectedAsync(world => world.AddInput("Backdrop"));
+            var backdrop = rig.Model.Inputs["Backdrop"];
+            var small = System.Text.Json.JsonDocument.Parse("""{"width":640}""").RootElement;
+            var long_ = System.Text.Json.JsonDocument.Parse("{\"text\":\"" + new string('x', 300) + "\"}").RootElement;
+
+            var changed = new ObsChangedEventArgs(ObsChangeKind.PropertyChanged, backdrop, nameof(ObsInput.Settings), small, long_).ToString();
+            var nothing = new ObsChangedEventArgs(ObsChangeKind.PropertyChanged, backdrop, nameof(ObsInput.Settings), default(System.Text.Json.JsonElement), small).ToString();
+
+            Assert.StartsWith("""input 'Backdrop': Settings {"width":640} -> {"text":"xxx""", changed);
+            Assert.EndsWith("...", changed);
+            Assert.True(changed.Length < 200);
+            Assert.Equal("""input 'Backdrop': Settings (nothing) -> {"width":640}""", nothing);
+        }
     }
 }

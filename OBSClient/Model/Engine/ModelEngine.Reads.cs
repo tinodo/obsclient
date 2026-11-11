@@ -25,20 +25,53 @@ namespace OBSStudioClient.Model.Engine
             for (var i = 0; i < ticket.Requests.Count; i++)
             {
                 var request = ticket.Requests[i];
-                if (request.Kind == ReadKind.AudioVolume)
+                if (IsAudioFollower(request.Kind))
                 {
                     // Handled together with the GetInputMute before it.
                     continue;
                 }
 
                 var response = i < responses.Count ? responses[i] : null;
-                var volumeResponse = request.Kind == ReadKind.AudioMute && i + 1 < responses.Count ? responses[i + 1] : null;
-                this.ApplyResponse(ticket, request, response, volumeResponse);
+                var audio = request.Kind == ReadKind.AudioMute ? AudioResponses(responses, i) : null;
+                this.ApplyResponse(ticket, request, response, audio);
             }
 
             this.ResolveRemovals();
             this.UpdateState();
             this.CleanUp();
+        }
+
+        // The requests that read the audio state of an input: the first one (ReadKind.AudioMute) and the ones that follow it, in this order, in the same read.
+        private static ReadRequest[] AudioRequests(Guid input)
+        {
+            var data = new { inputUuid = input };
+            return
+            [
+                new ReadRequest(ReadKind.AudioMute, RequestType.GetInputMute, data, input),
+                new ReadRequest(ReadKind.AudioVolume, RequestType.GetInputVolume, data, input),
+                new ReadRequest(ReadKind.AudioBalance, RequestType.GetInputAudioBalance, data, input),
+                new ReadRequest(ReadKind.AudioSyncOffset, RequestType.GetInputAudioSyncOffset, data, input),
+                new ReadRequest(ReadKind.AudioMonitorType, RequestType.GetInputAudioMonitorType, data, input),
+                new ReadRequest(ReadKind.AudioTracks, RequestType.GetInputAudioTracks, data, input),
+            ];
+        }
+
+        // Whether a request is one of the requests that come after the first of an audio state in a read: the answer to it is handled with the answer to the first.
+        private static bool IsAudioFollower(ReadKind kind)
+        {
+            return kind is ReadKind.AudioVolume or ReadKind.AudioBalance or ReadKind.AudioSyncOffset or ReadKind.AudioMonitorType or ReadKind.AudioTracks;
+        }
+
+        // The answers to the requests that follow the first of an audio state, in order: null for one that did not come (a batch that ended early).
+        private static RequestResponseMessage?[] AudioResponses(IReadOnlyList<RequestResponseMessage> responses, int first)
+        {
+            var followers = new RequestResponseMessage?[5];
+            for (var k = 0; k < followers.Length; k++)
+            {
+                followers[k] = first + 1 + k < responses.Count ? responses[first + 1 + k] : null;
+            }
+
+            return followers;
         }
 
         /// <summary>
@@ -56,7 +89,7 @@ namespace OBSStudioClient.Model.Engine
 
             foreach (var request in ticket.Requests)
             {
-                if (request.Kind != ReadKind.AudioVolume && this.ScopeOf(request) is { } scope)
+                if (!IsAudioFollower(request.Kind) && this.ScopeOf(request) is { } scope)
                 {
                     this.Retry(scope);
                 }
@@ -92,6 +125,10 @@ namespace OBSStudioClient.Model.Engine
                     return this.SourceByUuid(request.Target)?.FiltersScope;
                 case ReadKind.Items:
                     return this._scenes.TryGetValue(request.Target, out var scene) ? scene.ItemsScope : null;
+                case ReadKind.InputSettings:
+                    return this._inputs.TryGetValue(request.Target, out var settingsOf) ? settingsOf.SettingsScope : null;
+                case ReadKind.MediaStatus:
+                    return this._inputs.TryGetValue(request.Target, out var mediaOf) ? mediaOf.MediaScope : null;
                 default:
                     return this._inputs.TryGetValue(request.Target, out var input) ? input.AudioScope : null;
             }
@@ -126,7 +163,7 @@ namespace OBSStudioClient.Model.Engine
         }
 
         // The part of the model that a refresh of the given kind and target is about, or null when the model has nothing to read for it: the scene or the input is not in the
-        // model, or the input has no audio.
+        // model, or the input has no audio (or is not a media input, for the media status).
         private ScopeState? RefreshScope(ReadKind kind, Guid target)
         {
             return kind switch
@@ -138,6 +175,8 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
+                ReadKind.InputSettings => this._inputs.TryGetValue(target, out var settingsOf) ? settingsOf.SettingsScope : null,
+                ReadKind.MediaStatus => this._inputs.TryGetValue(target, out var mediaOf) && mediaOf.IsMedia ? mediaOf.MediaScope : null,
                 _ => this._inputs.TryGetValue(target, out var input) && input.HasAudio ? input.AudioScope : null,
             };
         }
@@ -149,7 +188,7 @@ namespace OBSStudioClient.Model.Engine
             scope.MarkDirtyNotBefore(this._now + this.Backoff(scope));
         }
 
-        private void ApplyResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, RequestResponseMessage? volumeResponse)
+        private void ApplyResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, RequestResponseMessage?[]? audio)
         {
             var scope = this.ScopeOf(request);
             var ok = response is { RequestStatus.Result: true };
@@ -236,7 +275,13 @@ namespace OBSStudioClient.Model.Engine
                     this.ApplyFiltersResponse(ticket, request, response, ok, notFound);
                     break;
                 case ReadKind.AudioMute:
-                    this.ApplyAudioResponse(ticket, request, response, volumeResponse, notFound);
+                    this.ApplyAudioResponse(ticket, request, response, audio ?? new RequestResponseMessage?[5], notFound);
+                    break;
+                case ReadKind.InputSettings:
+                    this.ApplyInputSettingsResponse(ticket, request, response, ok, notFound);
+                    break;
+                case ReadKind.MediaStatus:
+                    this.ApplyMediaStatusResponse(ticket, request, response, ok, notFound);
                     break;
             }
         }
@@ -370,18 +415,18 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
-        private void ApplyAudioResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? muteResponse, RequestResponseMessage? volumeResponse, bool notFound)
+        private void ApplyAudioResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? muteResponse, RequestResponseMessage?[] followers, bool notFound)
         {
             if (!this._inputs.TryGetValue(request.Target, out var input))
             {
                 return;
             }
 
+            var volumeResponse = followers[0];
             var muteOk = muteResponse is { RequestStatus.Result: true } && muteResponse.ResponseData is InputMutedResponse;
             var volumeOk = volumeResponse is { RequestStatus.Result: true } && volumeResponse.ResponseData is InputVolumeResponse;
             if (muteOk && volumeOk)
             {
-                input.AudioScope.Attempts = 0;
                 var muted = (InputMutedResponse)muteResponse!.ResponseData!;
                 var volume = (InputVolumeResponse)volumeResponse!.ResponseData!;
                 var oldMute = input.Muted.Value;
@@ -389,7 +434,6 @@ namespace OBSStudioClient.Model.Engine
                 var muteChanged = input.Muted.ApplyRead(muted.InputMuted, ticket.SentSeq);
                 var mulChanged = input.VolumeMul.ApplyRead(volume.InputVolumeMul, ticket.SentSeq);
                 var dbChanged = input.VolumeDb.ApplyRead(volume.InputVolumeDb, ticket.SentSeq);
-                input.AudioKnown = true;
                 if (input.Announced)
                 {
                     if (muteChanged)
@@ -403,7 +447,17 @@ namespace OBSStudioClient.Model.Engine
                     }
                 }
 
-                this.TryAnnounce(input);
+                if (this.ApplyAudioDetails(input, followers, ticket.SentSeq))
+                {
+                    input.AudioScope.Attempts = 0;
+                    input.AudioKnown = true;
+                    this.TryAnnounce(input);
+                }
+                else
+                {
+                    // What did not come, or is not ready, or is not there, is read again with the rest.
+                    this.Retry(input.AudioScope);
+                }
             }
             else if (notFound)
             {
@@ -426,6 +480,165 @@ namespace OBSStudioClient.Model.Engine
             else
             {
                 this.Retry(input.AudioScope);
+            }
+        }
+
+        // The balance, the sync offset, the monitor type and the tracks of an input: the answers that came are applied. An answer that says no for good (a server that does not know the
+        // request, or an input that has no such thing) leaves the value as it is and does not keep the audio state from being known; a request that was not answered, or that was refused
+        // because OBS was not ready or did not have the input, makes the read be repeated (it returns false). The first of the followers is the volume, which the caller has applied.
+        private bool ApplyAudioDetails(InputNode input, RequestResponseMessage?[] followers, long sent)
+        {
+            var done = true;
+            for (var k = 1; k < followers.Length; k++)
+            {
+                var response = followers[k];
+                if (response is { RequestStatus.Result: true })
+                {
+                    if (!this.ApplyAudioDetail(input, response.ResponseData, sent))
+                    {
+                        done = false;
+                    }
+                }
+                else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code is not (RequestStatusCode.NotReady or RequestStatusCode.ResourceNotFound))
+                {
+                    continue;
+                }
+                else
+                {
+                    if (response is { RequestStatus.Code: RequestStatusCode.ResourceNotFound })
+                    {
+                        this._inputsScope.MarkDirty();
+                    }
+
+                    done = false;
+                }
+            }
+
+            return done;
+        }
+
+        // Applies what an answer of the audio state says, and says whether it was an answer that the model understands.
+        private bool ApplyAudioDetail(InputNode input, object? data, long sent)
+        {
+            switch (data)
+            {
+                case InputAudioBalanceResponse balance:
+                    var oldBalance = input.AudioBalance.Value;
+                    if (input.AudioBalance.ApplyRead(balance.InputAudioBalance, sent) && input.Announced)
+                    {
+                        this.Emit(ModelChangeKind.InputAudioBalanceChanged, input.Uuid, 0, input.Name.Value, oldBalance, input.AudioBalance.Value);
+                    }
+
+                    return true;
+                case InputAudioSyncOffsetResponse offset:
+                    var oldOffset = input.SyncOffset.Value;
+                    if (input.SyncOffset.ApplyRead(offset.InputAudioSyncOffset, sent) && input.Announced)
+                    {
+                        this.Emit(ModelChangeKind.InputSyncOffsetChanged, input.Uuid, 0, input.Name.Value, oldOffset, input.SyncOffset.Value);
+                    }
+
+                    return true;
+                case InputAudioMonitorTypeResponse monitor:
+                    var oldMonitor = input.MonitorType.Value;
+                    if (input.MonitorType.ApplyRead(ModelEnums.ToModel(monitor.MonitorType), sent) && input.Announced)
+                    {
+                        this.Emit(ModelChangeKind.InputMonitorTypeChanged, input.Uuid, 0, input.Name.Value, oldMonitor, input.MonitorType.Value);
+                    }
+
+                    return true;
+                case InputAudioTracksResponse tracks:
+                    var oldTracks = input.Tracks.Value;
+                    if (input.Tracks.ApplyRead(ModelEnums.ToMask(tracks.InputAudioTracks), sent) && input.Announced)
+                    {
+                        this.Emit(ModelChangeKind.InputTracksChanged, input.Uuid, 0, input.Name.Value, oldTracks, input.Tracks.Value);
+                    }
+
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void ApplyInputSettingsResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok, bool notFound)
+        {
+            if (!this._inputs.TryGetValue(request.Target, out var input))
+            {
+                return;
+            }
+
+            var scope = input.SettingsScope;
+            if (ok && response!.ResponseData is InputSettingsResponse settings)
+            {
+                scope.Attempts = 0;
+                var old = input.Settings.Value;
+                var changed = input.Settings.ApplyRead(SettingsValue.From(settings.InputSettings), ticket.SentSeq);
+                input.SettingsKnown = true;
+                if (changed && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputSettingsChanged, input.Uuid, 0, input.Name.Value, old, input.Settings.Value);
+                }
+
+                this.TryAnnounce(input);
+            }
+            else if (notFound)
+            {
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the settings are read again after a wait for as long as the input is there.
+                this._inputsScope.MarkDirty();
+                this.Retry(scope);
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                // OBS Studio refuses the request for good (a simulation that does not know it): there are no settings to read.
+                scope.Attempts = 0;
+                input.SettingsKnown = true;
+                this.TryAnnounce(input);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // The state of a media input, as a read says it. What the events say about it is applied as they arrive (see ApplyMediaEvent): a read that was sent before such an event does not
+        // override it, and one that was sent after it shows what it did (the cell sees to that). A state that OBS Studio does not announce (opening, buffering, an error) is only known
+        // from a read.
+        private void ApplyMediaStatusResponse(ReadTicket ticket, ReadRequest request, RequestResponseMessage? response, bool ok, bool notFound)
+        {
+            if (!this._inputs.TryGetValue(request.Target, out var input))
+            {
+                return;
+            }
+
+            var scope = input.MediaScope;
+            if (ok && response!.ResponseData is MediaInputStatusResponse status)
+            {
+                scope.Attempts = 0;
+                var old = input.MediaState.Value;
+                var changed = input.MediaState.ApplyRead(ModelEnums.ToModel(status.MediaState), ticket.SentSeq);
+                input.MediaKnown = true;
+                if (changed && input.Announced)
+                {
+                    this.Emit(ModelChangeKind.InputMediaStateChanged, input.Uuid, 0, input.Name.Value, old, input.MediaState.Value);
+                }
+
+                this.TryAnnounce(input);
+            }
+            else if (notFound)
+            {
+                // The input is gone (its removal may not have arrived yet): the list of inputs decides, and the state is read again after a wait for as long as the input is there.
+                this._inputsScope.MarkDirty();
+                this.Retry(scope);
+            }
+            else if (response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady)
+            {
+                // OBS Studio refuses the request for good (a simulation that does not know it): there is no state to read, and the state stays what the events say.
+                scope.Attempts = 0;
+                input.MediaKnown = true;
+                this.TryAnnounce(input);
+            }
+            else
+            {
+                this.Retry(scope);
             }
         }
 
@@ -607,6 +820,16 @@ namespace OBSStudioClient.Model.Engine
                         input.AudioScope.MarkDirty();
                     }
 
+                    if (!input.SettingsKnown && !input.RemovalUnresolved && !input.SettingsScope.Dirty && !input.SettingsScope.InFlight)
+                    {
+                        input.SettingsScope.MarkDirty();
+                    }
+
+                    if (input.IsMedia && !input.MediaKnown && !input.RemovalUnresolved && !input.MediaScope.Dirty && !input.MediaScope.InFlight)
+                    {
+                        input.MediaScope.MarkDirty();
+                    }
+
                     this.TryAnnounce(input);
                 }
                 else
@@ -624,9 +847,15 @@ namespace OBSStudioClient.Model.Engine
                         continue;
                     }
 
+                    created.SettingsScope.MarkDirty();
                     if (created.HasAudio)
                     {
                         created.AudioScope.MarkDirty();
+                    }
+
+                    if (created.IsMedia)
+                    {
+                        created.MediaScope.MarkDirty();
                     }
 
                     this.TryAnnounce(created);

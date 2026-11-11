@@ -1,5 +1,7 @@
 namespace OBSStudioClient.Model
 {
+    using System.Text.Json;
+
     /// <summary>
     /// Describes one change of the model of OBS Studio that an <see cref="ObsModel"/> keeps.
     /// </summary>
@@ -24,7 +26,7 @@ namespace OBSStudioClient.Model
         public ObsChangeKind Kind { get; }
 
         /// <summary>
-        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
+        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/>, <see cref="ObsMedia"/> or <see cref="ObsOutput"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
         /// </summary>
         public object? Entity { get; }
 
@@ -52,12 +54,13 @@ namespace OBSStudioClient.Model
                 ObsSource source => $"{(source is ObsScene ? "scene" : "input")} '{source.Name}'",
                 ObsOutput output => $"the {output.Name}",
                 ObsFilter filter => $"filter '{filter.Name}' of {filter.Source.Label}",
+                ObsMedia media => $"the media of {media.Input.Label}",
                 _ => "the model",
             };
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";
         }
 
-        // A list is shown by what is in it: the name of its type tells nothing.
+        // A list is shown by what is in it: the name of its type tells nothing. The settings of an input or a filter are shown as the JSON that they are, cut off when it is long.
         private static string Show(object? value)
         {
             return value switch
@@ -66,8 +69,16 @@ namespace OBSStudioClient.Model
                 IEnumerable<ObsSource> sources => $"[{string.Join(", ", sources.Select(source => source.Name))}]",
                 IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
                 IEnumerable<ObsFilter> filters => $"[{string.Join(", ", filters.Select(filter => filter.Name))}]",
+                IEnumerable<string> texts => $"[{string.Join(", ", texts)}]",
+                JsonElement { ValueKind: JsonValueKind.Undefined } => "(nothing)",
+                JsonElement json => Shorten(json.GetRawText()),
                 _ => value.ToString() ?? string.Empty,
             };
+        }
+
+        private static string Shorten(string text)
+        {
+            return text.Length <= 120 ? text : string.Concat(text.AsSpan(0, 117), "...");
         }
     }
 }
