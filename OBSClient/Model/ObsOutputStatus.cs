@@ -21,7 +21,8 @@ namespace OBSStudioClient.Model
         Starting,
 
         /// <summary>
-        /// The output is running.
+        /// The output is running. A stream that reconnected (<c>OBS_WEBSOCKET_OUTPUT_RECONNECTED</c>) and a recording that was resumed (<c>OBS_WEBSOCKET_OUTPUT_RESUMED</c>) are <see cref="Started"/> again too: the change from
+        /// <see cref="Reconnecting"/> or <see cref="Paused"/> to <see cref="Started"/> is a come-back, not a start.
         /// </summary>
         Started,
 

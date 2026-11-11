@@ -128,6 +128,14 @@ namespace OBSStudioClient.Tests.Simulation
                 var (type, path) = (key[..key.IndexOf(':')], key[(key.IndexOf(':') + 1)..]);
                 Assert.True(shape.CapturedHas(type, path, isEvent: false), $"{key} is not in the capture");
             }
+
+            // The way out for a null that the capture cannot show is for a response that the capture does not hold, and for a member that the protocol lists.
+            foreach (var key in SimShape.NullNotCaptured)
+            {
+                var (type, path) = (key[..key.IndexOf(':')], key[(key.IndexOf(':') + 1)..]);
+                Assert.DoesNotContain(type, shape.CapturedRequests);
+                Assert.Contains(path[2..], ProtocolSnapshot.Current.Requests[type].ResponseFields.Select(field => field.Name));
+            }
         }
 
         [Theory]

@@ -511,7 +511,7 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         // The node without its fields that are null, at any depth; null for a node that is null.
-        private static JsonNode? WithoutNulls(JsonNode? node)
+        internal static JsonNode? WithoutNulls(JsonNode? node)
         {
             switch (node)
             {

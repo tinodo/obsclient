@@ -13,13 +13,17 @@ namespace OBSStudioClient.Model.Engine
         // How many times in a row OBS Studio has to refuse to say the current transition for the model to believe that there is none.
         private const int RefusalsBeforeNoTransition = 2;
 
+        // The same for the list of the profiles and the list of the scene collections.
+        private const int RefusalsBeforeNoList = 2;
+
         // The events that the model acts on, and what it does with each of them. The list that Handles answers from is this table, so that an event that the engine
         // acts on can never be left out of the events that the host passes to it. An event whose data is not of the type that its handler expects is ignored.
         private static readonly FrozenDictionary<EventType, Action<ModelEngine, EventMessage>> Handlers = new Dictionary<EventType, Action<ModelEngine, EventMessage>>
         {
-            // The name in these two is not used (yet), so they are acted on whatever their data: a switch that is missed would leave the model of a collection that is gone.
-            [EventType.CurrentSceneCollectionChanging] = static (engine, _) => engine.OnCollectionChanging(),
-            [EventType.CurrentSceneCollectionChanged] = static (engine, _) => engine.OnCollectionChanged(),
+            // The name in these two only tells the events of a switch that a read showed already (see NoticeSwitch) from those of another one: they are acted on whatever their data, because a switch
+            // that is missed would leave the model of a collection that is gone.
+            [EventType.CurrentSceneCollectionChanging] = static (engine, message) => engine.OnCollectionChanging(CollectionNameOf(message)),
+            [EventType.CurrentSceneCollectionChanged] = static (engine, message) => engine.OnCollectionChangedEvent(CollectionNameOf(message)),
             [EventType.SceneCreated] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneCreated(e)),
             [EventType.SceneRemoved] = On<SceneModifiedEventArgs>(static (engine, e) => engine.OnSceneRemoved(e)),
             [EventType.SceneNameChanged] = On<SceneNameChangedEventArgs>(static (engine, e) => engine.OnSceneNameChanged(e)),
@@ -31,6 +35,18 @@ namespace OBSStudioClient.Model.Engine
             // The same for the preview scene (the swap after a transition comes with the event of the end of it, and turning studio mode on has no event for it at all).
             [EventType.CurrentPreviewSceneChanged] = static (engine, _) => engine._previewScope.MarkDirty(),
             [EventType.CurrentSceneTransitionChanged] = static (engine, _) => engine._transitionScope.MarkDirty(),
+
+            // The profiles and the scene collections: what a list says (and which one is current) is read again, and not taken from the payload. A profile that is created is listed, and becomes the current one,
+            // by two events, and the list that is read is one state of both. Nothing else that the model holds belongs to a profile.
+            [EventType.ProfileListChanged] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.CurrentProfileChanging] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.CurrentProfileChanged] = static (engine, _) => engine._profilesScope.MarkDirty(),
+            [EventType.SceneCollectionListChanged] = static (engine, _) => engine._collectionsScope.MarkDirty(),
+
+            // The canvases: a canvas that is made or renamed is read, and not taken from the payload. A canvas that is removed is left out at once, and from every read after it (see ApplyCanvasesResponse).
+            [EventType.CanvasCreated] = static (engine, _) => engine._canvasesScope.MarkDirty(),
+            [EventType.CanvasNameChanged] = static (engine, _) => engine._canvasesScope.MarkDirty(),
+            [EventType.CanvasRemoved] = On<CanvasRemovedEventArgs>(static (engine, e) => engine.OnCanvasRemoved(e)),
             [EventType.CurrentSceneTransitionDurationChanged] = On<TransitionDurationEventArgs>(static (engine, e) => engine.OnTransitionDurationChanged(e)),
             [EventType.SceneTransitionStarted] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionStarted(e)),
             [EventType.SceneTransitionEnded] = On<TransitionNameEventArgs>(static (engine, e) => engine.OnTransitionEnded(e)),
@@ -76,6 +92,9 @@ namespace OBSStudioClient.Model.Engine
             [EventType.SourceFilterRemoved] = On<SourceFilterRemovedEventArgs>(static (engine, e) => engine.OnFilterRemoved(e)),
             [EventType.SourceFilterNameChanged] = On<SourceFilterNameChangedEventArgs>(static (engine, e) => engine.OnFilterRenamed(e)),
             [EventType.SourceFilterEnableStateChanged] = On<SourceFilterEnableStateChangedEventArgs>(static (engine, e) => engine.OnFilterEnabledChanged(e)),
+
+            // The settings of a filter are not kept, and OBS Studio does not announce a change of them: when a server does, the application is told (a notification).
+            [EventType.SourceFilterSettingsChanged] = On<SourceFilterSettingsChangedEventArgs>(static (engine, e) => engine.OnFilterSettingsChanged(e)),
             [EventType.SourceFilterListReindexed] = On<SourceFiltersEventArgs>(static (engine, e) => engine.OnFiltersReindexed(e)),
         }.ToFrozenDictionary();
 
@@ -112,6 +131,12 @@ namespace OBSStudioClient.Model.Engine
             this.CleanUp();
         }
 
+        // The name that a CurrentSceneCollectionChanging (the collection that OBS Studio leaves) or a CurrentSceneCollectionChanged (the collection that it loaded) says, when it says one.
+        private static string? CollectionNameOf(EventMessage message)
+        {
+            return (message.EventData as SceneCollectionNameEventArgs)?.SceneCollectionName;
+        }
+
         private static Action<ModelEngine, EventMessage> On<TData>(Action<ModelEngine, TData> handle)
             where TData : class
         {
@@ -127,7 +152,22 @@ namespace OBSStudioClient.Model.Engine
         // Whether what an event says holds whatever scene collection OBS Studio has loaded (or is loading).
         private static bool IsIndependentOfCollection(EventType eventType)
         {
-            return OutputNode.IsOutputEvent(eventType) || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved;
+            return OutputNode.IsOutputEvent(eventType)
+                || eventType is EventType.ExitStarted or EventType.CustomEvent or EventType.VendorEvent or EventType.ScreenshotSaved
+                    or EventType.ProfileListChanged or EventType.CurrentProfileChanging or EventType.CurrentProfileChanged or EventType.SceneCollectionListChanged;
+        }
+
+        // A canvas was removed: it is not in the list from now on, and a read that still lists it (OBS Studio keeps a removed canvas until the last reference to it is released, and does not say so again)
+        // does not bring it back. The list is read again all the same, for what else happened.
+        private void OnCanvasRemoved(CanvasRemovedEventArgs e)
+        {
+            this._removedCanvases.Add(e.CanvasUuid);
+            if (this._canvases.Value is { } canvases && canvases.Contains(e.CanvasUuid))
+            {
+                this._canvases.ApplyDerived(canvases.Without(e.CanvasUuid), this._seq);
+            }
+
+            this._canvasesScope.MarkDirty();
         }
 
         // Something happened that is not a state of the model: the application is told, in the order of arrival (see ModelChangeKind.Notification).

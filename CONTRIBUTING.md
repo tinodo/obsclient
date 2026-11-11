@@ -97,7 +97,8 @@ When obs-websocket publishes a new version (a scheduled workflow opens an issue 
    (`--dry-run` only reports; `--tag 5.8.0` picks a version.)
 2. Build and run the tests. A new request, event or field is already in the client. What the generator cannot decide, it says
    (it stops with the line to add to `overlay.toml`: for example the C# type of a new kind of field, or a reference type for a
-   new pair of `<x>Name` and `<x>Uuid` fields), and what it has to leave to you fails a test.
+   new pair of `<x>Name` and `<x>Uuid` fields), and what it has to leave to you fails a test. So does a new request or event that the model (`ObsModel`)
+   does not cover: `ModelCompletenessTests` says which, and it is covered in the model, or listed in that test with the reason that the model needs nothing for it.
 3. Commit the result, together with a line in the CHANGELOG.
 
 How the methods follow from the definition (see `Model.request_params` in `protocol_model.py`): an `<x>Name` field and an `<x>Uuid` field
@@ -201,6 +202,15 @@ row within half a second (`LiveModel.WarmUpAsync`), and no test pays for it. `OB
 wire into the output of the test, with the time (what a slow OBS Studio looks like from the outside); it is off by default, because the output of a
 test is part of the log of CI. They follow scenes and inputs by UUID, so they are skipped against OBS Studio 30.0.2, like the other tests that need
 UUIDs.
+
+**The canvas tests** (`LiveCanvasModelTests`) need canvases, and OBS Studio makes a canvas only for a plugin or a script that asks (in its source the
+frontend calls `AddCanvas` only for `obs_frontend_add_canvas`, and obs-websocket has no request that makes one). So `run-live-tests.ps1` makes a second scene
+collection for the run, which saves one canvas and loads a Lua script (`tools/live/canvas-driver.lua`): the Lua script makes, renames, removes and releases canvases
+when the test writes a command to a line of a file, and answers in a second file next to it (what OBS Studio then lists, and says with its events, is what the model
+has to follow). `run-live-tests.ps1` sets `OBS_LIVE_CANVAS_COLLECTION` (the name of that collection), `OBS_LIVE_CANVAS_COMMANDS` (the file of the commands) and `OBS_LIVE_CANVAS_SEEDED` (the canvas that the
+collection saves: its name, its UUID and its flags, separated by a bar). Without them (CI does not set them) that test is skipped; the other one, which compares the main canvas with what the plain
+client lists, runs against every OBS Studio (it expects no canvases of an obs-websocket before 5.7.0). The test loads the collection with the Lua script and puts the first collection back. It needs scripting
+in OBS Studio (the Windows build has it).
 
 **The soak test** (`LiveSoakTests`) runs for minutes, and only when `OBS_LIVE_SOAK_SECONDS` says for how long: `-SoakMinutes 30` does that
 (`-Filter "FullyQualifiedName~LiveSoakTests"` runs only that test). The client connects to OBS Studio through a proxy (`ChaosProxy`) that cuts

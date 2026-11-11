@@ -26,7 +26,7 @@ namespace OBSStudioClient.Model
         public ObsChangeKind Kind { get; }
 
         /// <summary>
-        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/>, <see cref="ObsMedia"/>, <see cref="ObsOutput"/> or <see cref="ObsTransitions"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
+        /// Gets the <see cref="ObsScene"/>, <see cref="ObsInput"/>, <see cref="ObsSceneItem"/>, <see cref="ObsFilter"/>, <see cref="ObsMedia"/>, <see cref="ObsOutput"/>, <see cref="ObsTransitions"/>, <see cref="ObsProfiles"/>, <see cref="ObsSceneCollections"/> or <see cref="ObsCanvases"/> that changed, or null for a change of the <see cref="ObsModel"/> itself.
         /// </summary>
         public object? Entity { get; }
 
@@ -56,6 +56,9 @@ namespace OBSStudioClient.Model
                 ObsFilter filter => $"filter '{filter.Name}' of {filter.Source.Label}",
                 ObsMedia media => $"the media of {media.Input.Label}",
                 ObsTransitions => "the scene transitions",
+                ObsProfiles => "the profiles",
+                ObsSceneCollections => "the scene collections",
+                ObsCanvases => "the canvases",
                 _ => "the model",
             };
             return this.Kind == ObsChangeKind.PropertyChanged ? $"{what}: {this.PropertyName} {Show(this.OldValue)} -> {Show(this.NewValue)}" : $"{this.Kind}: {what}";
@@ -71,6 +74,7 @@ namespace OBSStudioClient.Model
                 IEnumerable<ObsSceneItem> items => $"[{string.Join(", ", items.Select(item => item.Source.Name))}]",
                 IEnumerable<ObsFilter> filters => $"[{string.Join(", ", filters.Select(filter => filter.Name))}]",
                 IEnumerable<string> texts => $"[{string.Join(", ", texts)}]",
+                IEnumerable<ObsCanvas> canvases => $"[{string.Join(", ", canvases.Select(canvas => canvas.Name))}]",
                 JsonElement { ValueKind: JsonValueKind.Undefined } => "(nothing)",
                 JsonElement json => Shorten(json.GetRawText()),
                 _ => value.ToString() ?? string.Empty,

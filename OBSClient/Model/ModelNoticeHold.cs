@@ -79,7 +79,7 @@ namespace OBSStudioClient.Model
             {
                 foreach (var (entity, property) in this._held)
                 {
-                    if (!onlyModel || entity is ObsModel or ObsOutput)
+                    if (!onlyModel || entity is ObsModel or ObsOutput or ObsTransitions or ObsProfiles or ObsSceneCollections or ObsCanvases)
                     {
                         raise(new ModelNotice(null, entity, property));
                     }

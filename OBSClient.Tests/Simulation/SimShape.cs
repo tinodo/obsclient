@@ -25,6 +25,9 @@ namespace OBSStudioClient.Tests.Simulation
         {
             ["CurrentSceneCollectionChanging"] = "Config",
             ["CurrentSceneCollectionChanged"] = "Config",
+            ["CurrentProfileChanging"] = "Config",
+            ["CurrentProfileChanged"] = "Config",
+            ["ProfileListChanged"] = "Config",
             ["SceneCreated"] = "Scenes",
             ["SceneRemoved"] = "Scenes",
             ["SceneNameChanged"] = "Scenes",
@@ -32,6 +35,9 @@ namespace OBSStudioClient.Tests.Simulation
             ["CurrentProgramSceneChanged"] = "Scenes",
             ["CurrentPreviewSceneChanged"] = "Scenes",
             ["StudioModeStateChanged"] = "Ui",
+            ["CanvasCreated"] = "Canvases",
+            ["CanvasRemoved"] = "Canvases",
+            ["CanvasNameChanged"] = "Canvases",
             ["InputCreated"] = "Inputs",
             ["InputRemoved"] = "Inputs",
             ["InputNameChanged"] = "Inputs",
@@ -81,6 +87,13 @@ namespace OBSStudioClient.Tests.Simulation
         internal static readonly IReadOnlySet<string> ExtraResponseMembersNotCaptured = new HashSet<string>(StringComparer.Ordinal) { "GetCurrentPreviewScene" };
 
         /// <summary>
+        /// The members that are null in a response whose request the capture does not hold at all, so that the capture cannot say that a real OBS Studio sends a null there, written as <c>request:path</c>.
+        /// <c>GetPersistentData</c> answers with <c>slotValue</c> null for a slot that nobody put anything in (the source of obs-websocket 5.7.6, and LiveProfileSettingsModelTests against OBS Studio 33.0.0). The capture has to be the one
+        /// that shows it as soon as it can: this is the way out for the answers that it lacks, and no more.
+        /// </summary>
+        internal static readonly IReadOnlySet<string> NullNotCaptured = new HashSet<string>(StringComparer.Ordinal) { "GetPersistentData:$.slotValue" };
+
+        /// <summary>
         /// The members of an event that a real OBS Studio sends, and that the protocol snapshot does not list. There are none that the
         /// simulation sends.
         /// </summary>
@@ -93,6 +106,8 @@ namespace OBSStudioClient.Tests.Simulation
         /// says its length and its position as numbers (measured with OBS Studio 33.0.0: LiveMediaTests); the capture only holds one that was not opened (null).
         /// With studio mode on the list of scenes names the preview scene (<c>GetSceneList</c>), which the capture, made with studio mode off, has as null. The current transition says
         /// no duration when it is a fixed one (the cut), which the capture, made with the fade as the current transition, does not show (measured with OBS Studio 33.0.0: LiveTransitionTests).
+        /// A canvas that has no video mix (the scene collection loads canvases without one) says null for each of the six numbers of its video settings (measured with OBS Studio 33.0.0: LiveCanvasModelTests); the capture only holds
+        /// the main canvas, which has a video.
         /// </summary>
         internal static readonly IReadOnlyDictionary<string, string[]> ExtraTypes = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
@@ -103,6 +118,12 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneList:$.currentPreviewSceneName"] = ["string"],
             ["GetSceneList:$.currentPreviewSceneUuid"] = ["string"],
             ["GetCurrentSceneTransition:$.transitionDuration"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.baseHeight"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.baseWidth"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.fpsDenominator"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.fpsNumerator"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.outputHeight"] = ["null"],
+            ["GetCanvasList:$.canvases[].canvasVideoSettings.outputWidth"] = ["null"],
         };
 
         /// <summary>Members whose value depends on the kind of the input, so that only their own type is checked, and not what is inside.</summary>
@@ -513,7 +534,8 @@ namespace OBSStudioClient.Tests.Simulation
         private static bool AllowsNull(string key, Dictionary<string, PathObservation>? real, string path)
         {
             return (real is not null && real.TryGetValue(path, out var observation) && observation.Types.Contains("null"))
-                || (ExtraTypes.TryGetValue(key, out var extra) && extra.Contains("null"));
+                || (ExtraTypes.TryGetValue(key, out var extra) && extra.Contains("null"))
+                || (real is null && NullNotCaptured.Contains(key));
         }
 
         // The members of the objects that the protocol only describes in prose: they have to be those of the capture, as the same kinds of value.

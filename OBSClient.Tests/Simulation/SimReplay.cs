@@ -35,6 +35,8 @@ namespace OBSStudioClient.Tests.Simulation
                 inputs[input.Uuid] = new Input(input.Uuid, input.Name, input.Kind) { Muted = input.Muted, Mul = input.VolumeMul, Removed = input.Removed, Settings = input.Settings, Balance = input.Balance, SyncOffset = input.SyncOffset, Monitor = input.MonitorType, Tracks = input.Tracks, Media = input.MediaState, Active = input.Active, Showing = input.Showing };
             }
 
+            var canvases = (initial.Canvases ?? []).Select(canvas => new Canvas(canvas.Uuid, canvas.Name)).ToList();
+
             var program = initial.ProgramSceneUuid;
             var studio = initial.StudioMode;
             var preview = initial.PreviewSceneUuid;
@@ -104,6 +106,43 @@ namespace OBSStudioClient.Tests.Simulation
 
                         // OBS Studio makes the program scene the preview scene when it switches studio mode on, and does not say so.
                         preview = studio ? program : null;
+                        break;
+                    case "CanvasCreated":
+                        var createdCanvas = Guid.Parse(data.GetProperty("canvasUuid").GetString()!);
+                        if (canvases.Any(canvas => canvas.Uuid == createdCanvas))
+                        {
+                            problems.Add($"{at}: the canvas {createdCanvas} was announced as created, and it is there already.");
+                            break;
+                        }
+
+                        canvases.Add(new Canvas(createdCanvas, data.GetProperty("canvasName").GetString()!));
+                        break;
+                    case "CanvasRemoved":
+                        var removedCanvas = Guid.Parse(data.GetProperty("canvasUuid").GetString()!);
+                        if (canvases.RemoveAll(canvas => canvas.Uuid == removedCanvas) != 1)
+                        {
+                            problems.Add($"{at}: the canvas {removedCanvas} was announced as removed, and it was not there.");
+                        }
+
+                        break;
+                    case "CanvasNameChanged":
+                        var renamedCanvasUuid = Guid.Parse(data.GetProperty("canvasUuid").GetString()!);
+                        var renamedCanvas = canvases.FirstOrDefault(canvas => canvas.Uuid == renamedCanvasUuid);
+                        if (renamedCanvas is null)
+                        {
+                            problems.Add($"{at}: the canvas {renamedCanvasUuid} was announced as renamed, and it was not there.");
+                            break;
+                        }
+
+                        if (renamedCanvas.Name != data.GetProperty("oldCanvasName").GetString())
+                        {
+                            problems.Add($"{at}: the old name is \"{data.GetProperty("oldCanvasName").GetString()}\" and the canvas is named \"{renamedCanvas.Name}\".");
+                        }
+
+                        // OBS Studio takes a canvas that is renamed out of its list and puts it in again, which makes it the last one.
+                        canvases.Remove(renamedCanvas);
+                        renamedCanvas.Name = data.GetProperty("canvasName").GetString()!;
+                        canvases.Add(renamedCanvas);
                         break;
                     case "CurrentPreviewSceneChanged":
                         preview = Guid.Parse(data.GetProperty("sceneUuid").GetString()!);
@@ -278,6 +317,10 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             Same(problems, "scenes", scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""), final.Scenes.Select(scene => $"{scene.Uuid:D} \"{scene.Name}\""));
+            if (final.Canvases is { } finalCanvases)
+            {
+                Same(problems, "canvases", canvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\""), finalCanvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\""));
+            }
             if (program != final.ProgramSceneUuid && !transitionRunning)
             {
                 problems.Add($"The events say that the program scene is {program}, and it is {final.ProgramSceneUuid}.");
@@ -425,6 +468,13 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 problems.Add($"The {what} that the events leave: [{string.Join("; ", left)}], and what OBS Studio has: [{string.Join("; ", right)}].");
             }
+        }
+
+        private sealed class Canvas(Guid uuid, string name)
+        {
+            public Guid Uuid { get; } = uuid;
+
+            public string Name { get; set; } = name;
         }
 
         private sealed class Scene(Guid uuid, string name)

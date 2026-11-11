@@ -94,6 +94,13 @@ namespace OBSStudioClient.Model
         public bool HoldsTheTurn { get; init; }
 
         /// <summary>
+        /// Gets whether the change makes OBS Studio change its scene collection: that is what the change does, so the model leaving the collection that the change was asked for in does not end the
+        /// wait for it (<see cref="IsConfirmed"/> says when the model shows the new collection, and it should say that the model is complete). OBS Studio answers when it has loaded the collection,
+        /// so the answer gets as long as the model gets to read a collection (<see cref="ObsModelOptions.SynchronizationTimeout"/>) when that is more than <see cref="ObsModelOptions.WriteTimeout"/>, and so does the wait for the model.
+        /// </summary>
+        public bool ExpectsSwitch { get; init; }
+
+        /// <summary>
         /// Gets whether the job only asks OBS Studio something and changes nothing (the statistics, the screenshot of a source, the list of outputs). It takes its turn in the line like a change, so that
         /// it is asked after the changes that were asked for before it; but when no answer comes there is no outcome to be unsure of and no part of the model to read again: the call ends with a
         /// <see cref="TimeoutException"/> (no answer in time) or an <see cref="ObsNotConnectedException"/> (the connection ended), and an answer that cannot be read is an <see cref="ObsClientException"/>.
@@ -276,6 +283,7 @@ namespace OBSStudioClient.Model
         private readonly TimeSpan _confirmationTimeout;
         private readonly TimeSpan _writeTimeout;
         private readonly TimeSpan _readTimeout;
+        private readonly TimeSpan _synchronizationTimeout;
         private readonly Channel<WriteJob> _queue = Channel.CreateUnbounded<WriteJob>(new UnboundedChannelOptions { SingleReader = true, AllowSynchronousContinuations = false });
         private readonly CancellationTokenSource _stopping = new();
         private Task _loop = Task.CompletedTask;
@@ -296,6 +304,7 @@ namespace OBSStudioClient.Model
             this._confirmationTimeout = options.ConfirmationTimeout;
             this._writeTimeout = options.WriteTimeout;
             this._readTimeout = options.ReadTimeout;
+            this._synchronizationTimeout = options.SynchronizationTimeout;
         }
 
         /// <summary>Starts the loop that sends the changes.</summary>
@@ -661,7 +670,7 @@ namespace OBSStudioClient.Model
                 // change is not sent before this one is answered. The caller stops waiting by itself (see ExecuteAsync). The caller giving up does end the wait for the turn to
                 // write the batch on the connection (when another message is being written): the batch was not written then, and there is nothing to wait for. And what was true
                 // at the turn of the change has to be true when the batch is written, which can be much later (see CheckBeforeWriting).
-                response = await this._client.SendRawBatchAsync(batch, (int)this._writeTimeout.TotalMilliseconds, this._stopping.Token, job.BeforeWritten, writtenOn => this.CheckBeforeWriting(job, writtenOn)).ConfigureAwait(false);
+                response = await this._client.SendRawBatchAsync(batch, this.AnswerTimeoutOf(job), this._stopping.Token, job.BeforeWritten, writtenOn => this.CheckBeforeWriting(job, writtenOn)).ConfigureAwait(false);
             }
             catch (NotWrittenException ex)
             {
@@ -935,10 +944,12 @@ namespace OBSStudioClient.Model
             // cancelled is the end of the time that the wait was given, not the end of the read.
             bool Done() => ((shown is not null ? shown() : job.IsConfirmed(result)) && (observe.Count == 0 || (this._host.AreRefreshed(observe) && (job.ObservedShown?.Invoke() ?? true))))
                 || this.Left(job)
-                || Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false };
+                || (Volatile.Read(ref read) is { IsCompleted: true, IsCanceled: false } && (!job.ExpectsSwitch || this._host.IsSynchronized));
 
+            // A change that switches the scene collection waits for the model to read the new one too.
+            var waitLimit = Shortest(this._confirmationTimeout + this._readTimeout + this._readTimeout + (job.ExpectsSwitch ? this._synchronizationTimeout : TimeSpan.Zero), LongestTimer);
             using var events = new CancellationTokenSource(this._confirmationTimeout, this._time);
-            using var limit = new CancellationTokenSource(Shortest(this._confirmationTimeout + this._readTimeout + this._readTimeout, LongestTimer), this._time);
+            using var limit = new CancellationTokenSource(waitLimit, this._time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, this._stopping.Token);
             using var eventsTimedOut = events.Token.Register(() =>
             {
@@ -1029,11 +1040,19 @@ namespace OBSStudioClient.Model
             return first < second ? first : second;
         }
 
-        // Whether the model has left the connection and the scene collection that the change was asked for in.
+        // Whether the model has left the connection and the scene collection that the change was asked for in. A change that makes OBS Studio change its scene collection leaves the collection
+        // by itself: only the connection counts for it.
         private bool Left(WriteJob job)
         {
             var gate = this._host.Gate;
-            return gate.Switching || gate.Epoch != job.Epoch || gate.Session != job.Session;
+            return gate.Session != job.Session || (!job.ExpectsSwitch && (gate.Switching || gate.Epoch != job.Epoch));
+        }
+
+        // How long OBS Studio gets to answer a change, in milliseconds: it loads the scene collection before it answers a change that switches it.
+        private int AnswerTimeoutOf(WriteJob job)
+        {
+            var timeout = job.ExpectsSwitch && this._synchronizationTimeout > this._writeTimeout ? this._synchronizationTimeout : this._writeTimeout;
+            return (int)timeout.TotalMilliseconds;
         }
 
         private void RefreshQuietly(IReadOnlyList<RefreshTarget> targets)

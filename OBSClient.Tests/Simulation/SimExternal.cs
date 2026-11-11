@@ -22,10 +22,85 @@ namespace OBSStudioClient.Tests.Simulation
         /// <summary>Gets the names of the scene collections, the current one included, in alphabetical order.</summary>
         public IReadOnlyList<string> Collections => _obs.Collections;
 
+        /// <summary>Gets the names of the profiles, the current one included, in the order in which OBS Studio lists them.</summary>
+        public IReadOnlyList<string> Profiles => _obs.Profiles;
+
         /// <summary>Makes the changes work on another scene collection: the one that OBS Studio has loaded now.</summary>
         internal void Use(SimWorld world)
         {
             _world = world;
+        }
+
+        /// <summary>
+        /// Switches to another profile, as the user does in the menu: <c>CurrentProfileChanging</c> and <c>CurrentProfileChanged</c> come together. Switching to the profile that is current does nothing.
+        /// </summary>
+        public void SwitchProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (!_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.NotFound($"There is no profile named \"{name}\".");
+                }
+
+                if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+                {
+                    _obs.SwitchProfile(name);
+                }
+
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Makes a new profile and switches to it, as the user does in the menu: <c>ProfileListChanged</c>, and a moment later <c>CurrentProfileChanged</c>.
+        /// </summary>
+        public void CreateProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.Exists($"A profile named \"{name}\" exists already.");
+                }
+
+                _obs.MakeProfile(name);
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Removes a profile, as the user does in the menu. For the profile that is current OBS Studio asks first, and the user says yes: it switches to the profile that comes first by the bytes of
+        /// its name, and does not say that the list changed. It refuses to remove the only profile.
+        /// </summary>
+        public void RemoveProfile(string name)
+        {
+            _obs.RunExternal(() =>
+            {
+                RequireName(name);
+                if (!_obs.Profiles.Contains(name))
+                {
+                    throw SimFailure.NotFound($"There is no profile named \"{name}\".");
+                }
+
+                if (_obs.Profiles.Count < 2)
+                {
+                    throw new SimFailure(SimStatus.NotEnoughResources, "OBS Studio does not remove the only profile.");
+                }
+
+                if (string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+                {
+                    _obs.DropCurrentProfile();
+                }
+                else
+                {
+                    _obs.DropProfile(name);
+                }
+
+                return 0;
+            });
         }
 
         /// <summary>
@@ -75,6 +150,41 @@ namespace OBSStudioClient.Tests.Simulation
             {
                 RequireName(name);
                 return _world.CreateScene(name).Uuid;
+            });
+        }
+
+        /// <summary>
+        /// Makes a canvas, as a plugin does (obs_frontend_add_canvas): <c>CanvasCreated</c>. The name is made unique ("Name 2" when "Name" is taken), and the flag of the main canvas is taken off the flags.
+        /// </summary>
+        /// <param name="name">The name of the canvas.</param>
+        /// <param name="flags">The flags of the canvas (see <see cref="SimCanvasFlags"/>).</param>
+        /// <param name="video">The video settings of the canvas, or null when it has no video mix.</param>
+        public Guid CreateCanvas(string name, int flags = SimCanvasFlags.Program, SimVideo? video = null)
+        {
+            return _obs.RunExternal(() => _world.CreateCanvas(name, flags, video).Uuid);
+        }
+
+        /// <summary>
+        /// Removes a canvas: <c>CanvasRemoved</c>. The main canvas, and a canvas that was removed, are left alone. OBS Studio may go on listing the canvas for a while (see <see cref="SimQuirks.CanvasRemovedLinger"/>).
+        /// </summary>
+        public void RemoveCanvas(Guid canvasUuid)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.RemoveCanvas(FindCanvas(canvasUuid));
+                return 0;
+            });
+        }
+
+        /// <summary>
+        /// Renames a canvas: <c>CanvasNameChanged</c>. The main canvas, an empty name, and the name that the canvas has are ignored. The canvas is last in the list afterwards, and a name that is taken is made unique.
+        /// </summary>
+        public void RenameCanvas(Guid canvasUuid, string newName)
+        {
+            _obs.RunExternal(() =>
+            {
+                _world.RenameCanvas(FindCanvas(canvasUuid), newName);
+                return 0;
             });
         }
 
@@ -429,6 +539,11 @@ namespace OBSStudioClient.Tests.Simulation
         private SimInput FindInput(Guid uuid)
         {
             return FindSource(uuid) as SimInput ?? throw new SimFailure(SimStatus.InvalidResourceType, $"The source `{uuid:D}` is not an input.");
+        }
+
+        private SimCanvas FindCanvas(Guid uuid)
+        {
+            return _world.FindCanvas(uuid) ?? throw SimFailure.NotFound($"No canvas was found by the UUID of `{uuid:D}`.");
         }
 
         private SimItem FindItem(Guid sceneUuid, int itemId)

@@ -190,6 +190,24 @@ namespace OBSStudioClient.Tests.Model
         /// <summary>Gets whether the inputs are on the air and whether they are shown, by UUID, as <c>GetSourceActive</c> says it; an input that is not in it is neither.</summary>
         public Dictionary<Guid, (bool Active, bool Showing)> Activity { get; } = new();
 
+        /// <summary>Gets or sets the name of the current profile of OBS Studio.</summary>
+        public string CurrentProfile { get; set; } = "Untitled";
+
+        /// <summary>Gets the names of the profiles, in the order that OBS Studio lists them.</summary>
+        public List<string> Profiles { get; } = ["Untitled"];
+
+        /// <summary>Gets or sets the name of the scene collection that OBS Studio has loaded.</summary>
+        public string CurrentSceneCollection { get; set; } = "Untitled";
+
+        /// <summary>Gets the names of the scene collections, in the order that OBS Studio lists them.</summary>
+        public List<string> SceneCollections { get; } = ["Untitled"];
+
+        /// <summary>
+        /// Gets the canvases of OBS Studio, in the order that <c>GetCanvasList</c> lists them: the main canvas, which OBS Studio always has, and then the ones that a plugin made. The flags are the numbers of libobs
+        /// (main 1, activate 2, mix audio 4, scene ref 8, ephemeral 16); a canvas that has no video says null for its video settings.
+        /// </summary>
+        public List<(Guid Uuid, string Name, int Flags, bool HasVideo)> Canvases { get; } = [(new Guid("6c69626f-6273-4c00-9d88-c5136d61696e"), "Main", 15, true)];
+
         public Guid AddScene(string name)
         {
             var uuid = Guid.NewGuid();
@@ -347,6 +365,23 @@ namespace OBSStudioClient.Tests.Model
                             transitionUuid = transition.Uuid,
                         })
                         : (600, null);
+                case ReadKind.Profiles:
+                    return (100, new { currentProfileName = this.CurrentProfile, profiles = this.Profiles.ToArray() });
+                case ReadKind.SceneCollections:
+                    return (100, new { currentSceneCollectionName = this.CurrentSceneCollection, sceneCollections = this.SceneCollections.ToArray() });
+                case ReadKind.Canvases:
+                    return (100, new
+                    {
+                        canvases = this.Canvases.Select(canvas => new
+                        {
+                            canvasFlags = new { ACTIVATE = (canvas.Flags & 2) != 0, EPHEMERAL = (canvas.Flags & 16) != 0, MAIN = (canvas.Flags & 1) != 0, MIX_AUDIO = (canvas.Flags & 4) != 0, SCENE_REF = (canvas.Flags & 8) != 0 },
+                            canvasName = canvas.Name,
+                            canvasUuid = canvas.Uuid,
+                            canvasVideoSettings = canvas.HasVideo
+                                ? new { baseHeight = (int?)1080, baseWidth = (int?)1920, fpsDenominator = (int?)1, fpsNumerator = (int?)30, outputHeight = (int?)720, outputWidth = (int?)1280 }
+                                : new { baseHeight = (int?)null, baseWidth = (int?)null, fpsDenominator = (int?)null, fpsNumerator = (int?)null, outputHeight = (int?)null, outputWidth = (int?)null },
+                        }).ToArray(),
+                    });
                 case ReadKind.Stream:
                     var streamStatus = this.OutputStatus(ObsOutputKind.Stream);
                     return (100, new { outputActive = IsRunning(streamStatus), outputReconnecting = streamStatus == ObsOutputStatus.Reconnecting, outputTimecode = "00:00:00.000", outputDuration = 0L, outputCongestion = 0.0, outputBytes = 0L, outputSkippedFrames = 0L, outputTotalFrames = 0L });

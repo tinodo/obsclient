@@ -3,6 +3,27 @@ namespace OBSStudioClient.Tests.Simulation
     using System.Globalization;
     using System.Text;
 
+    /// <summary>A list of the names that OBS Studio keeps (its profiles, its scene collections), and the one that is current, in the order in which OBS Studio lists them.</summary>
+    /// <param name="Current">The name of the current one.</param>
+    /// <param name="Names">The names.</param>
+    internal sealed record SimNames(string Current, IReadOnlyList<string> Names)
+    {
+        public bool Equals(SimNames? other)
+        {
+            return other is not null && Current == other.Current && Names.SequenceEqual(other.Names, StringComparer.Ordinal);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Current, Names.Count);
+        }
+
+        public override string ToString()
+        {
+            return $"\"{Current}\" of [{string.Join(", ", Names.Select(name => $"\"{name}\""))}]";
+        }
+    }
+
     /// <summary>A scene item in a <see cref="SimSnapshot"/>.</summary>
     /// <param name="Id">The ID of the item, which is unique in its scene.</param>
     /// <param name="SourceUuid">The UUID of the source of the item.</param>
@@ -119,6 +140,9 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="TransitionName">The name of the current scene transition.</param>
     /// <param name="TransitionDuration">The duration of the transitions in milliseconds when the current transition says one (the cut does not).</param>
     /// <param name="TransitionRunning">Whether a transition is running.</param>
+    /// <param name="Profiles">The profiles of OBS Studio and the current one. Only the snapshot of <see cref="SimObs"/> has them: a scene collection has none.</param>
+    /// <param name="SceneCollections">The scene collections of OBS Studio and the one that is loaded. Only the snapshot of <see cref="SimObs"/> has them.</param>
+    /// <param name="Canvases">The canvases of the collection, the main canvas first: what OBS Studio holds, which is not what <c>GetCanvasList</c> lists while it still lists a canvas that was removed.</param>
     internal sealed record SimSnapshot(
         string CollectionName,
         IReadOnlyList<SimSceneSnapshot> Scenes,
@@ -129,7 +153,10 @@ namespace OBSStudioClient.Tests.Simulation
         bool StudioMode,
         string TransitionName = "Cut",
         int? TransitionDuration = null,
-        bool TransitionRunning = false)
+        bool TransitionRunning = false,
+        SimNames? Profiles = null,
+        SimNames? SceneCollections = null,
+        IReadOnlyList<SimCanvasSnapshot>? Canvases = null)
     {
         public bool Equals(SimSnapshot? other)
         {
@@ -141,6 +168,9 @@ namespace OBSStudioClient.Tests.Simulation
                 && TransitionName == other.TransitionName
                 && TransitionDuration == other.TransitionDuration
                 && TransitionRunning == other.TransitionRunning
+                && Equals(Profiles, other.Profiles)
+                && Equals(SceneCollections, other.SceneCollections)
+                && (Canvases ?? []).SequenceEqual(other.Canvases ?? [])
                 && Scenes.SequenceEqual(other.Scenes)
                 && DetachedScenes.SequenceEqual(other.DetachedScenes)
                 && Inputs.SequenceEqual(other.Inputs);
@@ -164,6 +194,21 @@ namespace OBSStudioClient.Tests.Simulation
             foreach (var scene in Scenes)
             {
                 scene.Describe(text, "  ");
+            }
+
+            if (Profiles is not null)
+            {
+                text.Append("profiles: ").AppendLine(Profiles.ToString());
+            }
+
+            if (SceneCollections is not null)
+            {
+                text.Append("scene collections: ").AppendLine(SceneCollections.ToString());
+            }
+
+            if (Canvases is { Count: > 0 })
+            {
+                text.Append("canvases: ").AppendLine(string.Join(", ", Canvases.Select(canvas => $"\"{canvas.Name}\" {Short(canvas.Uuid)} flags {canvas.Flags}")));
             }
 
             if (DetachedScenes.Count > 0)

@@ -12,7 +12,6 @@ namespace OBSStudioClient.Tests.Model
     public class ModelEngineSettingsTests
     {
         private const int InputEvents = 8;
-        private const int FilterEvents = 32;
 
         private static readonly ReadKind[] AudioKinds = [ReadKind.AudioMute, ReadKind.AudioVolume, ReadKind.AudioBalance, ReadKind.AudioSyncOffset, ReadKind.AudioMonitorType, ReadKind.AudioTracks];
 
@@ -382,18 +381,6 @@ namespace OBSStudioClient.Tests.Model
 
             Assert.Contains(6, sizes);
             Assert.True(h.Engine.IsSettled);
-        }
-
-        [Fact]
-        public void AnEventForTheSettingsOfAFilter_IsLeftAlone_BecauseTheModelDoesNotHoldThem()
-        {
-            // The protocol has the event and OBS Studio does not send it; the model has no settings of filters to keep, so should one come it changes nothing and asks for no read.
-            var h = Started(out _, out _);
-
-            h.Event("SourceFilterSettingsChanged", new { sourceName = "Mic", filterName = "Gate", filterSettings = new { open_threshold = -30 } }, FilterEvents);
-
-            Assert.Empty(h.Engine.TakeChanges());
-            Assert.Null(h.Take());
         }
     }
 }

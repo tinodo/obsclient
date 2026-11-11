@@ -195,6 +195,31 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task WhenOBSStudioSaysTheSettingsOfAFilterChanged_TheModelRaisesIt_WithTheFilterAndTheSettings()
+        {
+            await using var rig = await StartAsync();
+            var told = new List<ObsFilterSettingsEventArgs>();
+            var senders = new List<object?>();
+            rig.Model.FilterSettingsChanged += (sender, e) =>
+            {
+                lock (told)
+                {
+                    senders.Add(sender);
+                    told.Add(e);
+                }
+            };
+
+            await rig.Responder.SendEventAsync("SourceFilterSettingsChanged", new { sourceName = "Mic", filterName = "Gate", filterSettings = new { open_threshold = -30 } }, FilterEvents);
+
+            await ModelRig.EventuallyAsync(() => { lock (told) { return told.Count == 1; } }, "the event to be raised");
+            var filter = rig.Model.Inputs["Mic"].Filters["Gate"];
+            Assert.Same(filter, told[0].Filter);
+            Assert.Equal(-30, told[0].Settings.GetProperty("open_threshold").GetInt32());
+            Assert.Same(rig.Model, senders[0]);
+            Assert.False(filter.IsRemoved);
+        }
+
+        [Fact]
         public async Task AFilterThatIsMadeInOBSStudio_IsAdded_OnTopOfTheOthers()
         {
             await using var rig = await StartAsync();
@@ -458,7 +483,8 @@ namespace OBSStudioClient.Tests.Model
         [Fact]
         public async Task TogglingAFilter_AsksOBSStudio_AndSetsTheOpposite_BothWays()
         {
-            await using var rig = await StartAsync();
+            // The answer of the stand-in and the events that follow it come from the thread pool: the times that the model waits for them are long, so that a machine that is busy does not make it ask again or give up.
+            await using var rig = await StartAsync(new ObsModelOptions { ConfirmationTimeout = TimeSpan.FromSeconds(10), WriteTimeout = TimeSpan.FromSeconds(20) });
             var mic = rig.Model.Inputs["Mic"];
             var gain = mic.Filters["Gain"];
             var enabled = true;

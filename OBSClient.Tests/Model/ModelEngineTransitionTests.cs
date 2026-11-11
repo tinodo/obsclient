@@ -283,6 +283,56 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public void APreviewSceneThatOBSStudioRefusesForGood_IsKnownToBeNone_WhenItRefusesThreeTimesInARow()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            h.World.StudioMode = true;
+            h.Start();
+            var asked = new List<ReadRequest>();
+
+            // A server that does not know the request (a simulation, a test double) refuses it with 204, which is not a moment that passes.
+            h.SettleWithTime(request =>
+            {
+                asked.Add(request);
+                return request.Kind == ReadKind.Preview ? (204, null) : h.World.Answer(request);
+            });
+
+            Assert.Equal(3, asked.Count(request => request.Kind == ReadKind.Preview));
+            var snapshot = h.Engine.Snapshot();
+            Assert.True(snapshot.StudioMode);
+            Assert.Null(snapshot.PreviewSceneUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
+        public void ARefusalToSayThePreviewScene_ThatDoesNotRepeat_IsAskedAgain_AndTheAnswerThatFollowsIsHeld()
+        {
+            var h = new EngineHarness();
+            h.World.AddScene("Scene");
+            var gaming = h.World.AddScene("Gaming");
+            h.World.StudioMode = true;
+            h.World.Preview = gaming;
+            h.Start();
+            var refusals = 0;
+
+            h.SettleWithTime(request =>
+            {
+                if (request.Kind == ReadKind.Preview && refusals < 2)
+                {
+                    refusals++;
+                    return (204, null);
+                }
+
+                return h.World.Answer(request);
+            });
+
+            Assert.Equal(2, refusals);
+            Assert.Equal(gaming, h.Engine.Snapshot().PreviewSceneUuid);
+            Assert.True(h.Engine.IsSettled);
+        }
+
+        [Fact]
         public void ARemovedPreviewScene_IsReadAgain_AndTheModelHoldsTheSceneThatOBSStudioPutsInItsPlace()
         {
             Guid gaming = default;

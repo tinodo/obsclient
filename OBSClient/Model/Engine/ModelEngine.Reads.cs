@@ -24,6 +24,12 @@ namespace OBSStudioClient.Model.Engine
             this._seq = ticket.SentSeq;
             for (var i = 0; i < ticket.Requests.Count; i++)
             {
+                // An answer can say that OBS Studio changed its scene collection (see NoticeSwitch): the answers that follow it are of a collection that the model has left, and are read again.
+                if (ticket.Epoch != this._epoch)
+                {
+                    break;
+                }
+
                 var request = ticket.Requests[i];
                 if (IsAudioFollower(request.Kind))
                 {
@@ -120,6 +126,12 @@ namespace OBSStudioClient.Model.Engine
                     return this._previewScope;
                 case ReadKind.Transition:
                     return this._transitionScope;
+                case ReadKind.Profiles:
+                    return this._profilesScope;
+                case ReadKind.SceneCollections:
+                    return this._collectionsScope;
+                case ReadKind.Canvases:
+                    return this._canvasesScope;
                 case ReadKind.Stream:
                 case ReadKind.Record:
                 case ReadKind.VirtualCamera:
@@ -180,6 +192,9 @@ namespace OBSStudioClient.Model.Engine
                 ReadKind.StudioMode => this._studioScope,
                 ReadKind.Preview => this._previewScope,
                 ReadKind.Transition => this._transitionScope,
+                ReadKind.Profiles => this._profilesScope,
+                ReadKind.SceneCollections => this._collectionsScope,
+                ReadKind.Canvases => this._canvasesScope,
                 ReadKind.Stream or ReadKind.Record or ReadKind.VirtualCamera or ReadKind.ReplayBuffer => this._outputs[(int)OutputNode.KindOf(kind)].Scope,
                 ReadKind.Filters => this.SourceByUuid(target)?.FiltersScope,
                 ReadKind.Items => this._scenes.TryGetValue(target, out var scene) ? scene.ItemsScope : null,
@@ -278,6 +293,15 @@ namespace OBSStudioClient.Model.Engine
                     break;
                 case ReadKind.Transition:
                     this.ApplyTransitionResponse(ticket, response, ok);
+                    break;
+                case ReadKind.Profiles:
+                    this.ApplyProfilesResponse(ticket, response, ok);
+                    break;
+                case ReadKind.SceneCollections:
+                    this.ApplySceneCollectionsResponse(ticket, response, ok);
+                    break;
+                case ReadKind.Canvases:
+                    this.ApplyCanvasesResponse(ticket, response, ok);
                     break;
                 case ReadKind.Stream:
                 case ReadKind.Record:
@@ -711,7 +735,9 @@ namespace OBSStudioClient.Model.Engine
             }
         }
 
-        // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again.
+        // The preview scene, as a read says it. OBS Studio refuses (506) while studio mode is off: there is none then, and when the model thought that studio mode is on it is read again. A server that
+        // refuses the read for good in another way (a simulation or a test double that does not know the request) has none to show: that is believed when it is repeated, as it is for the transition,
+        // and an event can still say which scene is the preview scene.
         private void ApplyPreviewResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
         {
             var scope = this._previewScope;
@@ -743,6 +769,16 @@ namespace OBSStudioClient.Model.Engine
                 if (this._studioMode.Value)
                 {
                     this._studioScope.MarkDirty();
+                }
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoTransition)
+            {
+                scope.Attempts = 0;
+                this._previewRead = true;
+                var old = this._previewUuid.Value;
+                if (this._previewUuid.ApplyRead(null, ticket.SentSeq))
+                {
+                    this.Emit(ModelChangeKind.PreviewSceneChanged, Guid.Empty, 0, null, old, null);
                 }
             }
             else
@@ -792,6 +828,96 @@ namespace OBSStudioClient.Model.Engine
             {
                 this.Retry(scope);
             }
+        }
+
+        // The profiles, as a read says them: which one is current, and the names of all. An OBS Studio that refuses the read for good (a simulation that does not know the request) has no profiles to
+        // show, so it is believed when it is repeated, as it is for the transition; a refusal that can pass (not ready) and an answer that did not come are read again.
+        private void ApplyProfilesResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._profilesScope;
+            if (ok && response!.ResponseData is ProfileListResponse list)
+            {
+                scope.Attempts = 0;
+                this._profilesRead = true;
+                this._profiles.ApplyRead(new NameList(list.CurrentProfileName, list.Profiles), ticket.SentSeq);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._profilesRead = true;
+                this._profiles.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // The scene collections, as a read says them: which one is loaded, and the names of all. See ApplyProfilesResponse for a refusal. A read that names another collection than the one that the model is of
+        // is a switch that the events did not tell of (see NoticeSwitch).
+        private void ApplySceneCollectionsResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._collectionsScope;
+            if (ok && response!.ResponseData is SceneCollectionListResponse list)
+            {
+                scope.Attempts = 0;
+                this._collectionsRead = true;
+                var held = this._collections.Value;
+                var read = new NameList(list.CurrentSceneCollectionName, list.SceneCollections);
+                this._collections.ApplyRead(read, ticket.SentSeq);
+                this.NoticeSwitch(held, read);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._collectionsRead = true;
+                this._collections.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        // Whether OBS Studio refused a request in a way that is not a moment that passes (it is not "not ready").
+        private static bool IsRefusedForGood(RequestResponseMessage? response)
+        {
+            return response is { RequestStatus.Result: false } && response.RequestStatus.Code != RequestStatusCode.NotReady;
+        }
+
+        // The canvases, as a read says them. A canvas that OBS Studio said it removed is left out even when it still lists it (it keeps it until the last reference is released, and does not say so again). An obs-websocket
+        // that does not know the request (before 5.7.0) refuses it for good, and has no canvases to show; see ApplyProfilesResponse for how a refusal is believed.
+        private void ApplyCanvasesResponse(ReadTicket ticket, RequestResponseMessage? response, bool ok)
+        {
+            var scope = this._canvasesScope;
+            if (ok && response!.ResponseData is CanvasListResponse list)
+            {
+                scope.Attempts = 0;
+                this._canvasesRead = true;
+                var canvases = list.Canvases
+                    .Where(canvas => !this._removedCanvases.Contains(canvas.CanvasUuid))
+                    .Select(canvas => new CanvasInfo(canvas.CanvasName, canvas.CanvasUuid, FlagsOf(canvas.CanvasFlags)));
+                this._canvases.ApplyRead(new CanvasList(canvases), ticket.SentSeq);
+            }
+            else if (IsRefusedForGood(response) && scope.Attempts >= RefusalsBeforeNoList)
+            {
+                scope.Attempts = 0;
+                this._canvasesRead = true;
+                this._canvases.ApplyRead(null, ticket.SentSeq);
+            }
+            else
+            {
+                this.Retry(scope);
+            }
+        }
+
+        private static ObsCanvasFlags FlagsOf(CanvasFlags flags)
+        {
+            return (flags.Main ? ObsCanvasFlags.Main : ObsCanvasFlags.None)
+                | (flags.Activate ? ObsCanvasFlags.Activate : ObsCanvasFlags.None)
+                | (flags.MixAudio ? ObsCanvasFlags.MixAudio : ObsCanvasFlags.None)
+                | (flags.SceneRef ? ObsCanvasFlags.SceneRef : ObsCanvasFlags.None)
+                | (flags.Ephemeral ? ObsCanvasFlags.Ephemeral : ObsCanvasFlags.None);
         }
 
         private void ApplyScenes(SceneListResponse response, ReadTicket ticket)

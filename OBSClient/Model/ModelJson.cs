@@ -46,6 +46,28 @@ namespace OBSStudioClient.Model
             return element;
         }
 
+        /// <summary>
+        /// Writes a value as JSON: whatever JSON can hold (text, a number, true or false, an object, a list, a JSON element).
+        /// </summary>
+        /// <param name="value">What the application passed.</param>
+        /// <param name="parameter">The name of the parameter that it was passed as, for the message.</param>
+        /// <param name="what">What the value is, for the message: "the value of persistent data".</param>
+        /// <returns>The value.</returns>
+        /// <exception cref="ArgumentNullException">The value is null.</exception>
+        /// <exception cref="ArgumentException">The value can not be written as JSON.</exception>
+        public static JsonElement AsValue(object value, string parameter, string what)
+        {
+            ArgumentNullException.ThrowIfNull(value, parameter);
+            try
+            {
+                return value is JsonElement given ? given.Clone() : JsonSerializer.SerializeToElement(value, value.GetType());
+            }
+            catch (Exception ex) when (ex is NotSupportedException or JsonException or InvalidOperationException)
+            {
+                throw new ArgumentException($"{Capitalize(what)} can not be written as JSON: {ex.Message}", parameter, ex);
+            }
+        }
+
         private static string Capitalize(string text)
         {
             return text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];

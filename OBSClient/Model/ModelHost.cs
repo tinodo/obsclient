@@ -29,7 +29,7 @@ namespace OBSStudioClient.Model
     {
         /// <summary>The events that the model needs. They are always subscribed to, with the ones that the application asks for.</summary>
         public const EventSubscriptions RequiredEvents =
-            EventSubscriptions.General | EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters | EventSubscriptions.MediaInputs | EventSubscriptions.Transitions;
+            EventSubscriptions.General | EventSubscriptions.Config | EventSubscriptions.Scenes | EventSubscriptions.Inputs | EventSubscriptions.SceneItems | EventSubscriptions.Ui | EventSubscriptions.Outputs | EventSubscriptions.Filters | EventSubscriptions.MediaInputs | EventSubscriptions.Transitions | EventSubscriptions.Canvases;
 
         /// <summary>The oldest obs-websocket that the model works with: the first one that identifies scenes and inputs by UUID (OBS Studio 30.1).</summary>
         public static readonly Version RequiredWebSocketVersion = new(5, 4, 0);
@@ -163,6 +163,11 @@ namespace OBSStudioClient.Model
         /// the loop of the model has not handled all of them yet, and what the model shows (and the objects that the application holds) is of the collection before them.
         /// </summary>
         public int CollectionEventsRead => Volatile.Read(ref this._collectionEventsRead);
+
+        /// <summary>
+        /// Gets whether the model is complete (<see cref="ObsModelState.Synchronized"/>). For the change that makes OBS Studio load another scene collection, whose call ends when the model has read it.
+        /// </summary>
+        public bool IsSynchronized => this._model.State == ObsModelState.Synchronized;
 
         /// <summary>Gets what is published now.</summary>
         public ModelView View => this._publisher.View;

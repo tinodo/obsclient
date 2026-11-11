@@ -30,6 +30,8 @@ namespace OBSStudioClient.Model
         // The most selections that wait for their scene item: a selection of an item that never appears does not hold the later ones back for ever.
         private const int MaxWaitingSelections = 1000;
 
+        private static readonly IReadOnlyList<string> NoNames = Array.Empty<string>();
+
         private readonly ObsModel _model;
         private readonly bool _ignoreCase;
         private readonly Dictionary<Guid, ObsScene> _scenes = new();
@@ -137,6 +139,8 @@ namespace OBSStudioClient.Model
             var view = this.PublishView(engine, pass);
             this.PublishOutputs(engine);
             this.PublishTransitions(engine);
+            this.PublishNameLists(engine);
+            this.PublishCanvases(engine);
             this.PublishExiting(engine);
 
             this._notices.AddRange(this._repaired);
@@ -812,6 +816,53 @@ namespace OBSStudioClient.Model
             transitions.SetStarts(engine.TransitionStarts);
         }
 
+        // The profiles and the scene collections are objects of the model that stay the same, like the transitions: a change of the names is the PropertyChanged event of the object (Names, and then Current, so that
+        // a profile that was made is in the names by the time that it is the current one), and a record for ObsModel.Changed.
+        private void PublishNameLists(ModelEngine engine)
+        {
+            var profiles = this._model.Profiles;
+            if (profiles.Set(engine.Profiles, out var profilesBefore))
+            {
+                this.AddNameChanges(profiles, profilesBefore, engine.Profiles, nameof(ObsProfiles.Names), nameof(ObsProfiles.Current));
+            }
+
+            var collections = this._model.SceneCollections;
+            if (collections.Set(engine.SceneCollections, out var collectionsBefore))
+            {
+                this.AddNameChanges(collections, collectionsBefore, engine.SceneCollections, nameof(ObsSceneCollections.Names), nameof(ObsSceneCollections.Current));
+            }
+        }
+
+        // The canvases are an object of the model that stays the same, like the profiles: a change of the list is the PropertyChanged event of the object (All, and Main when the main canvas is another snapshot),
+        // and a record for ObsModel.Changed.
+        private void PublishCanvases(ModelEngine engine)
+        {
+            var canvases = this._model.Canvases;
+            if (canvases.Set(engine.Canvases, engine.Epoch, out var before, out var mainBefore))
+            {
+                this.AddProperty(canvases, nameof(ObsCanvases.All), before, canvases.All, true);
+                if (!ReferenceEquals(mainBefore, canvases.Main))
+                {
+                    this.AddProperty(canvases, nameof(ObsCanvases.Main), mainBefore, canvases.Main, false);
+                }
+            }
+        }
+
+        private void AddNameChanges(object entity, NameList? before, NameList? after, string namesProperty, string currentProperty)
+        {
+            var oldNames = before?.Names ?? NoNames;
+            var newNames = after?.Names ?? NoNames;
+            if (!oldNames.SequenceEqual(newNames, StringComparer.Ordinal))
+            {
+                this.AddProperty(entity, namesProperty, oldNames, newNames, true);
+            }
+
+            if (!string.Equals(before?.Current, after?.Current, StringComparison.Ordinal))
+            {
+                this.AddProperty(entity, currentProperty, before?.Current, after?.Current, true);
+            }
+        }
+
         // The outputs are objects of the model that stay the same, so they are brought in line here and not through the view: a change of the status is the PropertyChanged event of the output
         // (and of IsActive, and of IsPaused for the recording), and a record for ObsModel.Changed.
         private void PublishOutputs(ModelEngine engine)
@@ -917,6 +968,7 @@ namespace OBSStudioClient.Model
                 EventType.CustomEvent when data is CustomEventEventArgs custom => () => model.RaiseCustomEvent(custom),
                 EventType.VendorEvent when data is VendorEventEventArgs vendor => () => model.RaiseVendorEvent(vendor),
                 EventType.ScreenshotSaved when data is ScreenshotSavedEventArgs screenshot => () => model.RaiseScreenshotSaved(screenshot),
+                EventType.SourceFilterSettingsChanged when data is FilterSettingsNotice changed && this._filters.TryGetValue(changed.FilterId, out var changedFilter) => () => model.RaiseFilterSettingsChanged(new ObsFilterSettingsEventArgs(changedFilter, changed.Settings.Element)),
                 EventType.ExitStarted => model.RaiseExitStarted,
                 EventType.RecordFileChanged when data is RecordFileChangedEventArgs file => () => model.Outputs.Record.RaiseFileChanged(file),
                 EventType.ReplayBufferSaved when data is ReplayBufferSavedEventArgs replay => () => model.Outputs.ReplayBuffer.RaiseSaved(replay),

@@ -35,7 +35,7 @@ namespace OBSStudioClient.Tests.Simulation
                     input.Active,
                     input.Showing))
                 .ToArray();
-            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, _studioMode ? _preview?.Uuid : null, _studioMode, TransitionName, TransitionDurationMilliseconds, TransitionRunning);
+            return new SimSnapshot(Name, scenes, detached, inputs, _program.Uuid, _studioMode ? _preview?.Uuid : null, _studioMode, TransitionName, TransitionDurationMilliseconds, TransitionRunning, Canvases: SnapshotCanvases());
         }
 
         /// <summary>
@@ -126,6 +126,21 @@ namespace OBSStudioClient.Tests.Simulation
             foreach (var group in _inputs.GroupBy(input => input.Name, StringComparer.Ordinal).Where(group => group.Count() > 1))
             {
                 problems.Add($"{group.Count()} inputs that are alive are named \"{group.Key}\".");
+            }
+
+            foreach (var group in _canvases.Where(canvas => !canvas.Removed).GroupBy(canvas => canvas.Name, StringComparer.Ordinal).Where(group => group.Count() > 1))
+            {
+                problems.Add($"{group.Count()} canvases that are alive are named \"{group.Key}\".");
+            }
+
+            if (_canvases.Any(canvas => !canvas.Removed && string.Equals(canvas.Name, MainCanvasName, StringComparison.Ordinal)))
+            {
+                problems.Add($"A canvas that is not the main one is named \"{MainCanvasName}\".");
+            }
+
+            foreach (var canvas in _canvases.Where(canvas => canvas.IsMain))
+            {
+                problems.Add($"The canvas \"{canvas.Name}\" has the flag of the main canvas, and there is only one.");
             }
 
             foreach (var input in _inputs)

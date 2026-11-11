@@ -60,11 +60,32 @@ namespace OBSStudioClient.Tests.Live
         /// <summary>Gets a value that indicates whether the OBS Studio has UUIDs for its scenes and inputs: it does, unless <c>OBS_LIVE_UUIDS</c> is 0 (obs-websocket has them from 5.4.0, OBS Studio from 30.1.0).</summary>
         public static bool HasUuids => Environment.GetEnvironmentVariable("OBS_LIVE_UUIDS") != "0";
 
-        /// <summary>
-        /// Gets a value that indicates whether the tests of the model write the messages that go over the wire into their output, with the time (<c>OBS_LIVE_WIRE_LOG=1</c>): that is what a slow OBS Studio
+        /// <summary>Gets a value that indicates whether the tests of the model write the messages that go over the wire into their output, with the time (<c>OBS_LIVE_WIRE_LOG=1</c>): that is what a slow OBS Studio
         /// looks like from the outside. It is a long log (the output of a test is part of the log of CI), so it is off unless somebody looks for something.
         /// </summary>
         public static bool WireLog => Environment.GetEnvironmentVariable("OBS_LIVE_WIRE_LOG") == "1";
+
+        /// <summary>
+        /// Gets the name of the second scene collection of the OBS Studio of the run, which has a canvas and loads the script that makes, renames and removes canvases (<c>OBS_LIVE_CANVAS_COLLECTION</c>):
+        /// OBS Studio makes a canvas only for a plugin or a script that asks, so <c>tools/live/run-live-tests.ps1</c> makes the collection, and the tests of the canvases load it.
+        /// </summary>
+        public static string CanvasCollection => Environment.GetEnvironmentVariable("OBS_LIVE_CANVAS_COLLECTION") ?? string.Empty;
+
+        /// <summary>Gets the file that the script of the canvases polls for commands (<c>OBS_LIVE_CANVAS_COMMANDS</c>); it answers in the file with <c>.out</c> after the name.</summary>
+        public static string CanvasCommands => Environment.GetEnvironmentVariable("OBS_LIVE_CANVAS_COMMANDS") ?? string.Empty;
+
+        /// <summary>Gets the canvas that the second scene collection saves (<c>OBS_LIVE_CANVAS_SEEDED</c>: its name, its UUID and its flags, separated by a bar), or null.</summary>
+        public static (string Name, Guid Uuid, int Flags)? SeededCanvas
+        {
+            get
+            {
+                var parts = (Environment.GetEnvironmentVariable("OBS_LIVE_CANVAS_SEEDED") ?? string.Empty).Split('|');
+                return parts.Length == 3 && Guid.TryParse(parts[1], out var uuid) && int.TryParse(parts[2], out var flags) ? (parts[0], uuid, flags) : null;
+            }
+        }
+
+        /// <summary>Gets a value that indicates whether the runner made the collection and the script for the tests of the canvases.</summary>
+        public static bool HasCanvasDriver => CanvasCollection.Length > 0 && CanvasCommands.Length > 0 && SeededCanvas is not null;
 
         /// <summary>A name for a scene or an input that no other run uses, and that <see cref="LiveSession.RemoveLeftoversAsync"/> recognises.</summary>
         /// <param name="what">What it is called for.</param>
@@ -137,6 +158,31 @@ namespace OBSStudioClient.Tests.Live
             else if (!LiveObs.HasUuids)
             {
                 this.Skip = NoUuids;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A test that makes canvases against a real OBS Studio, which has no way to make one by itself: it needs what <c>tools/live/run-live-tests.ps1</c> makes for it (a second scene collection with a canvas and the script
+    /// that makes, renames and removes canvases: <c>OBS_LIVE_CANVAS_COLLECTION</c>, <c>OBS_LIVE_CANVAS_COMMANDS</c> and <c>OBS_LIVE_CANVAS_SEEDED</c>), besides what <see cref="LiveChangesFactAttribute"/> needs.
+    /// </summary>
+    internal sealed class LiveCanvasFactAttribute : FactAttribute
+    {
+        public const string NoDriver = "This live test makes canvases, which OBS Studio can not do by itself: it needs the scene collection and the script that tools/live/run-live-tests.ps1 makes (OBS_LIVE_CANVAS_COLLECTION, OBS_LIVE_CANVAS_COMMANDS and OBS_LIVE_CANVAS_SEEDED).";
+
+        public LiveCanvasFactAttribute()
+        {
+            if (!LiveObs.IsConfigured)
+            {
+                this.Skip = LiveObs.NotConfigured;
+            }
+            else if (!LiveObs.MayChange)
+            {
+                this.Skip = LiveObs.ChangesNotAllowed;
+            }
+            else if (!LiveObs.HasCanvasDriver)
+            {
+                this.Skip = NoDriver;
             }
         }
     }

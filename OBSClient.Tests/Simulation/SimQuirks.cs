@@ -86,6 +86,9 @@ namespace OBSStudioClient.Tests.Simulation
             ParallelBatchMisorders = true,
             DestroyCascadeDelay = TimeSpan.FromMilliseconds(2),
             CollectionSwitchTime = new SimRange(100, 600),
+            ProfileCreateDelay = new SimRange(20, 60),
+            ProfileActivationTime = new SimRange(60, 130),
+            ProfileRemoveDelay = new SimRange(15, 50),
         };
 
         /// <summary>
@@ -107,6 +110,10 @@ namespace OBSStudioClient.Tests.Simulation
             TransitionOverhead = new SimRange(0, 80),
             CollectionSwitchTime = new SimRange(300, 4000),
             CreationEventsDuringSwitch = true,
+            ProfileCreateDelay = new SimRange(20, 800),
+            ProfileActivationTime = new SimRange(60, 1500),
+            ProfileRemoveDelay = new SimRange(15, 800),
+            CanvasRemovedLinger = new SimRange(200, 3000),
         };
 
         /// <summary>Gets the order of the response and the events of a change.</summary>
@@ -216,5 +223,30 @@ namespace OBSStudioClient.Tests.Simulation
         /// does was not checked.
         /// </summary>
         public bool CreationEventsDuringSwitch { get; init; }
+
+        /// <summary>
+        /// Gets how long after the answer to <c>CreateProfile</c> OBS Studio lists the profile that it made (<c>ProfileListChanged</c>): it answers at once, and its user interface makes the profile
+        /// afterwards (measured with OBS Studio 33.0.0: the list changed about 37 ms after the answer).
+        /// </summary>
+        public SimRange ProfileCreateDelay { get; init; }
+
+        /// <summary>
+        /// Gets how long after <c>ProfileListChanged</c> OBS Studio says that the profile that it made is the current one (<c>CurrentProfileChanged</c>): it resets its video and its outputs first
+        /// (measured: about 90 ms; the profile is the one that <c>GetProfileList</c> names from the moment that it is listed).
+        /// </summary>
+        public SimRange ProfileActivationTime { get; init; }
+
+        /// <summary>
+        /// Gets how long after the answer to <c>RemoveProfile</c> OBS Studio lists the profiles without the one that it removed (measured: about 32 ms).
+        /// </summary>
+        public SimRange ProfileRemoveDelay { get; init; }
+
+        /// <summary>
+        /// Gets how long after <c>CanvasRemoved</c> <c>GetCanvasList</c> still lists the canvas that was removed. obs_canvas_remove only marks the canvas, and OBS Studio goes on enumerating it until the last
+        /// reference on it is released, without saying anything when that happens (measured with OBS Studio 33.0.0 and a script that held a reference on a canvas that it removed: the canvas was listed, one <c>CanvasRemoved</c>
+        /// came, and after the script released it the canvas was gone, with no event). How long a plugin holds on to a canvas is not known, and the frontend removes and releases the canvases that it made together
+        /// (OBS::Canvas, read in the source), so it is 0 in <see cref="Real"/> and on only in <see cref="Hostile"/>.
+        /// </summary>
+        public SimRange CanvasRemovedLinger { get; init; }
     }
 }

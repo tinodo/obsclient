@@ -37,6 +37,18 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task TheModel_SubscribesToTheEventsAboutCanvases_WhateverTheApplicationAsksFor()
+        {
+            await using var rig = new ModelSimRig(options: new ObsModelOptions { AdditionalEvents = EventSubscriptions.None });
+
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+
+            // The canvases are part of the model, and the events are what tells it that one was made, renamed or removed: without them the list would be a read of the first moment.
+            Assert.Equal(EventSubscriptions.Canvases, (EventSubscriptions)rig.Server.EventSubscriptions!.Value & EventSubscriptions.Canvases);
+            Assert.True(ModelHost.RequiredEvents.HasFlag(EventSubscriptions.Canvases));
+        }
+
+        [Fact]
         public async Task TheHighVolumeEvents_AreNotSubscribedTo_UnlessTheApplicationAsksForThem()
         {
             const EventSubscriptions HighVolume = EventSubscriptions.InputVolumeMeters | EventSubscriptions.InputActiveStateChanged | EventSubscriptions.InputShowStateChanged | EventSubscriptions.SceneItemTransformChanged;

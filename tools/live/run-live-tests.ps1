@@ -15,6 +15,9 @@
         only process that listens on it is the copy that it started. Other copies of OBS Studio may be running; they are never touched.
       * It names the scene collection of the copy after the run and tells the tests, which only change an OBS Studio that has that
         scene collection as its current one.
+      * It makes a second scene collection for the tests of the canvases (OBS Studio makes a canvas only for a plugin or a script that asks): it has a canvas, and
+        it loads the script tools/live/canvas-driver.lua, which makes, renames and removes canvases when a test writes a command into a
+        file. The tests load that collection and put the first one back.
       * It stops only the process that it started.
 
     The first time, Windows may ask whether the copy of OBS Studio may use the network: the tests only use the local machine.
@@ -178,6 +181,49 @@ function Write-ObsConfiguration([int]$Port, [string]$Password, [string]$Collecti
         server_port     = $Port
     }
     Write-Utf8 (Join-Path $configRoot 'obs-studio\plugin_config\obs-websocket\config.json') ($websocket | ConvertTo-Json)
+    Write-CanvasCollection
+}
+
+# The scene collection for the tests of the canvases: one scene, one canvas that the file saves (a canvas that is loaded has no video), and the script that
+# makes, renames and removes canvases for the tests (see canvas-driver.lua). A scene collection saves its canvases ("canvases", each with its "info") and the
+# scripts that it loads (modules, "scripts-tool"), which is how OBS Studio 33 loads them (frontend/utility/OBSCanvas.cpp, plugins/frontend-tools/scripts.cpp).
+function Write-CanvasCollection {
+    $driver = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'canvas-driver.lua') -Raw).Replace('__COMMANDS_PATH__', ($canvasCommands -replace '\\', '/'))
+    Write-Utf8 $canvasDriver $driver
+    foreach ($stale in $canvasCommands, "$canvasCommands.out") { Remove-Item -LiteralPath $stale -Force -ErrorAction SilentlyContinue }
+
+    $scene = [ordered]@{
+        balance          = 0.5
+        enabled          = $true
+        flags            = 0
+        hotkeys          = [ordered]@{}
+        id               = 'scene'
+        mixers           = 0
+        monitoring_type  = 0
+        muted            = $false
+        name             = 'Scene'
+        prev_ver         = 536870912
+        private_settings = [ordered]@{}
+        settings         = [ordered]@{ custom_size = $false; id_counter = 0; items = @() }
+        sync             = 0
+        uuid             = [guid]::NewGuid().ToString()
+        versioned_id     = 'scene'
+        volume           = 1.0
+    }
+    $data = [ordered]@{
+        current_program_scene = 'Scene'
+        current_scene         = 'Scene'
+        groups                = @()
+        name                  = $canvasCollection
+        quick_transitions     = @()
+        saved_projectors      = @()
+        scene_order           = @([ordered]@{ name = 'Scene' })
+        sources               = @($scene)
+        transitions           = @()
+        canvases              = @([ordered]@{ info = [ordered]@{ name = $seededCanvas.Name; uuid = $seededCanvas.Uuid; private = $false; flags = $seededCanvas.Flags } })
+        modules               = [ordered]@{ 'scripts-tool' = @([ordered]@{ path = ($canvasDriver -replace '\\', '/'); settings = [ordered]@{} }) }
+    }
+    Write-Utf8 (Join-Path $configRoot "obs-studio\basic\scenes\$canvasCollection.json") (ConvertTo-Json -InputObject $data -Depth 10)
 }
 
 # The only place where OBS Studio is started. It is the private copy, with --portable, and never with the virtual camera.
@@ -243,6 +289,12 @@ $exe = Join-Path $binDirectory 'obs64.exe'
 $configRoot = Join-Path $obsRoot 'config'
 $logDirectory = Join-Path $CacheDirectory 'last-run'
 
+# What the tests of the canvases use (see Write-CanvasCollection): the script that the second scene collection loads, the file that the tests write
+# their commands into (it answers in the same file with .out after it), and the canvas that the collection saves.
+$canvasDriver = Join-Path $CacheDirectory 'canvas-driver.lua'
+$canvasCommands = Join-Path $CacheDirectory 'canvas-commands.txt'
+$seededCanvas = @{ Name = 'obsclient-live-vertical'; Uuid = [guid]::NewGuid().ToString(); Flags = 14 }
+
 # The folder is this script's own: it is only used (and a copy is only mirrored into it) when this script made it.
 if ((Get-FullPath $source) -ieq $CacheDirectory -or (Test-IsInside $source $CacheDirectory) -or (Test-IsInside $CacheDirectory $source)) {
     throw "The cache directory $CacheDirectory and the OBS Studio that is copied ($source) overlap."
@@ -283,6 +335,7 @@ try {
 
     $password = 'p' + [char]0x00E4 + 's' + [char]0x00F6 + '-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
     $collection = 'obsclient-live-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+    $canvasCollection = $collection + '-canvases'
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         $port = Get-FreePort
@@ -307,7 +360,7 @@ try {
 
     Write-Host "The copy of OBS Studio is up, and the only one that listens on port $port. Running the live tests."
     $saved = @{}
-    $names = 'OBS_LIVE_HOST', 'OBS_LIVE_PORT', 'OBS_LIVE_PASSWORD', 'OBS_LIVE_ALLOW_CHANGES', 'OBS_LIVE_COLLECTION', 'OBS_LIVE_SOAK_SECONDS'
+    $names = 'OBS_LIVE_HOST', 'OBS_LIVE_PORT', 'OBS_LIVE_PASSWORD', 'OBS_LIVE_ALLOW_CHANGES', 'OBS_LIVE_COLLECTION', 'OBS_LIVE_SOAK_SECONDS', 'OBS_LIVE_CANVAS_COLLECTION', 'OBS_LIVE_CANVAS_COMMANDS', 'OBS_LIVE_CANVAS_SEEDED'
     foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
         $env:OBS_LIVE_HOST = '127.0.0.1'
@@ -315,6 +368,9 @@ try {
         $env:OBS_LIVE_PASSWORD = $password
         $env:OBS_LIVE_ALLOW_CHANGES = '1'
         $env:OBS_LIVE_COLLECTION = $collection
+        $env:OBS_LIVE_CANVAS_COLLECTION = $canvasCollection
+        $env:OBS_LIVE_CANVAS_COMMANDS = $canvasCommands
+        $env:OBS_LIVE_CANVAS_SEEDED = "$($seededCanvas.Name)|$($seededCanvas.Uuid)|$($seededCanvas.Flags)"
         # Not what an earlier shell left behind: the soak test runs when this run asks for it.
         $env:OBS_LIVE_SOAK_SECONDS = if ($SoakMinutes -gt 0) { "$($SoakMinutes * 60)" } else { $null }
         & dotnet test (Join-Path $repository 'OBSClient.Tests') -c $Configuration -f $Framework --filter $Filter --logger 'console;verbosity=detailed'

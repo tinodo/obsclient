@@ -42,7 +42,8 @@ namespace OBSStudioClient.Tests.Simulation
     /// <param name="Scenes">The scenes of the list of scenes, in the order of the list.</param>
     /// <param name="Inputs">The inputs, in the order in which they were created.</param>
     /// <param name="ProgramSceneUuid">The UUID of the program scene.</param>
-    internal sealed record SimSavedCollection(string Name, IReadOnlyList<SimSavedScene> Scenes, IReadOnlyList<SimSavedInput> Inputs, Guid ProgramSceneUuid);
+    /// <param name="Canvases">The canvases that are not the main one and are not ephemeral, in the order of their creation (null when there are none: a collection that was saved by a test).</param>
+    internal sealed record SimSavedCollection(string Name, IReadOnlyList<SimSavedScene> Scenes, IReadOnlyList<SimSavedInput> Inputs, Guid ProgramSceneUuid, IReadOnlyList<SimSavedCanvas>? Canvases = null);
 
     /// <summary>
     /// What OBS Studio held when it began to change its scene collection, and what it held when it had loaded the other: the events of a switch say nothing of what
@@ -60,6 +61,12 @@ namespace OBSStudioClient.Tests.Simulation
         {
             _obs = obs;
             Name = saved.Name;
+
+            // A canvas that is loaded has no video mix (obs_load_canvas), so it lists no video settings.
+            foreach (var canvas in saved.Canvases ?? [])
+            {
+                _canvases.Add(new SimCanvas(canvas.Uuid, canvas.Name, canvas.Flags, null));
+            }
 
             foreach (var input in saved.Inputs)
             {
@@ -141,7 +148,12 @@ namespace OBSStudioClient.Tests.Simulation
                 .Where(input => !input.Removed && (input.Pins > 0 || references.GetValueOrDefault(input.Uuid) > 0))
                 .Select(input => new SimSavedInput(input.Uuid, input.Name, input.Kind, (JsonObject)input.Settings.DeepClone(), input.Muted, input.Volume, input.Pins, input.Balance, input.SyncOffset, input.MonitorType, input.Tracks))
                 .ToArray();
-            return new SimSavedCollection(Name, scenes, inputs, _program.Uuid);
+            // obs_save_canvas leaves out the canvases that are ephemeral, and a canvas that was removed is gone.
+            var canvases = _canvases
+                .Where(canvas => !canvas.Removed && (canvas.Flags & SimCanvasFlags.Ephemeral) == 0)
+                .Select(canvas => new SimSavedCanvas(canvas.Uuid, canvas.Name, canvas.Flags))
+                .ToArray();
+            return new SimSavedCollection(Name, scenes, inputs, _program.Uuid, canvases);
         }
 
         /// <summary>Loads a scene collection from what was saved when it was left.</summary>
@@ -153,12 +165,17 @@ namespace OBSStudioClient.Tests.Simulation
         }
 
         /// <summary>
-        /// Emits the events of the sources that were created while the collection loaded: the inputs, the scenes (the oldest first) and the scene items
+        /// Emits the events of the sources that were created while the collection loaded: the canvases, the inputs, the scenes (the oldest first) and the scene items
         /// that were put in them, and the list of scenes. A server that is ready does not send them (see <see cref="SimQuirks.CreationEventsDuringSwitch"/>).
         /// </summary>
         /// <remarks>ASSUMPTION: the order is a guess; the events of a collection that loads, on a server that sends them, were not measured.</remarks>
         public void EmitLoadEvents()
         {
+            foreach (var canvas in _canvases.Where(canvas => !canvas.Removed))
+            {
+                Emit("CanvasCreated", Obj(("canvasName", canvas.Name), ("canvasUuid", canvas.UuidText)));
+            }
+
             foreach (var input in _inputs)
             {
                 Emit("InputCreated", InputCreatedData(input));

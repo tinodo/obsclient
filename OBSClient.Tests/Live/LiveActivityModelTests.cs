@@ -76,8 +76,10 @@ namespace OBSStudioClient.Tests.Live
                 Assert.True(ia.IsActive);
                 await nesting.SetEnabledAsync(false);
                 await live.AssertModelEqualsObsAsync("after the scene item of A in C was hidden");
-                Assert.False(ia.IsActive);
-                Assert.False(ia.IsShowing);
+
+                // A moment after a scene item was hidden (or removed) OBS Studio and the model can both still say that the input is on the air, as they can after a transition: the comparison passes, the expectation needs a wait.
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ia.IsActive == false && ia.IsShowing == false, TimeSpan.FromSeconds(10)), "The input of the scene that was hidden did not go off the air.");
+                await live.AssertModelEqualsObsAsync("after the input of the scene that was hidden went off the air");
                 await nesting.SetEnabledAsync(true);
                 await live.AssertModelEqualsObsAsync("after the scene item of A in C was shown");
                 Assert.True(ia.IsActive);
@@ -88,7 +90,8 @@ namespace OBSStudioClient.Tests.Live
                 var iaItem = a.Items[ia.Name];
                 await iaItem.SetEnabledAsync(false);
                 await live.AssertModelEqualsObsAsync("after the scene item of ia was hidden");
-                Assert.False(ia.IsActive);
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ia.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the scene item that was hidden did not go off the air.");
+                await live.AssertModelEqualsObsAsync("after the input of the scene item that was hidden went off the air");
                 await iaItem.SetEnabledAsync(true);
                 await live.AssertModelEqualsObsAsync("after the scene item of ia was shown");
                 var id = await a.CreateInputAsync(LiveObs.UniqueName("act-id"), kind, ColorSettings);
@@ -99,7 +102,8 @@ namespace OBSStudioClient.Tests.Live
                 Assert.True(ib.IsActive);
                 await ibItem.RemoveAsync();
                 await live.AssertModelEqualsObsAsync("after the scene item of ib was removed from the scene that is on the air");
-                Assert.False(ib.IsActive);
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ib.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the scene item that was removed did not go off the air.");
+                await live.AssertModelEqualsObsAsync("after the input of the scene item that was removed went off the air");
 
                 // Studio mode with a preview scene that is not the program scene: the preview shows its inputs, and does not put them on the air. A copy of the program scene is on the air.
                 await model.SetStudioModeEnabledAsync(true);
@@ -107,7 +111,7 @@ namespace OBSStudioClient.Tests.Live
                 Assert.True(ia.IsActive);
                 await c.SwitchToPreviewAsync();
                 await live.AssertModelEqualsObsAsync("after the preview scene became C");
-                Assert.False(ic.IsActive);
+                Assert.True(await AsyncTestHelpers.WaitUntilAsync(() => ic.IsActive == false, TimeSpan.FromSeconds(10)), "The input of the scene that was on the air did not go off it.");
                 Assert.True(ic.IsShowing);
                 await iaItem.SetEnabledAsync(false);
                 await live.AssertModelEqualsObsAsync("after the scene item of ia in the program scene was hidden in studio mode");

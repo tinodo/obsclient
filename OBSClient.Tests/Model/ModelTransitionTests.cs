@@ -106,6 +106,21 @@ namespace OBSStudioClient.Tests.Model
         }
 
         [Fact]
+        public async Task WithStudioModeOn_AServerThatDoesNotKnowThePreviewRequest_DoesNotKeepTheModelFromSynchronizing()
+        {
+            await using var rig = ModelRig.Create(world => world.StudioMode = true, new ObsModelOptions { SynchronizationTimeout = TimeSpan.FromSeconds(8) });
+            (int Code, object? Data)? Answer(string type, System.Text.Json.JsonElement? data) => type == "GetCurrentPreviewScene" ? (204, (object?)null) : null;
+            rig.Responder.OnRequest = Answer;
+
+            await rig.ConnectAsync().WithTimeoutAsync(Timeout);
+
+            Assert.Equal(ObsModelState.Synchronized, rig.Model.State);
+            Assert.True(rig.Model.IsStudioModeEnabled);
+            Assert.Null(rig.Model.PreviewScene);
+            Assert.Equal(3, rig.Responder.RequestLog.Count(type => type == "GetCurrentPreviewScene"));
+        }
+
+        [Fact]
         public async Task WithStudioModeOff_ThereIsNoPreviewScene()
         {
             await using var test = await StartAsync();

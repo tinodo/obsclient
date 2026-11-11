@@ -64,6 +64,18 @@ namespace OBSStudioClient.Tests.Model
             return value.ToString("0.######", CultureInfo.InvariantCulture);
         }
 
+        // The profiles or the scene collections: the current one and all of them, in the order of OBS Studio.
+        private static string NamesLine(string what, string? current, IEnumerable<string>? names)
+        {
+            return names is null ? $"{what} (none)" : $"{what} \"{current}\" of [{string.Join(", ", names.Select(name => $"\"{name}\""))}]";
+        }
+
+        // The canvases in the order that OBS Studio lists them, with their flags as the numbers of libobs.
+        private static string CanvasesLine(IEnumerable<(Guid Uuid, string Name, int Flags)>? canvases)
+        {
+            return canvases is null ? "canvases (none)" : $"canvases [{string.Join(", ", canvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\" flags {canvas.Flags.ToString(CultureInfo.InvariantCulture)}"))}]";
+        }
+
         // What OBS Studio holds. A removed input that no scene item uses (a global audio device stays alive that way) cannot be reached by anybody, and nothing tells it
         // from one that was destroyed: it is not compared.
         private static List<string> Project(SimSnapshot snapshot, ObsHighVolume follows)
@@ -71,6 +83,9 @@ namespace OBSStudioClient.Tests.Model
             var transforms = follows.HasFlag(ObsHighVolume.Transforms);
             var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
+            lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
+            lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Select(canvas => (canvas.Uuid, canvas.Name, canvas.Flags))));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -106,6 +121,9 @@ namespace OBSStudioClient.Tests.Model
             var transforms = follows.HasFlag(ObsHighVolume.Transforms);
             var activity = follows.HasFlag(ObsHighVolume.Activity);
             var lines = new List<string> { "program scene " + (model.ProgramScene?.Uuid.ToString("D") ?? "(none)") };
+            lines.Add(NamesLine("profiles", model.Profiles.Current, model.Profiles.Current is null ? null : model.Profiles.Names));
+            lines.Add(NamesLine("scene collections", model.SceneCollections.Current, model.SceneCollections.Current is null ? null : model.SceneCollections.Names));
+            lines.Add(CanvasesLine(model.Canvases.All.Count == 0 ? null : model.Canvases.All.Select(canvas => (canvas.Uuid, canvas.Name, (int)canvas.Flags))));
             var liveScenes = model.Scenes;
             var liveInputs = model.Inputs;
             var liveSceneUuids = liveScenes.Select(scene => scene.Uuid).ToHashSet();
@@ -277,9 +295,22 @@ namespace OBSStudioClient.Tests.Model
             return this.Server.Run(sim => change(sim.External));
         }
 
-        public Task ConnectAsync(CancellationToken cancellationToken = default)
+        public async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            return this.Model.ConnectAsync("127.0.0.1", this.Server.Port, cancellationToken: cancellationToken);
+            // The notifications of the first read are raised after ConnectAsync has returned, and the last of them is Resynchronized: a test that adds its handlers now is not told any of it (on a slow
+            // machine the notifications of the first read came into the handlers of tests that counted what they were told).
+            var firstRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void FirstReadTold(object? sender, EventArgs e) => firstRead.TrySetResult();
+            this.Model.Resynchronized += FirstReadTold;
+            try
+            {
+                await this.Model.ConnectAsync("127.0.0.1", this.Server.Port, cancellationToken: cancellationToken);
+                await firstRead.Task.WithTimeoutAsync(TimeSpan.FromSeconds(30));
+            }
+            finally
+            {
+                this.Model.Resynchronized -= FirstReadTold;
+            }
         }
 
         /// <summary>Compares the model with the simulation now. Returns what differs, or null.</summary>

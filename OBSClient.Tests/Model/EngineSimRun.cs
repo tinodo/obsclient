@@ -275,6 +275,9 @@ namespace OBSStudioClient.Tests.Model
             var lines = new List<string> { "program scene " + snapshot.ProgramSceneUuid.ToString("D") };
             lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
             lines.Add(TransitionLine(snapshot.TransitionName, snapshot.TransitionDuration, snapshot.TransitionRunning));
+            lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
+            lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Select(canvas => (canvas.Uuid, canvas.Name, canvas.Flags))));
             var referenced = snapshot.Scenes.Concat(snapshot.DetachedScenes).SelectMany(scene => scene.Items).Select(item => item.SourceUuid).ToHashSet();
             foreach (var scene in snapshot.Scenes)
             {
@@ -308,6 +311,9 @@ namespace OBSStudioClient.Tests.Model
             var lines = new List<string> { "program scene " + (snapshot.ProgramSceneUuid?.ToString("D") ?? "(none)") };
             lines.Add(snapshot.StudioMode ? "studio mode on, preview scene " + (snapshot.PreviewSceneUuid?.ToString("D") ?? "(none)") : "studio mode off");
             lines.Add(TransitionLine(snapshot.Transition?.Name ?? "(none)", snapshot.Transition is { IsFixed: false } ? snapshot.TransitionDuration : null, snapshot.TransitionRunning));
+            lines.Add(NamesLine("profiles", snapshot.Profiles?.Current, snapshot.Profiles?.Names));
+            lines.Add(NamesLine("scene collections", snapshot.SceneCollections?.Current, snapshot.SceneCollections?.Names));
+            lines.Add(CanvasesLine(snapshot.Canvases?.Canvases.Select(canvas => (canvas.Uuid, canvas.Name, (int)canvas.Flags))));
             var referenced = ReferencedSources(snapshot);
             foreach (var scene in snapshot.Scenes)
             {
@@ -338,6 +344,18 @@ namespace OBSStudioClient.Tests.Model
         private static string TransitionLine(string name, int? duration, bool running)
         {
             return $"transition {name}{(duration is { } milliseconds ? " " + milliseconds.ToString(CultureInfo.InvariantCulture) + " ms" : string.Empty)}{(running ? ", running" : string.Empty)}";
+        }
+
+        // The profiles or the scene collections: the current one and all of them, in the order of OBS Studio.
+        private static string NamesLine(string what, string? current, IEnumerable<string>? names)
+        {
+            return names is null ? $"{what} (none)" : $"{what} \"{current}\" of [{string.Join(", ", names.Select(name => $"\"{name}\""))}]";
+        }
+
+        // The canvases in the order that OBS Studio lists them, with their flags as the numbers of libobs.
+        private static string CanvasesLine(IEnumerable<(Guid Uuid, string Name, int Flags)>? canvases)
+        {
+            return canvases is null ? "canvases (none)" : $"canvases [{string.Join(", ", canvases.Select(canvas => $"{canvas.Uuid:D} \"{canvas.Name}\" flags {canvas.Flags.ToString(CultureInfo.InvariantCulture)}"))}]";
         }
 
         private static HashSet<Guid> ReferencedSources(EngineSnapshot snapshot)
@@ -1008,6 +1026,25 @@ namespace OBSStudioClient.Tests.Model
                 this.Act($"set the duration of the transitions to {milliseconds.ToString(CultureInfo.InvariantCulture)} ms", () => this._sim.External.SetTransitionDuration(milliseconds));
             });
             this.Add("a moment passes", 14, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(1, 120))), OperationKind.Time);
+            this.Add("switch the profile", 2, _ =>
+            {
+                // Mostly to another one (the current one now and then: nothing happens; one that is not there now and then: OBS Studio refuses).
+                var others = this._sim.Profiles.Where(name => !string.Equals(name, this._sim.CurrentProfile, StringComparison.Ordinal)).ToArray();
+                var name = others.Length > 0 && this._random.Chance(0.9) ? this.Pick(others) : this._random.Chance(0.5) ? this._sim.CurrentProfile : "No such profile";
+                this.Act($"switch to profile \"{name}\"", () => this._sim.External.SwitchProfile(name));
+            });
+            this.Add("create a profile", 1, _ =>
+            {
+                // A new name, and now and then the name of one that is there (OBS Studio refuses).
+                var names = this._sim.Profiles;
+                var name = this._random.Chance(0.1) ? this.Pick(names) : this.NewName("Profile");
+                this.Act($"create profile \"{name}\"", () => this._sim.External.CreateProfile(name));
+            });
+            this.Add("remove a profile", 1, _ =>
+            {
+                var name = this._random.Chance(0.9) ? this.Pick(this._sim.Profiles) : "No such profile";
+                this.Act($"remove profile \"{name}\"", () => this._sim.External.RemoveProfile(name));
+            });
             this.Add("a while passes", 3, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(300, 3000))), OperationKind.Time);
             this.Add("a long while passes", 1, _ => this.RunTo(this.Now + TimeSpan.FromMilliseconds(this._random.Next(5000, 15000))), OperationKind.Time);
             this.Add("the connection ends", 1, truth =>

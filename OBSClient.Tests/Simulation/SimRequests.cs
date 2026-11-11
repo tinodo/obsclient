@@ -76,6 +76,21 @@ namespace OBSStudioClient.Tests.Simulation
             ["GetSceneCollectionList"] = static (self, request) => self.GetSceneCollectionList(request),
             ["SetCurrentSceneCollection"] = static (self, request) => self.SetCurrentSceneCollection(request),
             ["CreateSceneCollection"] = static (self, request) => self.CreateSceneCollection(request),
+            ["GetProfileList"] = static (self, request) => self.GetProfileList(request),
+            ["SetCurrentProfile"] = static (self, request) => self.SetCurrentProfile(request),
+            ["CreateProfile"] = static (self, request) => self.CreateProfile(request),
+            ["RemoveProfile"] = static (self, request) => self.RemoveProfile(request),
+            ["GetVideoSettings"] = static (self, request) => self.GetVideoSettings(request),
+            ["SetVideoSettings"] = static (self, request) => self.SetVideoSettings(request),
+            ["GetStreamServiceSettings"] = static (self, request) => self.GetStreamServiceSettings(request),
+            ["SetStreamServiceSettings"] = static (self, request) => self.SetStreamServiceSettings(request),
+            ["GetRecordDirectory"] = static (self, request) => self.GetRecordDirectory(request),
+            ["SetRecordDirectory"] = static (self, request) => self.SetRecordDirectory(request),
+            ["GetProfileParameter"] = static (self, request) => self.GetProfileParameter(request),
+            ["SetProfileParameter"] = static (self, request) => self.SetProfileParameter(request),
+            ["GetPersistentData"] = static (self, request) => self.GetPersistentData(request),
+            ["SetPersistentData"] = static (self, request) => self.SetPersistentData(request),
+            ["GetCanvasList"] = static (self, request) => self.GetCanvasList(request),
         };
 
         private readonly SimObs _obs;
@@ -1135,6 +1150,14 @@ namespace OBSStudioClient.Tests.Simulation
             return SimResult.Ok(Obj(("sceneItemId", copy.Id)));
         }
 
+        // Read from the source of obs-websocket 5.7.6 (RequestHandler_Canvases.cpp) and libobs (obs_enum_canvases walks the hash table of the named canvases, so the order is the order in which they were added), and seen on
+        // OBS Studio 33.0.0 with canvases that a script made (LiveCanvasModelTests): the list has every canvas, with its flags one by one and its video settings, which are null for a canvas that has no video mix.
+        // The capture of OBS Studio 33.0.0 has the main canvas.
+        private SimResult GetCanvasList(SimRequest request)
+        {
+            return SimResult.Ok(Obj(("canvases", Arr(_world.ListedCanvases().Select(canvas => (JsonNode?)SimWorld.CanvasJson(canvas))))));
+        }
+
         private SimResult GetSceneCollectionList(SimRequest request)
         {
             return SimResult.Ok(Obj(
@@ -1142,7 +1165,7 @@ namespace OBSStudioClient.Tests.Simulation
                 ("sceneCollections", Arr(_obs.Collections.Select(name => (JsonNode?)name)))));
         }
 
-        // ASSUMPTION: read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp), and not measured. A name that is not a collection is
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests) and read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp). A name that is not a collection is
         // answered with 600 and no comment; the collection that is the current one is switched to without anything happening (no event).
         private SimResult SetCurrentSceneCollection(SimRequest request)
         {
@@ -1159,7 +1182,7 @@ namespace OBSStudioClient.Tests.Simulation
             return string.Equals(name, _obs.CurrentCollection, StringComparison.Ordinal) ? SimResult.Ok() : SimResult.Switching(name, create: false);
         }
 
-        // ASSUMPTION: read from the source of obs-websocket 5.7.6, and not measured. A name that is a collection is answered with 601 and no comment. The
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is a collection is answered with 601 and no comment. The
         // collection that is made has one scene, as OBS Studio makes it for a collection that is new (a global audio device is not made).
         private SimResult CreateSceneCollection(SimRequest request)
         {
@@ -1169,6 +1192,241 @@ namespace OBSStudioClient.Tests.Simulation
             }
 
             return _obs.Collections.Contains(name) ? SimResult.Fail(SimStatus.ResourceAlreadyExists) : SimResult.Switching(name, create: true);
+        }
+
+        private SimResult GetProfileList(SimRequest request)
+        {
+            return SimResult.Ok(Obj(
+                ("currentProfileName", _obs.CurrentProfile),
+                ("profiles", Arr(_obs.Profiles.Select(name => (JsonNode?)name)))));
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is not a profile is answered with 600 and no comment. The request is answered when the switch is done, with
+        // both events; the profile that is the current one is switched to without anything happening (no event).
+        private SimResult SetCurrentProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound);
+            }
+
+            if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+            {
+                _obs.SwitchProfile(name);
+            }
+
+            return SimResult.Ok();
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests). A name that is a profile is answered with 601 and no comment. OBS Studio answers before it has made the profile: its user interface
+        // makes it a moment later, and switches to it.
+        private SimResult CreateProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceAlreadyExists);
+            }
+
+            _obs.ScheduleUi(_obs.Quirks.ProfileCreateDelay.Sample(_obs.Random), () => _obs.MakeProfile(name));
+            return SimResult.Ok();
+        }
+
+        // Measured with OBS Studio 33.0.0 (LiveProfilesTests) and read from the source of obs-websocket 5.7.6 and OBS Studio 33.0.0. A name that is not a profile is answered with 600 and no comment,
+        // and one that is the only profile with 603. A profile that is not the current one is removed a moment after the answer. The current one is not: OBS Studio asks the user in its window
+        // whether to remove it (OBSBasic::DeleteProfile), and answers at once that it did.
+        private SimResult RemoveProfile(SimRequest request)
+        {
+            if (!request.RequireString("profileName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!_obs.Profiles.Contains(name))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound);
+            }
+
+            if (_obs.Profiles.Count < 2)
+            {
+                return SimResult.Fail(SimStatus.NotEnoughResources);
+            }
+
+            if (!string.Equals(name, _obs.CurrentProfile, StringComparison.Ordinal))
+            {
+                _obs.ScheduleUi(_obs.Quirks.ProfileRemoveDelay.Sample(_obs.Random), () => _obs.DropProfile(name));
+            }
+
+            return SimResult.Ok();
+        }
+
+        // Read from the source of obs-websocket 5.7.6 (RequestHandler_Config.cpp), and measured with OBS Studio 33.0.0 (LiveProfileSettingsModelTests): what OBS Studio renders with, which is not
+        // what the configuration of the profile says when somebody wrote a parameter of the video to it.
+        private SimResult GetVideoSettings(SimRequest request)
+        {
+            var video = _obs.Video;
+            return SimResult.Ok(Obj(
+                ("baseHeight", video.BaseHeight),
+                ("baseWidth", video.BaseWidth),
+                ("fpsDenominator", video.FpsDenominator),
+                ("fpsNumerator", video.FpsNumerator),
+                ("outputHeight", video.OutputHeight),
+                ("outputWidth", video.OutputWidth)));
+        }
+
+        // The checks of obs-websocket 5.7.6, in its order (the refusal while an output runs comes first, and the simulation has no output): a pair of fields counts when both are there, a pair that has one is ignored,
+        // and a request with no pair is refused with 300 (measured with OBS Studio 33.0.0: the frame rate in parts of 1 or more, the sizes from 8 to 4096; the protocol document says 1).
+        private SimResult SetVideoSettings(SimRequest request)
+        {
+            double fpsNumerator = 0, fpsDenominator = 0, baseWidth = 0, baseHeight = 0, outputWidth = 0, outputHeight = 0;
+            var changeFps = request.Contains("fpsNumerator") && request.Contains("fpsDenominator");
+            if (changeFps && !(request.OptionalNumber("fpsNumerator", out fpsNumerator, min: 1) && request.OptionalNumber("fpsDenominator", out fpsDenominator, min: 1)))
+            {
+                return Failed(request);
+            }
+
+            var changeBase = request.Contains("baseWidth") && request.Contains("baseHeight");
+            if (changeBase && !(request.OptionalNumber("baseWidth", out baseWidth, min: 8, max: 4096) && request.OptionalNumber("baseHeight", out baseHeight, min: 8, max: 4096)))
+            {
+                return Failed(request);
+            }
+
+            var changeOutput = request.Contains("outputWidth") && request.Contains("outputHeight");
+            if (changeOutput && !(request.OptionalNumber("outputWidth", out outputWidth, min: 8, max: 4096) && request.OptionalNumber("outputHeight", out outputHeight, min: 8, max: 4096)))
+            {
+                return Failed(request);
+            }
+
+            if (!changeFps && !changeBase && !changeOutput)
+            {
+                return SimResult.Fail(SimStatus.MissingRequestField, "You must specify at least one video-changing pair.");
+            }
+
+            _obs.SetVideo(new SimVideo(ToInt(fpsNumerator), ToInt(fpsDenominator), ToInt(baseWidth), ToInt(baseHeight), ToInt(outputWidth), ToInt(outputHeight)), changeFps, changeBase, changeOutput);
+            return SimResult.Ok();
+        }
+
+        // A number of the request that is written to the configuration as an unsigned integer (config_set_uint): the part after the point is cut off.
+        private static int ToInt(double number) => (int)Math.Clamp(Math.Truncate(number), 0, int.MaxValue);
+
+        // Measured with OBS Studio 33.0.0 (LiveProfileSettingsModelTests): a profile that is new has the service rtmp_common, and no settings.
+        private SimResult GetStreamServiceSettings(SimRequest request)
+        {
+            return SimResult.Ok(Obj(("streamServiceSettings", _obs.ServiceSettings), ("streamServiceType", _obs.ServiceType)));
+        }
+
+        // Read from the source of obs-websocket 5.7.6, and measured with OBS Studio 33.0.0: the settings can not be empty (403), and a type that OBS Studio has no service of is refused with 700.
+        private SimResult SetStreamServiceSettings(SimRequest request)
+        {
+            if (!request.RequireString("streamServiceType", out var type) || !request.ValidateBasic("streamServiceSettings") || !request.OptionalObject("streamServiceSettings", out var settings, allowEmpty: false))
+            {
+                return Failed(request);
+            }
+
+            return _obs.SetService(type, settings)
+                ? SimResult.Ok()
+                : SimResult.Fail(SimStatus.ResourceCreationFailed, "Failed to create the stream service with the requested streamServiceType. It may be an invalid type.");
+        }
+
+        private SimResult GetRecordDirectory(SimRequest request)
+        {
+            return SimResult.Ok(Obj(("recordDirectory", _obs.RecordDirectory)));
+        }
+
+        private SimResult SetRecordDirectory(SimRequest request)
+        {
+            if (!request.RequireString("recordDirectory", out var directory))
+            {
+                return Failed(request);
+            }
+
+            _obs.SetRecordDirectory(directory);
+            return SimResult.Ok();
+        }
+
+        // A parameter that has a default says its value (what was set, or else the default) and the default; one that was set and has none says its value and no default; a parameter that nobody has
+        // says neither, and that is no error (the capture of a real OBS Studio shows each of these).
+        private SimResult GetProfileParameter(SimRequest request)
+        {
+            if (!request.RequireString("parameterCategory", out var category) || !request.RequireString("parameterName", out var name))
+            {
+                return Failed(request);
+            }
+
+            var (value, fallback) = _obs.Parameter(category, name);
+            return SimResult.Ok(Obj(("defaultParameterValue", fallback), ("parameterValue", value)));
+        }
+
+        // A value that is missing or null removes the parameter, and the request is refused with 600 when it had no value that was set (measured with OBS Studio 33.0.0). A value that is no string is refused with 401.
+        private SimResult SetProfileParameter(SimRequest request)
+        {
+            if (!request.RequireString("parameterCategory", out var category) || !request.RequireString("parameterName", out var name))
+            {
+                return Failed(request);
+            }
+
+            if (!request.Contains("parameterValue"))
+            {
+                return _obs.SetParameter(category, name, null)
+                    ? SimResult.Ok()
+                    : SimResult.Fail(SimStatus.ResourceNotFound, "There are no existing instances of that profile parameter.");
+            }
+
+            if (request.Data["parameterValue"] is JsonValue node && node.TryGetValue<string>(out var value))
+            {
+                _obs.SetParameter(category, name, value);
+                return SimResult.Ok();
+            }
+
+            return SimResult.Fail(SimStatus.InvalidRequestFieldType, "The field `parameterValue` must be a string.");
+        }
+
+        // The data of a slot that nobody put anything in is null (measured with OBS Studio 33.0.0).
+        private SimResult GetPersistentData(SimRequest request)
+        {
+            if (!request.RequireString("realm", out var realm) || !request.RequireString("slotName", out var slot))
+            {
+                return Failed(request);
+            }
+
+            if (!TryGetRealm(realm, out var global))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound, "You have specified an invalid persistent data realm.");
+            }
+
+            return SimResult.Ok(Obj(("slotValue", _obs.PersistentData(global, slot))));
+        }
+
+        // A slot value that is null counts as a field that is missing (measured with OBS Studio 33.0.0: "Your request is missing the `slotValue` field."), so a slot can not be emptied: it holds what it was last given.
+        private SimResult SetPersistentData(SimRequest request)
+        {
+            if (!request.RequireString("realm", out var realm) || !request.RequireString("slotName", out var slot) || !request.ValidateBasic("slotValue"))
+            {
+                return Failed(request);
+            }
+
+            if (!TryGetRealm(realm, out var global))
+            {
+                return SimResult.Fail(SimStatus.ResourceNotFound, "You have specified an invalid persistent data realm.");
+            }
+
+            _obs.SetPersistentData(global, slot, request.Data["slotValue"]!);
+            return SimResult.Ok();
+        }
+
+        private static bool TryGetRealm(string realm, out bool global)
+        {
+            global = string.Equals(realm, "OBS_WEBSOCKET_DATA_REALM_GLOBAL", StringComparison.Ordinal);
+            return global || string.Equals(realm, "OBS_WEBSOCKET_DATA_REALM_PROFILE", StringComparison.Ordinal);
         }
     }
 }

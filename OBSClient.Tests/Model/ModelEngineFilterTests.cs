@@ -1,5 +1,6 @@
 namespace OBSStudioClient.Tests.Model
 {
+    using OBSStudioClient.Enums;
     using OBSStudioClient.Model.Engine;
 
     /// <summary>
@@ -407,6 +408,58 @@ namespace OBSStudioClient.Tests.Model
             Assert.True(h.Engine.FiltersOf(shared).Single().Enabled);
             Assert.True(h.Engine.FiltersOf(sharedInput).Single().Enabled);
             Assert.Equal(new[] { shared, sharedInput }.Order(), NextRead(h).Select(request => request.Target).Order());
+        }
+
+        [Fact]
+        public void AnEventThatSaysTheSettingsOfAFilterChanged_IsToldAsWhatHappened_AndChangesNothingElseInTheModel()
+        {
+            var h = Started(out _, out var mic);
+            var gate = h.Engine.FiltersOf(mic).Single(filter => filter.Name == "Gate");
+
+            h.Event("SourceFilterSettingsChanged", new { sourceName = "Mic", filterName = "Gate", filterSettings = new { open_threshold = -30 } }, FilterEvents);
+
+            var told = Assert.Single(h.Engine.TakeChanges());
+            Assert.Equal(ModelChangeKind.Notification, told.Kind);
+            Assert.Equal(EventType.SourceFilterSettingsChanged, (EventType)told.OldValue!);
+            var notice = Assert.IsType<FilterSettingsNotice>(told.NewValue);
+            Assert.Equal(gate.Id, notice.FilterId);
+            Assert.Equal(-30, notice.Settings.Element.GetProperty("open_threshold").GetInt32());
+            Assert.Null(h.Take());
+            Assert.Equal(new[] { "Gain", "Gate", "Limiter" }, Names(h, mic));
+        }
+
+        [Fact]
+        public void TheSettingsOfAFilterThatTheModelDoesNotHold_AreNotToldOf()
+        {
+            var h = Started(out _, out _);
+
+            h.Event("SourceFilterSettingsChanged", new { sourceName = "Nobody", filterName = "Gate", filterSettings = new { } }, FilterEvents);
+            h.Event("SourceFilterSettingsChanged", new { sourceName = "Mic", filterName = "Nothing", filterSettings = new { } }, FilterEvents);
+
+            Assert.Empty(h.Engine.TakeChanges());
+            Assert.Null(h.Take());
+        }
+
+        [Fact]
+        public void WhenASceneAndAnInputHaveTheNameAndAFilterWithIt_TheSettingsOfThatFilterAreNotToldOf_ForTheEventDoesNotSayWhichOne()
+        {
+            var h = Started(out _, out _, world =>
+            {
+                var scene = world.AddScene("Shared");
+                var input = world.AddInput("Shared", "color_source_v3", 32777);
+                world.AddFilter(scene, "Color");
+                world.AddFilter(input, "Color");
+                world.AddFilter(input, "Only");
+            });
+            var sharedInput = h.Engine.Snapshot().Inputs.Single(input => input.Name == "Shared").Uuid;
+
+            h.Event("SourceFilterSettingsChanged", new { sourceName = "Shared", filterName = "Color", filterSettings = new { } }, FilterEvents);
+            Assert.Empty(h.Engine.TakeChanges());
+
+            // A filter that only one of them has is not in doubt.
+            h.Event("SourceFilterSettingsChanged", new { sourceName = "Shared", filterName = "Only", filterSettings = new { gamma = 1 } }, FilterEvents);
+            var told = Assert.Single(h.Engine.TakeChanges());
+            Assert.Equal(h.Engine.FiltersOf(sharedInput).Single(filter => filter.Name == "Only").Id, Assert.IsType<FilterSettingsNotice>(told.NewValue).FilterId);
         }
 
         [Theory]

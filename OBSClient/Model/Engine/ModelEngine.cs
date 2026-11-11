@@ -57,6 +57,15 @@ namespace OBSStudioClient.Model.Engine
         /// <summary>GetCurrentSceneTransition.</summary>
         Transition,
 
+        /// <summary>GetProfileList.</summary>
+        Profiles,
+
+        /// <summary>GetSceneCollectionList.</summary>
+        SceneCollections,
+
+        /// <summary>GetCanvasList.</summary>
+        Canvases,
+
         /// <summary>GetStreamStatus.</summary>
         Stream,
 
@@ -248,6 +257,28 @@ namespace OBSStudioClient.Model.Engine
         private readonly ScopeState _previewScope = new();
         private readonly ScopeState _transitionScope = new();
 
+        // The profiles and the scene collections: the one that is current, and the names of all, as OBS Studio lists them. They do not belong to a scene collection (a switch of the scene collection
+        // changes which one is current, so both are read again with the rest), and a profile switch changes nothing else that the model holds.
+        private readonly ScopeState _profilesScope = new();
+        private readonly ScopeState _collectionsScope = new();
+        private Cell<NameList?> _profiles = new(null, 0);
+        private Cell<NameList?> _collections = new(null, 0);
+
+        // The name of the scene collection that the scenes and the inputs of the model are of: the first answer to the list of the scene collections after a connection or a switch says it (see
+        // NoticeSwitch). An answer that names another collection later, without the events that say that OBS Studio changed it, is a switch that the model was not told of.
+        private string? _loadedCollection;
+
+        // A switch that a read showed before the events of it came (see NoticeSwitch): the collection that OBS Studio left, and the one that it loaded. The events of that switch that come later are about it,
+        // and the model is of the new collection already: they are not acted on a second time (CurrentSceneCollectionChanging says the name of the collection that is left, and CurrentSceneCollectionChanged
+        // the name of the one that is loaded). Any other event of a switch is another switch.
+        private (string From, string To)? _switchShownByRead;
+
+        // The canvases of OBS Studio (the main one, and those that plugins made). A scene collection saves its canvases, so they are those of the collection: a switch drops them, and they are read again
+        // with the rest. OBS Studio keeps a canvas that it says it removed on its list until the last reference to it is released (it does not say so again), so the canvases that it said it removed are
+        // left out of what a read lists (they do not come back: a canvas of a collection that is loaded again is another one, and a new connection or collection starts the set anew).
+        private readonly ScopeState _canvasesScope = new();
+        private readonly HashSet<Guid> _removedCanvases = new();
+        private Cell<CanvasList?> _canvases = new(null, 0);
         // The outputs (stream, recording, virtual camera, replay buffer), in the order of ObsOutputKind. They do not belong to a scene collection.
         private readonly OutputNode[] _outputs = [new(ObsOutputKind.Stream), new(ObsOutputKind.Record), new(ObsOutputKind.VirtualCamera), new(ObsOutputKind.ReplayBuffer)];
         private Cell<Guid?> _programUuid = new(null, 0);
@@ -276,6 +307,9 @@ namespace OBSStudioClient.Model.Engine
         private bool _studioRead;
         private bool _previewRead;
         private bool _transitionRead;
+        private bool _profilesRead;
+        private bool _collectionsRead;
+        private bool _canvasesRead;
 
         public ModelEngine(ModelEngineOptions? options = null)
         {
@@ -354,6 +388,9 @@ namespace OBSStudioClient.Model.Engine
             this._sessionId = sessionId;
             this._state = ModelEngineState.Synchronizing;
 
+            // The events of a switch that a read showed on the connection before this one do not come on this one.
+            this._switchShownByRead = null;
+
             // A switch of the scene collection that the connection before had begun, and that was not seen to its end: OBS Studio left the collection that the model holds, and
             // what it has loaded now (maybe that very collection, with the UUIDs that it had) is read as the first collection of a connection is, with nothing of the old one
             // merged into it. A connection that ended without a switch keeps the model, and merges what it reads by UUID.
@@ -362,7 +399,8 @@ namespace OBSStudioClient.Model.Engine
                 this.ForgetCollection();
             }
 
-            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = false;
+            this._scenesRead = this._inputsRead = this._programRead = this._studioRead = this._previewRead = this._transitionRead = this._profilesRead = this._collectionsRead = this._canvasesRead = false;
+            this._removedCanvases.Clear();
 
             // OBS Studio that says that it is exiting does not come back as the same one: a connection that is made after it is made to one that was started again.
             this._exiting.ApplyDerived(false, seq);
@@ -539,6 +577,21 @@ namespace OBSStudioClient.Model.Engine
                 Take(this._transitionScope, new ReadRequest(ReadKind.Transition, RequestType.GetCurrentSceneTransition, null, Guid.Empty));
             }
 
+            if (this._profilesScope.IsReady(now))
+            {
+                Take(this._profilesScope, new ReadRequest(ReadKind.Profiles, RequestType.GetProfileList, null, Guid.Empty));
+            }
+
+            if (this._collectionsScope.IsReady(now))
+            {
+                Take(this._collectionsScope, new ReadRequest(ReadKind.SceneCollections, RequestType.GetSceneCollectionList, null, Guid.Empty));
+            }
+
+            if (this._canvasesScope.IsReady(now))
+            {
+                Take(this._canvasesScope, new ReadRequest(ReadKind.Canvases, RequestType.GetCanvasList, null, Guid.Empty));
+            }
+
             // The preview scene is read once studio mode is known to be on; while it is off there is none, and nothing is asked.
             if (this._previewScope.IsReady(now) && this._studioRead)
             {
@@ -685,7 +738,7 @@ namespace OBSStudioClient.Model.Engine
                 }
             }
 
-            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this._previewRead && this._transitionRead && this.OutputsRead() ? 0 : 1);
+            return pending + this._unresolved.Count + (this._switching ? 1 : 0) + (this._scenesRead && this._inputsRead && this._programRead && this._studioRead && this._previewRead && this._transitionRead && this._profilesRead && this._collectionsRead && this._canvasesRead && this.OutputsRead() ? 0 : 1);
         }
 
         // Whether every output was read on this connection (or was found to be one that OBS Studio does not have).
@@ -710,6 +763,9 @@ namespace OBSStudioClient.Model.Engine
             yield return this._studioScope;
             yield return this._previewScope;
             yield return this._transitionScope;
+            yield return this._profilesScope;
+            yield return this._collectionsScope;
+            yield return this._canvasesScope;
             foreach (var output in this._outputs)
             {
                 yield return output.Scope;

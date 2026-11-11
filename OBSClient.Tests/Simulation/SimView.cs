@@ -31,6 +31,11 @@ namespace OBSStudioClient.Tests.Simulation
                 lines.Add($"input {input.Uuid:D} \"{input.Name}\" {input.Kind}{Audio(input)}{(input.MediaState is null ? string.Empty : " media=" + input.MediaState)} active={input.Active} showing={input.Showing} settings={input.Settings}");
             }
 
+            foreach (var canvas in snapshot.Canvases ?? [])
+            {
+                lines.Add($"canvas {canvas.Uuid:D} \"{canvas.Name}\" flags={canvas.Flags.ToString(CultureInfo.InvariantCulture)}");
+            }
+
             return lines;
         }
 
@@ -92,6 +97,17 @@ namespace OBSStudioClient.Tests.Simulation
                 var settings = SimJson.Serialize(System.Text.Json.Nodes.JsonNode.Parse(ask("GetInputSettings", new { inputUuid = uuid }).GetProperty("inputSettings").GetRawText())!);
                 var activity = ask("GetSourceActive", new { sourceUuid = uuid });
                 lines.Add($"input {uuid} \"{input.GetProperty("inputName").GetString()}\" {input.GetProperty("inputKind").GetString()}{audio}{media} active={(activity.GetProperty("videoActive").GetBoolean() ? "True" : "False")} showing={(activity.GetProperty("videoShowing").GetBoolean() ? "True" : "False")} settings={settings}");
+            }
+
+            foreach (var canvas in ask("GetCanvasList", null).GetProperty("canvases").EnumerateArray())
+            {
+                var flags = canvas.GetProperty("canvasFlags");
+                var mask = (flags.GetProperty("MAIN").GetBoolean() ? SimCanvasFlags.Main : 0)
+                    | (flags.GetProperty("ACTIVATE").GetBoolean() ? SimCanvasFlags.Activate : 0)
+                    | (flags.GetProperty("MIX_AUDIO").GetBoolean() ? SimCanvasFlags.MixAudio : 0)
+                    | (flags.GetProperty("SCENE_REF").GetBoolean() ? SimCanvasFlags.SceneRef : 0)
+                    | (flags.GetProperty("EPHEMERAL").GetBoolean() ? SimCanvasFlags.Ephemeral : 0);
+                lines.Add($"canvas {canvas.GetProperty("canvasUuid").GetString()} \"{canvas.GetProperty("canvasName").GetString()}\" flags={mask.ToString(CultureInfo.InvariantCulture)}");
             }
 
             return lines;
