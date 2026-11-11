@@ -111,12 +111,20 @@ namespace OBSStudioClient.Tests.Model
             await test.Rig.Responder.SendEventAsync("CanvasCreated", new { canvasName = "Vertical", canvasUuid = vertical }, Canvases);
             await ModelRig.EventuallyAsync(() => canvases.All.Count == 3, "the canvas that was made");
 
+            // The list is current before the notifier has told of it: wait for the PropertyChanged event, and for whatever else would follow it.
+            await ModelRig.EventuallyAsync(() => { lock (properties) { return properties.Count > 0; } }, "the change of the list to be told");
+            await Task.Delay(100);
+
             Assert.NotSame(before, canvases.All);
             Assert.Equal(2, before.Count);
             Assert.Same(main, canvases.Main);
             Assert.Same(main, canvases.All[0]);
             Assert.Same(overlay, canvases.All[1]);
-            Assert.Equal(["All"], properties.ToArray());
+            lock (properties)
+            {
+                Assert.Equal(["All"], properties.ToArray());
+            }
+
             Assert.Equal(vertical, canvases.All[2].Uuid);
         }
 
