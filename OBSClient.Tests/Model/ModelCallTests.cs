@@ -308,13 +308,33 @@ namespace OBSStudioClient.Tests.Model
 
                 await screenshot.SaveAsync(path);
 
-                Assert.Equal("image/jpg", screenshot.MediaType);
+                Assert.Equal("image/jpeg", screenshot.MediaType);
+                Assert.StartsWith("data:image/jpeg;base64,", screenshot.ToDataUri());
                 Assert.Equal(new byte[] { 1, 2, 3, 4 }, await File.ReadAllBytesAsync(path));
             }
             finally
             {
                 File.Delete(path);
             }
+        }
+
+        [Theory]
+        [InlineData("png", "image/png")]
+        [InlineData("jpg", "image/jpeg")]
+        [InlineData("jpeg", "image/jpeg")]
+        [InlineData("JPG", "image/jpeg")]
+        [InlineData("tif", "image/tiff")]
+        [InlineData("tiff", "image/tiff")]
+        [InlineData("pbm", "image/x-portable-bitmap")]
+        [InlineData("ico", "image/vnd.microsoft.icon")]
+        [InlineData("webp", "image/webp")]
+        [InlineData("avif", "image/avif")]
+        public void TheMediaTypeOfAScreenshot_IsThatOfItsFormat_NotTheNameThatOBSStudioGivesIt(string format, string expected)
+        {
+            var screenshot = ObsScreenshot.FromAnswer("data:image/x;base64,AQIDBA==", format);
+
+            Assert.Equal(expected, screenshot.MediaType);
+            Assert.Equal($"data:{expected};base64,AQIDBA==", screenshot.ToDataUri());
         }
 
         [Theory]

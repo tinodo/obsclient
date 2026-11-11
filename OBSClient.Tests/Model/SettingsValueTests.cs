@@ -106,5 +106,18 @@ namespace OBSStudioClient.Tests.Model
             Assert.True(SettingsValue.DeepEquals(Parse("""{"a":18446744073709551615}"""), Parse("""{"a":18446744073709551615}""")));
             Assert.False(SettingsValue.DeepEquals(Parse("""{"a":18446744073709551615}"""), Parse("""{"a":18446744073709551614}""")));
         }
+
+        [Theory]
+        [InlineData("0", "1e-29", false)]
+        [InlineData("1", "1.0", true)]
+        [InlineData("100", "1e2", true)]
+        [InlineData("0.1", "0.10", true)]
+        [InlineData("79228162514264337593543950335", "79228162514264337593543950336", false)]
+        [InlineData("0.12345678901234567890123456789", "0.12345678901234567890123456788", false)]
+        [InlineData("-0", "0", true)]
+        public void TwoNumbers_AreTheSameWhenTheyHaveTheSameValue_AtAnyPrecision(string left, string right, bool expected)
+        {
+            Assert.Equal(expected, SettingsValue.DeepEquals(Parse($$"""{"a":{{left}}}"""), Parse($$"""{"a":{{right}}}""")));
+        }
     }
 }

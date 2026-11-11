@@ -190,20 +190,10 @@ namespace OBSStudioClient.Model.Engine
             return count;
         }
 
-        // 1 and 1.0 are the same number; a number that does not fit a decimal or a double is compared by its text.
+        // 1 and 1.0 are the same number, and 0 and 1e-29 are not: the numbers are compared by their value, at any precision (a conversion to decimal or to double rounds, and would make different numbers equal).
         private static bool NumbersEqual(JsonElement left, JsonElement right)
         {
-            if (left.GetRawText() == right.GetRawText())
-            {
-                return true;
-            }
-
-            if (left.TryGetDecimal(out var leftDecimal) && right.TryGetDecimal(out var rightDecimal))
-            {
-                return leftDecimal == rightDecimal;
-            }
-
-            return left.TryGetDouble(out var leftDouble) && right.TryGetDouble(out var rightDouble) && leftDouble == rightDouble;
+            return JsonElement.DeepEquals(left, right);
         }
 
         private static int Hash(JsonElement element)

@@ -5,6 +5,30 @@ namespace OBSStudioClient.Model
     /// </summary>
     public sealed class ObsScreenshot
     {
+        // OBS Studio names a format by the extension of its files (it takes them from the formats that its toolkit can write), and an extension is not always the name of the media type: a format that is
+        // not here has the name that it was given as its media type (image/avif).
+        private static readonly Dictionary<string, string> MediaTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["bmp"] = "image/bmp",
+            ["cur"] = "image/x-icon",
+            ["gif"] = "image/gif",
+            ["icns"] = "image/x-icns",
+            ["ico"] = "image/vnd.microsoft.icon",
+            ["jfif"] = "image/jpeg",
+            ["jpeg"] = "image/jpeg",
+            ["jpg"] = "image/jpeg",
+            ["pbm"] = "image/x-portable-bitmap",
+            ["pgm"] = "image/x-portable-graymap",
+            ["png"] = "image/png",
+            ["ppm"] = "image/x-portable-pixmap",
+            ["tif"] = "image/tiff",
+            ["tiff"] = "image/tiff",
+            ["wbmp"] = "image/vnd.wap.wbmp",
+            ["webp"] = "image/webp",
+            ["xbm"] = "image/x-xbitmap",
+            ["xpm"] = "image/x-xpixmap",
+        };
+
         private readonly byte[] _data;
 
         internal ObsScreenshot(string format, byte[] data)
@@ -24,9 +48,9 @@ namespace OBSStudioClient.Model
         public ReadOnlyMemory<byte> Data => this._data;
 
         /// <summary>
-        /// Gets the media type of the image, for example <c>image/png</c>.
+        /// Gets the media type of the image, for example <c>image/png</c>: the media type of the format (<c>image/jpeg</c> for <c>jpg</c>, <c>image/tiff</c> for <c>tif</c>), which is not always the name that OBS Studio gives the format.
         /// </summary>
-        public string MediaType => $"image/{this.Format}";
+        public string MediaType => MediaTypes.TryGetValue(this.Format, out var mediaType) ? mediaType : $"image/{this.Format}";
 
         /// <summary>
         /// Writes the screenshot to a file.
