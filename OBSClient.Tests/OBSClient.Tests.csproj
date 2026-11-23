@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <PackageReference Include="coverlet.collector" Version="10.1.1" />
     <!-- Property-based tests and the fuzz test (Fuzz/): generators of random input, and properties that have to hold for all of it. -->
     <PackageReference Include="FsCheck" Version="3.6.0" />
     <!-- nuget.org renders the README of the package with Markdig: ReadmeTests parse it with the same library, in the version that nuget.org
@@ -17,7 +17,7 @@
          that version that the README meets, bugs included, and not the newest. Dependabot leaves it alone (.github/dependabot.yml), and a test
          (ReadmeTests) fails when it is changed, so that raising it is a decision and not an accident: see CONTRIBUTING.md, "Dependency updates". -->
     <PackageReference Include="Markdig" Version="0.37.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>
